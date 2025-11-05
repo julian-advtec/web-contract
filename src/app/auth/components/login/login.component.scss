@@ -1,0 +1,125 @@
+/* Fondo general */
+:host {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100vw;
+  background: url('../../../../assets/images/fondo.jpg') no-repeat center center / cover;
+  font-family: 'Poppins', sans-serif;
+}
+
+/* Contenedor principal */
+.login-container {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(14px);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  padding: 3rem 2.5rem;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 2px solid rgba(150, 255, 200, 0.25); /* verde más claro */
+}
+
+/* Título */
+.login-container h2 {
+  font-size: 1.8rem;
+  color: #a3ffd6; /* verde menta claro */
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+}
+
+/* Grupo de inputs con iconos */
+.input-group {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  background: rgba(240, 255, 245, 0.95); /* fondo suave, cálido y verde muy claro */
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  border: 2px solid rgba(150, 255, 200, 0.25);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.input-group:focus-within {
+  border-color: #76f5b7; /* verde menta brillante */
+  box-shadow: 0 0 8px rgba(118, 245, 183, 0.5);
+}
+
+.input-group i {
+  color: #57dba2; /* verde suave para íconos */
+  font-size: 1.1rem;
+  margin-left: 0.8rem;
+}
+
+.input-group input {
+  flex: 1;
+  padding: 0.9rem 1rem;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 1rem;
+  color: #0e2d1f; /* texto oscuro y cálido, mejor contraste */
+}
+
+/* Placeholder color */
+.input-group input::placeholder {
+  color: #66c89d; /* verde pastel claro */
+  opacity: 1;
+}
+
+/* Botón principal */
+.login-container button {
+  width: 100%;
+  padding: 0.9rem;
+  background: linear-gradient(90deg, #00e6a2, #5fffca);
+  border: 2px solid #90ffd5;
+  border-radius: 8px;
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.login-container button:hover {
+  transform: scale(1.03);
+  background: linear-gradient(90deg, #00cf8e, #4fffc0);
+  border-color: #4fffc0;
+}
+
+/* Enlace de recuperación */
+.forgot-password {
+  margin-top: 1rem;
+  color: #d2ffee;
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: color 0.3s ease;
+}
+
+.forgot-password:hover {
+  color: #a7ffd9;
+  text-decoration: underline;
+}
+
+/* Error */
+.error {
+  margin-top: 1rem;
+  color: #ff6b6b;
+  font-size: 0.95rem;
+}
+
+/* Adaptación a pantallas pequeñas */
+@media (max-width: 768px) {
+  .login-container {
+    padding: 2rem 1.5rem;
+    width: 90%;
+  }
+
+  .login-container h2 {
+    font-size: 1.5rem;
+  }
+}
