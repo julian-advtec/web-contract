@@ -1,3 +1,4 @@
+import 'tslib'; // ✅ AGREGAR ESTA LÍNEA
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
