@@ -1,0 +1,135 @@
+// Variables reutilizables
+$primary-gradient: linear-gradient(90deg, #00e6a2, #5fffca);
+$primary-border: rgba(150, 255, 200, 0.25);
+$primary-color: #a3ffd6;
+$input-bg: rgba(240, 255, 245, 0.95);
+$input-focus: #76f5b7;
+$text-light: #d2ffee;
+$error-color: #ff6b6b;
+
+// Mixins reutilizables
+@mixin auth-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100vw;
+  background: url('/assets/images/fondo.jpg') no-repeat center center / cover;
+  font-family: 'Poppins', sans-serif;
+}
+
+@mixin auth-card {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(14px);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  padding: 3rem 2.5rem;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 2px solid $primary-border;
+}
+
+@mixin auth-title {
+  font-size: 1.8rem;
+  color: $primary-color;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+@mixin input-group {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  background: $input-bg;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  border: 2px solid $primary-border;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+
+  &:focus-within {
+    border-color: $input-focus;
+    box-shadow: 0 0 8px rgba(118, 245, 183, 0.5);
+  }
+
+  i {
+    color: #57dba2;
+    font-size: 1.1rem;
+    margin-left: 0.8rem;
+  }
+
+  input {
+    flex: 1;
+    padding: 0.9rem 1rem;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 1rem;
+    color: #0e2d1f;
+
+    &::placeholder {
+      color: #66c89d;
+      opacity: 1;
+    }
+  }
+}
+
+@mixin primary-button {
+  width: 100%;
+  padding: 0.9rem;
+  background: $primary-gradient;
+  border: 2px solid #90ffd5;
+  border-radius: 8px;
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover:not(:disabled) {
+    transform: scale(1.03);
+    background: linear-gradient(90deg, #00cf8e, #4fffc0);
+    border-color: #4fffc0;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+@mixin auth-link {
+  margin-top: 1rem;
+  color: $text-light;
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: color 0.3s ease;
+
+  &:hover {
+    color: #a7ffd9;
+    text-decoration: underline;
+  }
+}
+
+@mixin error-message {
+  margin-top: 1rem;
+  color: $error-color;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+// Responsive
+@mixin mobile-styles {
+  @media (max-width: 768px) {
+    padding: 2rem 1.5rem;
+    width: 90%;
+
+    h2 {
+      font-size: 1.5rem;
+    }
+  }
+}

@@ -25,7 +25,10 @@
     {{ loading ? 'Ingresando...' : 'Entrar' }}
   </button>
 
-  <a class="forgot-password" href="#">¿Olvidaste tu contraseña?</a>
+  <!-- CAMBIO: Usar routerLink en lugar de href -->
+  <a class="forgot-password" routerLink="/auth/forgot-password">
+    ¿Olvidaste tu contraseña?
+  </a>
 
   <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
 </form>

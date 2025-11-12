@@ -1,0 +1,201 @@
+@import '../../auth-styles';
+
+:host {
+  @include auth-container;
+}
+
+.verify-2fa-container {
+  @include auth-card;
+  
+  h2 {
+    @include auth-title;
+  }
+
+  .subtitle {
+    color: $text-light;
+    text-align: center;
+    margin-bottom: 2rem;
+    font-size: 0.95rem;
+    line-height: 1.4;
+  }
+
+  .code-inputs-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .code-inputs {
+    display: flex;
+    gap: 0.8rem;
+    justify-content: center;
+
+    .code-input-wrapper {
+      &.error .code-input {
+        border-color: $error-color;
+        background: rgba(255, 107, 107, 0.1);
+      }
+    }
+
+    .code-input {
+      width: 50px;
+      height: 60px;
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 600;
+      border: 2px solid $primary-border;
+      border-radius: 8px;
+      background: $input-bg;
+      color: #0e2d1f;
+      transition: all 0.3s ease;
+
+      &:focus {
+        outline: none;
+        border-color: $input-focus;
+        box-shadow: 0 0 8px rgba(118, 245, 183, 0.5);
+        transform: scale(1.05);
+      }
+
+      &::placeholder {
+        color: #66c89d;
+      }
+    }
+  }
+
+  .hint {
+    color: $text-light;
+    font-size: 0.8rem;
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+
+  .validation-error {
+    color: $error-color;
+    font-size: 0.8rem;
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+
+  .timer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: $text-light;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+    
+    i {
+      margin-right: 0.5rem;
+      color: $primary-color;
+    }
+    
+    strong {
+      color: $primary-color;
+      margin-left: 0.3rem;
+    }
+  }
+
+  button[type="submit"] {
+    @include primary-button;
+    margin-bottom: 1rem;
+  }
+
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    margin-top: 1rem;
+
+    .btn-resend {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid $primary-border;
+      color: $text-light;
+      padding: 0.8rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+
+      &:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.2);
+        color: $primary-color;
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
+
+    .btn-cancel {
+      background: none;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: $text-light;
+      padding: 0.8rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: $error-color;
+        color: $error-color;
+      }
+    }
+  }
+
+  .error {
+    @include error-message;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    
+    i {
+      font-size: 1.1rem;
+    }
+  }
+
+  .success-message {
+    margin-top: 1rem;
+    color: $primary-color;
+    font-size: 0.95rem;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    
+    i {
+      font-size: 1.1rem;
+    }
+  }
+
+  .debug-info {
+    margin-top: 1rem;
+    padding: 0.8rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: $text-light;
+    font-size: 0.8rem;
+    text-align: center;
+    border-left: 3px solid $primary-color;
+  }
+
+  @include mobile-styles;
+}
+
+// Estilos responsive para móviles
+@media (max-width: 480px) {
+  .code-inputs {
+    gap: 0.5rem !important;
+    
+    .code-input {
+      width: 45px !important;
+      height: 55px !important;
+      font-size: 1.3rem !important;
+    }
+  }
+}

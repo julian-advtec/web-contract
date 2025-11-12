@@ -1,13 +1,13 @@
 import { Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router'; // ← Agregar RouterLink
 import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink], // ← Agregar RouterLink aquí
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss'],
 })
@@ -31,13 +31,19 @@ export class LoginComponent {
 
     try {
       const { username, password } = this.form.value;
-      await this.auth.login(username!, password!);
+      const response: any = await this.auth.login(username!, password!);
+
+      if (response.requiresTwoFactor && response.userId) {
+        sessionStorage.setItem('2faUserId', response.userId);
+        this.router.navigate(['/auth/verify-2fa']);
+        return;
+      }
+
       this.router.navigate(['/dashboard']);
-    } catch {
-      this.errorMessage = 'Usuario o contraseña incorrectos';
+    } catch (err: any) {
+      this.errorMessage = err?.message || 'Usuario o contraseña incorrectos';
     } finally {
       this.loading = false;
     }
   }
-
 }

@@ -1,0 +1,75 @@
+<div class="verify-2fa-container">
+  <h2>Verificación en Dos Pasos</h2>
+  
+  <p class="subtitle">
+    Ingresa el código de 6 dígitos que enviamos a tu correo electrónico
+  </p>
+
+  <form (ngSubmit)="onSubmit()">
+    <div class="code-inputs-container">
+      <div class="code-inputs">
+        <div 
+          *ngFor="let control of codeControls; let i = index" 
+          class="code-input-wrapper"
+          [class.error]="control.invalid && control.touched"
+        >
+          <input 
+            #codeInput
+            type="text" 
+            [formControl]="control"
+            maxlength="1"
+            (input)="onCodeInput($event, i)"
+            (keydown)="onKeyDown($event, i)"
+            (paste)="onPaste($event, i)"
+            autocomplete="one-time-code"
+            class="code-input"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="hint">Ingresa cada dígito del código</div>
+
+    <div *ngIf="isFormInvalid() && codeControls[0].touched" class="validation-error">
+      <div>Completa todos los dígitos del código</div>
+    </div>
+
+    <div class="timer">
+      <i class="fa fa-clock"></i>
+      Tiempo restante: <strong>{{ formatTime(timeLeft) }}</strong>
+    </div>
+
+    <button type="submit" [disabled]="loading || !isAllCodesFilled() || timeLeft === 0">
+      {{ loading ? 'Verificando...' : 'Verificar Código' }}
+    </button>
+
+    <div class="actions">
+      <button 
+        type="button" 
+        class="btn-resend"
+        (click)="resendCode()" 
+        [disabled]="timeLeft > 480"
+      >
+        {{ timeLeft > 480 ? 'Reenviar en ' + formatTime(timeLeft - 480) : 'Reenviar Código' }}
+      </button>
+
+      <button type="button" class="btn-cancel" (click)="cancel()">
+        Cancelar
+      </button>
+    </div>
+
+    <div *ngIf="errorMessage" class="error">
+      <i class="fa fa-exclamation-circle"></i>
+      {{ errorMessage }}
+    </div>
+
+    <div *ngIf="successMessage" class="success-message">
+      <i class="fa fa-check-circle"></i>
+      {{ successMessage }}
+    </div>
+  </form>
+
+  <div class="debug-info" *ngIf="debugInfo">
+    {{ debugInfo }}
+  </div>
+</div>
