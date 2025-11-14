@@ -4,15 +4,55 @@
   @include auth-container;
 }
 
+.login-wrapper {
+  position: relative; // Para que el watermark se posicione relativo a este contenedor
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .login-container {
   @include auth-card;
-  
+
   h2 {
     @include auth-title;
   }
 
   .input-group {
     @include input-group;
+  }
+
+  /* 🔹 Ajuste visual para mensajes de campo */
+  .field-error {
+    color: #000000;
+    font-size: 0.85rem;
+    margin-top: -0.2rem; /* sube el mensaje */
+    margin-bottom: 0.6rem; /* separa del siguiente input */
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+
+    i {
+      font-size: 0.9rem;
+    }
+  }
+
+  /* 🔹 Error general */
+  .error {
+    @include error-message;
+    text-align: center;
+    margin-top: 0.5rem; /* subido un poco */
+    color: #000000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.3rem;
+
+    i {
+      font-size: 1rem;
+    }
   }
 
   button {
@@ -23,9 +63,49 @@
     @include auth-link;
   }
 
-  .error {
-    @include error-message;
-  }
-
   @include mobile-styles;
+}
+
+// Marca de agua - POSICIÓN FIXED para toda la pantalla con cyan más sólido
+.global-watermark {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(0, 255, 255, 0.35) !important; // Cyan más sólido pero no completo
+  pointer-events: none;
+  user-select: none;
+  z-index: 9999;
+  font-family: 'Poppins', sans-serif;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  
+  // Asegurar que no afecte otros elementos
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent !important;
+  transition: none;
+  
+  // Sin hover effects
+  &:hover {
+    opacity: 1;
+  }
+}
+
+// Responsive
+@media (max-width: 768px) {
+  .global-watermark {
+    right: 15px;
+    bottom: 15px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .global-watermark {
+    right: 10px;
+    bottom: 10px;
+    font-size: 10px;
+  }
 }

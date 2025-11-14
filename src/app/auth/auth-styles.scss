@@ -1,11 +1,13 @@
-// Variables reutilizables
-$primary-gradient: linear-gradient(90deg, #00e6a2, #5fffca);
-$primary-border: rgba(150, 255, 200, 0.25);
-$primary-color: #a3ffd6;
-$input-bg: rgba(240, 255, 245, 0.95);
-$input-focus: #76f5b7;
-$text-light: #d2ffee;
+// Variables reutilizables ACTUALIZADAS
+$primary-gradient: linear-gradient(90deg, #00ffff, #80ffff);
+$primary-border: rgba(150, 255, 255, 0.25);
+$primary-color: #00ffff;
+$input-bg: rgba(240, 255, 255, 0.95);
+$input-focus: #00ffff;
+$text-light: #d2ffff;
 $error-color: #ff6b6b;
+$watermark-color: rgba(255, 255, 255, 0.2);
+$watermark-cyan: rgba(0, 255, 255, 0.15);
 
 // Mixins reutilizables
 @mixin auth-container {
@@ -16,6 +18,7 @@ $error-color: #ff6b6b;
   width: 100vw;
   background: url('/assets/images/fondo.jpg') no-repeat center center / cover;
   font-family: 'Poppins', sans-serif;
+  position: relative; // Importante para el watermark
 }
 
 @mixin auth-card {
@@ -30,14 +33,16 @@ $error-color: #ff6b6b;
   flex-direction: column;
   align-items: center;
   border: 2px solid $primary-border;
+  // SIN position: relative aquí
 }
 
 @mixin auth-title {
   font-size: 1.8rem;
-  color: $primary-color;
+  color: $primary-color; // #00ffff
   margin-bottom: 1.5rem;
   font-weight: 600;
   text-align: center;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
 }
 
 @mixin input-group {
@@ -51,12 +56,12 @@ $error-color: #ff6b6b;
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
 
   &:focus-within {
-    border-color: $input-focus;
-    box-shadow: 0 0 8px rgba(118, 245, 183, 0.5);
+    border-color: $input-focus; // #00ffff
+    box-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
   }
 
   i {
-    color: #57dba2;
+    color: #00cccc; // Cyan más oscuro para íconos
     font-size: 1.1rem;
     margin-left: 0.8rem;
   }
@@ -68,10 +73,10 @@ $error-color: #ff6b6b;
     outline: none;
     background: transparent;
     font-size: 1rem;
-    color: #0e2d1f;
+    color: #0e2d2d;
 
     &::placeholder {
-      color: #66c89d;
+      color: #66c8c8;
       opacity: 1;
     }
   }
@@ -80,19 +85,21 @@ $error-color: #ff6b6b;
 @mixin primary-button {
   width: 100%;
   padding: 0.9rem;
-  background: $primary-gradient;
-  border: 2px solid #90ffd5;
+  background: $primary-gradient; // Gradiente cyan
+  border: 2px solid #00ffff;
   border-radius: 8px;
-  color: white;
+  color: #006666; // Texto oscuro para mejor contraste
   font-size: 1.1rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 255, 255, 0.3);
 
   &:hover:not(:disabled) {
     transform: scale(1.03);
-    background: linear-gradient(90deg, #00cf8e, #4fffc0);
-    border-color: #4fffc0;
+    background: linear-gradient(90deg, #00e6e6, #66ffff);
+    border-color: #66ffff;
+    box-shadow: 0 6px 20px rgba(0, 255, 255, 0.4);
   }
 
   &:disabled {
@@ -110,7 +117,7 @@ $error-color: #ff6b6b;
   transition: color 0.3s ease;
 
   &:hover {
-    color: #a7ffd9;
+    color: #a7ffff;
     text-decoration: underline;
   }
 }
@@ -122,6 +129,33 @@ $error-color: #ff6b6b;
   text-align: center;
 }
 
+// Mixin para watermark - EN CONTENEDOR PRINCIPAL
+@mixin watermark($color: $watermark-color, $font-size: 14px, $bottom: 20px, $left: 20px) {
+  position: fixed; // Cambiado a fixed para que sea global
+  bottom: $bottom;
+  left: $left;
+  font-size: $font-size;
+  font-weight: bold;
+  color: $color;
+  pointer-events: none;
+  user-select: none;
+  transition: opacity 0.3s ease;
+  z-index: 1000;
+  
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
+// Clases de watermark - PARA CONTENEDOR PRINCIPAL
+.watermark {
+  @include watermark();
+}
+
+.watermark-cyan {
+  @include watermark($watermark-cyan);
+}
+
 // Responsive
 @mixin mobile-styles {
   @media (max-width: 768px) {
@@ -130,6 +164,13 @@ $error-color: #ff6b6b;
 
     h2 {
       font-size: 1.5rem;
+    }
+
+    // Ajustes para watermark en móviles
+    .watermark, .watermark-cyan {
+      left: 10px;
+      bottom: 10px;
+      font-size: 12px;
     }
   }
 }

@@ -1,6 +1,8 @@
+// auth.service.ts - COMPLETO Y CORREGIDO
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, firstValueFrom } from 'rxjs';
+import { BehaviorSubject, Observable, throwError } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
 
@@ -12,20 +14,17 @@ export interface User {
 }
 
 export interface AuthResponse {
+  ok: boolean;
+  success?: boolean;
   access_token?: string;
   user?: User;
   message: string;
-  success: boolean;
   requiresTwoFactor?: boolean;
   userId?: string;
   expiresIn?: string;
-}
-
-export interface TwoFactorResponse {
-  success: boolean;
-  message: string;
-  access_token?: string;
-  user?: User;
+  data?: any;
+  path?: string;
+  timestamp?: string;
 }
 
 @Injectable({
@@ -67,141 +66,85 @@ export class AuthService {
   }
 
   /**
-   * Login principal - CORREGIDO para extraer data
+   * Login principal - MEJORADO
    */
-  async login(username: string, password: string): Promise<AuthResponse> {
-    try {
-      console.log('🔐 AuthService - Iniciando login para:', username);
-      
-      const response = await firstValueFrom(
-        this.http.post<any>(`${this.apiUrl}/auth/login`, {
-          username,
-          password
-        })
-      );
-
-      console.log('🔐 AuthService - Respuesta completa:', response);
-      
-      // 🔥 EXTRAER LOS DATOS DE "data"
-      const authData = response.data || response;
-      
-      console.log('🔐 AuthService - Datos de autenticación:', authData);
-
-      // Si requiere 2FA, guardar userId pendiente
-      if (authData.requiresTwoFactor && authData.userId) {
-        console.log('🔐 AuthService - 2FA requerido, userId:', authData.userId);
-        this.pendingUserId.next(authData.userId);
-        sessionStorage.setItem('2faUserId', authData.userId);
-        return authData;
-      }
-
-      // Si no requiere 2FA, login completo
-      if (authData.access_token && authData.user) {
-        console.log('🔐 AuthService - Login completo, guardando token');
-        this.setAuthData(authData.access_token, authData.user);
-      }
-
-      return authData;
-    } catch (error: any) {
-      console.error('🔐 AuthService - Error en login:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Verificar código 2FA - CORREGIDO para extraer data
-   */
-  async verifyTwoFactor(code: string): Promise<TwoFactorResponse> {
-    let userId = this.pendingUserId.value;
-
-    if (!userId) {
-      userId = sessionStorage.getItem('2faUserId');
-    }
-
-    if (!userId) {
-      throw new Error('No hay usuario pendiente de verificación');
-    }
-
-    try {
-      const response = await firstValueFrom(
-        this.http.post<any>(`${this.apiUrl}/auth/verify-2fa`, {
-          userId,
-          code
-        })
-      );
-
-      // 🔥 EXTRAER DATOS DE "data"
-      const result = response.data || response;
-      console.log('🔐 AuthService - Resultado verificación 2FA:', result);
-
-      if (result.success && result.access_token && result.user) {
-        this.setAuthData(result.access_token, result.user);
-        this.clearPendingAuth();
-      }
-
-      return result;
-    } catch (error: any) {
-      console.error('🔐 AuthService - Error en verificación 2FA:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Reenviar código 2FA - CORREGIDO para extraer data
-   */
-  async resendTwoFactorCode(): Promise<{ success: boolean; message: string }> {
-    let userId = this.pendingUserId.value;
-
-    if (!userId) {
-      userId = sessionStorage.getItem('2faUserId');
-    }
-
-    if (!userId) {
-      throw new Error('No hay usuario pendiente de verificación');
-    }
-
-    const response = await firstValueFrom(
-      this.http.post<any>(
-        `${this.apiUrl}/auth/resend-2fa`,
-        { userId }
-      )
-    );
-
-    // 🔥 EXTRAER DATOS DE "data"
-    return response.data || response;
-  }
-
-  /**
-   * Login directo - CORREGIDO para extraer data
-   */
-  async loginDirect(username: string, password: string): Promise<AuthResponse> {
-    const response = await firstValueFrom(
-      this.http.post<any>(`${this.apiUrl}/auth/login-direct`, {
-        username,
-        password
+  login(username: string, password: string): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.apiUrl}/auth/login`, {
+      username,
+      password
+    }).pipe(
+      map(response => {
+        console.log('🔐 AuthService - Login response mapped:', response);
+        return response;
+      }),
+      catchError(error => {
+        console.error('🔐 AuthService - Error en login:', error);
+        return throwError(() => error);
       })
     );
+  }
 
-    // 🔥 EXTRAER DATOS DE "data"
-    const authData = response.data || response;
+  /**
+   * Verificar código 2FA
+   */
+  verify2FA(userId: string, code: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/auth/verify-2fa`, {
+      userId,
+      code
+    }).pipe(
+      catchError(error => {
+        console.error('🔐 AuthService - Error en verificación 2FA:', error);
+        return throwError(() => error);
+      })
+    );
+  }
 
-    if (authData.access_token && authData.user) {
-      this.setAuthData(authData.access_token, authData.user);
-    }
+  /**
+   * Reenviar código 2FA
+   */
+  resend2FACode(userId: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/auth/resend-2fa`, {
+      userId
+    }).pipe(
+      catchError(error => {
+        console.error('🔐 AuthService - Error al reenviar código:', error);
+        return throwError(() => error);
+      })
+    );
+  }
 
-    return authData;
+  /**
+   * Login directo
+   */
+  loginDirect(username: string, password: string): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.apiUrl}/auth/login-direct`, {
+      username,
+      password
+    }).pipe(
+      catchError(error => {
+        console.error('🔐 AuthService - Error en login directo:', error);
+        return throwError(() => error);
+      })
+    );
   }
 
   /**
    * Guardar datos de autenticación
    */
-  private setAuthData(token: string, user: User): void {
+  setToken(token: string): void {
     try {
       localStorage.setItem('token', token);
+    } catch (error) {
+      console.error('Error saving token:', error);
+    }
+  }
+
+  setUser(user: User): void {
+    try {
       localStorage.setItem('user', JSON.stringify(user));
       this.currentUserSubject.next(user);
     } catch (error) {
-      console.error('Error saving auth data:', error);
+      console.error('Error saving user:', error);
     }
   }
 
@@ -222,7 +165,6 @@ export class AuthService {
    */
   logout(): void {
     this.clearStoredAuth();
-    sessionStorage.removeItem('2faUserId');
     this.currentUserSubject.next(null);
     this.pendingUserId.next(null);
     this.router.navigate(['/auth/login']);
@@ -257,7 +199,14 @@ export class AuthService {
    * Obtener userId pendiente (para 2FA)
    */
   getPendingUserId(): string | null {
-    return this.pendingUserId.value || sessionStorage.getItem('2faUserId');
+    return this.pendingUserId.value;
+  }
+
+  /**
+   * Establecer userId pendiente
+   */
+  setPendingUserId(userId: string): void {
+    this.pendingUserId.next(userId);
   }
 
   /**
@@ -265,13 +214,48 @@ export class AuthService {
    */
   clearPendingAuth(): void {
     this.pendingUserId.next(null);
-    sessionStorage.removeItem('2faUserId');
   }
 
   /**
-   * Verificar si hay autenticación pendiente (2FA)
+   * Verificar si hay autenticación pendiente (2FA) - MÉTODO AGREGADO
    */
   hasPendingAuth(): boolean {
-    return !!this.getPendingUserId();
+    return !!this.pendingUserId.value;
+  }
+
+  forgotPassword(email: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/auth/forgot-password`, { email }).pipe(
+      catchError(error => {
+        console.error('🔐 AuthService - Error en forgot password:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /**
+   * Reset password
+   */
+  resetPassword(token: string, newPassword: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/auth/reset-password`, {
+      token,
+      newPassword
+    }).pipe(
+      catchError(error => {
+        console.error('🔐 AuthService - Error en reset password:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /**
+   * Validate reset token
+   */
+  validateResetToken(token: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/auth/validate-reset-token`, { token }).pipe(
+      catchError(error => {
+        console.error('🔐 AuthService - Error validando reset token:', error);
+        return throwError(() => error);
+      })
+    );
   }
 }

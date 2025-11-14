@@ -1,34 +1,53 @@
-<form class="login-container" [formGroup]="form" (ngSubmit)="onSubmit()">
-  <h2>Iniciar Sesión</h2>
+<div class="login-wrapper">
+  <form class="login-container" [formGroup]="form" (ngSubmit)="onSubmit()">
+    <h2>Iniciar Sesión</h2>
 
-  <div class="input-group">
-    <i class="fa fa-user"></i>
-    <input 
-      type="text" 
-      placeholder="Usuario" 
-      formControlName="username"
-      autocomplete="username"
-    />
-  </div>
+    <!-- Campo Usuario -->
+    <div class="input-group">
+      <i class="fa fa-user"></i>
+      <input
+        type="text"
+        placeholder="Usuario"
+        formControlName="username"
+        autocomplete="username"
+      />
+    </div>
 
-  <div class="input-group">
-    <i class="fa fa-lock"></i>
-    <input 
-      type="password" 
-      placeholder="Contraseña" 
-      formControlName="password"
-      autocomplete="current-password"
-    />
-  </div>
+    <div *ngIf="isFieldInvalid('username')" class="field-error">
+      <i class="fa fa-exclamation-circle"></i> El usuario es obligatorio
+    </div>
 
-  <button type="submit" [disabled]="loading">
-    {{ loading ? 'Ingresando...' : 'Entrar' }}
-  </button>
+    <!-- Campo Contraseña -->
+    <div class="input-group">
+      <i class="fa fa-lock"></i>
+      <input
+        type="password"
+        placeholder="Contraseña"
+        formControlName="password"
+        autocomplete="current-password"
+      />
+    </div>
 
-  <!-- CAMBIO: Usar routerLink en lugar de href -->
-  <a class="forgot-password" routerLink="/auth/forgot-password">
-    ¿Olvidaste tu contraseña?
-  </a>
+    <div *ngIf="isFieldInvalid('password')" class="field-error">
+      <i class="fa fa-exclamation-circle"></i> La contraseña es obligatoria
+    </div>
 
-  <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
-</form>
+    <!-- Botón -->
+    <button type="submit" [disabled]="loading">
+      {{ loading ? 'Ingresando...' : 'Entrar' }}
+    </button>
+
+    <!-- Enlace de recuperación -->
+    <a class="forgot-password" (click)="goToForgotPassword()">
+      ¿Olvidaste tu contraseña?
+    </a>
+
+    <!-- Error general -->
+    <p *ngIf="errorMessage" class="error">
+      <i class="fa fa-times-circle"></i> {{ errorMessage }}
+    </p>
+  </form>
+
+  <!-- Marca de agua FUERA del formulario, en el contenedor principal -->
+  <div class="global-watermark">© 2025 Advising Technology - Soporte de Certificados SSL para API Docker en Colombia</div>
+</div>
