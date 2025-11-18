@@ -18,10 +18,13 @@ export const routes: Routes = [
     loadComponent: () => import('./auth/pages/verify-2fa/verify-2fa.component').then(m => m.Verify2faComponent),
     canActivate: [TwoFactorGuard]
   },
-
-  // 🔥 ESTE DEBE QUEDAR, pero al final
-  { path: '', redirectTo: '/auth/login', pathMatch: 'full' },
-
-  // ❗❗ MOVER ESTA RUTA AL FINAL SIEMPRE ❗❗
-  { path: '**', redirectTo: '/auth/login' }
+  { 
+    path: '', 
+    redirectTo: '/dashboard', 
+    pathMatch: 'full' 
+  },
+  { 
+    path: '**', 
+    redirectTo: '/dashboard' 
+  }
 ];

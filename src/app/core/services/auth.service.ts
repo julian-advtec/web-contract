@@ -2,7 +2,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, throwError } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { catchError, map, tap } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
 
@@ -17,6 +17,7 @@ export interface AuthResponse {
   ok: boolean;
   success?: boolean;
   access_token?: string;
+  token?: string;
   user?: User;
   message: string;
   requiresTwoFactor?: boolean;
@@ -42,6 +43,10 @@ export class AuthService {
   private pendingUserId = new BehaviorSubject<string | null>(null);
   public pendingUserId$ = this.pendingUserId.asObservable();
 
+  // Para manejar estado de autenticación
+  private isLoggedInSubject = new BehaviorSubject<boolean>(false);
+  public isLoggedIn$ = this.isLoggedInSubject.asObservable();
+
   constructor() {
     this.loadStoredAuth();
   }
@@ -55,6 +60,8 @@ export class AuthService {
         if (userStr && userStr !== 'undefined' && userStr !== 'null') {
           const user = JSON.parse(userStr);
           this.currentUserSubject.next(user);
+          this.isLoggedInSubject.next(true);
+          console.log('🔐 Auth loaded from storage:', user.username);
         } else {
           this.clearStoredAuth();
         }
@@ -85,13 +92,16 @@ export class AuthService {
   }
 
   /**
-   * Verificar código 2FA
+   * Verificar código 2FA - MEJORADO
    */
   verify2FA(userId: string, code: string): Observable<any> {
     return this.http.post(`${this.apiUrl}/auth/verify-2fa`, {
       userId,
       code
     }).pipe(
+      tap(response => {
+        console.log('🔐 AuthService - 2FA verification successful:', response);
+      }),
       catchError(error => {
         console.error('🔐 AuthService - Error en verificación 2FA:', error);
         return throwError(() => error);
@@ -134,6 +144,7 @@ export class AuthService {
   setToken(token: string): void {
     try {
       localStorage.setItem('token', token);
+      console.log('🔐 Token saved to storage');
     } catch (error) {
       console.error('Error saving token:', error);
     }
@@ -143,9 +154,36 @@ export class AuthService {
     try {
       localStorage.setItem('user', JSON.stringify(user));
       this.currentUserSubject.next(user);
+      this.isLoggedInSubject.next(true);
+      console.log('🔐 User saved to storage:', user.username);
     } catch (error) {
       console.error('Error saving user:', error);
     }
+  }
+
+  /**
+   * ✅ NUEVO MÉTODO: Completar login después de 2FA
+   */
+  completeLogin(token: string, user: User): Observable<boolean> {
+    return new Observable(observer => {
+      try {
+        console.log('🔐 Completing login process...');
+        
+        // Limpiar estado pendiente primero
+        this.clearPendingAuth();
+        
+        // Establecer token y usuario
+        this.setToken(token);
+        this.setUser(user);
+        
+        console.log('🔐 ✅ Login completed successfully for user:', user.username);
+        observer.next(true);
+        observer.complete();
+      } catch (error) {
+        console.error('🔐 ❌ Error completing login:', error);
+        observer.error(error);
+      }
+    });
   }
 
   /**
@@ -155,6 +193,9 @@ export class AuthService {
     try {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      this.currentUserSubject.next(null);
+      this.isLoggedInSubject.next(false);
+      console.log('🔐 Auth data cleared from storage');
     } catch (error) {
       console.error('Error clearing stored auth:', error);
     }
@@ -164,9 +205,9 @@ export class AuthService {
    * Logout
    */
   logout(): void {
+    console.log('🔐 Logging out user...');
     this.clearStoredAuth();
-    this.currentUserSubject.next(null);
-    this.pendingUserId.next(null);
+    this.clearPendingAuth();
     this.router.navigate(['/auth/login']);
   }
 
@@ -192,7 +233,10 @@ export class AuthService {
    * Verificar si está autenticado
    */
   isAuthenticated(): boolean {
-    return !!this.getToken();
+    const token = this.getToken();
+    const isAuth = !!token;
+    console.log('🔐 Authentication check:', isAuth);
+    return isAuth;
   }
 
   /**
@@ -207,6 +251,7 @@ export class AuthService {
    */
   setPendingUserId(userId: string): void {
     this.pendingUserId.next(userId);
+    console.log('🔐 Pending user ID set:', userId);
   }
 
   /**
@@ -214,15 +259,21 @@ export class AuthService {
    */
   clearPendingAuth(): void {
     this.pendingUserId.next(null);
+    console.log('🔐 Pending auth cleared');
   }
 
   /**
-   * Verificar si hay autenticación pendiente (2FA) - MÉTODO AGREGADO
+   * Verificar si hay autenticación pendiente (2FA)
    */
   hasPendingAuth(): boolean {
-    return !!this.pendingUserId.value;
+    const hasPending = !!this.pendingUserId.value;
+    console.log('🔐 Pending auth check:', hasPending);
+    return hasPending;
   }
 
+  /**
+   * Forgot password
+   */
   forgotPassword(email: string): Observable<any> {
     return this.http.post(`${this.apiUrl}/auth/forgot-password`, { email }).pipe(
       catchError(error => {

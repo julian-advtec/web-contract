@@ -1,4 +1,4 @@
-// verify-2fa.component.ts - CORREGIDO
+// verify-2fa.component.ts - COMPLETO Y CORREGIDO
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators, FormControl } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -38,8 +38,18 @@ export class Verify2faComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // Intentar obtener datos de múltiples fuentes
     this.authData = history.state.authData;
     
+    // Si no hay en history.state, verificar en el servicio
+    if (!this.authData || !this.authData.userId) {
+      const pendingUserId = this.auth.getPendingUserId();
+      if (pendingUserId) {
+        this.authData = { userId: pendingUserId };
+        console.log('🔐 Using pending user ID from service:', pendingUserId);
+      }
+    }
+
     if (!this.authData || !this.authData.userId) {
       console.error('❌ No authData found, redirecting to login');
       this.router.navigate(['/auth/login']);
@@ -67,7 +77,9 @@ export class Verify2faComponent implements OnInit, OnDestroy {
   }
 
   handleVisualTimerExpired(): void {
-    this.timerSubscription.unsubscribe();
+    if (this.timerSubscription) {
+      this.timerSubscription.unsubscribe();
+    }
     this.errorMessage = 'El tiempo para ingresar el código ha expirado.';
   }
 
@@ -76,7 +88,7 @@ export class Verify2faComponent implements OnInit, OnDestroy {
   }
 
   isAllCodesFilled(): boolean {
-    return this.codeControls.every(control => control.valid);
+    return this.codeControls.every(control => control.valid && control.value !== '');
   }
 
   onCodeInput(event: any, index: number): void {
@@ -133,7 +145,7 @@ export class Verify2faComponent implements OnInit, OnDestroy {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   }
 
-  // ✅ VERIFICACIÓN PRINCIPAL CORREGIDA - Buscar token y user en data
+  // ✅ VERIFICACIÓN PRINCIPAL COMPLETAMENTE CORREGIDA
   onSubmit(): void {
     if (!this.isAllCodesFilled() || this.loading) return;
 
@@ -149,34 +161,65 @@ export class Verify2faComponent implements OnInit, OnDestroy {
     this.auth.verify2FA(userId, code).subscribe({
       next: (response: any) => {
         this.loading = false;
-        console.log('🔐 2FA verification response:', response);
-        console.log('🔐 Response data:', response.data);
+        console.log('🔐 2FA verification FULL response:', response);
         
-        // ✅ CORRECCIÓN: Buscar token y user dentro de data
-        const token = response.token || response.data?.token;
-        const user = response.user || response.data?.user;
+        // ✅ CORRECCIÓN MEJORADA: Buscar token y user en múltiples ubicaciones
+        let token: string | null = null;
+        let user: any = null;
 
-        console.log('🔐 Token found:', !!token);
-        console.log('🔐 User found:', !!user);
+        // Buscar en diferentes estructuras de respuesta
+        if (response.access_token) {
+          token = response.access_token;
+          user = response.user;
+        } else if (response.token) {
+          token = response.token;
+          user = response.user;
+        } else if (response.data?.access_token) {
+          token = response.data.access_token;
+          user = response.data.user;
+        } else if (response.data?.token) {
+          token = response.data.token;
+          user = response.data.user;
+        }
 
-        if (response.ok && token) {
+        console.log('🔐 Token extracted:', token ? 'YES' : 'NO');
+        console.log('🔐 User extracted:', user ? 'YES' : 'NO');
+
+        if (token && user) {
           this.successMessage = 'Verificación exitosa. Redirigiendo...';
-          console.log('🔐 ✅ 2FA successful, setting token and user');
+          console.log('🔐 ✅ 2FA successful, completing login...');
           
-          // ✅ PRIMERO limpiar el estado pendiente
-          this.auth.clearPendingAuth();
-          
-          // ✅ LUEGO guardar el token y usuario
-          this.auth.setToken(token);
-          this.auth.setUser(user);
-          
-          setTimeout(() => {
-            console.log('🔐 Navigating to dashboard');
-            this.router.navigate(['/dashboard']);
-          }, 1000);
+          // ✅ USAR EL NUEVO MÉTODO completeLogin
+          this.auth.completeLogin(token, user).subscribe({
+            next: (success) => {
+              if (success) {
+                console.log('🔐 ✅ Login completed, navigating to dashboard...');
+                
+                // Navegar al dashboard con manejo de errores
+                setTimeout(() => {
+                  this.router.navigate(['/dashboard']).then(navSuccess => {
+                    if (navSuccess) {
+                      console.log('🔐 ✅ Navigation to dashboard successful');
+                    } else {
+                      console.error('🔐 ❌ Navigation to dashboard failed, trying root...');
+                      this.router.navigate(['/']);
+                    }
+                  });
+                }, 1000);
+              } else {
+                this.errorMessage = 'Error al completar el inicio de sesión';
+                this.clearCodeInputs();
+              }
+            },
+            error: (error) => {
+              console.error('🔐 ❌ Error in completeLogin:', error);
+              this.errorMessage = 'Error al completar el inicio de sesión';
+              this.clearCodeInputs();
+            }
+          });
         } else {
-          console.error('🔐 ❌ Unexpected 2FA response structure:', response);
-          this.errorMessage = response.message || 'Error en la verificación';
+          console.error('🔐 ❌ Token or user missing in response:', response);
+          this.errorMessage = response.message || 'Error en la verificación: Datos incompletos';
           this.clearCodeInputs();
         }
       },
@@ -186,11 +229,11 @@ export class Verify2faComponent implements OnInit, OnDestroy {
         
         const errorMessage = error.error?.message || error.message || 'Error en la verificación';
         
-        if (errorMessage.includes('expirado')) {
+        if (errorMessage.includes('expirado') || errorMessage.includes('expired')) {
           this.handleBackendExpired();
-        } else if (errorMessage.includes('Máximo de intentos')) {
+        } else if (errorMessage.includes('Máximo de intentos') || errorMessage.includes('max attempts')) {
           this.handleBackendMaxAttempts();
-        } else if (errorMessage.includes('inválido')) {
+        } else if (errorMessage.includes('inválido') || errorMessage.includes('invalid')) {
           this.handleBackendInvalidCode();
         } else {
           this.errorMessage = errorMessage;
@@ -207,7 +250,7 @@ export class Verify2faComponent implements OnInit, OnDestroy {
 
   private handleBackendMaxAttempts(): void {
     this.errorMessage = 'Máximo de intentos alcanzado. Por favor inicia sesión nuevamente.';
-    this.auth.clearPendingAuth(); // ✅ LIMPIAR ESTADO
+    this.auth.clearPendingAuth();
     setTimeout(() => {
       this.router.navigate(['/auth/login']);
     }, 3000);
@@ -215,8 +258,14 @@ export class Verify2faComponent implements OnInit, OnDestroy {
 
   private handleBackendInvalidCode(): void {
     this.failedAttempts++;
-    this.errorMessage = `Código inválido. ${3 - this.failedAttempts} intentos restantes.`;
+    const attemptsLeft = this.maxFailedAttempts - this.failedAttempts;
+    this.errorMessage = `Código inválido. ${attemptsLeft} intentos restantes.`;
     this.clearCodeInputs();
+    
+    if (this.failedAttempts >= this.maxFailedAttempts) {
+      this.handleBackendMaxAttempts();
+      return;
+    }
     
     setTimeout(() => {
       const firstInput = document.querySelector('.code-input') as HTMLInputElement;
@@ -257,7 +306,20 @@ export class Verify2faComponent implements OnInit, OnDestroy {
   }
 
   cancel(): void {
-    this.auth.clearPendingAuth(); // ✅ LIMPIAR ESTADO AL CANCELAR
+    console.log('🔐 2FA verification cancelled');
+    this.auth.clearPendingAuth();
     this.router.navigate(['/auth/login']);
+  }
+
+  // ✅ MÉTODO TEMPORAL PARA DEBUG
+  testNavigation(): void {
+    console.log('🧪 Testing navigation to dashboard...');
+    this.router.navigate(['/dashboard']).then(success => {
+      console.log('🧪 Navigation result:', success);
+      if (!success) {
+        console.log('🧪 Trying to navigate to root...');
+        this.router.navigate(['/']);
+      }
+    });
   }
 }
