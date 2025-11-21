@@ -1,32 +1,64 @@
-<div class="dashboard">
-  <div class="dashboard-header">
-    <h1>Bienvenido al Sistema de Contratos</h1>
-    <p>Aquí podrás gestionar contratos, usuarios y reportes.</p>
+<div class="app-container">
+  <!-- Sidebar fijo -->
+  <div class="drawer-fixed">
+    <app-sidebar 
+      [currentUser]="currentUser"
+      [availableModules]="availableModules"
+      [getUserRoleName]="getUserRoleName"
+      (navigateToModule)="navigateToModule($event)"
+      (toggleSidebar)="onToggleSidebar($event)"
+      (logout)="onLogout()">
+    </app-sidebar>
   </div>
   
-  <div class="features-grid">
-    <div class="feature-card">
-      <div class="feature-icon">👥</div>
-      <h3>Gestión de Usuarios</h3>
-      <p>Administra roles y permisos de usuarios del sistema</p>
+  <!-- ✅ NAVBAR CON MARGEN - Se comporta igual que el main content -->
+  <nav class="navbar-with-margin" [class.drawer-closed]="sidebarCollapsed">
+    <div class="navbar-content">
+      <div class="navbar-brand">
+        <h1>Sistema de Gestión Documental</h1>
+      </div>
+      
+      <div class="navbar-user-section">
+        <div class="user-info">
+          <span class="user-name">{{ currentUser?.username || 'Usuario' }}</span>
+          <span class="user-role">{{ getUserRoleName(currentUser?.role) }}</span>
+        </div>
+        <button class="logout-btn" (click)="onLogout()">
+          <i class="fa fa-sign-out"></i>
+          <span>Cerrar Sesión</span>
+        </button>
+      </div>
     </div>
-    
-    <div class="feature-card">
-      <div class="feature-icon">📄</div>
-      <h3>Gestión de Contratos</h3>
-      <p>Crea, edita y administra contratos del sistema</p>
+  </nav>
+
+  <!-- ✅ MAIN CONTENT CON MARGEN Y BACKGROUND IMAGE -->
+  <main class="main-with-margin" [class.drawer-closed]="sidebarCollapsed" 
+        [style.backgroundImage]="'url(' + backgroundImage + ')'">
+    <div class="welcome-overlay">
+      <h1 class="welcome-title">¡Bienvenido!</h1>
+      <p class="welcome-message">
+        Hola <strong>{{ currentUser?.username || 'Usuario' }}</strong>, 
+        has ingresado al sistema como <strong>{{ getUserRoleName(currentUser?.role) }}</strong>.
+      </p>
+      <p class="welcome-subtitle">
+        Utiliza el menú lateral para navegar entre los módulos disponibles.
+      </p>
     </div>
-    
-    <div class="feature-card">
-      <div class="feature-icon">📊</div>
-      <h3>Reportes y Estadísticas</h3>
-      <p>Genera reportes detallados y estadísticas</p>
+  </main>
+</div>
+
+<!-- Modal de Confirmación de Logout -->
+<div *ngIf="showLogoutConfirm" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Confirmar Cierre de Sesión</h3>
     </div>
-    
-    <div class="feature-card">
-      <div class="feature-icon">⚙️</div>
-      <h3>Configuración</h3>
-      <p>Configura parámetros del sistema y preferencias</p>
+    <div class="modal-body">
+      <p>¿Estás seguro de que deseas cerrar sesión?</p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" (click)="cancelLogout()">Cancelar</button>
+      <button class="btn-confirm" (click)="confirmLogout()">Sí, Cerrar Sesión</button>
     </div>
   </div>
 </div>

@@ -1,32 +1,10 @@
-// auth.service.ts - COMPLETO Y CORREGIDO
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, throwError } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
-
-export interface User {
-  id: string;
-  username: string;
-  email: string;
-  role: string;
-}
-
-export interface AuthResponse {
-  ok: boolean;
-  success?: boolean;
-  access_token?: string;
-  token?: string;
-  user?: User;
-  message: string;
-  requiresTwoFactor?: boolean;
-  userId?: string;
-  expiresIn?: string;
-  data?: any;
-  path?: string;
-  timestamp?: string;
-}
+import { User, UserRole, AuthResponse } from '../models/user.types';
 
 @Injectable({
   providedIn: 'root'
@@ -308,5 +286,21 @@ export class AuthService {
         return throwError(() => error);
       })
     );
+  }
+
+  /**
+   * Verificar si el usuario tiene un rol específico
+   */
+  hasRole(role: UserRole): boolean {
+    const user = this.getCurrentUser();
+    return user?.role === role;
+  }
+
+  /**
+   * Verificar si el usuario tiene alguno de los roles
+   */
+  hasAnyRole(roles: UserRole[]): boolean {
+    const user = this.getCurrentUser();
+    return user ? roles.includes(user.role) : false;
   }
 }

@@ -1,0 +1,23 @@
+<nav class="navbar-with-margin" [class.drawer-closed]="sidebarCollapsed">
+  <div class="navbar-content">
+    <!-- Botón para móvil -->
+    <button *ngIf="isMobileView" class="mobile-toggle-btn" (click)="onToggleMobile()">
+      <i class="fa fa-bars"></i>
+    </button>
+    
+    <div class="navbar-brand">
+      <h1>Sistema de Gestión Documental</h1>
+    </div>
+    
+    <div class="navbar-user-section">
+      <div class="user-info">
+        <span class="user-name">{{ currentUser?.username || 'Usuario' }}</span>
+        <span class="user-role">{{ getUserRoleName(currentUser?.role) }}</span>
+      </div>
+      <button class="logout-btn" (click)="onLogout()">
+        <i class="fa fa-sign-out"></i>
+        <span>Cerrar Sesión</span>
+      </button>
+    </div>
+  </div>
+</nav>

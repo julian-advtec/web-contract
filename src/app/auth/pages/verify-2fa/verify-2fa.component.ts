@@ -1,4 +1,4 @@
-// verify-2fa.component.ts - COMPLETO Y CORREGIDO
+// verify-2fa.component.ts - CORREGIDO
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators, FormControl } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -38,18 +38,11 @@ export class Verify2faComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    // Intentar obtener datos de múltiples fuentes
-    this.authData = history.state.authData;
+    console.log('🔐 Verify2FA Component initialized');
     
-    // Si no hay en history.state, verificar en el servicio
-    if (!this.authData || !this.authData.userId) {
-      const pendingUserId = this.auth.getPendingUserId();
-      if (pendingUserId) {
-        this.authData = { userId: pendingUserId };
-        console.log('🔐 Using pending user ID from service:', pendingUserId);
-      }
-    }
-
+    // ✅ CORRECCIÓN MEJORADA: Obtener authData de múltiples fuentes
+    this.getAuthData();
+    
     if (!this.authData || !this.authData.userId) {
       console.error('❌ No authData found, redirecting to login');
       this.router.navigate(['/auth/login']);
@@ -60,12 +53,43 @@ export class Verify2faComponent implements OnInit, OnDestroy {
     this.startVisualTimer();
   }
 
+  // ✅ NUEVO MÉTODO: Obtener authData de múltiples fuentes
+  private getAuthData(): void {
+    // 1. Intentar desde history.state
+    this.authData = history.state.authData;
+    console.log('🔐 AuthData from history.state:', this.authData);
+    
+    // 2. Si no hay en history.state, verificar en el servicio
+    if (!this.authData || !this.authData.userId) {
+      const pendingUserId = this.auth.getPendingUserId();
+      console.log('🔐 Pending userId from service:', pendingUserId);
+      
+      if (pendingUserId) {
+        this.authData = { userId: pendingUserId };
+        console.log('🔐 Using pending user ID from service:', pendingUserId);
+      }
+    }
+
+    // 3. Si aún no hay, intentar desde query params (backup)
+    if (!this.authData || !this.authData.userId) {
+      this.route.queryParams.subscribe(params => {
+        if (params['userId']) {
+          this.authData = { userId: params['userId'] };
+          console.log('🔐 Using userId from query params:', params['userId']);
+        }
+      });
+    }
+
+    console.log('🔐 Final authData:', this.authData);
+  }
+
   ngOnDestroy(): void {
     if (this.timerSubscription) {
       this.timerSubscription.unsubscribe();
     }
   }
 
+  // ... (el resto de los métodos se mantienen igual)
   startVisualTimer(): void {
     this.timerSubscription = interval(1000).subscribe(() => {
       if (this.timeLeft > 0) {
@@ -145,7 +169,6 @@ export class Verify2faComponent implements OnInit, OnDestroy {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   }
 
-  // ✅ VERIFICACIÓN PRINCIPAL COMPLETAMENTE CORREGIDA
   onSubmit(): void {
     if (!this.isAllCodesFilled() || this.loading) return;
 
@@ -189,7 +212,7 @@ export class Verify2faComponent implements OnInit, OnDestroy {
           this.successMessage = 'Verificación exitosa. Redirigiendo...';
           console.log('🔐 ✅ 2FA successful, completing login...');
           
-          // ✅ USAR EL NUEVO MÉTODO completeLogin
+          // ✅ USAR EL MÉTODO completeLogin
           this.auth.completeLogin(token, user).subscribe({
             next: (success) => {
               if (success) {
@@ -309,17 +332,5 @@ export class Verify2faComponent implements OnInit, OnDestroy {
     console.log('🔐 2FA verification cancelled');
     this.auth.clearPendingAuth();
     this.router.navigate(['/auth/login']);
-  }
-
-  // ✅ MÉTODO TEMPORAL PARA DEBUG
-  testNavigation(): void {
-    console.log('🧪 Testing navigation to dashboard...');
-    this.router.navigate(['/dashboard']).then(success => {
-      console.log('🧪 Navigation result:', success);
-      if (!success) {
-        console.log('🧪 Trying to navigate to root...');
-        this.router.navigate(['/']);
-      }
-    });
   }
 }

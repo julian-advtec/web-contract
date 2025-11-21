@@ -1,0 +1,44 @@
+<aside class="sidebar" [class.collapsed]="isCollapsed">
+  <div class="sidebar-header">
+    <div class="user-welcome" *ngIf="!isCollapsed">
+      <h3>Bienvenido</h3>
+      <p>{{ currentUser?.username || 'Usuario' }}</p>
+      <small>{{ getUserRoleName(currentUser?.role) }}</small>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section" *ngIf="!isCollapsed">
+      <h4>Módulos del Sistema</h4>
+    </div>
+    
+    <ul class="nav-menu">
+      <li 
+        class="nav-item" 
+        *ngFor="let module of availableModules"
+        (click)="onNavigateToModule(module.route)"
+        [title]="module.description"
+      >
+        <span class="nav-icon">{{ module.icon }}</span>
+        <span class="nav-text" *ngIf="!isCollapsed">{{ module.title }}</span>
+        <span class="nav-tooltip" *ngIf="isCollapsed">{{ module.title }}</span>
+      </li>
+    </ul>
+  </nav>
+
+  <div class="sidebar-footer" *ngIf="!isCollapsed">
+    <div class="system-info">
+      <p><strong>{{ availableModules.length }}</strong> módulos disponibles</p>
+      <small>Rol: {{ getUserRoleName(currentUser?.role) }}</small>
+    </div>
+    <button class="logout-btn" (click)="onLogout()">
+      <i class="fa fa-sign-out"></i>
+      <span>Cerrar Sesión</span>
+    </button>
+  </div>
+
+  <!-- Toggle button - SIEMPRE VISIBLE -->
+  <div class="toggle-sidebar" (click)="onToggleSidebar()">
+    <i class="fa" [class.fa-chevron-left]="!isCollapsed" [class.fa-chevron-right]="isCollapsed"></i>
+  </div>
+</aside>
