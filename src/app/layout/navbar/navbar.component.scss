@@ -1,130 +1,216 @@
-// ✅ NAVBAR - Se adapta al estado del sidebar
-.navbar-with-margin {
+// _variables.scss (si no las tienes globales)
+$sidebar-width-normal: 280px;
+$sidebar-width-collapsed: 70px;
+$navbar-height: 80px; // Aumentado el alto
+$transition-duration: 0.3s;
+
+// Colores - similar al sidebar
+$navbar-bg: #a7f3d0; // Color similar al sidebar
+$text-color: #1f2937;
+$border-color: #e5e7eb;
+$hover-color: #e9ecef;
+$primary-green: #10b981; // Verde para el botón
+
+.navbar {
   position: fixed;
   top: 0;
-  left: 280px; // Cuando sidebar está abierto
-  width: calc(100vw - 280px);
-  height: 70px;
-  background: #1f2937;
-  color: white;
-  z-index: 998;
-  transition: all 0.3s ease;
+  left: $sidebar-width-normal;
+  width: calc(100vw - #{$sidebar-width-normal});
+  height: $navbar-height;
+  background: $navbar-bg;
+  color: $text-color;
+  z-index: 999;
+  transition: all $transition-duration ease;
   display: flex;
   align-items: center;
-  padding: 0 2rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
+  border-bottom: 1px solid $border-color;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 
-.navbar-with-margin.drawer-closed {
-  left: 70px; // Cuando sidebar está cerrado
-  width: calc(100vw - 70px);
-}
-
-.navbar-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  height: 100%;
-}
-
-.mobile-toggle-btn {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 1.2rem;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 4px;
-  transition: background 0.3s ease;
-  margin-right: 1rem;
-  
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
+  // Cuando el sidebar está colapsado
+  &.collapsed {
+    left: $sidebar-width-collapsed;
+    width: calc(100vw - #{$sidebar-width-collapsed});
   }
-}
 
-.navbar-brand h1 {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: white;
-}
+  .navbar-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 0 2rem;
+  }
 
-.navbar-user-section {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.user-info {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  
-  .user-name {
-    font-weight: 600;
+  // Botón de toggle del sidebar
+  .sidebar-toggle {
+    background: $primary-green;
+    border: none;
     color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0.75rem;
+    border-radius: 8px;
+    transition: all $transition-duration ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 45px;
+    height: 45px;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+
+    &:hover {
+      background: darken($primary-green, 10%);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    }
+
+    i {
+      transition: transform 0.3s ease;
+    }
   }
-  
-  .user-role {
-    font-size: 0.875rem;
-    opacity: 0.8;
-    color: white;
+
+  // Brand/Logo
+  .navbar-brand {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    
+    h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: $text-color;
+      text-align: center;
+    }
+  }
+
+  // Sección del usuario
+  .navbar-user-section {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+
+    .user-info {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      
+      .user-name {
+        font-weight: 600;
+        color: $text-color;
+        font-size: 1rem;
+      }
+      
+      .user-role {
+        font-size: 0.875rem;
+        color: #6b7280;
+        opacity: 0.8;
+      }
+    }
   }
 }
 
-.logout-btn {
-  background: #ef4444;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-
-  &:hover {
-    background: #dc2626;
+// ✅ RESPONSIVE
+@mixin mobile {
+  @media (max-width: 770px) {
+    @content;
   }
 }
 
-/* ===== RESPONSIVE ===== */
-@media (max-width: 1200px) {
-  .navbar-brand h1 { font-size: 1.4rem; }
+@mixin tablet {
+  @media (max-width: 1200px) {
+    @content;
+  }
 }
 
-@media (max-width: 992px) {
-  .navbar-brand h1 { font-size: 1.3rem; }
+@mixin small-tablet {
+  @media (max-width: 900px) {
+    @content;
+  }
 }
 
-@media (max-width: 768px) {
-  .navbar-brand h1 { font-size: 1.2rem; }
-  .navbar-with-margin { padding: 0 1rem; }
+// Ajustes responsivos
+@include tablet {
+  .navbar {
+    .navbar-brand h1 {
+      font-size: 1.4rem;
+    }
+    
+    .navbar-content {
+      padding: 0 1.5rem;
+    }
+  }
 }
 
-@media (max-width: 576px) {
-  .navbar-brand h1 { font-size: 1.1rem; }
+@include small-tablet {
+  .navbar {
+    .navbar-brand h1 {
+      font-size: 1.3rem;
+    }
+    
+    .navbar-content {
+      padding: 0 1.25rem;
+    }
+    
+    .sidebar-toggle {
+      width: 40px;
+      height: 40px;
+      padding: 0.6rem;
+    }
+  }
 }
 
+@include mobile {
+  .navbar {
+    left: $sidebar-width-collapsed !important;
+    width: calc(100vw - #{$sidebar-width-collapsed}) !important;
+    
+    .navbar-content {
+      padding: 0 1rem;
+    }
+
+    .navbar-brand h1 {
+      font-size: 1.2rem;
+    }
+    
+    // Ocultar información menos importante en móvil
+    .user-role {
+      display: none;
+    }
+    
+    .user-name {
+      font-size: 0.9rem;
+    }
+    
+    .sidebar-toggle {
+      width: 38px;
+      height: 38px;
+      padding: 0.5rem;
+      font-size: 1.1rem;
+    }
+  }
+}
+
+// Para pantallas muy pequeñas
 @media (max-width: 480px) {
-  .navbar-brand h1 { font-size: 1rem; }
-  .navbar-with-margin { padding: 0 0.75rem; }
-  .user-role { display: none; }
-}
-
-// ✅ MÓVIL - Comportamiento diferente
-@media (max-width: 770px) {
-  .navbar-with-margin {
-    // En móvil, el navbar siempre ocupa el 100% del viewport visible
-    left: 0 !important;
-    width: 100vw !important;
-  }
-  
-  .navbar-with-margin.drawer-closed {
-    left: 0 !important;
-    width: 100vw !important;
+  .navbar {
+    .navbar-brand h1 {
+      font-size: 1.1rem;
+    }
+    
+    .navbar-content {
+      padding: 0 0.75rem;
+    }
+    
+    .sidebar-toggle {
+      width: 36px;
+      height: 36px;
+      padding: 0.4rem;
+      font-size: 1rem;
+    }
+    
+    .user-name {
+      font-size: 0.85rem;
+    }
   }
 }

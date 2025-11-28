@@ -1,9 +1,10 @@
 <div class="app-container">
-  <!-- Sidebar fijo -->
-  <div class="drawer-fixed">
+  <!-- Sidebar fijo con clase condicional -->
+  <div class="drawer-fixed" [class.collapsed]="sidebarCollapsed">
     <app-sidebar 
       [currentUser]="currentUser"
       [availableModules]="availableModules"
+      [sidebarCollapsed]="sidebarCollapsed"
       [getUserRoleName]="getUserRoleName"
       (navigateToModule)="navigateToModule($event)"
       (toggleSidebar)="onToggleSidebar($event)"
@@ -11,29 +12,16 @@
     </app-sidebar>
   </div>
   
-  <!-- ✅ NAVBAR CON MARGEN - Se comporta igual que el main content -->
-  <nav class="navbar-with-margin" [class.drawer-closed]="sidebarCollapsed">
-    <div class="navbar-content">
-      <div class="navbar-brand">
-        <h1>Sistema de Gestión Documental</h1>
-      </div>
-      
-      <div class="navbar-user-section">
-        <div class="user-info">
-          <span class="user-name">{{ currentUser?.username || 'Usuario' }}</span>
-          <span class="user-role">{{ getUserRoleName(currentUser?.role) }}</span>
-        </div>
-        <button class="logout-btn" (click)="onLogout()">
-          <i class="fa fa-sign-out"></i>
-          <span>Cerrar Sesión</span>
-        </button>
-      </div>
-    </div>
-  </nav>
+  <!-- Navbar Component -->
+  <app-navbar
+    [currentUser]="currentUser"
+    [sidebarCollapsed]="sidebarCollapsed"
+    (logout)="onLogout()"
+    (toggleSidebar)="onToggleSidebar($event)">
+  </app-navbar>
 
-  <!-- ✅ MAIN CONTENT CON MARGEN Y BACKGROUND IMAGE -->
-  <main class="main-with-margin" [class.drawer-closed]="sidebarCollapsed" 
-        [style.backgroundImage]="'url(' + backgroundImage + ')'">
+  <!-- Main Content -->
+  <main class="main-with-margin" [style.backgroundImage]="'url(' + backgroundImage + ')'">
     <div class="welcome-overlay">
       <h1 class="welcome-title">¡Bienvenido!</h1>
       <p class="welcome-message">

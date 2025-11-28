@@ -122,7 +122,6 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-
   // ✅ Establecer fondo según el rol usando el enum
   private setBackgroundByRole(): void {
     const role = this.currentUser?.role;
@@ -203,7 +202,6 @@ export class DashboardComponent implements OnInit {
   navigateToModule(route: string) {
     this.router.navigate([route]);
   }
-
 
   closeSidebarOnOverlay(event: MouseEvent) {
     if (this.isMobile() && !this.sidebarCollapsed) {

@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, HostListener } from '@angular/core';
+import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { User, UserRole } from '../../core/models/user.types';
 
@@ -11,18 +11,32 @@ import { User, UserRole } from '../../core/models/user.types';
 })
 export class NavbarComponent {
   @Input() currentUser: User | null = null;
-  @Input() getUserRoleName!: (role: UserRole | undefined | null) => string;
   @Input() sidebarCollapsed: boolean = false;
-  @Input() isMobileView: boolean = false;
-
   @Output() logout = new EventEmitter<void>();
-  @Output() toggleMobileSidebar = new EventEmitter<void>();
+  @Output() toggleSidebar = new EventEmitter<boolean>();
+
+  // Método para obtener el nombre del rol
+  getUserRoleName(role: UserRole | undefined | null): string {
+    if (!role) return 'Usuario';
+
+    const roles: { [key: string]: string } = {
+      [UserRole.ADMIN]: 'Administrador',
+      [UserRole.RADICADOR]: 'Radicador',
+      [UserRole.SUPERVISOR]: 'Supervisor',
+      [UserRole.AUDITOR_CUENTAS]: 'Auditor de Cuentas',
+      [UserRole.CONTABILIDAD]: 'Contabilidad',
+      [UserRole.TESORERIA]: 'Tesorería',
+      [UserRole.ASESOR_GERENCIA]: 'Asesor de Gerencia',
+      [UserRole.RENDICION_CUENTAS]: 'Rendición de Cuentas'
+    };
+    return roles[role] || role;
+  }
 
   onLogout() {
     this.logout.emit();
   }
 
-  onToggleMobile() {
-    this.toggleMobileSidebar.emit();
+  onToggleSidebar() {
+    this.toggleSidebar.emit(!this.sidebarCollapsed);
   }
 }

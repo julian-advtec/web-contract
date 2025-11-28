@@ -1,44 +1,57 @@
-<aside class="sidebar" [class.collapsed]="isCollapsed">
+<aside class="sidebar" [class.collapsed]="sidebarCollapsed">
+  <!-- Header con Logo -->
   <div class="sidebar-header">
-    <div class="user-welcome" *ngIf="!isCollapsed">
-      <h3>Bienvenido</h3>
-      <p>{{ currentUser?.username || 'Usuario' }}</p>
-      <small>{{ getUserRoleName(currentUser?.role) }}</small>
+    <!-- Logo completo cuando está expandido -->
+    <div class="logo-container" *ngIf="!sidebarCollapsed">
+      <img src="assets/images/logo.png" alt="SistemaDoc" class="logo-image">
+    </div>
+
+    <!-- Logo minimalista cuando está colapsado -->
+    <div class="logo-collapsed" *ngIf="sidebarCollapsed">
+      <img src="assets/images/logo.png" alt="SG" class="logo-image-small">
     </div>
   </div>
 
+  <!-- Navegación -->
   <nav class="sidebar-nav">
-    <div class="nav-section" *ngIf="!isCollapsed">
+    <div class="nav-section" *ngIf="!sidebarCollapsed">
       <h4>Módulos del Sistema</h4>
     </div>
-    
+
     <ul class="nav-menu">
-      <li 
-        class="nav-item" 
-        *ngFor="let module of availableModules"
-        (click)="onNavigateToModule(module.route)"
-        [title]="module.description"
-      >
-        <span class="nav-icon">{{ module.icon }}</span>
-        <span class="nav-text" *ngIf="!isCollapsed">{{ module.title }}</span>
-        <span class="nav-tooltip" *ngIf="isCollapsed">{{ module.title }}</span>
+      <li class="nav-item" *ngFor="let module of availableModules" (click)="onNavigateToModule(module.route)"
+        [title]="module.description">
+        <!-- Iconos SVG minimalistas -->
+        <span class="nav-icon" [innerHTML]="getModuleIcon(module.id)"></span>
+        <span class="nav-text" *ngIf="!sidebarCollapsed">{{ module.title }}</span>
+        <!-- Tooltip mejorado -->
+        <span class="nav-tooltip" *ngIf="sidebarCollapsed">{{ module.title }}</span>
       </li>
     </ul>
   </nav>
 
-  <div class="sidebar-footer" *ngIf="!isCollapsed">
+  <!-- Footer -->
+  <div class="sidebar-footer" *ngIf="!sidebarCollapsed">
     <div class="system-info">
-      <p><strong>{{ availableModules.length }}</strong> módulos disponibles</p>
-      <small>Rol: {{ getUserRoleName(currentUser?.role) }}</small>
+      <p>Sistema de Gestión Documental</p>
+      <small>v2.0.0</small>
     </div>
+
     <button class="logout-btn" (click)="onLogout()">
       <i class="fa fa-sign-out"></i>
       <span>Cerrar Sesión</span>
     </button>
   </div>
 
+  <!-- Footer minimalista cuando está colapsado -->
+  <div class="sidebar-footer" *ngIf="sidebarCollapsed">
+    <button class="logout-btn" (click)="onLogout()" title="Cerrar Sesión">
+      <i class="fa fa-sign-out"></i>
+    </button>
+  </div>
+
   <!-- Toggle button - SIEMPRE VISIBLE -->
   <div class="toggle-sidebar" (click)="onToggleSidebar()">
-    <i class="fa" [class.fa-chevron-left]="!isCollapsed" [class.fa-chevron-right]="isCollapsed"></i>
+    <i class="fa" [class.fa-chevron-left]="!sidebarCollapsed" [class.fa-chevron-right]="sidebarCollapsed"></i>
   </div>
 </aside>
