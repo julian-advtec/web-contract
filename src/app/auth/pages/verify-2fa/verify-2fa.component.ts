@@ -170,101 +170,90 @@ export class Verify2faComponent implements OnInit, OnDestroy {
   }
 
   onSubmit(): void {
-    if (!this.isAllCodesFilled() || this.loading) return;
+  if (!this.isAllCodesFilled() || this.loading) return;
 
-    this.loading = true;
-    this.errorMessage = '';
-    this.successMessage = '';
+  this.loading = true;
+  this.errorMessage = '';
+  this.successMessage = '';
 
-    const code = this.codeControls.map(control => control.value).join('');
-    const userId = this.authData.userId;
+  const code = this.codeControls.map(control => control.value).join('');
+  const userId = this.authData.userId;
 
-    console.log('🔐 Submitting 2FA code:', code, 'for userId:', userId);
+  console.log('🔐 Submitting 2FA code:', code, 'for userId:', userId);
 
-    this.auth.verify2FA(userId, code).subscribe({
-      next: (response: any) => {
-        this.loading = false;
-        console.log('🔐 2FA verification FULL response:', response);
+  this.auth.verify2FA(userId, code).subscribe({
+    next: (response: any) => {
+      this.loading = false;
+      console.log('🔐 2FA verification FULL response:', response);
+      
+      // ✅ CORRECCIÓN: Buscar token y user en múltiples ubicaciones
+      let token: string | null = null;
+      let user: any = null;
+
+      // Buscar en diferentes estructuras de respuesta
+      if (response.access_token) {
+        token = response.access_token;
+        user = response.user;
+      } else if (response.token) {
+        token = response.token;
+        user = response.user;
+      } else if (response.data?.access_token) {
+        token = response.data.access_token;
+        user = response.data.user;
+      } else if (response.data?.token) {
+        token = response.data.token;
+        user = response.data.user;
+      }
+
+      console.log('🔐 Token extracted:', token ? 'YES' : 'NO');
+      console.log('🔐 User extracted:', user ? 'YES' : 'NO');
+
+      if (token && user) {
+        this.successMessage = 'Verificación exitosa. Redirigiendo...';
+        console.log('🔐 ✅ 2FA successful, completing login...');
         
-        // ✅ CORRECCIÓN MEJORADA: Buscar token y user en múltiples ubicaciones
-        let token: string | null = null;
-        let user: any = null;
-
-        // Buscar en diferentes estructuras de respuesta
-        if (response.access_token) {
-          token = response.access_token;
-          user = response.user;
-        } else if (response.token) {
-          token = response.token;
-          user = response.user;
-        } else if (response.data?.access_token) {
-          token = response.data.access_token;
-          user = response.data.user;
-        } else if (response.data?.token) {
-          token = response.data.token;
-          user = response.data.user;
-        }
-
-        console.log('🔐 Token extracted:', token ? 'YES' : 'NO');
-        console.log('🔐 User extracted:', user ? 'YES' : 'NO');
-
-        if (token && user) {
-          this.successMessage = 'Verificación exitosa. Redirigiendo...';
-          console.log('🔐 ✅ 2FA successful, completing login...');
-          
-          // ✅ USAR EL MÉTODO completeLogin
-          this.auth.completeLogin(token, user).subscribe({
-            next: (success) => {
-              if (success) {
-                console.log('🔐 ✅ Login completed, navigating to dashboard...');
-                
-                // Navegar al dashboard con manejo de errores
-                setTimeout(() => {
-                  this.router.navigate(['/dashboard']).then(navSuccess => {
-                    if (navSuccess) {
-                      console.log('🔐 ✅ Navigation to dashboard successful');
-                    } else {
-                      console.error('🔐 ❌ Navigation to dashboard failed, trying root...');
-                      this.router.navigate(['/']);
-                    }
-                  });
-                }, 1000);
-              } else {
-                this.errorMessage = 'Error al completar el inicio de sesión';
-                this.clearCodeInputs();
-              }
-            },
-            error: (error) => {
-              console.error('🔐 ❌ Error in completeLogin:', error);
-              this.errorMessage = 'Error al completar el inicio de sesión';
-              this.clearCodeInputs();
+        // ✅ CORRECCIÓN: Llamar a los métodos públicos del AuthService
+        this.auth.setToken(token);
+        this.auth.setUser(user);
+        
+        console.log('🔐 ✅ Login completed, navigating to dashboard...');
+        
+        // Navegar al dashboard con manejo de errores
+        setTimeout(() => {
+          this.router.navigate(['/dashboard']).then(navSuccess => {
+            if (navSuccess) {
+              console.log('🔐 ✅ Navigation to dashboard successful');
+            } else {
+              console.error('🔐 ❌ Navigation to dashboard failed, trying root...');
+              this.router.navigate(['/']);
             }
           });
-        } else {
-          console.error('🔐 ❌ Token or user missing in response:', response);
-          this.errorMessage = response.message || 'Error en la verificación: Datos incompletos';
-          this.clearCodeInputs();
-        }
-      },
-      error: (error: any) => {
-        this.loading = false;
-        console.error('🔐 2FA verification error:', error);
-        
-        const errorMessage = error.error?.message || error.message || 'Error en la verificación';
-        
-        if (errorMessage.includes('expirado') || errorMessage.includes('expired')) {
-          this.handleBackendExpired();
-        } else if (errorMessage.includes('Máximo de intentos') || errorMessage.includes('max attempts')) {
-          this.handleBackendMaxAttempts();
-        } else if (errorMessage.includes('inválido') || errorMessage.includes('invalid')) {
-          this.handleBackendInvalidCode();
-        } else {
-          this.errorMessage = errorMessage;
-          this.clearCodeInputs();
-        }
+        }, 1000);
+      } else {
+        console.error('🔐 ❌ Token or user missing in response:', response);
+        this.errorMessage = response.message || 'Error en la verificación: Datos incompletos';
+        this.clearCodeInputs();
       }
-    });
-  }
+    },
+    error: (error: any) => {
+      this.loading = false;
+      console.error('🔐 2FA verification error:', error);
+      
+      const errorMessage = error.error?.message || error.message || 'Error en la verificación';
+      
+      if (errorMessage.includes('expirado') || errorMessage.includes('expired')) {
+        this.handleBackendExpired();
+      } else if (errorMessage.includes('Máximo de intentos') || errorMessage.includes('max attempts')) {
+        this.handleBackendMaxAttempts();
+      } else if (errorMessage.includes('inválido') || errorMessage.includes('invalid')) {
+        this.handleBackendInvalidCode();
+      } else {
+        this.errorMessage = errorMessage;
+        this.clearCodeInputs();
+      }
+    }
+  });
+}
 
   private handleBackendExpired(): void {
     this.errorMessage = 'El código ha expirado. Se ha enviado uno nuevo a tu correo.';

@@ -1,10 +1,45 @@
+// auth.service.ts - CORREGIR
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, throwError } from 'rxjs';
-import { catchError, map, tap } from 'rxjs/operators';
+import { catchError, tap } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
-import { User, UserRole, AuthResponse } from '../models/user.types';
+import { User, UserRole } from '../models/user.types';
+
+// Definir interfaces locales
+interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+interface LoginResponse {
+  token?: string;
+  access_token?: string;
+  user?: User;
+  userId?: string;
+  requiresTwoFactor?: boolean;
+  message?: string;
+}
+
+interface TwoFactorRequest {
+  userId: string;
+  code: string;
+}
+
+interface TwoFactorResponse {
+  token?: string;
+  access_token?: string;
+  user?: User;
+  message?: string;
+}
+
+interface UsersStats {
+  total: number;
+  active: number;
+  inactive: number;
+  byRole: { [key: string]: number };
+}
 
 @Injectable({
   providedIn: 'root'
@@ -17,11 +52,9 @@ export class AuthService {
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
 
-  // Para manejar el estado de 2FA
   private pendingUserId = new BehaviorSubject<string | null>(null);
   public pendingUserId$ = this.pendingUserId.asObservable();
 
-  // Para manejar estado de autenticación
   private isLoggedInSubject = new BehaviorSubject<boolean>(false);
   public isLoggedIn$ = this.isLoggedInSubject.asObservable();
 
@@ -51,16 +84,25 @@ export class AuthService {
   }
 
   /**
-   * Login principal - MEJORADO
+   * Login principal
    */
-  login(username: string, password: string): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${this.apiUrl}/auth/login`, {
-      username,
-      password
-    }).pipe(
-      map(response => {
-        console.log('🔐 AuthService - Login response mapped:', response);
-        return response;
+  login(username: string, password: string): Observable<LoginResponse> {
+    const loginRequest: LoginRequest = { username, password };
+    
+    return this.http.post<LoginResponse>(`${this.apiUrl}/auth/login`, loginRequest).pipe(
+      tap(response => {
+        console.log('🔐 AuthService - Login response:', response);
+        
+        if (response.requiresTwoFactor && response.userId) {
+          // Guardar userId para 2FA
+          this.setPendingUserId(response.userId);
+          console.log('🔐 2FA required for user:', response.userId);
+          this.router.navigate(['/two-factor']);
+        } else if (response.token && response.user) {
+          // Login directo exitoso
+          this.completeLogin(response.token, response.user);
+          this.router.navigate(['/dashboard']);
+        }
       }),
       catchError(error => {
         console.error('🔐 AuthService - Error en login:', error);
@@ -70,15 +112,19 @@ export class AuthService {
   }
 
   /**
-   * Verificar código 2FA - MEJORADO
+   * Verificar código 2FA
    */
-  verify2FA(userId: string, code: string): Observable<any> {
-    return this.http.post(`${this.apiUrl}/auth/verify-2fa`, {
-      userId,
-      code
-    }).pipe(
+  verify2FA(userId: string, code: string): Observable<TwoFactorResponse> {
+    const request: TwoFactorRequest = { userId, code };
+    
+    return this.http.post<TwoFactorResponse>(`${this.apiUrl}/auth/verify-2fa`, request).pipe(
       tap(response => {
         console.log('🔐 AuthService - 2FA verification successful:', response);
+        if (response.token && response.user) {
+          this.completeLogin(response.token, response.user);
+          this.clearPendingAuth();
+          this.router.navigate(['/dashboard']);
+        }
       }),
       catchError(error => {
         console.error('🔐 AuthService - Error en verificación 2FA:', error);
@@ -91,9 +137,7 @@ export class AuthService {
    * Reenviar código 2FA
    */
   resend2FACode(userId: string): Observable<any> {
-    return this.http.post(`${this.apiUrl}/auth/resend-2fa`, {
-      userId
-    }).pipe(
+    return this.http.post(`${this.apiUrl}/auth/resend-2fa`, { userId }).pipe(
       catchError(error => {
         console.error('🔐 AuthService - Error al reenviar código:', error);
         return throwError(() => error);
@@ -102,13 +146,19 @@ export class AuthService {
   }
 
   /**
-   * Login directo
+   * Login directo (sin 2FA)
    */
-  loginDirect(username: string, password: string): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${this.apiUrl}/auth/login-direct`, {
+  loginDirect(username: string, password: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.apiUrl}/auth/login-direct`, {
       username,
       password
     }).pipe(
+      tap(response => {
+        if (response.token && response.user) {
+          this.completeLogin(response.token, response.user);
+          this.router.navigate(['/dashboard']);
+        }
+      }),
       catchError(error => {
         console.error('🔐 AuthService - Error en login directo:', error);
         return throwError(() => error);
@@ -117,9 +167,26 @@ export class AuthService {
   }
 
   /**
-   * Guardar datos de autenticación
+   * Completar login
    */
-  setToken(token: string): void {
+    public completeLogin(token: string, user: User): void {
+    try {
+      console.log('🔐 Completing login process...');
+      
+      // Establecer token y usuario
+      this.setToken(token);
+      this.setUser(user);
+      
+      console.log('🔐 ✅ Login completed successfully for user:', user.username);
+    } catch (error) {
+      console.error('🔐 ❌ Error completing login:', error);
+    }
+  }
+
+  /**
+   * Guardar token (público)
+   */
+  public setToken(token: string): void {
     try {
       localStorage.setItem('token', token);
       console.log('🔐 Token saved to storage');
@@ -128,7 +195,10 @@ export class AuthService {
     }
   }
 
-  setUser(user: User): void {
+  /**
+   * Guardar usuario (público)
+   */
+  public setUser(user: User): void {
     try {
       localStorage.setItem('user', JSON.stringify(user));
       this.currentUserSubject.next(user);
@@ -137,31 +207,6 @@ export class AuthService {
     } catch (error) {
       console.error('Error saving user:', error);
     }
-  }
-
-  /**
-   * ✅ NUEVO MÉTODO: Completar login después de 2FA
-   */
-  completeLogin(token: string, user: User): Observable<boolean> {
-    return new Observable(observer => {
-      try {
-        console.log('🔐 Completing login process...');
-        
-        // Limpiar estado pendiente primero
-        this.clearPendingAuth();
-        
-        // Establecer token y usuario
-        this.setToken(token);
-        this.setUser(user);
-        
-        console.log('🔐 ✅ Login completed successfully for user:', user.username);
-        observer.next(true);
-        observer.complete();
-      } catch (error) {
-        console.error('🔐 ❌ Error completing login:', error);
-        observer.error(error);
-      }
-    });
   }
 
   /**
@@ -212,7 +257,8 @@ export class AuthService {
    */
   isAuthenticated(): boolean {
     const token = this.getToken();
-    const isAuth = !!token;
+    const user = this.getCurrentUser();
+    const isAuth = !!token && !!user;
     console.log('🔐 Authentication check:', isAuth);
     return isAuth;
   }
@@ -304,3 +350,6 @@ export class AuthService {
     return user ? roles.includes(user.role) : false;
   }
 }
+
+// Export types from here for backward compatibility
+export { User, UserRole };

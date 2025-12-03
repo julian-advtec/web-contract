@@ -477,3 +477,23 @@ $active-bg: #a7f3d0;          // Active verde medio
     border-radius: 2px;
   }
 }
+
+.nav-item {
+  &.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    
+    &:hover {
+      background: none;
+      transform: none;
+    }
+  }
+  
+  .path-warning {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    font-size: 10px;
+    color: #ef4444;
+  }
+}

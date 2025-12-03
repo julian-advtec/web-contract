@@ -1,3 +1,4 @@
+// auth/auth.routes.ts
 import { Routes } from '@angular/router';
 
 export const authRoutes: Routes = [
@@ -17,8 +18,8 @@ export const authRoutes: Routes = [
       .then(m => m.ResetPasswordComponent)
   },
   {
-    path: 'verify-2fa',
-    loadComponent: () => import('./pages/verify-2fa/verify-2fa.component')
-      .then(m => m.Verify2faComponent)
+    path: '',
+    redirectTo: 'login',
+    pathMatch: 'full'
   }
 ];

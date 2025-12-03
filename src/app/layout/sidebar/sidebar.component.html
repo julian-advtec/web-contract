@@ -1,17 +1,17 @@
+<!-- layout/sidebar/sidebar.component.html -->
 <aside class="sidebar" [class.collapsed]="sidebarCollapsed">
   <!-- Header con Logo -->
   <div class="sidebar-header">
-    <!-- Logo completo cuando está expandido -->
     <div class="logo-container" *ngIf="!sidebarCollapsed">
       <img src="assets/images/logo.png" alt="SistemaDoc" class="logo-image">
     </div>
 
-    <!-- Logo minimalista cuando está colapsado -->
     <div class="logo-collapsed" *ngIf="sidebarCollapsed">
       <img src="assets/images/logo.png" alt="SG" class="logo-image-small">
     </div>
   </div>
 
+ 
   <!-- Navegación -->
   <nav class="sidebar-nav">
     <div class="nav-section" *ngIf="!sidebarCollapsed">
@@ -19,13 +19,27 @@
     </div>
 
     <ul class="nav-menu">
-      <li class="nav-item" *ngFor="let module of availableModules" (click)="onNavigateToModule(module.route)"
-        [title]="module.description">
-        <!-- Iconos SVG minimalistas -->
+      <li class="nav-item" 
+          *ngFor="let module of availableModules; let i = index" 
+          (click)="onNavigateToModule(module)"
+          [title]="module.description"
+          [class.active]="isModuleActive(module)">
+        
         <span class="nav-icon" [innerHTML]="getModuleIcon(module.id)"></span>
-        <span class="nav-text" *ngIf="!sidebarCollapsed">{{ module.title }}</span>
-        <!-- Tooltip mejorado -->
-        <span class="nav-tooltip" *ngIf="sidebarCollapsed">{{ module.title }}</span>
+        
+        <span class="nav-text" *ngIf="!sidebarCollapsed">
+          {{ module.title }}
+          <span *ngIf="!module.path" style="color: red; font-size: 0.7em">(sin ruta)</span>
+        </span>
+        
+        <span class="nav-tooltip" *ngIf="sidebarCollapsed">
+          {{ module.title }}
+        </span>
+        
+        <!-- Debug info - opcional -->
+        <span *ngIf="false" style="font-size: 0.6em; color: #666; position: absolute; right: 5px; top: 5px;">
+          {{ i }}: {{ module.path || module.route || 'undefined' }}
+        </span>
       </li>
     </ul>
   </nav>
@@ -43,14 +57,13 @@
     </button>
   </div>
 
-  <!-- Footer minimalista cuando está colapsado -->
   <div class="sidebar-footer" *ngIf="sidebarCollapsed">
     <button class="logout-btn" (click)="onLogout()" title="Cerrar Sesión">
       <i class="fa fa-sign-out"></i>
     </button>
   </div>
 
-  <!-- Toggle button - SIEMPRE VISIBLE -->
+  <!-- Toggle button -->
   <div class="toggle-sidebar" (click)="onToggleSidebar()">
     <i class="fa" [class.fa-chevron-left]="!sidebarCollapsed" [class.fa-chevron-right]="sidebarCollapsed"></i>
   </div>

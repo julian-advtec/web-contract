@@ -1,3 +1,4 @@
+<!-- src/app/pages/dashboard/dashboard.component.html -->
 <div class="app-container">
   <!-- Sidebar fijo con clase condicional -->
   <div class="drawer-fixed" [class.collapsed]="sidebarCollapsed">
@@ -6,7 +7,6 @@
       [availableModules]="availableModules"
       [sidebarCollapsed]="sidebarCollapsed"
       [getUserRoleName]="getUserRoleName"
-      (navigateToModule)="navigateToModule($event)"
       (toggleSidebar)="onToggleSidebar($event)"
       (logout)="onLogout()">
     </app-sidebar>
@@ -22,15 +22,18 @@
 
   <!-- Main Content -->
   <main class="main-with-margin" [style.backgroundImage]="'url(' + backgroundImage + ')'">
-    <div class="welcome-overlay">
-      <h1 class="welcome-title">¡Bienvenido!</h1>
-      <p class="welcome-message">
-        Hola <strong>{{ currentUser?.username || 'Usuario' }}</strong>, 
-        has ingresado al sistema como <strong>{{ getUserRoleName(currentUser?.role) }}</strong>.
-      </p>
-      <p class="welcome-subtitle">
-        Utiliza el menú lateral para navegar entre los módulos disponibles.
-      </p>
+    <!-- Contenedor centrado -->
+    <div class="container-fluid">
+      <div class="welcome-overlay">
+        <h1 class="welcome-title">¡Bienvenido!</h1>
+        <p class="welcome-message">
+          Hola <strong>{{ currentUser?.username || 'Usuario' }}</strong>, 
+          has ingresado al sistema como <strong>{{ getUserRoleName(currentUser?.role) }}</strong>.
+        </p>
+        <p class="welcome-subtitle">
+          Utiliza el menú lateral para navegar entre los módulos disponibles.
+        </p>
+      </div>
     </div>
   </main>
 </div>

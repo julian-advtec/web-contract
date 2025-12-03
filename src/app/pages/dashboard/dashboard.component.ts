@@ -1,3 +1,4 @@
+// src/app/pages/dashboard/dashboard.component.ts
 import { Component, inject, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
@@ -5,6 +6,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { NavbarComponent } from '../../layout/navbar/navbar.component';
 import { SidebarComponent } from '../../layout/sidebar/sidebar.component';
 import { User, UserRole } from '../../core/models/user.types';
+import { ModulesService, AppModule } from '../../core/services/modules.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -16,103 +18,20 @@ import { User, UserRole } from '../../core/models/user.types';
 export class DashboardComponent implements OnInit {
   private auth = inject(AuthService);
   private router = inject(Router);
+  private modulesService = inject(ModulesService);
 
   currentUser: User | null = null;
   showLogoutConfirm = false;
   backgroundImage: string = '';
-  availableModules: any[] = [];
+  availableModules: AppModule[] = [];
 
   // ✅ Por defecto FALSE para que sidebar esté ABIERTO al inicio
   sidebarCollapsed = false;
 
-  // ✅ Módulos basados en los roles de usuario
-  allModules = [
-    {
-      id: 'admin',
-      icon: '👑',
-      title: 'Panel de Administración',
-      route: '/admin',
-      description: 'Gestión completa del sistema',
-      roles: [UserRole.ADMIN]
-    },
-    {
-      id: 'radicador',
-      icon: '📥',
-      title: 'Radicación',
-      route: '/radicador',
-      description: 'Radicación de documentos',
-      roles: [UserRole.RADICADOR, UserRole.ADMIN, UserRole.SUPERVISOR]
-    },
-    {
-      id: 'supervisor',
-      icon: '👀',
-      title: 'Supervisión',
-      route: '/supervisor',
-      description: 'Supervisión de procesos',
-      roles: [UserRole.SUPERVISOR, UserRole.ADMIN]
-    },
-    {
-      id: 'auditor-cuentas',
-      icon: '🔍',
-      title: 'Auditoría de Cuentas',
-      route: '/auditor-cuentas',
-      description: 'Auditoría y revisión de cuentas',
-      roles: [UserRole.AUDITOR_CUENTAS, UserRole.ADMIN, UserRole.SUPERVISOR]
-    },
-    {
-      id: 'contabilidad',
-      icon: '💰',
-      title: 'Contabilidad',
-      route: '/contabilidad',
-      description: 'Gestión contable y financiera',
-      roles: [UserRole.CONTABILIDAD, UserRole.ADMIN, UserRole.SUPERVISOR]
-    },
-    {
-      id: 'tesoreria',
-      icon: '🏦',
-      title: 'Tesorería',
-      route: '/tesoreria',
-      description: 'Gestión de tesorería',
-      roles: [UserRole.TESORERIA, UserRole.ADMIN, UserRole.SUPERVISOR]
-    },
-    {
-      id: 'asesor-gerencia',
-      icon: '💼',
-      title: 'Asesoría de Gerencia',
-      route: '/asesor-gerencia',
-      description: 'Asesoría y consultoría gerencial',
-      roles: [UserRole.ASESOR_GERENCIA, UserRole.ADMIN, UserRole.SUPERVISOR]
-    },
-    {
-      id: 'rendicion-cuentas',
-      icon: '📑',
-      title: 'Rendición de Cuentas',
-      route: '/rendicion-cuentas',
-      description: 'Rendición y reporte de cuentas',
-      roles: [UserRole.RENDICION_CUENTAS, UserRole.ADMIN, UserRole.SUPERVISOR]
-    },
-    {
-      id: 'reportes',
-      icon: '📊',
-      title: 'Reportes',
-      route: '/reportes',
-      description: 'Generación de reportes del sistema',
-      roles: [UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.AUDITOR_CUENTAS]
-    },
-    {
-      id: 'gestion-usuarios',
-      icon: '👥',
-      title: 'Gestión de Usuarios',
-      route: '/gestion-usuarios',
-      description: 'Administración de usuarios y roles',
-      roles: [UserRole.ADMIN]
-    }
-  ];
-
   ngOnInit() {
     this.currentUser = this.auth.getCurrentUser();
     this.setBackgroundByRole();
-    this.setAvailableModules();
+    this.loadAvailableModules();
 
     // En desktop, por defecto abierto
     if (!this.isMobile()) {
@@ -154,14 +73,32 @@ export class DashboardComponent implements OnInit {
       default:
         this.backgroundImage = 'assets/images/default.jpg';
     }
+
+    // Verificar si la imagen existe
+    this.checkImageExists();
   }
 
-  // ✅ Filtrar módulos disponibles según el rol usando el enum
-  private setAvailableModules(): void {
-    const userRole = this.currentUser?.role;
-    this.availableModules = this.allModules.filter(module =>
-      userRole ? module.roles.includes(userRole) : false
-    );
+  // Verificar si la imagen existe
+  private checkImageExists(): void {
+    const img = new Image();
+    img.onload = () => {
+      console.log(`✅ Imagen cargada: ${this.backgroundImage}`);
+    };
+    img.onerror = () => {
+      console.warn(`⚠️ No se pudo cargar: ${this.backgroundImage}, usando imagen por defecto`);
+      this.backgroundImage = 'assets/images/default.jpg';
+    };
+    img.src = this.backgroundImage;
+  }
+
+  // Cargar módulos disponibles desde el servicio
+  private loadAvailableModules(): void {
+    if (this.currentUser?.role) {
+      this.availableModules = this.modulesService.getModulesForUser(this.currentUser.role);
+    } else {
+      this.availableModules = this.modulesService.getDefaultModules();
+    }
+    console.log('📋 Módulos disponibles:', this.availableModules);
   }
 
   // ✅ Obtener nombre del rol para mostrar
@@ -181,6 +118,30 @@ export class DashboardComponent implements OnInit {
     return roles[role] || role;
   }
 
+  // ✅ Clase CSS según rol
+  getRoleClass(role: UserRole | null | undefined): string {
+    if (!role) return 'default';
+    
+    switch (role) {
+      case UserRole.ADMIN:
+        return 'admin';
+      case UserRole.SUPERVISOR:
+        return 'supervisor';
+      case UserRole.AUDITOR_CUENTAS:
+        return 'auditor';
+      case UserRole.CONTABILIDAD:
+        return 'contabilidad';
+      case UserRole.TESORERIA:
+        return 'tesoreria';
+      case UserRole.ASESOR_GERENCIA:
+        return 'asesor';
+      case UserRole.RENDICION_CUENTAS:
+        return 'rendicion';
+      default:
+        return 'default';
+    }
+  }
+
   onLogout() {
     this.showLogoutConfirm = true;
   }
@@ -188,6 +149,7 @@ export class DashboardComponent implements OnInit {
   confirmLogout() {
     this.auth.logout();
     this.showLogoutConfirm = false;
+    this.router.navigate(['/auth/login']);
   }
 
   cancelLogout() {
@@ -205,7 +167,6 @@ export class DashboardComponent implements OnInit {
 
   closeSidebarOnOverlay(event: MouseEvent) {
     if (this.isMobile() && !this.sidebarCollapsed) {
-      // Verificar si el clic fue en el overlay (fuera del sidebar)
       const sidebarElement = (event.target as HTMLElement).closest('app-sidebar');
       if (!sidebarElement) {
         this.sidebarCollapsed = true;

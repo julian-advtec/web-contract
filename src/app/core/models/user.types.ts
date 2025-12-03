@@ -1,4 +1,4 @@
-// Enums y tipos compartidos entre frontend y backend
+// src/app/core/models/user.types.ts
 export enum UserRole {
   ADMIN = 'admin',
   RADICADOR = 'radicador',
@@ -14,25 +14,73 @@ export interface User {
   id: string;
   username: string;
   email: string;
+  fullName?: string;
   role: UserRole;
-  firstName?: string;
-  lastName?: string;
   isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  lastLogin?: Date | string;
+  profileImage?: string;
 }
 
-export interface AuthResponse {
-  ok: boolean;
-  success?: boolean;
-  access_token?: string;
-  token?: string;
-  user?: User;
-  message: string;
-  requiresTwoFactor?: boolean;
-  userId?: string;
-  expiresIn?: string;
-  data?: any;
-  path?: string;
-  timestamp?: string;
+export interface CreateUserRequest {
+  username: string;
+  email: string;
+  password: string;
+  fullName?: string;
+  role: UserRole;
+  isActive?: boolean;
 }
+
+export interface UpdateUserRequest {
+  username?: string;
+  email?: string;
+  password?: string;
+  fullName?: string;
+  role?: UserRole;
+  isActive?: boolean;
+}
+
+export interface UsersStats {
+  total: number;
+  active: number;
+  inactive: number;
+  byRole: { [key: string]: number };
+}
+
+export interface PaginatedUsersResponse {
+  users: User[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  token?: string;
+  access_token?: string;
+  user?: User;
+  userId?: string;
+  requiresTwoFactor?: boolean;
+  message?: string;
+}
+
+export interface TwoFactorRequest {
+  userId: string;
+  code: string;
+}
+
+export interface TwoFactorResponse {
+  token?: string;
+  access_token?: string;
+  user?: User;
+  message?: string;
+}
+
+// Alias para compatibilidad
+export type UsersResponse = PaginatedUsersResponse;
