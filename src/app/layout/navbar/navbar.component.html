@@ -1,11 +1,19 @@
+<!-- navbar.component.html -->
 <nav class="navbar" [class.collapsed]="sidebarCollapsed">
   <div class="navbar-content">
     <!-- Botón para toggle del sidebar -->
 
-    
-    <!-- Brand/Logo -->
+    <!-- Brand/Logo - Ahora dinámico -->
     <div class="navbar-brand">
-      <h1>SISTEMA DE GESTIÓN DOCUMENTAL</h1>
+      <h1 *ngIf="isDashboardPage(); else dynamicTitle">
+        SISTEMA DE GESTIÓN DOCUMENTAL
+      </h1>
+      <ng-template #dynamicTitle>
+        <div class="dynamic-title">
+          <h1 class="page-title">{{ currentPageTitle }}</h1>
+          <p *ngIf="currentPageSubtitle" class="page-subtitle">{{ currentPageSubtitle }}</p>
+        </div>
+      </ng-template>
     </div>
     
     <!-- Información del usuario -->
@@ -14,6 +22,8 @@
         <span class="user-name">{{ currentUser?.username || 'Usuario' }}</span>
         <span class="user-role">{{ getUserRoleName(currentUser?.role) }}</span>
       </div>
+      
+
     </div>
   </div>
 </nav>

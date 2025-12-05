@@ -74,6 +74,7 @@ $primary-green: #10b981; // Verde para el botón
     flex: 1;
     display: flex;
     justify-content: center;
+    align-items: center;
     
     h1 {
       margin: 0;
@@ -82,13 +83,37 @@ $primary-green: #10b981; // Verde para el botón
       color: $text-color;
       text-align: center;
     }
+    
+    .dynamic-title {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      
+      .page-title {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: $text-color;
+        text-align: center;
+        line-height: 1.2;
+      }
+      
+      .page-subtitle {
+        margin: 0.25rem 0 0 0;
+        font-size: 0.95rem;
+        color: #6b7280;
+        font-weight: 400;
+        opacity: 0.9;
+      }
+    }
   }
 
   // Sección del usuario
   .navbar-user-section {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 1.5rem;
 
     .user-info {
       display: flex;
@@ -105,6 +130,27 @@ $primary-green: #10b981; // Verde para el botón
         font-size: 0.875rem;
         color: #6b7280;
         opacity: 0.8;
+      }
+    }
+    
+    .logout-btn {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 0.6rem;
+      border-radius: 8px;
+      transition: all $transition-duration ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 45px;
+      height: 45px;
+      
+      &:hover {
+        background: rgba(239, 68, 68, 0.2);
+        transform: translateY(-2px);
       }
     }
   }
@@ -132,8 +178,20 @@ $primary-green: #10b981; // Verde para el botón
 // Ajustes responsivos
 @include tablet {
   .navbar {
-    .navbar-brand h1 {
-      font-size: 1.4rem;
+    .navbar-brand {
+      h1 {
+        font-size: 1.4rem;
+      }
+      
+      .dynamic-title {
+        .page-title {
+          font-size: 1.4rem;
+        }
+        
+        .page-subtitle {
+          font-size: 0.9rem;
+        }
+      }
     }
     
     .navbar-content {
@@ -144,15 +202,28 @@ $primary-green: #10b981; // Verde para el botón
 
 @include small-tablet {
   .navbar {
-    .navbar-brand h1 {
-      font-size: 1.3rem;
+    .navbar-brand {
+      h1 {
+        font-size: 1.3rem;
+      }
+      
+      .dynamic-title {
+        .page-title {
+          font-size: 1.3rem;
+        }
+        
+        .page-subtitle {
+          font-size: 0.85rem;
+        }
+      }
     }
     
     .navbar-content {
       padding: 0 1.25rem;
     }
     
-    .sidebar-toggle {
+    .sidebar-toggle,
+    .logout-btn {
       width: 40px;
       height: 40px;
       padding: 0.6rem;
@@ -169,8 +240,24 @@ $primary-green: #10b981; // Verde para el botón
       padding: 0 1rem;
     }
 
-    .navbar-brand h1 {
-      font-size: 1.2rem;
+    .navbar-brand {
+      h1 {
+        font-size: 1.1rem;
+      }
+      
+      .dynamic-title {
+        .page-title {
+          font-size: 1.1rem;
+          max-width: 180px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        
+        .page-subtitle {
+          display: none; // Ocultar subtítulo en móvil
+        }
+      }
     }
     
     // Ocultar información menos importante en móvil
@@ -182,7 +269,8 @@ $primary-green: #10b981; // Verde para el botón
       font-size: 0.9rem;
     }
     
-    .sidebar-toggle {
+    .sidebar-toggle,
+    .logout-btn {
       width: 38px;
       height: 38px;
       padding: 0.5rem;
@@ -194,15 +282,25 @@ $primary-green: #10b981; // Verde para el botón
 // Para pantallas muy pequeñas
 @media (max-width: 480px) {
   .navbar {
-    .navbar-brand h1 {
-      font-size: 1.1rem;
+    .navbar-brand {
+      h1 {
+        font-size: 1rem;
+      }
+      
+      .dynamic-title {
+        .page-title {
+          font-size: 1rem;
+          max-width: 150px;
+        }
+      }
     }
     
     .navbar-content {
       padding: 0 0.75rem;
     }
     
-    .sidebar-toggle {
+    .sidebar-toggle,
+    .logout-btn {
       width: 36px;
       height: 36px;
       padding: 0.4rem;
