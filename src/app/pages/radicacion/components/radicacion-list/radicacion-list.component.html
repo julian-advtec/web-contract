@@ -1,0 +1,231 @@
+<div class="radicacion-list-container" [class.sidebar-collapsed]="sidebarCollapsed">
+    <div class="radicacion-list-inner">
+        <!-- Barra de búsqueda -->
+        <div class="search-container-smaller">
+            <div class="input-group">
+                <span class="input-group-text">
+                    <i class="fas fa-search"></i>
+                </span>
+                <input type="text" class="form-control" placeholder="Buscar radicado, contratista o contrato..."
+                    [(ngModel)]="searchTerm" (input)="onSearch()" />
+            </div>
+        </div>
+
+        <div class="card shadow main-card">
+            <div class="card-body p-0">
+                <!-- Loading State -->
+                <div *ngIf="isLoading" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2">Cargando documentos...</p>
+                </div>
+
+                <!-- Empty State -->
+                <div *ngIf="!isLoading && filteredDocumentos.length === 0" class="text-center py-5">
+                    <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted" *ngIf="searchTerm">
+                        No se encontraron resultados para "{{searchTerm}}"
+                    </h5>
+                    <h5 class="text-muted" *ngIf="!searchTerm">
+                        No hay documentos radicados
+                    </h5>
+                    <button class="btn btn-primary mt-3" (click)="nuevoRadicado.emit()">
+                        <i class="fas fa-plus me-2"></i> Nuevo Radicado
+                    </button>
+                </div>
+
+                <!-- Lista de documentos -->
+                <div *ngIf="!isLoading && filteredDocumentos.length > 0" class="users-list-container">
+
+                    <!-- Encabezados -->
+                    <div class="users-header">
+                        <div class="header-item">Radicado</div>
+                        <div class="header-item">Contratista</div>
+                        <div class="header-item">Contrato</div>
+                        <div class="header-item">Estado</div>
+                        <div class="header-item">Fecha</div>
+                        <div class="header-item">Documentos</div>
+                    </div>
+
+                    <!-- Lista de documentos -->
+                    <div class="users-list">
+                        <div *ngFor="let doc of paginatedDocumentos" class="user-card">
+
+                            <!-- Información del radicado -->
+                            <div class="user-info">
+                                <div class="user-avatar">
+                                    <div class="avatar-circle">
+                                        {{ doc.nombreContratista.charAt(0) }}
+                                    </div>
+                                </div>
+                                <div class="user-details">
+                                    <h4 class="user-name">{{ doc.numeroRadicado }}</h4>
+                                    <p class="user-username">Radicado</p>
+                                </div>
+                            </div>
+
+                            <!-- Contratista -->
+                            <div class="user-email">
+                                <p class="email-text">
+                                    {{ doc.nombreContratista }}
+                                    <span class="text-muted d-block small">
+                                        {{ doc.documentoContratista }}
+                                    </span>
+                                </p>
+                            </div>
+
+                            <!-- Contrato -->
+                            <div class="user-role">
+                                <span class="role-badge">
+                                    {{ doc.numeroContrato }}
+                                </span>
+                            </div>
+
+                            <!-- Estado -->
+                            <div class="user-status">
+                                <span class="status-badge" [ngClass]="getEstadoClass(doc.estado)">
+                                    <i class="fas" [class.fa-check-circle]="doc.estado === 'APROBADO'"
+                                        [class.fa-times-circle]="doc.estado === 'RECHAZADO'"
+                                        [class.fa-clock]="doc.estado === 'PENDIENTE'"
+                                        [class.fa-file-alt]="doc.estado === 'RADICADO'"></i>
+                                    {{ getEstadoTexto(doc.estado) }}
+                                </span>
+                            </div>
+
+                            <!-- Fecha -->
+                            <div class="user-last-access">
+                                <p class="access-text">
+                                    {{ formatDate(doc.fechaRadicacion) }}
+                                </p>
+                            </div>
+
+                            <!-- Acciones - Descargas -->
+                            <div class="user-actions">
+                                <div class="actions-buttons">
+                                    <!-- Documento 1 -->
+                                    <button class="btn-action btn-view" *ngIf="doc.nombreDocumento1"
+                                        (click)="descargarDocumento(doc.id, 1, doc.nombreDocumento1)"
+                                        title="Descargar {{doc.nombreDocumento1}}">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+
+                                    <!-- Documento 2 -->
+                                    <button class="btn-action btn-view" *ngIf="doc.nombreDocumento2"
+                                        (click)="descargarDocumento(doc.id, 2, doc.nombreDocumento2)"
+                                        title="Descargar {{doc.nombreDocumento2}}">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+
+                                    <!-- Documento 3 -->
+                                    <button class="btn-action btn-view" *ngIf="doc.nombreDocumento3"
+                                        (click)="descargarDocumento(doc.id, 3, doc.nombreDocumento3)"
+                                        title="Descargar {{doc.nombreDocumento3}}">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+
+                                    <!-- Ver detalles -->
+                                    <button class="btn-action btn-edit" (click)="verDetalles(doc)" title="Ver detalles">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="users-footer">
+                        <div class="footer-content-row">
+                            <!-- Primera columna - Vacía -->
+                            <div class="footer-empty"></div>
+
+                            <!-- Segunda columna - Paginación -->
+                            <div class="footer-pagination">
+                                <div class="pagination-with-icons">
+                                    <button class="page-btn" [disabled]="currentPage === 1"
+                                        (click)="changePage(currentPage - 1)">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </button>
+
+                                    <div class="page-numbers">
+                                        <span *ngFor="let page of pages" class="page-number"
+                                            [class.active]="page === currentPage" (click)="changePage(page)">
+                                            {{page}}
+                                        </span>
+                                    </div>
+
+                                    <button class="page-btn" [disabled]="currentPage === totalPages"
+                                        (click)="changePage(currentPage + 1)">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Tercera columna - Botón nuevo radicado -->
+                            <div class="footer-actions">
+                                <button class="btn btn-primary" (click)="nuevoRadicado.emit()">
+                                    <i class="fas fa-plus me-2"></i> Nuevo Radicado
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Después del contenedor principal, antes de la barra de búsqueda -->
+        <div class="messages-container">
+            <!-- Mensaje de error -->
+            <div *ngIf="showError" class="alert alert-danger alert-dismissible fade show" role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <div class="flex-grow-1">
+                        {{ errorMessage }}
+                        <div *ngIf="usingMockData" class="small mt-1">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Mostrando datos de demostración. Para acceder a datos reales, inicia sesión.
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-2 d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-danger" (click)="dismissError()">
+                        <i class="fas fa-times me-1"></i> Ocultar
+                    </button>
+                    <button *ngIf="errorMessage.includes('autenticación') || errorMessage.includes('sesión')"
+                        type="button" class="btn btn-sm btn-primary" routerLink="/auth/login">
+                        <i class="fas fa-sign-in-alt me-1"></i> Iniciar Sesión
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" (click)="refreshData()">
+                        <i class="fas fa-sync-alt me-1"></i> Reintentar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mensaje de éxito -->
+            <div *ngIf="showSuccess" class="alert alert-success alert-dismissible fade show" role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-check-circle me-2"></i>
+                    <span>{{ successMessage }}</span>
+                </div>
+                <button type="button" class="btn-close" (click)="dismissSuccess()" aria-label="Close"></button>
+            </div>
+
+            <!-- Indicador de datos de prueba -->
+            <div *ngIf="usingMockData && !showError" class="alert alert-warning alert-dismissible fade show"
+                role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-vial me-2"></i>
+                    <div>
+                        <strong>Modo demostración:</strong> Mostrando datos de prueba.
+                        <a routerLink="/auth/login" class="alert-link">Inicia sesión</a> para acceder a datos reales.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- En el footer, agregar botón de debug (solo desarrollo) -->
+        <div *ngIf="!isLoading" class="mt-3 text-center">
+            <button class="btn btn-sm btn-outline-info" (click)="debugInfo()" title="Información de depuración">
+                <i class="fas fa-bug"></i>
+            </button>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,1025 @@
+// ============================================
+// VARIABLES DEL LAYOUT
+// ============================================
+$sidebar-width-normal: 280px;
+$sidebar-width-collapsed: 70px;
+$navbar-height: 80px;
+$transition-duration: 0.3s;
+
+// Colores globales (TUS COLORES)
+$primary-green: #10b981;
+$light-green: #34d399;
+$dark-green: #047857;
+$very-dark-green: #064e3b;
+$white: #ffffff;
+$off-white: #f8fafc;
+$light-gray-green: #ecfdf5;
+$medium-gray-green: #d1fae5;
+
+// Colores del formulario
+$danger-red: #dc3545;
+$warning-yellow: #ffc107;
+$success-green: #28a745;
+$info-blue: #17a2b8;
+$primary-blue: #0d6efd;
+$secondary-gray: #6c757d;
+$light-gray: #e9ecef;
+$medium-gray: #ced4da;
+$dark-gray: #495057;
+$text-dark: #2c3e50;
+
+// ============================================
+// ESTILOS DEL LAYOUT
+// ============================================
+
+.app-container {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+  background-color: $off-white;
+}
+
+.drawer-fixed {
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  z-index: 1000;
+  transition: width $transition-duration ease;
+  
+  &:not(.collapsed) {
+    width: $sidebar-width-normal;
+  }
+  
+  &.collapsed {
+    width: $sidebar-width-collapsed;
+  }
+}
+
+.main-with-margin {
+  position: fixed;
+  top: $navbar-height;
+  left: $sidebar-width-normal;
+  width: calc(100vw - #{$sidebar-width-normal});
+  height: calc(100vh - #{$navbar-height});
+  display: flex;
+  flex-direction: column;
+  transition: all $transition-duration ease;
+  overflow-y: auto;
+  background-color: $off-white;
+
+  &::-webkit-scrollbar {
+    width: 0;
+    background: transparent;
+  }
+  
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  
+  .drawer-fixed.collapsed ~ & {
+    left: $sidebar-width-collapsed;
+    width: calc(100vw - #{$sidebar-width-collapsed});
+  }
+}
+
+.container-fluid {
+  flex: 1;
+  padding: 1.5rem;
+  max-width: 1800px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+// ============================================
+// ESTILOS ESPECÍFICOS DEL FORMULARIO
+// ============================================
+
+.user-form-page {
+  min-height: calc(100vh - #{$navbar-height} - 3rem);
+  background-color: $off-white;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1rem 0;
+}
+
+// CONTENEDOR PRINCIPAL ANCHO
+.user-form-container {
+  padding: 2.5rem;
+  background: $white;
+  border-radius: 12px;
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.15);
+  width: 98%;
+  max-width: none;
+  margin: 0 auto;
+  
+  @media (max-width: 768px) {
+    padding: 1.25rem;
+    width: 100%;
+  }
+}
+
+// Encabezado del formulario
+.form-header {
+  margin-bottom: 2.5rem;
+  position: relative;
+
+  h3 {
+    margin: 0 0 0.75rem 0;
+    color: $very-dark-green;
+    font-weight: 700;
+    font-size: 2rem;
+    background: linear-gradient(135deg, $very-dark-green 0%, $dark-green 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .header-divider {
+    height: 4px;
+    width: 50%;
+    background: linear-gradient(90deg, $primary-green 0%, transparent 100%);
+    margin: 1rem 0 1.5rem 0;
+    border-radius: 2px;
+  }
+
+  .text-muted {
+    font-size: 1rem;
+    color: $secondary-gray;
+    
+    .text-danger {
+      color: $danger-red;
+      font-weight: 600;
+    }
+  }
+}
+
+// Secciones del formulario - MODIFICADO CON TU NUEVO ESTILO
+.form-section {
+  margin-bottom: 2.5rem;
+  padding: 1.5rem;
+  background: rgba(236, 253, 245, 0.3);
+  border-radius: 10px;
+  border: 1px solid rgba(16, 185, 129, 0.1);
+  
+  // 👉 Nuevo: controlar tamaño y alineación
+  width: 60%; // La mitad del contenedor
+  max-width: 1000px; // Opcional: evita que se haga demasiado grande
+  margin-left: 0; // Alineado a la izquierda
+
+  @media (max-width: 1024px) {
+    width: 80%; // Más cómodo para pantallas medianas
+  }
+
+  @media (max-width: 768px) {
+    width: 100%; // EN MÓVIL siempre full (sin romper nada)
+    padding: 1.25rem;
+  }
+}
+
+.section-title {
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+
+  h5 {
+    color: $very-dark-green;
+    font-weight: 600;
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    margin: 0;
+    white-space: nowrap;
+    
+    i {
+      color: $primary-green;
+      margin-right: 0.5rem;
+      font-size: 1.1rem;
+    }
+  }
+
+  .section-divider {
+    flex: 1;
+    height: 2px;
+    background: linear-gradient(90deg, $medium-gray-green 0%, transparent 100%);
+    border-radius: 1px;
+  }
+}
+
+// ============================================
+// CAMPOS EN FILA HORIZONTAL - ESTRUCTURA CORREGIDA
+// ============================================
+
+.form-field.horizontal-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  width: 100%;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  // Label (alineado a la izquierda)
+  .form-label {
+    flex: 0 0 180px;
+    min-width: 180px;
+    font-weight: 600;
+    color: $very-dark-green;
+    font-size: 0.95rem;
+    margin-bottom: 0;
+    white-space: nowrap;
+    text-align: left;
+    padding-top: 0.5rem;
+    
+    &.required::after {
+      content: '*';
+      color: $danger-red;
+      margin-left: 4px;
+    }
+    
+    @media (max-width: 992px) {
+      flex: 0 0 150px;
+      min-width: 150px;
+    }
+    
+    @media (max-width: 768px) {
+      flex: 0 0 auto;
+      width: 100%;
+      padding-top: 0;
+      text-align: left;
+    }
+  }
+
+  // Contenedor principal del input y hints - TAMAÑO MANTENIDO
+  .field-input-container {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    
+    @media (max-width: 768px) {
+      width: 100%;
+    }
+  }
+  
+  // Contenedor para todos los hints/avisos - TAMAÑO MANTENIDO
+  .field-hints-container {
+    margin-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+    text-align: left;
+  }
+}
+
+// ============================================
+// INPUT GROUP COMPACTO - CON ESQUINAS REDONDEADAS COMPLETAS
+// ============================================
+
+.input-group.compact-input {
+  display: flex;
+  align-items: center;
+  width: 100%; // OCUPA EL 100% DEL .field-input-container
+  max-width: 100%;
+  
+  .input-group-text {
+    background-color: $light-gray-green;
+    border: 2px solid $medium-gray-green;
+    border-right: none;
+    color: $dark-green;
+    padding: 0 1rem;
+    width: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 42px;
+    border-radius: 8px 0 0 8px;
+    flex-shrink: 0;
+    box-sizing: border-box;
+  }
+  
+  .form-control,
+  .form-select {
+    flex: 1;
+    border: 2px solid $medium-gray-green;
+    border-left: none;
+    border-right: none;
+    padding: 0.625rem 1rem;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    background-color: $white;
+    height: 42px;
+    min-width: 0;
+    width: calc(100% - 45px);
+    box-sizing: border-box;
+    
+    &:focus {
+      border-color: $primary-green;
+      box-shadow: 0 0 0 0.25rem rgba(16, 185, 129, 0.15);
+      outline: none;
+      z-index: 3;
+    }
+    
+    &.is-invalid {
+      border-color: $danger-red;
+      
+      &:focus {
+        box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.15);
+      }
+    }
+    
+    &.is-valid {
+      border-color: $success-green;
+      
+      &:focus {
+        box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.15);
+      }
+    }
+  }
+  
+  // Select específico
+  .form-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23047857' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 16px 12px;
+    padding-right: 2.5rem;
+  }
+  
+  // Botón para mostrar/ocultar contraseña
+  .btn-outline-secondary {
+    border: 2px solid $medium-gray-green;
+    border-left: none;
+    background-color: $white;
+    color: $dark-green;
+    padding: 0 1rem;
+    transition: all 0.2s ease;
+    height: 42px;
+    width: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0 8px 8px 0;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    
+    &:hover {
+      background-color: $light-gray-green;
+      border-color: $primary-green;
+      color: $very-dark-green;
+    }
+    
+    &:focus {
+      box-shadow: 0 0 0 0.25rem rgba(16, 185, 129, 0.15);
+      z-index: 3;
+    }
+  }
+}
+
+// ============================================
+// CLASE ESPECIAL PARA INPUTS SIN BOTÓN (ESQUINA DERECHA REDONDEADA)
+// ============================================
+
+.input-group.compact-input.no-toggle-button {
+  .form-control,
+  .form-select {
+    border-right: 2px solid $medium-gray-green;
+    border-radius: 0 8px 8px 0;
+  }
+}
+
+// Hints y ayuda - ANCHO COMPLETO (mantenido)
+.field-hint {
+  font-size: 0.85rem;
+  color: $secondary-gray;
+  padding: 0.5rem 0.75rem;
+  background: rgba(236, 253, 245, 0.5);
+  border-radius: 6px;
+  border-left: 3px solid $medium-gray-green;
+  width: 100%;
+  text-align: left;
+  
+  small {
+    font-weight: 600;
+    color: $dark-gray;
+    display: flex;
+    align-items: center;
+    
+    i {
+      margin-right: 0.5rem;
+      color: $primary-green;
+    }
+  }
+  
+  ul {
+    padding-left: 1.5rem;
+    margin: 0.5rem 0 0 0;
+
+    li {
+      margin-bottom: 0.25rem;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      text-align: left;
+
+      i {
+        margin-right: 0.5rem;
+        font-size: 0.8rem;
+        width: 14px;
+        
+        &.fa-check {
+          color: $success-green;
+        }
+        
+        &.fa-times {
+          color: $secondary-gray;
+        }
+      }
+    }
+  }
+}
+
+// Indicador de fortaleza de contraseña - ANCHO COMPLETO (mantenido)
+.password-strength {
+  margin-top: 0.75rem;
+  width: 100%;
+  text-align: left;
+
+  .strength-text {
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: $dark-gray;
+    
+    span {
+      font-weight: 700;
+    }
+  }
+
+  .strength-bar {
+    height: 6px;
+    background-color: $light-gray;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+
+    .strength-progress {
+      height: 100%;
+      border-radius: 3px;
+      transition: all 0.3s ease;
+    }
+  }
+}
+
+// Feedback de validación - ANCHO COMPLETO (mantenido)
+.invalid-feedback {
+  font-size: 0.85rem;
+  color: $danger-red;
+  font-weight: 500;
+  display: none;
+  width: 100%;
+  text-align: left;
+  
+  &:not(:empty) {
+    display: block;
+  }
+}
+
+// Switch de estado - ANCHO COMPLETO (mantenido)
+.status-switch {
+  display: flex;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: $light-gray-green;
+  border-radius: 10px;
+  border: 1px solid $medium-gray-green;
+  gap: 1rem;
+  width: 100%;
+  text-align: left;
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .form-check-input {
+    width: 3em;
+    height: 1.5em;
+    margin: 0;
+    flex-shrink: 0;
+  }
+  
+  .form-check-label {
+    font-weight: 600;
+    color: $very-dark-green;
+    display: flex;
+    align-items: center;
+    margin: 0;
+    
+    i {
+      color: $primary-green;
+      margin-right: 0.5rem;
+    }
+  }
+  
+  .status-hint {
+    font-size: 0.85rem;
+    color: $secondary-gray;
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+    
+    @media (max-width: 768px) {
+      margin-left: 0;
+      margin-top: 0.5rem;
+    }
+    
+    i {
+      margin-right: 0.5rem;
+      color: $primary-green;
+    }
+  }
+}
+
+// Alertas
+.alert {
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  
+  &.alert-info {
+    background-color: rgba(52, 211, 153, 0.1);
+    border: 1px solid rgba(52, 211, 153, 0.2);
+    color: $dark-green;
+    
+    i {
+      color: $primary-green;
+    }
+  }
+  
+  &.alert-danger {
+    background-color: rgba(220, 53, 69, 0.1);
+    border: 1px solid rgba(220, 53, 69, 0.2);
+    color: $danger-red;
+    
+    .alert-heading {
+      color: $danger-red;
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    
+    ul {
+      margin-bottom: 0;
+      
+      li {
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+        
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+    }
+  }
+}
+
+// Botones de acción
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid $light-gray-green;
+
+  .btn {
+    min-width: 150px;
+    padding: 0.875rem 1.75rem;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+    
+    &:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+    
+    &.btn-secondary {
+      background-color: $secondary-gray;
+      border-color: $secondary-gray;
+      color: $white;
+      
+      &:hover:not(:disabled) {
+        background-color: darken($secondary-gray, 10%);
+        border-color: darken($secondary-gray, 10%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+      }
+      
+      i {
+        margin-right: 0.5rem;
+      }
+    }
+    
+    &.btn-primary {
+      background: linear-gradient(135deg, $primary-green 0%, $dark-green 100%);
+      border: none;
+      color: $white;
+      
+      &:hover:not(:disabled) {
+        background: linear-gradient(135deg, $light-green 0%, $primary-green 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+      }
+      
+      i {
+        margin-right: 0.5rem;
+      }
+    }
+    
+    .spinner-border {
+      margin-right: 0.5rem;
+    }
+  }
+}
+
+// ============================================
+// RESPONSIVE
+// ============================================
+
+@media (max-width: 1200px) {
+  .main-with-margin {
+    left: $sidebar-width-collapsed;
+    width: calc(100vw - #{$sidebar-width-collapsed});
+  }
+  
+  .drawer-fixed:not(.collapsed) ~ .main-with-margin {
+    left: $sidebar-width-normal;
+    width: calc(100vw - #{$sidebar-width-normal});
+  }
+  
+  .form-field.horizontal-field .form-label {
+    flex: 0 0 150px;
+    min-width: 150px;
+  }
+}
+
+@media (max-width: 992px) {
+  .container-fluid {
+    padding: 1rem;
+  }
+  
+  .form-header h3 {
+    font-size: 1.75rem;
+  }
+  
+  .section-title h5 {
+    font-size: 1.1rem;
+  }
+  
+  .form-field.horizontal-field .form-label {
+    flex: 0 0 130px;
+    min-width: 130px;
+  }
+}
+
+@media (max-width: 768px) {
+  .drawer-fixed {
+    width: $sidebar-width-collapsed !important;
+    
+    &:not(.collapsed) {
+      width: $sidebar-width-normal !important;
+      z-index: 1001;
+    }
+  }
+
+  .main-with-margin {
+    left: $sidebar-width-collapsed !important;
+    width: calc(100vw - #{$sidebar-width-collapsed}) !important;
+    
+    .drawer-fixed:not(.collapsed) ~ & {
+      left: $sidebar-width-normal !important;
+      width: calc(100vw - #{$sidebar-width-normal}) !important;
+    }
+  }
+  
+  .container-fluid {
+    padding: 0.75rem;
+  }
+  
+  .user-form-container {
+    padding: 1.25rem;
+    width: 100%;
+    margin: 0;
+  }
+  
+  .form-header {
+    margin-bottom: 2rem;
+    
+    h3 {
+      font-size: 1.5rem;
+    }
+    
+    .header-divider {
+      width: 70%;
+    }
+  }
+  
+  .section-title {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    
+    .section-divider {
+      width: 100%;
+    }
+  }
+  
+  .form-field.horizontal-field {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    
+    .form-label {
+      flex: 0 0 auto;
+      width: 100%;
+      padding-top: 0;
+      text-align: left;
+    }
+    
+    .field-input-container {
+      width: 100%;
+    }
+  }
+  
+  .input-group.compact-input {
+    .input-group-text,
+    .form-control,
+    .form-select,
+    .btn-outline-secondary {
+      height: 44px;
+    }
+    
+    .input-group-text {
+      width: 45px;
+    }
+    
+    .btn-outline-secondary {
+      width: 45px;
+    }
+  }
+  
+  // Ajuste para móviles en inputs sin botón
+  .input-group.compact-input.no-toggle-button {
+    .form-control,
+    .form-select {
+      border-radius: 0 8px 8px 0;
+    }
+  }
+  
+  .form-actions {
+    flex-direction: column;
+    
+    .btn {
+      width: 100%;
+      min-width: auto;
+    }
+  }
+  
+  .status-switch {
+    flex-direction: column;
+    align-items: flex-start;
+    
+    .status-hint {
+      margin-left: 0;
+      margin-top: 0.5rem;
+    }
+  }
+}
+
+@media (max-width: 576px) {
+  .user-form-container {
+    padding: 1rem;
+    border-radius: 8px;
+  }
+  
+  .form-header {
+    h3 {
+      font-size: 1.3rem;
+    }
+    
+    .header-divider {
+      width: 80%;
+    }
+  }
+  
+  .form-label {
+    font-size: 0.9rem;
+  }
+  
+  .form-control, .form-select {
+    font-size: 0.9rem;
+  }
+  
+  .input-group.compact-input {
+    .input-group-text,
+    .form-control,
+    .form-select,
+    .btn-outline-secondary {
+      height: 42px;
+    }
+  }
+}
+
+// ============================================
+// OVERRIDES DEFINITIVOS PARA EL ANCHO COMPLETO
+// ============================================
+
+/* Asegura que todos los elementos usen box-sizing */
+.field-input-container,
+.field-input-container .input-group,
+.field-input-container .input-group.compact-input,
+.field-input-container .input-group > .input-group-text,
+.field-input-container .input-group > .form-control,
+.field-input-container .input-group > input,
+.field-input-container .input-group > select,
+.field-input-container .input-group > textarea,
+.field-input-container .form-control,
+.field-input-container input,
+.field-input-container select,
+.field-input-container textarea {
+  box-sizing: border-box !important;
+}
+
+/* El input-group ocupa el 100% del contenedor */
+.field-input-container .input-group.compact-input {
+  width: 100% !important;
+  flex: 1 1 auto !important;
+  max-width: 100% !important;
+}
+
+/* Los inputs dentro del input-group se estiran completamente */
+.field-input-container .input-group > .form-control,
+.field-input-container .input-group > input,
+.field-input-container .input-group > select,
+.field-input-container .input-group > textarea,
+.field-input-container .form-control,
+.field-input-container input,
+.field-input-container select,
+.field-input-container textarea {
+  width: 100% !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+/* Iconos y botones mantienen su tamaño fijo */
+.field-input-container .input-group > .input-group-text,
+.field-input-container .input-group > .btn,
+.field-input-container .input-group > .btn-outline-secondary {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+}
+
+/* Asegura que el contenedor tenga ancho flexible */
+.field-input-container {
+  width: auto !important;
+  flex: 1 1 auto !important;
+}
+
+// ============================================
+// LAYOUT CON IMAGEN LATERAL
+// ============================================
+
+// ============================================
+// LAYOUT CON IMAGEN LATERAL - SOLO IMAGEN
+// ============================================
+
+.form-with-side-image {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  
+  // Contenedor del formulario (60%)
+  .form-container-wrapper {
+    flex: 0 0 60%;
+    max-width: 60%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  // Imagen lateral (40%) - SOLO IMAGEN CENTRADA
+  .form-side-image {
+    flex: 0 0 38%; // 40% menos el gap
+    max-width: 38%;
+    position: sticky;
+    top: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: calc(100vh - 200px);
+    
+    // Solo la imagen, sin contenedor adicional
+    .side-image {
+      width: 100%;
+      height: auto;
+      max-height: 90vh;
+      object-fit: contain; // Mantiene proporciones
+      display: block; // Elimina espacio extra debajo de la imagen
+    }
+  }
+}
+
+// Ajuste para pantallas medianas (tablet)
+@media (max-width: 1200px) {
+  .form-with-side-image {
+    .form-container-wrapper {
+      flex: 0 0 70%;
+      max-width: 70%;
+    }
+    
+    .form-side-image {
+      flex: 0 0 28%; // 30% menos el gap
+      max-width: 28%;
+      height: calc(100vh - 180px);
+    }
+  }
+}
+
+// Oculta la imagen en pantallas pequeñas (móvil/tablet pequeña)
+@media (max-width: 992px) {
+  .form-with-side-image {
+    flex-direction: column;
+    
+    .form-container-wrapper {
+      flex: 0 0 100%;
+      max-width: 100%;
+    }
+    
+    .form-side-image {
+      display: none; // Oculta la imagen en pantallas pequeñas
+    }
+  }
+}
+
+// Versión con pantalla completa (solo > 1400px)
+@media (min-width: 1400px) {
+  .form-with-side-image {
+    .form-container-wrapper {
+      flex: 0 0 58%;
+      max-width: 58%;
+    }
+    
+    .form-side-image {
+      flex: 0 0 40%;
+      max-width: 40%;
+      display: flex;
+      
+      .side-image {
+        max-height: 85vh;
+      }
+    }
+  }
+}
+
+// Para pantallas entre 992px y 1400px, ocultar imagen
+@media (min-width: 992px) and (max-width: 1399px) {
+  .form-side-image {
+    display: none !important;
+  }
+  
+  .form-container-wrapper {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+// Asegurar que el formulario mantenga su tamaño
+.form-section {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-left: 0 !important;
+}
+
+.user-form-container {
+  width: 100% !important;
+  max-width: 100% !important;
+}

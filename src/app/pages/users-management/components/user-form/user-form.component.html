@@ -1,0 +1,317 @@
+<div class="app-container">
+  <!-- Sidebar fijo -->
+  <div class="drawer-fixed" [class.collapsed]="sidebarCollapsed">
+    <app-sidebar [currentUser]="currentUser" [availableModules]="availableModules" [sidebarCollapsed]="sidebarCollapsed"
+      [getUserRoleName]="getUserRoleName" (toggleSidebar)="onToggleSidebar($event)" (logout)="onLogout()">
+    </app-sidebar>
+  </div>
+
+  <!-- Navbar -->
+  <app-navbar [currentUser]="currentUser" [sidebarCollapsed]="sidebarCollapsed" (logout)="onLogout()"
+    (toggleSidebar)="onToggleSidebar($event)">
+  </app-navbar>
+
+  <!-- Main Content -->
+  <main class="main-with-margin" [style.background]="'#f8f9fa'">
+    <div class="container-fluid py-4">
+      <div class="user-form-page">
+        <!-- Contenedor con imagen a la derecha -->
+        <div class="form-with-side-image">
+          <!-- Formulario (ocupa 60%) -->
+          <div class="form-container-wrapper">
+            <div class="user-form-container">
+              <form [formGroup]="userForm" (ngSubmit)="onSubmit()">
+                <div class="form-header">
+                  <h3>{{ isEditMode ? 'Editar Usuario' : 'Nuevo Usuario' }}</h3>
+                  <div class="header-divider"></div>
+                  <p class="text-muted">Los campos marcados con <span class="text-danger">*</span> son obligatorios</p>
+                </div>
+
+                <!-- Errores del servidor -->
+                <div *ngIf="formErrors.length > 0" class="alert alert-danger">
+                  <h6 class="alert-heading">Errores:</h6>
+                  <ul class="mb-0">
+                    <li *ngFor="let error of formErrors">{{ error }}</li>
+                  </ul>
+                </div>
+
+                <!-- Sección 1: Información Básica -->
+                <div class="form-section">
+                  <div class="section-title">
+                    <h5><i class="fas fa-user-circle me-2"></i>Información Básica</h5>
+                    <div class="section-divider"></div>
+                  </div>
+
+                  <!-- Nombre Completo -->
+                  <div class="form-field horizontal-field">
+                    <label for="fullName" class="form-label required">
+                      Nombre Completo
+                    </label>
+                    <div class="field-input-container">
+                      <div class="input-group compact-input no-toggle-button">
+                        <span class="input-group-text">
+                          <i class="fas fa-user"></i>
+                        </span>
+                        <input type="text" class="form-control" id="fullName" formControlName="fullName"
+                          placeholder="Ingrese el nombre completo"
+                          [class.is-invalid]="hasError('fullName', 'required') || hasError('fullName', 'pattern')"
+                          [class.is-valid]="getFormControl('fullName')?.valid && getFormControl('fullName')?.touched">
+                      </div>
+                      <div class="field-hints-container">
+                        <div class="invalid-feedback"
+                          *ngIf="hasError('fullName', 'required') || hasError('fullName', 'pattern')">
+                          {{ getErrorMessage('fullName') }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Nombre de Usuario -->
+                  <div class="form-field horizontal-field">
+                    <label for="username" class="form-label required">
+                      Nombre de Usuario
+                    </label>
+                    <div class="field-input-container">
+                      <div class="input-group compact-input no-toggle-button">
+                        <span class="input-group-text">
+                          <i class="fas fa-at"></i>
+                        </span>
+                        <input type="text" class="form-control" id="username" formControlName="username"
+                          placeholder="Ingrese el nombre de usuario"
+                          [class.is-invalid]="hasError('username', 'required') || hasError('username', 'pattern')"
+                          [class.is-valid]="getFormControl('username')?.valid && getFormControl('username')?.touched">
+                      </div>
+                      <div class="field-hints-container">
+                        <div class="invalid-feedback"
+                          *ngIf="hasError('username', 'required') || hasError('username', 'pattern')">
+                          {{ getErrorMessage('username') }}
+                        </div>
+                        <div class="field-hint">
+                          <i class="fas fa-info-circle me-1"></i>Solo letras, números y guiones bajos. Mínimo 3
+                          caracteres.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Sección 2: Información de Contacto -->
+                <div class="form-section">
+                  <div class="section-title">
+                    <h5><i class="fas fa-id-card me-2"></i>Información de Contacto</h5>
+                    <div class="section-divider"></div>
+                  </div>
+
+                  <!-- Email -->
+                  <div class="form-field horizontal-field">
+                    <label for="email" class="form-label required">
+                      Correo Electrónico
+                    </label>
+                    <div class="field-input-container">
+                      <div class="input-group compact-input no-toggle-button">
+                        <span class="input-group-text">
+                          <i class="fas fa-envelope"></i>
+                        </span>
+                        <input type="email" class="form-control" id="email" formControlName="email"
+                          placeholder="usuario@ejemplo.com"
+                          [class.is-invalid]="hasError('email', 'required') || hasError('email', 'email')"
+                          [class.is-valid]="getFormControl('email')?.valid && getFormControl('email')?.touched">
+                      </div>
+                      <div class="field-hints-container">
+                        <div class="invalid-feedback"
+                          *ngIf="hasError('email', 'required') || hasError('email', 'email')">
+                          {{ getErrorMessage('email') }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Rol -->
+                  <div class="form-field horizontal-field">
+                    <label for="role" class="form-label required">
+                      Rol del Usuario
+                    </label>
+                    <div class="field-input-container">
+                      <div class="input-group compact-input no-toggle-button">
+                        <span class="input-group-text">
+                          <i class="fas fa-user-tag"></i>
+                        </span>
+                        <select class="form-select" id="role" formControlName="role"
+                          [class.is-invalid]="hasError('role', 'required')"
+                          [class.is-valid]="getFormControl('role')?.valid && getFormControl('role')?.touched">
+                          <option value="" disabled>Seleccione un rol</option>
+                          <option *ngFor="let role of roles" [value]="role">
+                            {{ getUserRoleDisplayName(role) }}
+                          </option>
+                        </select>
+                      </div>
+                      <div class="field-hints-container">
+                        <div class="invalid-feedback" *ngIf="hasError('role', 'required')">
+                          {{ getErrorMessage('role') }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Sección 3: Seguridad -->
+                <div class="form-section">
+                  <div class="section-title">
+                    <h5><i class="fas fa-shield-alt me-2"></i>Seguridad</h5>
+                    <div class="section-divider"></div>
+                  </div>
+
+                  <!-- Contraseña -->
+                  <div class="form-field horizontal-field">
+                    <label for="password" class="form-label" [class.required]="!isEditMode">
+                      {{ isEditMode ? 'Nueva Contraseña' : 'Contraseña' }}
+                    </label>
+                    <div class="field-input-container">
+                      <div class="input-group compact-input">
+                        <span class="input-group-text">
+                          <i class="fas fa-lock"></i>
+                        </span>
+                        <input [type]="showPassword ? 'text' : 'password'" class="form-control" id="password"
+                          formControlName="password"
+                          [placeholder]="isEditMode ? 'Dejar vacío para mantener la actual' : 'Ingrese la contraseña'"
+                          [class.is-invalid]="hasError('password', 'pattern') || hasError('password', 'minlength')"
+                          [class.is-valid]="getFormControl('password')?.valid && getFormControl('password')?.value && getFormControl('password')?.touched">
+                        <button class="btn btn-outline-secondary" type="button" (click)="togglePasswordVisibility()"
+                          [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'">
+                          <i class="fas" [class.fa-eye]="!showPassword" [class.fa-eye-slash]="showPassword"></i>
+                        </button>
+                      </div>
+
+                      <div class="field-hints-container">
+                        <!-- Indicador de fortaleza -->
+                        <div *ngIf="getFormControl('password')?.value" class="mt-2">
+                          <div class="password-strength">
+                            <div class="strength-text">
+                              Fortaleza:
+                              <span [style.color]="passwordStrength.color">{{ passwordStrength.text }}</span>
+                            </div>
+                            <div class="strength-bar">
+                              <div class="strength-progress" [style.width]="(passwordStrength.score / 6) * 100 + '%'"
+                                [style.background-color]="passwordStrength.color">
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="field-hint">
+                          <small><i class="fas fa-info-circle me-1"></i>Requisitos de la contraseña:</small>
+                          <ul class="mt-1 mb-0">
+                            <li *ngFor="let req of passwordRequirements" [class.text-success]="req.met"
+                              [class.text-muted]="!req.met">
+                              <i class="fas" [class.fa-check]="req.met" [class.fa-times]="!req.met"></i>
+                              {{ req.text }}
+                            </li>
+                          </ul>
+                        </div>
+
+                        <div class="invalid-feedback"
+                          *ngIf="hasError('password', 'pattern') || hasError('password', 'minlength')">
+                          {{ getErrorMessage('password') }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Confirmar Contraseña -->
+                  <div class="form-field horizontal-field">
+                    <label for="confirmPassword" class="form-label" [class.required]="!isEditMode">
+                      Confirmar {{ isEditMode ? 'Nueva ' : '' }}Contraseña
+                    </label>
+                    <div class="field-input-container">
+                      <div class="input-group compact-input">
+                        <span class="input-group-text">
+                          <i class="fas fa-lock"></i>
+                        </span>
+                        <input [type]="showConfirmPassword ? 'text' : 'password'" class="form-control"
+                          id="confirmPassword" formControlName="confirmPassword"
+                          [placeholder]="isEditMode ? 'Confirmar nueva contraseña' : 'Confirme la contraseña'"
+                          [class.is-invalid]="hasError('confirmPassword', 'mismatch')"
+                          [class.is-valid]="getFormControl('confirmPassword')?.valid && getFormControl('confirmPassword')?.value && getFormControl('confirmPassword')?.touched">
+                        <button class="btn btn-outline-secondary" type="button"
+                          (click)="toggleConfirmPasswordVisibility()"
+                          [attr.aria-label]="showConfirmPassword ? 'Ocultar confirmación' : 'Mostrar confirmación'">
+                          <i class="fas" [class.fa-eye]="!showConfirmPassword"
+                            [class.fa-eye-slash]="showConfirmPassword"></i>
+                        </button>
+                      </div>
+                      <div class="field-hints-container">
+                        <div class="invalid-feedback" *ngIf="hasError('confirmPassword', 'mismatch')">
+                          {{ getErrorMessage('confirmPassword') }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Estado (solo en modo edición) -->
+                <div class="form-section" *ngIf="isEditMode">
+                  <div class="section-title">
+                    <h5><i class="fas fa-toggle-on me-2"></i>Estado del Usuario</h5>
+                    <div class="section-divider"></div>
+                  </div>
+
+                  <div class="form-field horizontal-field">
+                    <label for="isActive" class="form-label">
+                      Estado del Usuario
+                    </label>
+                    <div class="field-input-container">
+                      <div class="form-check form-switch status-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="isActive"
+                          formControlName="isActive" style="width: 3em; height: 1.5em;">
+                        <label class="form-check-label ms-3" for="isActive">
+                          <i class="fas fa-user-check me-2"></i>Usuario Activo
+                        </label>
+                        <div class="status-hint">
+                          <i class="fas fa-info-circle me-1"></i>
+                          Los usuarios inactivos no pueden iniciar sesión en el sistema
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Nota para creación -->
+                <div class="form-section" *ngIf="!isEditMode">
+                  <div class="row">
+                    <div class="col-md-12">
+                      <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Nota:</strong> Los nuevos usuarios se crearán automáticamente como activos.
+                        Puedes cambiar este estado después en la edición del usuario.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Botones de acción -->
+                <div class="form-actions">
+                  <button type="button" class="btn btn-secondary" (click)="onCancel()" [disabled]="isLoading">
+                    <i class="fas fa-times me-1"></i> Cancelar
+                  </button>
+                  <button type="submit" class="btn btn-primary" [disabled]="userForm.invalid || isLoading">
+                    <span *ngIf="isLoading" class="spinner-border spinner-border-sm me-2"></span>
+                    <i *ngIf="!isLoading" class="fas" [class.fa-save]="isEditMode"
+                      [class.fa-user-plus]="!isEditMode"></i>
+                    {{ isEditMode ? ' Actualizar Usuario' : ' Crear Usuario' }}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- Imagen lateral (ocupa 40%) - SOLO EN PANTALLAS GRANDES -->
+          <div class="form-side-image">
+            <div class="image-container">
+              <img src="/assets/images/GDU2.jpg" alt="Gestión de Usuarios" class="side-image">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>

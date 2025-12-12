@@ -1,191 +1,132 @@
-// src/app/core/services/users.service.ts
-import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Injectable } from '@angular/core';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Observable, throwError } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
-import { User, UserRole } from './auth.service';
-import { AuthService } from './auth.service'; // <-- AÑADE ESTA IMPORTACIÓN
-
-export interface CreateUserRequest {
-    username: string;
-    email: string;
-    fullName: string;
-    role: UserRole;
-    password: string;
-    isActive?: boolean;
-}
-
-export interface UpdateUserRequest {
-    username?: string;
-    email?: string;
-    fullName?: string;
-    role?: UserRole;
-    password?: string;
-    isActive?: boolean;
-}
-
-export interface UsersStats {
-    total: number;
-    active: number;
-    inactive: number;
-    byRole: Record<UserRole, number>;
-}
-
-export interface PaginatedUsersResponse {
-    users: User[];
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-}
+import { User, UserRole } from '../models/user.types';
 
 export interface ApiResponse<T> {
-    ok: boolean;
-    path: string;
-    timestamp: string;
-    data: T;
+  success: boolean;
+  message?: string;
+  data?: T;
+  error?: string;
+  status?: number;
+  errors?: any[];
 }
 
-export interface PaginatedResponse<T> {
-    users: T[];
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
+export interface CreateUserData {
+  username: string;
+  email: string;
+  fullName: string;
+  role: UserRole;
+  password?: string;
+  isActive?: boolean;
 }
 
-
+export interface UpdateUserData {
+  username?: string;
+  email?: string;
+  fullName?: string;
+  role?: UserRole;
+  password?: string;
+  isActive?: boolean;
+}
 
 @Injectable({
-    providedIn: 'root'
+  providedIn: 'root'
 })
 export class UsersService {
-    private http = inject(HttpClient);
-    private authService = inject(AuthService); // Ahora AuthService está importado
-    private apiUrl = environment.apiUrl;
+  private apiUrl = `${environment.apiUrl}/users`;
 
-    private getHeaders(): HttpHeaders {
-        const token = this.authService.getToken();
-        console.log('🔐 UsersService.getHeaders() - Token:', token ? '✅ Presente' : '❌ Ausente');
+  constructor(private http: HttpClient) {}
 
-        if (token) {
-            return new HttpHeaders({
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            });
+  getUserById(id: string): Observable<ApiResponse<User>> {
+    return this.http.get<ApiResponse<User>>(`${this.apiUrl}/${id}`)
+      .pipe(
+        catchError(this.handleError)
+      );
+  }
+
+  createUser(userData: CreateUserData): Observable<ApiResponse<User>> {
+    console.log('UsersService: Enviando datos al backend:', userData); // DEBUG
+    return this.http.post<ApiResponse<User>>(`${this.apiUrl}`, userData)
+      .pipe(
+        catchError(this.handleError)
+      );
+  }
+
+  updateUser(id: string, userData: UpdateUserData): Observable<ApiResponse<User>> {
+    console.log('UsersService: Actualizando usuario:', id, userData); // DEBUG
+    return this.http.patch<ApiResponse<User>>(`${this.apiUrl}/${id}`, userData)
+      .pipe(
+        catchError(this.handleError)
+      );
+  }
+
+  getUsers(): Observable<ApiResponse<User[]>> {
+    return this.http.get<ApiResponse<User[]>>(this.apiUrl)
+      .pipe(
+        catchError(this.handleError)
+      );
+  }
+
+  toggleUserStatus(id: string): Observable<ApiResponse<User>> {
+    return this.http.patch<ApiResponse<User>>(`${this.apiUrl}/${id}/toggle-status`, {})
+      .pipe(
+        catchError(this.handleError)
+      );
+  }
+
+  deleteUser(id: string): Observable<ApiResponse<void>> {
+    return this.http.delete<ApiResponse<void>>(`${this.apiUrl}/${id}`)
+      .pipe(
+        catchError(this.handleError)
+      );
+  }
+
+  private handleError(error: HttpErrorResponse): Observable<never> {
+    console.error('UsersService - Error completo:', error); // DEBUG
+    console.error('UsersService - Error status:', error.status);
+    console.error('UsersService - Error message:', error.message);
+    console.error('UsersService - Error body:', error.error);
+    
+    // Extraer el mensaje de error del backend
+    let errorMessage = 'Error desconocido';
+    let statusCode = error.status || 500;
+    let errors: any[] = [];
+    
+    // Si el backend devuelve un mensaje específico
+    if (error.error?.message) {
+      if (Array.isArray(error.error.message)) {
+        errorMessage = 'Errores de validación';
+        errors = error.error.message;
+      } else {
+        errorMessage = error.error.message;
+      }
+    } 
+    // Si el backend devuelve errores de validación (class-validator)
+    else if (error.error?.errors && Array.isArray(error.error.errors)) {
+      errorMessage = 'Errores de validación';
+      error.error.errors.forEach((err: any) => {
+        if (err.constraints) {
+          Object.values(err.constraints).forEach((msg: any) => {
+            errors.push(msg);
+          });
         }
-
-        return new HttpHeaders({
-            'Content-Type': 'application/json'
-        });
+      });
     }
-
-
-    // Luego actualiza el método getUsers:
-    getUsers(): Observable<ApiResponse<User[]>> {
-        console.log('🔗 UsersService.getUsers() - Llamando a:', `${this.apiUrl}/users`);
-
-        const headers = this.getHeaders();
-        console.log('🔗 UsersService.getUsers() - Headers:', headers.keys());
-
-        return this.http.get<ApiResponse<User[]>>(`${this.apiUrl}/users`, { headers });
+    // Si es un error HTTP estándar
+    else if (error.error instanceof ErrorEvent) {
+      errorMessage = `Error: ${error.error.message}`;
+    } else {
+      errorMessage = error.message || 'Error del servidor';
     }
-
-    // Añade un método para obtener usuarios paginados
-    getUsersPaginated(page: number = 1, limit: number = 10): Observable<PaginatedResponse<User>> {
-        const headers = this.getHeaders();
-        const params = {
-            page: page.toString(),
-            limit: limit.toString()
-        };
-
-        return this.http.get<PaginatedResponse<User>>(`${this.apiUrl}/users/paginated`, {
-            headers,
-            params
-        });
-    }
-
-    // Obtener usuarios con filtros y paginación
-    getUsersWithFilters(params: {
-        search?: string;
-        role?: UserRole;
-        isActive?: boolean;
-        page?: number;
-        limit?: number;
-    }): Observable<PaginatedUsersResponse> {
-        const headers = this.getHeaders();
-        const queryParams = new URLSearchParams();
-
-        if (params.search) queryParams.set('search', params.search);
-        if (params.role) queryParams.set('role', params.role);
-        if (params.isActive !== undefined) queryParams.set('isActive', params.isActive.toString());
-        if (params.page) queryParams.set('page', params.page.toString());
-        if (params.limit) queryParams.set('limit', params.limit.toString());
-
-        const queryString = queryParams.toString();
-        return this.http.get<PaginatedUsersResponse>(
-            `${this.apiUrl}/users/filtered${queryString ? '?' + queryString : ''}`,
-            { headers }
-        );
-    }
-
-    // Obtener usuario por ID
-    getUserById(id: string): Observable<User> {
-        const headers = this.getHeaders();
-        return this.http.get<User>(`${this.apiUrl}/users/${id}`, { headers });
-    }
-
-    // Obtener usuarios por rol
-    getUsersByRole(role: UserRole): Observable<User[]> {
-        const headers = this.getHeaders();
-        return this.http.get<User[]>(`${this.apiUrl}/users/role/${role}`, { headers });
-    }
-
-    // Obtener estadísticas
-    getUsersStats(): Observable<UsersStats> {
-        const headers = this.getHeaders();
-        return this.http.get<UsersStats>(`${this.apiUrl}/users/stats`, { headers });
-    }
-
-    // Crear usuario
-    createUser(userData: CreateUserRequest): Observable<User> {
-        const headers = this.getHeaders();
-        return this.http.post<User>(`${this.apiUrl}/users`, userData, { headers });
-    }
-
-    // Actualizar usuario
-    updateUser(id: string, userData: UpdateUserRequest): Observable<User> {
-        const headers = this.getHeaders();
-        return this.http.patch<User>(`${this.apiUrl}/users/${id}`, userData, { headers });
-    }
-
-    // Activar/Desactivar usuario
-    toggleUserStatus(id: string): Observable<User> {
-        const headers = this.getHeaders();
-        return this.http.patch<User>(`${this.apiUrl}/users/${id}/toggle-status`, {}, { headers });
-    }
-
-    // Activar usuario
-    activateUser(id: string): Observable<User> {
-        const headers = this.getHeaders();
-        return this.http.patch<User>(`${this.apiUrl}/users/${id}/activate`, {}, { headers });
-    }
-
-    // Desactivar usuario
-    deactivateUser(id: string): Observable<User> {
-        const headers = this.getHeaders();
-        return this.http.patch<User>(`${this.apiUrl}/users/${id}/deactivate`, {}, { headers });
-    }
-
-    // Eliminar usuario
-    deleteUser(id: string): Observable<void> {
-        const headers = this.getHeaders();
-        return this.http.delete<void>(`${this.apiUrl}/users/${id}`, { headers });
-    }
-
-    // Eliminación suave
-    softDeleteUser(id: string): Observable<User> {
-        const headers = this.getHeaders();
-        return this.http.delete<User>(`${this.apiUrl}/users/${id}/soft`, { headers });
-    }
+    
+    return throwError(() => ({
+      status: statusCode,
+      message: errorMessage,
+      errors: errors,
+      error: error.error // Incluir el error completo para procesamiento detallado
+    }));
+  }
 }

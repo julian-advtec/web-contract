@@ -1,10 +1,12 @@
 // src/app/layout/sidebar/sidebar.component.ts
-import { Component, Input, Output, EventEmitter, HostListener, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, HostListener, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
-import { User, UserRole } from '../../core/models/user.types';
+import { Subject, takeUntil } from 'rxjs';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { User, UserRole } from '../../core/models/user.types';
 import { AppModule } from '../../core/services/modules.service';
+import { NotificationService } from '../../core/services/notification.service';
 
 @Component({
   selector: 'app-sidebar',
@@ -13,7 +15,9 @@ import { AppModule } from '../../core/services/modules.service';
   standalone: true,
   imports: [CommonModule, RouterModule]
 })
-export class SidebarComponent implements OnInit {
+export class SidebarComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
+  
   // Variables privadas
   private _availableModules: AppModule[] = [];
   private _currentUser: User | null = null;
@@ -53,7 +57,8 @@ export class SidebarComponent implements OnInit {
 
   constructor(
     private sanitizer: DomSanitizer,
-    private router: Router
+    private router: Router,
+    private notificationService: NotificationService
   ) { }
 
   ngOnInit() {
@@ -64,6 +69,11 @@ export class SidebarComponent implements OnInit {
     } else {
       this.sidebarCollapsed = false;
     }
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   onNavigateToModule(module: AppModule) {
@@ -91,12 +101,19 @@ export class SidebarComponent implements OnInit {
   }
 
   onToggleSidebar() {
-    this.sidebarCollapsed = !this.sidebarCollapsed;
-    this.toggleSidebar.emit(this.sidebarCollapsed);
+    const newState = !this.sidebarCollapsed;
+    this.sidebarCollapsed = newState;
+    this.toggleSidebar.emit(newState);
   }
 
   onLogout() {
-    this.logout.emit();
+    this.notificationService.confirm(
+      'Confirmar Cierre de Sesión',
+      '¿Estás seguro de que deseas cerrar sesión?',
+      () => {
+        this.logout.emit();
+      }
+    );
   }
 
   isMobile(): boolean {

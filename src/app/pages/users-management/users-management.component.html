@@ -1,4 +1,4 @@
-<!-- src/app/pages/users-management/users-management.component.html -->
+<!-- users-management.component.html -->
 <div class="app-container">
     <!-- Sidebar fijo -->
     <div class="drawer-fixed" [class.collapsed]="sidebarCollapsed">
@@ -8,7 +8,7 @@
         </app-sidebar>
     </div>
 
-    <!-- Navbar - AHORA muestra el título dinámico -->
+    <!-- Navbar -->
     <app-navbar [currentUser]="currentUser" [sidebarCollapsed]="sidebarCollapsed" (logout)="onLogout()"
         (toggleSidebar)="onToggleSidebar($event)">
     </app-navbar>
@@ -17,27 +17,22 @@
     <main class="main-with-margin" [style.background]="'#f8f9fa'">
         <div class="container-fluid py-4">
 
-
-            <!-- Barra de búsqueda -->
+            <!-- Barra de búsqueda reducida 30% y centrada -->
             <div class="row mb-4">
-                <div class="col-md-6">
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="fas fa-search"></i>
-                                </span>
-                                <input type="text" class="form-control" placeholder="Buscar usuarios..."
-                                    [(ngModel)]="searchTerm">
-                            </div>
+                <div class="col-12">
+                    <div class="search-container-smaller">
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-search"></i>
+                            </span>
+                            <input type="text" class="form-control" placeholder="Buscar usuarios..."
+                                [(ngModel)]="searchTerm">
                         </div>
                     </div>
-
                 </div>
-
             </div>
 
-            <div class="card shadow">
+            <div class="card shadow main-card">
                 <div class="card-body p-0">
                     <div *ngIf="isLoading" class="text-center py-5">
                         <div class="spinner-border text-primary" role="status"></div>
@@ -54,6 +49,7 @@
 
                     <!-- HEADER DE LA LISTA -->
                     <div *ngIf="!isLoading && users.length > 0" class="users-list-container">
+                        
                         <!-- Encabezados -->
                         <div class="users-header">
                             <div class="header-item header-user">Usuario</div>
@@ -132,44 +128,44 @@
                             </div>
                         </div>
 
-                        <!-- Paginación -->
+                        <!-- FOOTER CON 3 COLUMNAS -->
                         <div class="users-footer">
-                            <div class="footer-info">
-                                <span class="text-muted">
-                                    Página {{currentPage}} de {{totalPages}}
-                                </span>
-                            </div>
-
-                            <div class="footer-pagination">
-                                <nav>
-                                    <ul class="pagination">
-                                        <li class="page-item" [class.disabled]="currentPage === 1">
-                                            <a class="page-link" href="javascript:void(0)"
-                                                (click)="changePage(currentPage - 1)">Anterior</a>
-                                        </li>
-                                        <li class="page-item" *ngFor="let page of pages"
-                                            [class.active]="page === currentPage">
-                                            <a class="page-link" href="javascript:void(0)" (click)="changePage(page)">{{
-                                                page }}</a>
-                                        </li>
-                                        <li class="page-item" [class.disabled]="currentPage === totalPages">
-                                            <a class="page-link" href="javascript:void(0)"
-                                                (click)="changePage(currentPage + 1)">Siguiente</a>
-                                        </li>
-                                    </ul>
-                                </nav>
-                            </div>
-
-
-                        </div>
-                        <div class="col-auto">
-                            <button class="btn btn-primary" (click)="createNewUser()">
-                                <i class="fas fa-plus me-2"></i> Nuevo Usuario
-                            </button>
-                            <div class="col-md-6 text-end">
-                                <span class="text-muted">
-                                    Mostrando {{filteredUsers.length}} de {{users.length}} usuarios
-                                </span>
+                            <div class="footer-content-row">
+                                <!-- Primera columna - Vacía (para balance) -->
+                                <div class="footer-empty"></div>
+                                
+                                <!-- Segunda columna - Paginación centrada -->
+                                <div class="footer-pagination">
+                                    <div class="pagination-with-icons">
+                                        <button class="page-btn" 
+                                                [disabled]="currentPage === 1"
+                                                (click)="changePage(currentPage - 1)">
+                                            <i class="fas fa-chevron-left"></i>
+                                        </button>
+                                        
+                                        <div class="page-numbers">
+                                            <span *ngFor="let page of pages" 
+                                                  class="page-number"
+                                                  [class.active]="page === currentPage"
+                                                  (click)="changePage(page)">
+                                                {{page}}
+                                            </span>
+                                        </div>
+                                        
+                                        <button class="page-btn" 
+                                                [disabled]="currentPage === totalPages"
+                                                (click)="changePage(currentPage + 1)">
+                                            <i class="fas fa-chevron-right"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Tercera columna - Botón nuevo usuario -->
+                                <div class="footer-actions">
+                                    <button class="btn btn-primary" (click)="createNewUser()">
+                                        <i class="fas fa-plus me-2"></i> Nuevo Usuario
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -179,18 +175,4 @@
     </main>
 </div>
 
-<!-- Modal de Confirmación de Logout -->
-<div *ngIf="showLogoutConfirm" class="modal-overlay">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>Confirmar Cierre de Sesión</h3>
-        </div>
-        <div class="modal-body">
-            <p>¿Estás seguro de que deseas cerrar sesión?</p>
-        </div>
-        <div class="modal-actions">
-            <button class="btn-cancel" (click)="cancelLogout()">Cancelar</button>
-            <button class="btn-confirm" (click)="confirmLogout()">Sí, Cerrar Sesión</button>
-        </div>
-    </div>
-</div>
+<!-- ELIMINADO: Modal de Confirmación de Logout (ahora se usa el servicio) -->

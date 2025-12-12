@@ -1,0 +1,170 @@
+.radicacion-form-container {
+  padding: 20px;
+}
+
+.alert-message {
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+  animation: slideIn 0.3s ease;
+}
+
+.alert-message.success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10B981;
+  border-left: 4px solid #10B981;
+}
+
+.alert-message.error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #EF4444;
+  border-left: 4px solid #EF4444;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-label {
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-label i {
+  color: #10B981;
+}
+
+.form-control {
+  padding: 12px 16px;
+  border: 1px solid #D1D5DB;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #10B981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.form-control.is-invalid {
+  border-color: #EF4444;
+}
+
+.invalid-feedback {
+  color: #EF4444;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.form-text {
+  font-size: 12px;
+  color: #6B7280;
+  margin-top: 4px;
+}
+
+.documentos-section {
+  margin-top: 20px;
+}
+
+.section-title {
+  color: #374151;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.documentos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.documento-card {
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  padding: 16px;
+  transition: all 0.3s ease;
+}
+
+.documento-card:hover {
+  border-color: #10B981;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
+}
+
+.file-upload-area {
+  position: relative;
+  border: 2px dashed #D1D5DB;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 8px;
+}
+
+.file-upload-area:hover {
+  border-color: #10B981;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #E5E7EB;
+}
+
+.btn {
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: #10B981;
+  color: white;
+  border: none;
+}
+
+.btn-secondary {
+  background: #6B7280;
+  color: white;
+  border: none;
+}

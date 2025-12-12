@@ -11,93 +11,166 @@ $color-verde-light: rgba(16, 185, 129, 0.1);
 $color-verde-medium: rgba(16, 185, 129, 0.2);
 $color-verde-dark: #0D9D6B;
 
+/* ===== OCULTAR SCROLLBAR DE TODA LA PÁGINA ===== */
+/* Esta es la solución GLOBAL que oculta el scrollbar en toda la aplicación */
+
+/* 1. Ocultar scrollbar del documento HTML */
+html {
+  overflow: -moz-scrollbars-none; /* Firefox antiguo */
+  -ms-overflow-style: none; /* IE y Edge */
+  scrollbar-width: none; /* Firefox moderno */
+  
+  /* Para Webkit (Chrome, Safari, Edge) */
+  &::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent !important;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: transparent !important;
+  }
+}
+
+/* 2. Ocultar scrollbar del body */
+body {
+  overflow: -moz-scrollbars-none; /* Firefox antiguo */
+  -ms-overflow-style: none; /* IE y Edge */
+  scrollbar-width: none; /* Firefox moderno */
+  
+  /* Para Webkit (Chrome, Safari, Edge) */
+  &::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent !important;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: transparent !important;
+  }
+}
+
+/* 3. Ocultar scrollbar en todos los contenedores principales */
+.app-container,
+.main-with-margin,
+.container-fluid,
+.main-card,
+.card-body,
+.users-list-container,
+.users-list {
+  /* Para Firefox */
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  
+  /* Para Webkit (Chrome, Safari, Edge) */
+  &::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent !important;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: transparent !important;
+  }
+}
+
+/* 4. Mantener funcionalidad de scroll */
+html, body {
+  /* Mantener scroll funcional pero invisible */
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important; /* Scroll suave en iOS */
+  height: 100%;
+}
+
+.app-container {
+  height: 100vh;
+  overflow-y: auto !important; /* Scroll funcional pero invisible */
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* 5. Asegurar que no haya overflow horizontal */
+* {
+  max-width: 100%;
+}
+
 /* ===== ESTILOS GENERALES ===== */
 .main-with-margin {
     background: #f8f9fa;
     padding: 20px;
+    overflow-y: auto !important; /* Mantener scroll funcional */
+    -webkit-overflow-scrolling: touch !important;
 }
 
 .container-fluid {
     padding: 0 20px !important;
+    overflow-y: auto !important;
 }
 
-/* ===== BARRA DE BÚSQUEDA FULL WIDTH ===== */
-.full-width-search-container {
-    width: 100%;
+/* ===== BARRA DE BÚSQUEDA MÁS ANCHA ===== */
+.search-container-smaller {
+    width: 90%; /* Aumentado de 70% a 90% - Mucho más ancho */
     margin: 0 auto 25px;
-    padding: 25px;
-    background: white;
-    border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.1);
-    border: 2px solid $color-verde-medium;
-    text-align: center; /* Centrar contenido */
-}
-
-.input-group {
-    width: 100%;
-    display: flex;
-    border: 5px solid rgba(16, 185, 129, 0.45);
-    border-radius: 14px;
-    overflow: hidden;
-    background: white;
-}
-
-/* Ícono completamente pegado */
-.input-group .input-group-text {
-    background-color: rgba(16, 185, 129, 0.08);
-    border: none;
-    margin: 0;
-    color: $color-verde;
-    padding: 0.85rem 1.2rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* Input completamente pegado */
-.input-group .form-control {
-    border: none;
-    margin: 0;
-    width: 100%;
-    padding: 0.85rem 1.2rem;
-    font-size: 1rem;
-    box-shadow: none;
-}
-
-/* Focus limpio sin bordes raros */
-.input-group .form-control:focus {
-    outline: none;
-    box-shadow: none;
-}
-
-.search-input-full {
-    border: none;
-    padding: 1rem 1.25rem;
-    font-size: 1rem;
-    background: white;
-    color: #333;
-    text-align: center; /* Centrar texto del input */
-
-    &:focus {
-        box-shadow: none;
-        outline: none;
-    }
-
-    &::placeholder {
-        color: rgba(16, 185, 129, 0.6);
-    }
-}
-
-.btn-clear-search {
-    background: $color-verde-light;
-    border: none;
-    color: $color-verde;
-    padding: 1rem 1.25rem;
-    transition: all 0.3s ease;
-
-    &:hover {
-        background: $color-verde-medium;
-        color: $color-verde-dark;
+    max-width: 900px; /* Aumentado de 800px a 900px */
+    
+    .input-group {
+        width: 100%;
+        border: 5px solid rgba(16, 185, 129, 0.45);
+        border-radius: 14px;
+        overflow: hidden;
+        background: white;
+        transform: scale(1); /* Cambiado de 0.85 a 1 - tamaño normal */
+        transform-origin: center;
+        display: flex;
+        align-items: stretch;
+        
+        .input-group-text {
+            background-color: rgba(16, 185, 129, 0.08);
+            border: none;
+            margin: 0;
+            color: $color-verde;
+            padding: 0.85rem 1.2rem; /* Aumentado padding */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem; /* Aumentado tamaño fuente */
+            flex-shrink: 0;
+        }
+        
+        .form-control {
+            border: none;
+            margin: 0;
+            width: 100%;
+            padding: 0.85rem 1.2rem; /* Aumentado padding */
+            font-size: 1rem; /* Aumentado tamaño fuente */
+            box-shadow: none;
+            text-align: center;
+            flex: 1;
+            
+            &:focus {
+                outline: none;
+                box-shadow: none;
+            }
+            
+            &::placeholder {
+                color: rgba(16, 185, 129, 0.6);
+                font-size: 1rem; /* Aumentado tamaño del placeholder */
+            }
+        }
     }
 }
 
@@ -107,34 +180,37 @@ $color-verde-dark: #0D9D6B;
     border-radius: 16px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
     border: 2px solid $color-verde-light;
-    text-align: center; /* Centrar contenido de la tarjeta */
+    text-align: center;
+    overflow-y: auto !important; /* Scroll funcional invisible */
 
     .card-body {
         padding: 0;
+        overflow-y: auto !important;
     }
 }
 
 /* ===== CONTENEDOR DE LISTA DE USUARIOS ===== */
 .users-list-container {
     padding: 25px;
+    overflow-y: auto !important;
 }
 
 /* ===== ENCABEZADOS ===== */
 .users-header {
     display: grid;
     grid-template-columns: 2fr 2fr 1fr 1fr 1.5fr 1.5fr;
-    gap: 1rem;
-    padding: 1rem 1.5rem;
-    margin-bottom: rem;
+    gap: 1.5rem; /* MÁS ESPACIO */
+    padding: 1.25rem 1.5rem; /* MÁS ESPACIO */
+    margin-bottom: 1rem;
     border-bottom: 2px solid $color-verde-medium;
-    font-weight: 700; /* Negrilla para títulos */
-    color: $color-verde-dark; /* Verde para títulos */
-    text-align: center; /* Centrar texto de encabezados */
+    font-weight: 700;
+    color: $color-verde-dark;
+    text-align: center;
 
     .header-item {
         display: flex;
         align-items: center;
-        justify-content: center; /* Centrar horizontalmente */
+        justify-content: center;
     }
 }
 
@@ -142,21 +218,23 @@ $color-verde-dark: #0D9D6B;
 .users-list {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 1rem; /* MÁS ESPACIO ENTRE TARJETAS */
+    overflow-y: auto !important; /* Scroll funcional invisible */
+    padding-right: 5px; /* Espacio para compensar scrollbar invisible */
 }
 
 /* ===== TARJETA DE USUARIO ===== */
 .user-card {
     display: grid;
     grid-template-columns: 2fr 2fr 1fr 1fr 1.5fr 1.5fr;
-    gap: 1rem;
-    padding: 1.5rem;
-    background: $color-verde-light !important; /* Fondo verde para datos de usuarios */
+    gap: 1.5rem; /* MÁS ESPACIO ENTRE COLUMNAS */
+    padding: 1.75rem; /* MÁS ESPACIO INTERNO */
+    background: $color-verde-light !important;
     border-radius: 12px;
     border: 1px solid $color-verde-medium;
     transition: all 0.3s ease;
     align-items: center;
-    text-align: center; /* Centrar todo el texto */
+    text-align: center;
 
     &:hover {
         background-color: $color-verde-medium !important;
@@ -165,7 +243,6 @@ $color-verde-dark: #0D9D6B;
         box-shadow: 0 6px 15px rgba(16, 185, 129, 0.15);
     }
 
-    /* Centrar todos los elementos hijos */
     & > * {
         display: flex;
         align-items: center;
@@ -178,50 +255,66 @@ $color-verde-dark: #0D9D6B;
 .user-info {
     display: flex;
     align-items: center;
-    justify-content: center; /* Centrar horizontalmente */
-    gap: 1rem;
-    text-align: center; /* Centrar texto */
+    justify-content: center;
+    gap: 1.25rem; /* MÁS ESPACIO */
+    text-align: center;
 
     .user-avatar {
         .avatar-circle {
-            width: 48px;
-            height: 48px;
+            width: 52px; /* UN POCO MÁS GRANDE */
+            height: 52px;
             background: white;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: $color-verde;
-            font-size: 1.25rem;
+            font-size: 1.3rem;
             border: 2px solid $color-verde;
         }
     }
 
     .user-details {
-        text-align: center; /* Centrar texto */
+        text-align: center;
 
         .user-name {
             margin: 0;
-            font-size: 1rem;
-            font-weight: 700; /* Negrilla para nombre */
-            color: $color-verde-dark; /* Verde para nombre */
+            font-size: 1.1rem; /* UN POCO MÁS GRANDE */
+            font-weight: 700;
+            color: $color-verde-dark;
         }
 
         .user-username {
-            margin: 0.25rem 0 0 0;
-            font-size: 0.875rem;
-            color: #0D9D6B; /* Verde más oscuro */
+            margin: 0.35rem 0 0 0; /* MÁS ESPACIO */
+            font-size: 0.9rem;
+            color: #0D9D6B;
         }
     }
 }
 
 /* ===== EMAIL ===== */
+/* CORRECCIÓN: Permitir que los emails se partan en dos líneas */
 .user-email {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60px; /* Altura mínima para acomodar texto */
+    
     .email-text {
         margin: 0;
-        color: $color-verde-dark; /* Verde para email */
-        font-size: 0.95rem;
+        color: $color-verde-dark;
+        font-size: 1rem; /* UN POCO MÁS GRANDE */
         text-align: center;
+        word-break: break-word; /* Permite dividir palabras largas */
+        overflow-wrap: break-word; /* Permite que las palabras se partan */
+        word-wrap: break-word; /* Compatibilidad con navegadores antiguos */
+        max-width: 100%; /* Asegura que no sobrepase el contenedor */
+        line-height: 1.4; /* Mejor legibilidad en múltiples líneas */
+        display: -webkit-box;
+        -webkit-line-clamp: 2; /* Limita a 2 líneas máximo */
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 }
 
@@ -229,14 +322,15 @@ $color-verde-dark: #0D9D6B;
 .user-role {
     .role-badge {
         display: inline-block;
-        padding: 0.35em 0.85em;
+        padding: 0.4em 0.9em; /* MÁS ESPACIO */
         border-radius: 50px;
-        font-size: 0.85em;
+        font-size: 0.9em; /* UN POCO MÁS GRANDE */
         font-weight: 500;
         text-align: center;
         background-color: white !important;
         color: $color-verde-dark !important;
         border: 1px solid $color-verde;
+        white-space: nowrap; /* Evita que el texto del rol se parta */
     }
 }
 
@@ -246,12 +340,13 @@ $color-verde-dark: #0D9D6B;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 0.5rem;
-        padding: 0.35em 0.85em;
+        gap: 0.6rem; /* MÁS ESPACIO */
+        padding: 0.4em 0.9em; /* MÁS ESPACIO */
         border-radius: 50px;
-        font-size: 0.85em;
+        font-size: 0.9em; /* UN POCO MÁS GRANDE */
         font-weight: 500;
         text-align: center;
+        white-space: nowrap; /* Evita que el texto del estado se parta */
 
         &.active {
             background-color: white;
@@ -279,28 +374,30 @@ $color-verde-dark: #0D9D6B;
 .user-last-access {
     .access-text {
         margin: 0;
-        color: $color-verde-dark; /* Verde para último acceso */
-        font-size: 0.95rem;
+        color: $color-verde-dark;
+        font-size: 1rem; /* UN POCO MÁS GRANDE */
         text-align: center;
+        white-space: nowrap; /* Evita que la fecha se parta */
     }
 }
 
-/* ===== ACCIONES - SOLO 2 BOTONES ===== */
+/* ===== ACCIONES - SOLO EDITAR Y ELIMINAR ===== */
 .user-actions {
     .actions-buttons {
         display: flex;
-        gap: 0.5rem;
-        justify-content: center; /* Centrar botones */
+        gap: 0.75rem; /* MÁS ESPACIO */
+        justify-content: center;
+        align-items: center; /* Asegura centrado vertical */
 
-        /* Eliminar los botones que no son editar ni eliminar */
+        /* Solo mostrar editar y eliminar */
         .btn-action:not(.btn-edit):not(.btn-delete) {
             display: none !important;
         }
 
         .btn-action {
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
+            width: 40px; /* UN POCO MÁS GRANDE */
+            height: 40px;
+            border-radius: 10px; /* BORDES MÁS REDONDEADOS */
             border: 1px solid;
             display: flex;
             align-items: center;
@@ -308,7 +405,7 @@ $color-verde-dark: #0D9D6B;
             cursor: pointer;
             transition: all 0.2s ease;
             background: white;
-            font-size: 0.875rem;
+            font-size: 0.95rem;
 
             &:hover {
                 transform: translateY(-2px);
@@ -316,7 +413,7 @@ $color-verde-dark: #0D9D6B;
             }
 
             &.btn-edit {
-                color: $color-verde; /* Verde para editar */
+                color: $color-verde;
                 border-color: $color-verde;
 
                 &:hover {
@@ -338,65 +435,112 @@ $color-verde-dark: #0D9D6B;
     }
 }
 
-/* ===== FOOTER ===== */
+/* ===== FOOTER CON 3 COLUMNAS ===== */
 .users-footer {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    padding: 1.5rem;
-    margin-top: 1rem;
+    padding: 1.75rem;
+    margin-top: 1.5rem;
     border-top: 1px solid $color-verde-light;
-    text-align: center; /* Centrar footer */
-
-    .footer-info {
-        text-align: center;
+    
+    .footer-content-row {
+        display: grid;
+        grid-template-columns: 1fr 2fr 1fr; /* 3 columnas: vacío, paginación, botón */
+        align-items: center;
+        gap: 1rem;
+        width: 100%;
     }
-
+    
+    /* Primera columna - Vacía (espacio en blanco) */
+    .footer-empty {
+        /* Columna vacía para balancear el diseño */
+    }
+    
+    /* Segunda columna - Paginación (centrada) */
     .footer-pagination {
         display: flex;
         justify-content: center;
-
-        .pagination {
-            margin: 0;
-
-            .page-item {
-                margin: 0 2px;
-
-                .page-link {
-                    border: none;
-                    color: $color-verde-dark;
-                    border-radius: 8px;
-                    padding: 0.5rem 0.75rem;
-                    transition: all 0.3s ease;
-                    text-align: center;
-
-                    &:hover {
-                        background-color: $color-verde-light;
-                        color: $color-verde;
-                    }
+        align-items: center;
+        
+        .pagination-with-icons {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.75rem;
+            
+            .page-btn {
+                width: 40px;
+                height: 40px;
+                border-radius: 10px;
+                border: 1px solid $color-verde;
+                background: white;
+                color: $color-verde;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                
+                &:hover:not(:disabled) {
+                    background: $color-verde;
+                    color: white;
                 }
-
-                &.active {
-                    .page-link {
+                
+                &:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                    border-color: #ccc;
+                    color: #ccc;
+                }
+            }
+            
+            .page-numbers {
+                display: flex;
+                gap: 0.5rem;
+                
+                .page-number {
+                    width: 40px;
+                    height: 40px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border-radius: 10px;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    color: $color-verde-dark;
+                    
+                    &:hover {
+                        background: $color-verde-light;
+                    }
+                    
+                    &.active {
                         background: $color-verde;
                         color: white;
-                        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+                        font-weight: 600;
                     }
                 }
             }
         }
     }
-
+    
+    /* Tercera columna - Botón nuevo usuario */
     .footer-actions {
         display: flex;
-        justify-content: center;
+        justify-content: flex-end;
         align-items: center;
-        flex-direction: column;
-        gap: 1rem;
+        
+        .btn-primary {
+            background: $color-verde;
+            border: none;
+            padding: 0.85rem 1.75rem;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 
-        .users-count {
-            font-size: 0.875rem;
-            text-align: center;
+            &:hover {
+                background: $color-verde-dark;
+                transform: translateY(-2px);
+                box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+            }
         }
     }
 }
@@ -405,8 +549,8 @@ $color-verde-dark: #0D9D6B;
 .btn-primary {
     background: $color-verde;
     border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 10px;
+    padding: 0.85rem 1.75rem; /* MÁS ESPACIO */
+    border-radius: 12px; /* BORDES MÁS REDONDEADOS */
     font-weight: 600;
     transition: all 0.3s ease;
     box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
@@ -473,11 +617,6 @@ $color-verde-dark: #0D9D6B;
         color: #4b5563;
         border-radius: 8px;
         cursor: pointer;
-        transition: all 0.3s ease;
-
-        &:hover {
-            background: #f3f4f6;
-        }
     }
 
     .btn-confirm {
@@ -487,142 +626,573 @@ $color-verde-dark: #0D9D6B;
         color: white;
         border-radius: 8px;
         cursor: pointer;
-        font-weight: 600;
-        transition: all 0.3s ease;
+    }
+}
 
-        &:hover {
-            background: $color-verde-dark;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+/* ===== RESPONSIVE MEJORADO ===== */
+
+/* Desktop con sidebar abierto (1200px - 1024px) */
+@media (max-width: 1200px) {
+    .search-container-smaller {
+        width: 80%;
+        
+        .input-group {
+            transform: scale(0.9);
+        }
+    }
+    
+    .users-header {
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        font-size: 0.95rem;
+        gap: 1.25rem;
+    }
+    
+    .user-card {
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 1.25rem;
+        padding: 1.5rem;
+        
+        & > * {
+            min-height: 65px;
+        }
+        
+        .user-info {
+            grid-column: 1 / -1;
+            flex-direction: column;
+            gap: 0.75rem;
+            
+            .avatar-circle {
+                width: 48px;
+                height: 48px;
+                font-size: 1.2rem;
+            }
         }
     }
 }
 
-/* ===== RESPONSIVE ===== */
-@include small-tablet {
+/* TABLET GRANDE (992px) - 3 FILAS CON 2 DATOS POR FILA */
+/* CORRECCIÓN: Ahora todas las filas están centradas correctamente */
+@media (max-width: 992px) {
     .main-with-margin {
         padding: 15px;
     }
-
+    
     .container-fluid {
         padding: 0 15px !important;
     }
-
-    .full-width-search-container {
-        padding: 20px;
-        margin-bottom: 20px;
+    
+    .search-container-smaller {
+        width: 85%;
+        margin-bottom: 25px;
+        
+        .input-group {
+            transform: scale(1);
+        }
     }
-
+    
     .users-header {
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 0.75rem;
-        padding: 0.75rem;
-
-        .header-last-access,
-        .header-actions {
-            display: none;
-        }
+        display: none;
     }
-
+    
     .user-card {
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 0.75rem;
-        padding: 1rem;
-
-        .user-last-access,
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* 2 columnas por fila */
+        grid-template-rows: auto auto auto auto; /* 4 filas ahora */
+        gap: 1.25rem;
+        padding: 1.5rem;
+        
+        /* Información del usuario (fila 1, ocupa 2 columnas) - CENTRADO COMPLETO */
+        .user-info {
+            grid-column: 1 / 3;
+            grid-row: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* CENTRADO VERTICAL */
+            justify-content: center; /* CENTRADO HORIZONTAL */
+            gap: 0.75rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid $color-verde-light;
+            text-align: center; /* TEXTO CENTRADO */
+            
+            .avatar-circle {
+                width: 56px;
+                height: 56px;
+                font-size: 1.4rem;
+                margin: 0 auto; /* CENTRAR EL CÍRCULO */
+            }
+            
+            .user-details {
+                text-align: center;
+                width: 100%;
+                
+                .user-name {
+                    font-size: 1.2rem;
+                    margin: 0;
+                    text-align: center;
+                }
+                
+                .user-username {
+                    font-size: 0.95rem;
+                    margin: 0.25rem 0 0 0;
+                    text-align: center;
+                }
+            }
+        }
+        
+        /* Email y Rol (fila 2, columna 1 y 2) - AMBOS CENTRADOS */
+        .user-email {
+            grid-column: 1;
+            grid-row: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center; /* CENTRADO HORIZONTAL */
+            text-align: center;
+            
+            .email-text {
+                font-size: 1rem;
+                word-break: break-word;
+                overflow-wrap: break-word;
+                line-height: 1.4;
+                max-width: 100%;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                text-align: center;
+                margin: 0 auto;
+            }
+        }
+        
+        .user-role {
+            grid-column: 2;
+            grid-row: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center; /* CENTRADO HORIZONTAL */
+            text-align: center;
+            
+            .role-badge {
+                font-size: 0.95rem;
+                padding: 0.5rem 1rem;
+                white-space: nowrap;
+                display: inline-block;
+                text-align: center;
+            }
+        }
+        
+        /* Estado y Último acceso (fila 3, columna 1 y 2) - AMBOS CENTRADOS */
+        .user-status {
+            grid-column: 1;
+            grid-row: 3;
+            display: flex;
+            align-items: center;
+            justify-content: center; /* CENTRADO HORIZONTAL */
+            text-align: center;
+            
+            .status-badge {
+                font-size: 0.95rem;
+                padding: 0.5rem 1rem;
+                white-space: nowrap;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+            }
+        }
+        
+        .user-last-access {
+            grid-column: 2;
+            grid-row: 3;
+            display: flex !important;
+            align-items: center;
+            justify-content: center; /* CENTRADO HORIZONTAL */
+            text-align: center;
+            
+            .access-text {
+                font-size: 1rem;
+                white-space: nowrap;
+                text-align: center;
+                margin: 0;
+            }
+        }
+        
+        /* Acciones (fila 4, ocupa 2 columnas) - CENTRADO COMPLETO */
         .user-actions {
-            display: none;
+            grid-column: 1 / 3;
+            grid-row: 4;
+            display: flex !important;
+            align-items: center;
+            justify-content: center; /* CENTRADO HORIZONTAL */
+            padding-top: 1rem;
+            border-top: 1px solid $color-verde-light;
+            width: 100%;
+            text-align: center;
+            
+            .actions-buttons {
+                gap: 0.75rem;
+                justify-content: center; /* CENTRADO DE LOS BOTONES */
+                align-items: center; /* CENTRADO VERTICAL */
+                width: 100%;
+                display: flex;
+                
+                .btn-action {
+                    width: 44px;
+                    height: 44px;
+                    font-size: 1.1rem;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+            }
         }
     }
-
+    
+    /* Footer en tablet */
     .users-footer {
-        .footer-actions {
-            flex-direction: column;
+        padding: 1.5rem;
+        
+        .footer-content-row {
+            grid-template-columns: 1fr 3fr 2fr; /* Ajuste proporcional para tablet */
             gap: 1rem;
+        }
+    }
+}
 
-            .users-count {
-                order: -1;
+/* ===== RESPONSIVE PARA FOOTER EN MÓVIL - PAGINACIÓN EN MISMA FILA ===== */
+@media (max-width: 768px) {
+    /* Asegurar que el scroll siga invisible en móvil */
+    .users-list-container,
+    .users-list {
+        overflow-y: auto !important;
+    }
+    
+    .main-with-margin {
+        padding: 10px;
+    }
+    
+    .container-fluid {
+        padding: 0 10px !important;
+    }
+    
+    .search-container-smaller {
+        width: 100%;
+        max-width: 100%;
+        margin: 0 auto 20px;
+        
+        .input-group {
+            transform: none;
+            width: 100%;
+            border-radius: 12px;
+            border-width: 3px;
+            
+            .input-group-text,
+            .form-control {
+                padding: 0.85rem;
+            }
+            
+            .form-control {
+                font-size: 0.9rem;
+            }
+        }
+    }
+    
+    .user-card {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1.25rem;
+        
+        /* Cada campo en su propia fila - TODOS CENTRADOS */
+        > * {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* CENTRADO HORIZONTAL */
+            justify-content: center; /* CENTRADO VERTICAL */
+            text-align: center; /* TEXTO CENTRADO */
+            padding: 0.75rem 0;
+            border-bottom: 1px solid $color-verde-light;
+            
+            &:last-child {
+                border-bottom: none;
+            }
+        }
+        
+        .user-info {
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+            
+            .avatar-circle {
+                width: 60px;
+                height: 60px;
+                font-size: 1.5rem;
+                margin: 0 auto; /* CENTRADO */
+            }
+            
+            .user-details {
+                text-align: center;
+                width: 100%;
+                
+                .user-name {
+                    font-size: 1.3rem;
+                    text-align: center;
+                }
+                
+                .user-username {
+                    font-size: 1rem;
+                    text-align: center;
+                }
+            }
+        }
+        
+        .user-email {
+            .email-text {
+                font-size: 1.05rem;
+                max-width: 100%;
+                word-break: break-word;
+                overflow-wrap: break-word;
+                line-height: 1.4;
+                display: -webkit-box;
+                -webkit-line-clamp: 3; /* Hasta 3 líneas en móvil */
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                text-align: center;
+            }
+        }
+        
+        .user-last-access {
+            .access-text {
+                font-size: 1rem;
+                white-space: normal; /* Permite que se parta en móvil */
+                text-align: center;
+            }
+        }
+        
+        .role-badge,
+        .status-badge {
+            font-size: 0.95rem;
+            padding: 0.6rem 1.2rem;
+            white-space: nowrap;
+            display: inline-block;
+            text-align: center;
+        }
+        
+        /* CORRECCIÓN: Acciones centradas en móvil */
+        .user-actions {
+            display: flex !important;
+            align-items: center;
+            justify-content: center; /* CENTRADO HORIZONTAL */
+            padding-top: 1rem;
+            text-align: center;
+            
+            .actions-buttons {
+                gap: 0.75rem;
+                justify-content: center; /* CENTRADO DE LOS BOTONES */
+                align-items: center; /* CENTRADO VERTICAL */
+                width: 100%;
+                display: flex;
+                
+                .btn-action {
+                    width: 48px;
+                    height: 48px;
+                    font-size: 1.2rem;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+            }
+        }
+    }
+    
+    /* Footer en móvil - PAGINACIÓN EN MISMA FILA */
+    .users-footer {
+        padding: 1.25rem 0;
+        
+        .footer-content-row {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            text-align: center;
+        }
+        
+        /* Ocultar columna vacía en móvil */
+        .footer-empty {
+            display: none;
+        }
+        
+        /* Paginación en móvil - SIEMPRE EN MISMA FILA */
+        .footer-pagination {
+            width: 100%;
+            order: 1; /* Primero en móvil */
+            
+            .pagination-with-icons {
+                display: flex;
+                flex-direction: row; /* MANTENER EN FILA HORIZONTAL */
+                justify-content: center;
+                align-items: center;
+                gap: 0.5rem; /* Reducir gap para móvil */
+                flex-wrap: wrap; /* Permitir que se envuelva si es necesario */
+                
+                .page-numbers {
+                    order: 1; /* Números primero */
+                    display: flex;
+                    gap: 0.25rem; /* Menor espacio entre números */
+                    
+                    .page-number {
+                        width: 36px;
+                        height: 36px;
+                        font-size: 0.9rem;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    }
+                }
+                
+                .page-btn {
+                    order: 2; /* Botones después de los números */
+                    width: 36px;
+                    height: 36px;
+                    
+                    /* Quitar márgenes automáticos que separaban mucho */
+                    &:first-child, &:last-child {
+                        margin: 0;
+                    }
+                }
+            }
+        }
+        
+        /* Botón nuevo usuario en móvil */
+        .footer-actions {
+            width: 100%;
+            order: 2; /* Segundo en móvil */
+            justify-content: center; /* Centrar en móvil */
+            
+            .btn-primary {
+                width: 100%;
+                max-width: 300px;
             }
         }
     }
 }
 
-@include mobile {
-    .main-with-margin {
-        padding: 10px;
-    }
-
-    .container-fluid {
-        padding: 0 10px !important;
-    }
-
-    .full-width-search-container {
-        padding: 15px;
-        margin: 10px -10px 15px;
-        border-radius: 0;
-        border-left: none;
-        border-right: none;
-    }
-
-    .input-group {
-        border-radius: 10px;
-
-        .input-group-text,
-        .btn-clear-search {
-            padding: 0.75rem;
-        }
-
-        .search-input-full {
-            padding: 0.75rem;
-        }
-    }
-
-    .users-header {
-        display: none;
-    }
-
+/* Pantallas muy pequeñas (<400px) - AJUSTES PARA PAGINACIÓN EN FILA */
+@media (max-width: 400px) {
     .user-card {
-        grid-template-columns: 1fr;
-        gap: 0.75rem;
         padding: 1rem;
-
-        >div {
-            width: 100%;
-            text-align: center;
-        }
-
+        gap: 0.85rem;
+        
         .user-info {
-            flex-direction: column;
-            text-align: center;
-            gap: 0.5rem;
-        }
-
-        .user-actions {
-            display: flex !important;
-            justify-content: center;
-
-            .actions-buttons {
-                gap: 0.25rem;
-
-                .btn-action {
-                    width: 32px;
-                    height: 32px;
+            .avatar-circle {
+                width: 52px;
+                height: 52px;
+                font-size: 1.3rem;
+            }
+            
+            .user-details {
+                .user-name {
+                    font-size: 1.15rem;
+                }
+                
+                .user-username {
+                    font-size: 0.9rem;
                 }
             }
         }
-
-        .user-last-access {
-            display: block !important;
+        
+        .user-actions {
+            .actions-buttons {
+                gap: 0.5rem;
+                justify-content: center; /* CENTRADO EN PANTALLAS PEQUEÑAS */
+                align-items: center;
+                
+                .btn-action {
+                    width: 44px;
+                    height: 44px;
+                    font-size: 1.1rem;
+                }
+            }
+        }
+        
+        .role-badge,
+        .status-badge {
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem;
         }
     }
-
+    
     .users-footer {
-        padding: 1rem;
-
         .footer-pagination {
-            .pagination {
-                flex-wrap: wrap;
-                justify-content: center;
+            .pagination-with-icons {
+                gap: 0.25rem; /* Espacio mínimo entre elementos */
+                
+                .page-numbers {
+                    gap: 0.15rem; /* Espacio mínimo entre números */
+                    
+                    .page-number {
+                        width: 30px;
+                        height: 30px;
+                        font-size: 0.8rem;
+                        min-width: 30px; /* Evitar que se encojan */
+                    }
+                }
+                
+                .page-btn {
+                    width: 30px;
+                    height: 30px;
+                    min-width: 30px; /* Evitar que se encojan */
+                    font-size: 0.8rem;
+                }
+            }
+        }
+    }
+}
+
+/* Ajuste extra para pantallas extremadamente pequeñas (<350px) */
+@media (max-width: 350px) {
+    .users-footer {
+        .footer-pagination {
+            .pagination-with-icons {
+                .page-numbers {
+                    .page-number {
+                        width: 28px;
+                        height: 28px;
+                        font-size: 0.75rem;
+                        min-width: 28px;
+                    }
+                }
+                
+                .page-btn {
+                    width: 28px;
+                    height: 28px;
+                    min-width: 28px;
+                    font-size: 0.75rem;
+                }
+            }
+        }
+        
+        .footer-actions {
+            .btn-primary {
+                padding: 0.75rem 1.25rem;
+                font-size: 0.9rem;
+            }
+        }
+    }
+    
+    /* Ajustes adicionales para acciones en pantallas muy pequeñas */
+    .user-card {
+        .user-actions {
+            .actions-buttons {
+                gap: 0.4rem;
+                
+                .btn-action {
+                    width: 42px;
+                    height: 42px;
+                    font-size: 1rem;
+                }
             }
         }
     }

@@ -1,16 +1,22 @@
-// _variables.scss (si no las tienes globales)
+// ======================================================
+// VARIABLES
+// ======================================================
 $sidebar-width-normal: 280px;
 $sidebar-width-collapsed: 70px;
-$navbar-height: 80px; // Aumentado el alto
+$navbar-height: 80px;
 $transition-duration: 0.3s;
 
-// Colores - similar al sidebar
-$navbar-bg: #a7f3d0; // Color similar al sidebar
+// Colores
+$navbar-bg: #a7f3d0;
 $text-color: #1f2937;
 $border-color: #e5e7eb;
 $hover-color: #e9ecef;
-$primary-green: #10b981; // Verde para el botón
+$primary-green: #10b981;
 
+
+// ======================================================
+// NAVBAR PRINCIPAL
+// ======================================================
 .navbar {
   position: fixed;
   top: 0;
@@ -25,13 +31,15 @@ $primary-green: #10b981; // Verde para el botón
   align-items: center;
   border-bottom: 1px solid $border-color;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden; // NECESARIO PARA QUE LA IMAGEN NO SE SALGA
 
-  // Cuando el sidebar está colapsado
+  // Sidebar colapsado
   &.collapsed {
     left: $sidebar-width-collapsed;
     width: calc(100vw - #{$sidebar-width-collapsed});
   }
 
+  // Contenido interno
   .navbar-content {
     display: flex;
     justify-content: space-between;
@@ -39,9 +47,11 @@ $primary-green: #10b981; // Verde para el botón
     width: 100%;
     height: 100%;
     padding: 0 2rem;
+    position: relative;
+    z-index: 2; // QUE QUEDE SOBRE LA IMAGEN
   }
 
-  // Botón de toggle del sidebar
+  // Toggle del sidebar
   .sidebar-toggle {
     background: $primary-green;
     border: none;
@@ -63,19 +73,15 @@ $primary-green: #10b981; // Verde para el botón
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
     }
-
-    i {
-      transition: transform 0.3s ease;
-    }
   }
 
-  // Brand/Logo
+  // Marca
   .navbar-brand {
     flex: 1;
     display: flex;
     justify-content: center;
     align-items: center;
-    
+
     h1 {
       margin: 0;
       font-size: 1.5rem;
@@ -83,33 +89,31 @@ $primary-green: #10b981; // Verde para el botón
       color: $text-color;
       text-align: center;
     }
-    
+
     .dynamic-title {
-      text-align: center;
       display: flex;
       flex-direction: column;
       align-items: center;
-      
+      text-align: center;
+
       .page-title {
         margin: 0;
         font-size: 1.5rem;
         font-weight: 600;
         color: $text-color;
-        text-align: center;
         line-height: 1.2;
       }
-      
+
       .page-subtitle {
-        margin: 0.25rem 0 0 0;
+        margin-top: 0.25rem;
         font-size: 0.95rem;
         color: #6b7280;
-        font-weight: 400;
         opacity: 0.9;
       }
     }
   }
 
-  // Sección del usuario
+  // Usuario
   .navbar-user-section {
     display: flex;
     align-items: center;
@@ -118,21 +122,21 @@ $primary-green: #10b981; // Verde para el botón
     .user-info {
       display: flex;
       flex-direction: column;
-      align-items: flex-end;
-      
+      text-align: center;
+
       .user-name {
         font-weight: 600;
-        color: $text-color;
         font-size: 1rem;
+        color: #fff !important;
       }
-      
+
       .user-role {
         font-size: 0.875rem;
-        color: #6b7280;
-        opacity: 0.8;
+        color: #fff !important;
+        opacity: 1 !important;
       }
     }
-    
+
     .logout-btn {
       background: rgba(239, 68, 68, 0.1);
       border: 1px solid rgba(239, 68, 68, 0.2);
@@ -147,7 +151,7 @@ $primary-green: #10b981; // Verde para el botón
       justify-content: center;
       width: 45px;
       height: 45px;
-      
+
       &:hover {
         background: rgba(239, 68, 68, 0.2);
         transform: translateY(-2px);
@@ -156,7 +160,61 @@ $primary-green: #10b981; // Verde para el botón
   }
 }
 
-// ✅ RESPONSIVE
+
+// ======================================================
+// FONDO SOLO PARA GESTIÓN DE USUARIOS
+// ======================================================
+.navbar.gestion-usuarios {
+  position: relative;
+  
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 27%;
+    max-width: 480px;
+    min-width: 260px;
+    height: 100%;
+    background-image: url('/assets/images/GDU1.jpg');
+    background-size: cover;
+    background-position: center right;
+    background-repeat: no-repeat;
+    opacity: 1;
+    z-index: 1;
+    pointer-events: none;
+  }
+}
+
+// ======================================================
+// FONDO SOLO PARA GESTIÓN RADICADORES
+// ======================================================
+
+.navbar.radicacion {
+  position: relative;
+  
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 27%;
+    max-width: 480px;
+    min-width: 260px;
+    height: 100%;
+    background-image: url('/assets/images/RDC1.jpg');
+    background-size: cover;
+    background-position: center right;
+    background-repeat: no-repeat;
+    opacity: 1;
+    z-index: 1;
+    pointer-events: none;
+  }
+}
+
+// ======================================================
+// RESPONSIVE
+// ======================================================
 @mixin mobile {
   @media (max-width: 770px) {
     @content;
@@ -175,53 +233,40 @@ $primary-green: #10b981; // Verde para el botón
   }
 }
 
-// Ajustes responsivos
+
+// ---------- Tablet
 @include tablet {
   .navbar {
     .navbar-brand {
-      h1 {
-        font-size: 1.4rem;
-      }
-      
+      h1 { font-size: 1.4rem; }
+
       .dynamic-title {
-        .page-title {
-          font-size: 1.4rem;
-        }
-        
-        .page-subtitle {
-          font-size: 0.9rem;
-        }
+        .page-title { font-size: 1.4rem; }
+        .page-subtitle { font-size: 0.9rem; }
       }
     }
-    
+
     .navbar-content {
       padding: 0 1.5rem;
     }
   }
 }
 
+
+// ---------- Small tablet
 @include small-tablet {
   .navbar {
     .navbar-brand {
-      h1 {
-        font-size: 1.3rem;
-      }
-      
+      h1 { font-size: 1.3rem; }
+
       .dynamic-title {
-        .page-title {
-          font-size: 1.3rem;
-        }
-        
-        .page-subtitle {
-          font-size: 0.85rem;
-        }
+        .page-title { font-size: 1.3rem; }
+        .page-subtitle { font-size: 0.85rem; }
       }
     }
-    
-    .navbar-content {
-      padding: 0 1.25rem;
-    }
-    
+
+    .navbar-content { padding: 0 1.25rem; }
+
     .sidebar-toggle,
     .logout-btn {
       width: 40px;
@@ -231,20 +276,18 @@ $primary-green: #10b981; // Verde para el botón
   }
 }
 
+
+// ---------- Mobile
 @include mobile {
   .navbar {
     left: $sidebar-width-collapsed !important;
     width: calc(100vw - #{$sidebar-width-collapsed}) !important;
-    
-    .navbar-content {
-      padding: 0 1rem;
-    }
+
+    .navbar-content { padding: 0 1rem; }
 
     .navbar-brand {
-      h1 {
-        font-size: 1.1rem;
-      }
-      
+      h1 { font-size: 1.1rem; }
+
       .dynamic-title {
         .page-title {
           font-size: 1.1rem;
@@ -253,62 +296,55 @@ $primary-green: #10b981; // Verde para el botón
           overflow: hidden;
           text-overflow: ellipsis;
         }
-        
-        .page-subtitle {
-          display: none; // Ocultar subtítulo en móvil
-        }
+
+        .page-subtitle { display: none; }
       }
     }
-    
-    // Ocultar información menos importante en móvil
-    .user-role {
-      display: none;
-    }
-    
+
+    .user-role { display: none; }
+
     .user-name {
       font-size: 0.9rem;
+      color: #fff !important;
     }
-    
+
     .sidebar-toggle,
     .logout-btn {
       width: 38px;
       height: 38px;
       padding: 0.5rem;
-      font-size: 1.1rem;
     }
+  }
+
+  .navbar.gestion-usuarios::after {
+    display: none;
   }
 }
 
-// Para pantallas muy pequeñas
+
+// ---------- Extra Small
 @media (max-width: 480px) {
   .navbar {
     .navbar-brand {
-      h1 {
+      h1 { font-size: 1rem; }
+      .dynamic-title .page-title {
         font-size: 1rem;
-      }
-      
-      .dynamic-title {
-        .page-title {
-          font-size: 1rem;
-          max-width: 150px;
-        }
+        max-width: 150px;
       }
     }
-    
-    .navbar-content {
-      padding: 0 0.75rem;
-    }
-    
+
+    .navbar-content { padding: 0 0.75rem; }
+
     .sidebar-toggle,
     .logout-btn {
       width: 36px;
       height: 36px;
       padding: 0.4rem;
-      font-size: 1rem;
     }
-    
+
     .user-name {
       font-size: 0.85rem;
+      color: #fff !important;
     }
   }
 }

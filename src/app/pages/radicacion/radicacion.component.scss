@@ -1,0 +1,187 @@
+/* src/app/pages/radicacion/radicacion.component.scss */
+@import '../../shared/layout-styles.scss';
+
+/* ===== VARIABLES ===== */
+$color-verde: #10B981;
+$color-verde-light: rgba(16, 185, 129, 0.1);
+$color-verde-medium: rgba(16, 185, 129, 0.2);
+$color-verde-dark: #0D9D6B;
+
+/* ===== OCULTAR SCROLLBAR (igual que en users) ===== */
+html, body {
+  overflow: -moz-scrollbars-none;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  
+  &::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+  }
+}
+
+/* Mantener scroll funcional */
+html, body, .app-container {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* ===== ESTILOS GENERALES ===== */
+.main-with-margin {
+  background: #f8f9fa !important;
+  padding: 20px;
+  overflow-y: auto !important;
+}
+
+.container-fluid {
+  padding: 0 20px !important;
+}
+
+/* ===== CARD PRINCIPAL ===== */
+.main-card {
+  border: none;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  border: 2px solid $color-verde-light;
+  background: white;
+  overflow: hidden;
+}
+
+/* ===== FORMULARIOS ===== */
+.form-label {
+  color: $color-verde-dark;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.form-control {
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  transition: all 0.3s ease;
+  
+  &:focus {
+    border-color: $color-verde;
+    box-shadow: 0 0 0 0.25rem rgba(16, 185, 129, 0.25);
+  }
+  
+  &::placeholder {
+    color: rgba(16, 185, 129, 0.5);
+  }
+}
+
+/* ===== CARD DE DOCUMENTOS ===== */
+.file-input-wrapper {
+  position: relative;
+  
+  input[type="file"] {
+    cursor: pointer;
+    
+    &::file-selector-button {
+      background: $color-verde;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      
+      &:hover {
+        background: $color-verde-dark;
+      }
+    }
+  }
+}
+
+/* ===== BOTONES ===== */
+.btn-success {
+  background: $color-verde;
+  border-color: $color-verde;
+  color: white;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  
+  &:hover:not(:disabled) {
+    background: $color-verde-dark;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+/* ===== ALERTAS ===== */
+.alert {
+  border-radius: 10px;
+  border: none;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1.5rem;
+  
+  &.alert-success {
+    background: rgba(16, 185, 129, 0.1);
+    color: $color-verde-dark;
+    border-left: 4px solid $color-verde;
+  }
+  
+  &.alert-danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc3545;
+    border-left: 4px solid #dc3545;
+  }
+}
+
+/* ===== BADGES ===== */
+.badge {
+  padding: 0.35em 0.65em;
+  border-radius: 20px;
+  font-weight: 500;
+  
+  &.bg-success {
+    background: $color-verde-light !important;
+    color: $color-verde-dark !important;
+    border: 1px solid $color-verde;
+  }
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .main-with-margin {
+    padding: 10px;
+  }
+  
+  .container-fluid {
+    padding: 0 10px !important;
+  }
+  
+  .main-card {
+    border-radius: 12px;
+  }
+  
+  .form-control {
+    padding: 0.65rem 0.85rem;
+  }
+  
+  .btn-success {
+    width: 100%;
+    padding: 0.85rem;
+  }
+}
+
+/* Pantallas muy pequeñas */
+@media (max-width: 576px) {
+  .card-body {
+    padding: 1rem !important;
+  }
+  
+  .file-input-wrapper {
+    input[type="file"] {
+      font-size: 0.85rem;
+    }
+  }
+}

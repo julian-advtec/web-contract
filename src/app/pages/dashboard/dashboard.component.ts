@@ -1,10 +1,12 @@
 // src/app/pages/dashboard/dashboard.component.ts
-import { Component, inject, OnInit, HostListener } from '@angular/core';
+import { Component, inject, OnInit, HostListener, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { Subject, takeUntil } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { NavbarComponent } from '../../layout/navbar/navbar.component';
 import { SidebarComponent } from '../../layout/sidebar/sidebar.component';
+import { NotificationService } from '../../core/services/notification.service';
 import { User, UserRole } from '../../core/models/user.types';
 import { ModulesService, AppModule } from '../../core/services/modules.service';
 
@@ -15,13 +17,14 @@ import { ModulesService, AppModule } from '../../core/services/modules.service';
   standalone: true,
   imports: [CommonModule, NavbarComponent, SidebarComponent]
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
   private auth = inject(AuthService);
   private router = inject(Router);
   private modulesService = inject(ModulesService);
+  private notificationService = inject(NotificationService);
+  private destroy$ = new Subject<void>();
 
   currentUser: User | null = null;
-  showLogoutConfirm = false;
   backgroundImage: string = '';
   availableModules: AppModule[] = [];
 
@@ -39,6 +42,11 @@ export class DashboardComponent implements OnInit {
     } else {
       this.sidebarCollapsed = true; // En móvil, por defecto colapsado
     }
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   // ✅ Establecer fondo según el rol usando el enum
@@ -143,17 +151,15 @@ export class DashboardComponent implements OnInit {
   }
 
   onLogout() {
-    this.showLogoutConfirm = true;
-  }
-
-  confirmLogout() {
-    this.auth.logout();
-    this.showLogoutConfirm = false;
-    this.router.navigate(['/auth/login']);
-  }
-
-  cancelLogout() {
-    this.showLogoutConfirm = false;
+    this.notificationService.confirm(
+      'Confirmar Cierre de Sesión',
+      '¿Estás seguro de que deseas cerrar sesión?',
+      () => {
+        this.auth.logout();
+        this.notificationService.success('Sesión cerrada correctamente');
+        this.router.navigate(['/auth/login']);
+      }
+    );
   }
 
   onToggleSidebar(collapsed: boolean) {

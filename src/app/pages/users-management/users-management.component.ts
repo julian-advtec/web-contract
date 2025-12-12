@@ -1,14 +1,16 @@
-// src/app/pages/users-management/users-management.component.ts
-import { Component, inject, OnInit, HostListener } from '@angular/core';
+// users-management.component.ts
+import { Component, inject, OnInit, HostListener, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router, RouterModule } from '@angular/router';
+import { Subject, takeUntil } from 'rxjs';
 import { NavbarComponent } from '../../layout/navbar/navbar.component';
 import { SidebarComponent } from '../../layout/sidebar/sidebar.component';
 import { AuthService } from '../../core/services/auth.service';
 import { UsersService, ApiResponse } from '../../core/services/users.service';
 import { User, UserRole } from '../../core/models/user.types';
-import { Router } from '@angular/router';
 import { ModulesService, AppModule } from '../../core/services/modules.service';
+import { NotificationService } from '../../core/services/notification.service';
 
 @Component({
   selector: 'app-users-management',
@@ -18,16 +20,18 @@ import { ModulesService, AppModule } from '../../core/services/modules.service';
   imports: [
     CommonModule,
     FormsModule,
+    RouterModule,
     NavbarComponent,
     SidebarComponent
   ]
 })
-export class UsersManagementComponent implements OnInit {
-
+export class UsersManagementComponent implements OnInit, OnDestroy {
   private auth = inject(AuthService);
   private router = inject(Router);
   private modulesService = inject(ModulesService);
   private usersService = inject(UsersService);
+  private notificationService = inject(NotificationService);
+  private destroy$ = new Subject<void>();
 
   currentUser: User | null = null;
   showLogoutConfirm = false;
@@ -44,17 +48,27 @@ export class UsersManagementComponent implements OnInit {
   currentPage: number = 1;
   itemsPerPage: number = 10;
 
+  // Añadir esta propiedad para pasar al sidebar
+  getUserRoleName = this.getUserRoleDisplayName.bind(this);
+
   ngOnInit() {
+    this.initializeComponent();
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private initializeComponent(): void {
     this.currentUser = this.auth.getCurrentUser();
     this.loadAvailableModules();
-
     this.sidebarCollapsed = this.isMobile();
-
     this.loadUsers();
     this.setNavbarTitle();
   }
 
-  private setNavbarTitle() {
+  private setNavbarTitle(): void {
     sessionStorage.setItem('currentPageTitle', 'Gestión de Usuarios');
     sessionStorage.setItem('currentPageSubtitle', 'Administración de usuarios del sistema');
   }
@@ -73,51 +87,59 @@ export class UsersManagementComponent implements OnInit {
   loadUsers(): void {
     this.isLoading = true;
 
-    this.usersService.getUsers().subscribe({
-      next: (response: ApiResponse<User[]>) => {
-        if (response && response.data) {
-          this.users = response.data;
-        } else {
-          this.users = [];
-        }
-        this.isLoading = false;
-      },
-      error: (error) => {
-        console.error('Error cargando usuarios:', error);
-        this.isLoading = false;
+    this.usersService.getUsers()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response: ApiResponse<User[]>) => {
+          if (response && response.data) {
+            this.users = response.data;
+          } else {
+            this.users = [];
+          }
+          this.isLoading = false;
+        },
+        error: (error) => {
+          console.error('Error cargando usuarios:', error);
+          this.isLoading = false;
 
-        if (error.status === 401) {
-          this.router.navigate(['/auth/login']);
-        } else if (error.status === 403) {
-          alert('No tienes permisos para ver los usuarios.');
-        } else if (error.status === 404) {
-          this.loadUsersAlternative();
+          if (error.status === 401) {
+            this.notificationService.error('Su sesión ha expirado. Por favor, inicie sesión nuevamente.');
+            this.router.navigate(['/auth/login']);
+          } else if (error.status === 403) {
+            this.notificationService.error('No tienes permisos para ver los usuarios.');
+          } else if (error.status === 404) {
+            this.loadUsersAlternative();
+          } else {
+            this.notificationService.error('Error al cargar usuarios. Intente nuevamente.');
+          }
         }
-      }
-    });
+      });
   }
 
   private loadUsersAlternative(): void {
     this.isLoading = true;
 
-    this.usersService.getUsers().subscribe({
-      next: (response: any) => {
-        if (Array.isArray(response)) {
-          this.users = response;
-        } else if (response?.data && Array.isArray(response.data)) {
-          this.users = response.data;
-        } else if (response?.users && Array.isArray(response.users)) {
-          this.users = response.users;
-        } else {
-          this.users = [];
+    this.usersService.getUsers()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response: any) => {
+          if (Array.isArray(response)) {
+            this.users = response;
+          } else if (response?.data && Array.isArray(response.data)) {
+            this.users = response.data;
+          } else if (response?.users && Array.isArray(response.users)) {
+            this.users = response.users;
+          } else {
+            this.users = [];
+          }
+          this.isLoading = false;
+        },
+        error: (error) => {
+          console.error('Error en método alternativo:', error);
+          this.isLoading = false;
+          this.notificationService.error('Error al cargar usuarios.');
         }
-        this.isLoading = false;
-      },
-      error: (error) => {
-        console.error('Error en método alternativo:', error);
-        this.isLoading = false;
-      }
-    });
+      });
   }
 
   // =============================
@@ -132,12 +154,12 @@ export class UsersManagementComponent implements OnInit {
   get filteredUsers(): User[] {
     if (!this.searchTerm) return this.users;
 
-    const search = this.searchTerm.toLowerCase();
+    const search = this.searchTerm.toLowerCase().trim();
     return this.users.filter(user =>
       user.fullName?.toLowerCase().includes(search) ||
       user.username?.toLowerCase().includes(search) ||
       user.email?.toLowerCase().includes(search) ||
-      this.getUserRoleName(user.role).toLowerCase().includes(search)
+      this.getUserRoleDisplayName(user.role).toLowerCase().includes(search)
     );
   }
 
@@ -181,25 +203,22 @@ export class UsersManagementComponent implements OnInit {
   // =============================
   // SIDEBAR Y LOGOUT
   // =============================
-  onToggleSidebar(collapsed: boolean) {
+  onToggleSidebar(collapsed: boolean): void {
     this.sidebarCollapsed = collapsed;
   }
 
-  onLogout() {
-    this.showLogoutConfirm = true;
+  onLogout(): void {
+    this.notificationService.confirm(
+      'Confirmar Cierre de Sesión',
+      '¿Estás seguro de que deseas cerrar sesión?',
+      () => {
+        this.auth.logout();
+        this.notificationService.success('Sesión cerrada correctamente');
+      }
+    );
   }
 
-  confirmLogout() {
-    this.auth.logout();
-    this.showLogoutConfirm = false;
-    this.router.navigate(['/auth/login']);
-  }
-
-  cancelLogout() {
-    this.showLogoutConfirm = false;
-  }
-
-  closeSidebarOnOverlay(event: MouseEvent) {
+  closeSidebarOnOverlay(event: MouseEvent): void {
     if (this.isMobile() && !this.sidebarCollapsed) {
       const sidebarElement = (event.target as HTMLElement).closest('app-sidebar');
       if (!sidebarElement) {
@@ -213,7 +232,7 @@ export class UsersManagementComponent implements OnInit {
   }
 
   @HostListener('window:resize')
-  onResize() {
+  onResize(): void {
     if (this.isMobile()) {
       this.sidebarCollapsed = true;
     }
@@ -222,20 +241,21 @@ export class UsersManagementComponent implements OnInit {
   // =============================
   // ROLES Y COLORES
   // =============================
-  getUserRoleName(role: UserRole | undefined | null): string {
+  getUserRoleDisplayName(role: UserRole | undefined | null): string {
     if (!role) return 'Sin rol';
 
-    const roles: { [key: string]: string } = {
+    const roleNames: Record<UserRole, string> = {
       [UserRole.ADMIN]: 'Administrador',
       [UserRole.RADICADOR]: 'Radicador',
       [UserRole.SUPERVISOR]: 'Supervisor',
-      [UserRole.AUDITOR_CUENTAS]: 'Auditor Cuentas',
+      [UserRole.AUDITOR_CUENTAS]: 'Auditor de Cuentas',
       [UserRole.CONTABILIDAD]: 'Contabilidad',
       [UserRole.TESORERIA]: 'Tesorería',
-      [UserRole.ASESOR_GERENCIA]: 'Asesor Gerencia',
-      [UserRole.RENDICION_CUENTAS]: 'Rendición Cuentas'
+      [UserRole.ASESOR_GERENCIA]: 'Asesor de Gerencia',
+      [UserRole.RENDICION_CUENTAS]: 'Rendición de Cuentas'
     };
-    return roles[role] || role;
+    
+    return roleNames[role] || role;
   }
 
   getRoleColor(role: UserRole): string {
@@ -244,51 +264,85 @@ export class UsersManagementComponent implements OnInit {
         return 'bg-danger';
       case UserRole.SUPERVISOR:
         return 'bg-warning';
+      case UserRole.RADICADOR:
+        return 'bg-info';
       default:
         return 'bg-primary';
     }
   }
 
   // =============================
-  // ACCIONES CRUD
+  // NAVEGACIÓN AL FORMULARIO - CORREGIDO
   // =============================
   createNewUser(): void {
-    alert('Función para crear nuevo usuario');
-  }
-
-  viewUser(user: User): void {
-    alert(`Viendo detalles de: ${user.fullName || user.username}`);
+    console.log('Navegando a nuevo usuario...');
+    // Ruta absoluta
+    this.router.navigate(['/gestion-usuarios/nuevo']);
   }
 
   editUser(user: User): void {
-    alert(`Editando usuario: ${user.fullName || user.username}`);
+    console.log('Navegando a editar usuario:', user.id);
+    // Ruta absoluta
+    this.router.navigate(['/gestion-usuarios/editar', user.id]);
+  }
+
+  // =============================
+  // ACCIONES CRUD
+  // =============================
+  viewUser(user: User): void {
+    this.notificationService.info(`Viendo detalles de: ${user.fullName || user.username}`);
   }
 
   toggleUserStatus(user: User): void {
-    if (confirm(`¿Está seguro de ${user.isActive ? 'desactivar' : 'activar'} al usuario ${user.username}?`)) {
-      this.usersService.toggleUserStatus(user.id).subscribe({
-        next: () => {
-          this.loadUsers();
-          alert(`Usuario actualizado correctamente`);
-        },
-        error: () => {
-          alert('Error al cambiar estado del usuario');
-        }
-      });
-    }
+    const action = user.isActive ? 'desactivar' : 'activar';
+    const userName = user.fullName || user.username;
+    
+    this.notificationService.confirm(
+      `${user.isActive ? 'Desactivar' : 'Activar'} Usuario`,
+      `¿Está seguro de ${action} al usuario "${userName}"?`,
+      () => {
+        this.usersService.toggleUserStatus(user.id)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe({
+            next: () => {
+              this.loadUsers();
+              this.notificationService.success(
+                `Usuario ${user.isActive ? 'desactivado' : 'activado'} correctamente`
+              );
+            },
+            error: (error) => {
+              this.notificationService.error('Error al cambiar estado del usuario');
+            }
+          });
+      }
+    );
   }
 
   deleteUser(user: User): void {
-    if (confirm(`¿Está seguro de eliminar al usuario ${user.username}?`)) {
-      this.usersService.deleteUser(user.id).subscribe({
-        next: () => {
-          this.loadUsers();
-          alert('Usuario eliminado exitosamente');
-        },
-        error: () => {
-          alert('Error al eliminar usuario');
-        }
-      });
-    }
+    const userName = user.fullName || user.username;
+    
+    this.notificationService.confirm(
+      'Eliminar Usuario',
+      `¿Está seguro de eliminar al usuario "${userName}"? Esta acción no se puede deshacer.`,
+      () => {
+        this.usersService.deleteUser(user.id)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe({
+            next: () => {
+              this.loadUsers();
+              this.notificationService.success('Usuario eliminado exitosamente');
+            },
+            error: (error) => {
+              if (error.status === 404) {
+                this.notificationService.error(`El usuario "${userName}" no existe`);
+              } else if (error.status === 403) {
+                this.notificationService.error('No tiene permisos para eliminar usuarios');
+              } else {
+                this.notificationService.error('Error al eliminar usuario');
+              }
+            }
+          });
+      }
+    );
   }
 }

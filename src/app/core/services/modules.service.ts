@@ -146,7 +146,7 @@ export class ModulesService {
       return true;
     }
 
-    // Mapeo de jerarquías de roles (puedes ajustar según tus necesidades)
+    // Mapeo de jerarquías de roles
     const roleHierarchy: Record<UserRole, UserRole[]> = {
       [UserRole.ADMIN]: [UserRole.ADMIN],
       [UserRole.SUPERVISOR]: [UserRole.SUPERVISOR, UserRole.RADICADOR],
@@ -159,6 +159,25 @@ export class ModulesService {
     };
 
     return roleHierarchy[userRole]?.includes(requiredRole) || false;
+  }
+
+  // Método canAccessRoute para compatibilidad con Role Guard
+  canAccessRoute(path: string, userRole: UserRole): boolean {
+    // ADMIN tiene acceso a todo
+    if (userRole === UserRole.ADMIN) {
+      return true;
+    }
+
+    // Obtener módulos permitidos para el usuario
+    const userModules = this.getModulesForUser(userRole);
+    
+    // Buscar si el path coincide con algún módulo permitido
+    const matchingModule = userModules.find(module => 
+      path === module.path || 
+      path.startsWith(module.path + '/')
+    );
+
+    return !!matchingModule;
   }
 
   getDefaultModules(): AppModule[] {

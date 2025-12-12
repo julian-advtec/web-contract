@@ -1,0 +1,253 @@
+<!-- src/app/pages/radicacion/components/radicacion-form/radicacion-form.component.html -->
+<div class="radicacion-form-container">
+  <!-- Mensaje de estado -->
+  <div *ngIf="mensaje" class="alert-message" [class.success]="tipoMensaje === 'success'" [class.error]="tipoMensaje === 'error'">
+    <i class="fas" [class.fa-check-circle]="tipoMensaje === 'success'" [class.fa-exclamation-circle]="tipoMensaje === 'error'"></i>
+    {{ mensaje }}
+  </div>
+
+  <form [formGroup]="radicacionForm" (ngSubmit)="onSubmit()" class="radicacion-form">
+    <div class="form-grid">
+      <!-- Fila 1: Número de Radicado y Contrato -->
+      <div class="form-row">
+        <div class="form-group">
+          <label for="numeroRadicado" class="form-label">
+            <i class="fas fa-hashtag"></i> Número de Radicado *
+          </label>
+          <input type="text" 
+                 id="numeroRadicado" 
+                 class="form-control" 
+                 formControlName="numeroRadicado"
+                 placeholder="Ej: R2024-001"
+                 [class.is-invalid]="radicacionForm.get('numeroRadicado')?.invalid && 
+                                    radicacionForm.get('numeroRadicado')?.touched">
+          <div *ngIf="radicacionForm.get('numeroRadicado')?.invalid && 
+                     radicacionForm.get('numeroRadicado')?.touched" 
+               class="invalid-feedback">
+            {{ getNumeroRadicadoError() }}
+          </div>
+          <small class="form-text text-muted">
+            Formato: RAAAA-NNN (Año y número consecutivo)
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label for="numeroContrato" class="form-label">
+            <i class="fas fa-file-contract"></i> Número de Contrato *
+          </label>
+          <input type="text" 
+                 id="numeroContrato" 
+                 class="form-control" 
+                 formControlName="numeroContrato"
+                 placeholder="Ej: CT-2024-001"
+                 [class.is-invalid]="radicacionForm.get('numeroContrato')?.invalid && 
+                                    radicacionForm.get('numeroContrato')?.touched">
+        </div>
+      </div>
+
+      <!-- Fila 2: Información del Contratista -->
+      <div class="form-row">
+        <div class="form-group">
+          <label for="nombreContratista" class="form-label">
+            <i class="fas fa-user-tie"></i> Nombre del Contratista *
+          </label>
+          <input type="text" 
+                 id="nombreContratista" 
+                 class="form-control" 
+                 formControlName="nombreContratista"
+                 placeholder="Nombre completo"
+                 [class.is-invalid]="radicacionForm.get('nombreContratista')?.invalid && 
+                                    radicacionForm.get('nombreContratista')?.touched">
+        </div>
+
+        <div class="form-group">
+          <label for="documentoContratista" class="form-label">
+            <i class="fas fa-id-card"></i> Documento del Contratista *
+          </label>
+          <input type="text" 
+                 id="documentoContratista" 
+                 class="form-control" 
+                 formControlName="documentoContratista"
+                 placeholder="Número de identificación"
+                 [class.is-invalid]="radicacionForm.get('documentoContratista')?.invalid && 
+                                    radicacionForm.get('documentoContratista')?.touched">
+        </div>
+      </div>
+
+      <!-- Fila 3: Fechas -->
+      <div class="form-row">
+        <div class="form-group">
+          <label for="fechaInicio" class="form-label">
+            <i class="fas fa-calendar-alt"></i> Fecha de Inicio *
+          </label>
+          <input type="date" 
+                 id="fechaInicio" 
+                 class="form-control" 
+                 formControlName="fechaInicio"
+                 [class.is-invalid]="radicacionForm.get('fechaInicio')?.invalid && 
+                                    radicacionForm.get('fechaInicio')?.touched">
+        </div>
+
+        <div class="form-group">
+          <label for="fechaFin" class="form-label">
+            <i class="fas fa-calendar-check"></i> Fecha de Fin *
+          </label>
+          <input type="date" 
+                 id="fechaFin" 
+                 class="form-control" 
+                 formControlName="fechaFin"
+                 [class.is-invalid]="radicacionForm.get('fechaFin')?.invalid && 
+                                    radicacionForm.get('fechaFin')?.touched">
+        </div>
+      </div>
+
+      <!-- Sección de Documentos -->
+      <div class="documentos-section">
+        <h4 class="section-title">
+          <i class="fas fa-file-upload"></i> Documentos a Adjuntar (3 obligatorios)
+        </h4>
+        
+        <div class="documentos-grid">
+          <!-- Documento 1 -->
+          <div class="documento-card">
+            <div class="documento-header">
+              <i class="fas fa-file-pdf documento-icon"></i>
+              <h5>Documento 1</h5>
+            </div>
+            
+            <div class="documento-body">
+              <input type="text" 
+                     class="form-control mb-2" 
+                     formControlName="descripcionDoc1"
+                     placeholder="Descripción del documento">
+              
+              <div class="file-upload-area" [class.has-file]="documentosSeleccionados[0]">
+                <input type="file" 
+                       id="file1" 
+                       class="file-input" 
+                       (change)="onFileSelected($event, 0)"
+                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                
+                <label for="file1" class="file-label">
+                  <i class="fas fa-cloud-upload-alt"></i>
+                  <span *ngIf="!documentosSeleccionados[0]">Seleccionar archivo</span>
+                  <span *ngIf="documentosSeleccionados[0]" class="file-name">
+                    {{ getNombreArchivo(0) }}
+                  </span>
+                </label>
+                
+                <div *ngIf="documentosSeleccionados[0]" class="file-actions">
+                  <button type="button" class="btn-remove" (click)="removeFile(0)">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+              </div>
+              
+              <small class="form-text text-muted">
+                PDF, Word, JPG, PNG (max 10MB)
+              </small>
+            </div>
+          </div>
+
+          <!-- Documento 2 -->
+          <div class="documento-card">
+            <div class="documento-header">
+              <i class="fas fa-file-word documento-icon"></i>
+              <h5>Documento 2</h5>
+            </div>
+            
+            <div class="documento-body">
+              <input type="text" 
+                     class="form-control mb-2" 
+                     formControlName="descripcionDoc2"
+                     placeholder="Descripción del documento">
+              
+              <div class="file-upload-area" [class.has-file]="documentosSeleccionados[1]">
+                <input type="file" 
+                       id="file2" 
+                       class="file-input" 
+                       (change)="onFileSelected($event, 1)"
+                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                
+                <label for="file2" class="file-label">
+                  <i class="fas fa-cloud-upload-alt"></i>
+                  <span *ngIf="!documentosSeleccionados[1]">Seleccionar archivo</span>
+                  <span *ngIf="documentosSeleccionados[1]" class="file-name">
+                    {{ getNombreArchivo(1) }}
+                  </span>
+                </label>
+                
+                <div *ngIf="documentosSeleccionados[1]" class="file-actions">
+                  <button type="button" class="btn-remove" (click)="removeFile(1)">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+              </div>
+              
+              <small class="form-text text-muted">
+                PDF, Word, JPG, PNG (max 10MB)
+              </small>
+            </div>
+          </div>
+
+          <!-- Documento 3 -->
+          <div class="documento-card">
+            <div class="documento-header">
+              <i class="fas fa-file-image documento-icon"></i>
+              <h5>Documento 3</h5>
+            </div>
+            
+            <div class="documento-body">
+              <input type="text" 
+                     class="form-control mb-2" 
+                     formControlName="descripcionDoc3"
+                     placeholder="Descripción del documento">
+              
+              <div class="file-upload-area" [class.has-file]="documentosSeleccionados[2]">
+                <input type="file" 
+                       id="file3" 
+                       class="file-input" 
+                       (change)="onFileSelected($event, 2)"
+                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                
+                <label for="file3" class="file-label">
+                  <i class="fas fa-cloud-upload-alt"></i>
+                  <span *ngIf="!documentosSeleccionados[2]">Seleccionar archivo</span>
+                  <span *ngIf="documentosSeleccionados[2]" class="file-name">
+                    {{ getNombreArchivo(2) }}
+                  </span>
+                </label>
+                
+                <div *ngIf="documentosSeleccionados[2]" class="file-actions">
+                  <button type="button" class="btn-remove" (click)="removeFile(2)">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </div>
+              </div>
+              
+              <small class="form-text text-muted">
+                PDF, Word, JPG, PNG (max 10MB)
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Botones de acción -->
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" (click)="onCancel()" [disabled]="isLoading">
+          <i class="fas fa-times"></i> Cancelar
+        </button>
+        
+        <button type="submit" class="btn btn-primary" [disabled]="isLoading || radicacionForm.invalid">
+          <span *ngIf="!isLoading">
+            <i class="fas fa-paper-plane"></i> Radicar Documento
+          </span>
+          <span *ngIf="isLoading">
+            <i class="fas fa-spinner fa-spin"></i> Procesando...
+          </span>
+        </button>
+      </div>
+    </div>
+  </form>
+</div>

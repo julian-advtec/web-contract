@@ -1,0 +1,48 @@
+<!-- notification-modal.component.html - VERSIÓN ACTUALIZADA CON TUS COLORES -->
+<div *ngIf="showModal && currentModal" class="modal-overlay" (click)="onCancel()">
+  <div class="modal-container" [class]="getCustomClasses()" (click)="$event.stopPropagation()">
+    <!-- Cabecera del modal -->
+    <div class="modal-header">
+      <h3 class="modal-title">{{ currentModal.title }}</h3>
+      <button *ngIf="currentModal.showCloseButton" 
+              class="modal-close-btn" 
+              (click)="closeModal()"
+              aria-label="Cerrar modal">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    
+    <!-- Cuerpo del modal -->
+    <div class="modal-body">
+      <!-- Modal con contenido personalizado -->
+      <ng-container *ngIf="hasContent()">
+        <ng-container *ngTemplateOutlet="currentModal.content!"></ng-container>
+      </ng-container>
+      
+      <!-- Modal de mensaje simple -->
+      <ng-container *ngIf="!hasContent() && currentModal.message">
+        <div class="message-content">
+          <div *ngIf="currentModal.customClass === 'logout-modal'" class="logout-icon">
+            <i class="fas fa-sign-out-alt"></i>
+          </div>
+          <p class="modal-message">{{ currentModal.message }}</p>
+        </div>
+      </ng-container>
+    </div>
+    
+    <!-- Pie del modal (solo para confirm e info) -->
+    <div class="modal-footer" *ngIf="isConfirmModal() || isInfoModal()">
+      <!-- Botón de cancelar (solo en confirmación) -->
+      <button *ngIf="isConfirmModal()" 
+              class="btn-cancel" 
+              (click)="onCancel()">
+        {{ currentModal.cancelText || 'Cancelar' }}
+      </button>
+      
+      <!-- Botón principal -->
+      <button class="btn-confirm" (click)="onConfirm()">
+        {{ currentModal.confirmText || 'Aceptar' }}
+      </button>
+    </div>
+  </div>
+</div>

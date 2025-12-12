@@ -1,8 +1,8 @@
-// app.routes.ts
+// src/app/app.routes.ts
 import { Routes } from '@angular/router';
-// Importar con el nombre correcto (con mayúscula)
 import { AuthGuard } from './core/guards/auth-guard';
 import { TwoFactorGuard } from './core/guards/two-factor.guard';
+import { RoleGuard } from './core/guards/role.guard';
 
 export const routes: Routes = [
   {
@@ -12,18 +12,19 @@ export const routes: Routes = [
   {
     path: 'dashboard',
     loadComponent: () => import('./pages/dashboard/dashboard.component').then(m => m.DashboardComponent),
-    canActivate: [AuthGuard] // Usar AuthGuard con mayúscula
+    canActivate: [AuthGuard]
   },
   {
-    path: 'gestion-usuarios', // Cambiado de 'users' a 'gestion-usuarios'
-    loadComponent: () => import('./pages/users-management/users-management.component').then(m => m.UsersManagementComponent),
+    path: 'gestion-usuarios',
+    loadChildren: () => import('./pages/users-management/users-management.routes').then(m => m.usersManagementRoutes),
     canActivate: [AuthGuard],
     data: { roles: ['admin'] }
   },
   {
-    path: 'two-factor',
-    loadComponent: () => import('./auth/pages/verify-2fa/verify-2fa.component').then(m => m.Verify2faComponent),
-    canActivate: [TwoFactorGuard]
+    path: 'radicacion',
+    loadComponent: () => import('./pages/radicacion/radicacion.component').then(m => m.RadicacionComponent),
+    canActivate: [AuthGuard, RoleGuard],
+    data: { roles: ['admin', 'radicador'] } // ← en minúscula
   },
   {
     path: '',

@@ -11,7 +11,6 @@
     </div>
   </div>
 
- 
   <!-- Navegación -->
   <nav class="sidebar-nav">
     <div class="nav-section" *ngIf="!sidebarCollapsed">
@@ -22,7 +21,7 @@
       <li class="nav-item" 
           *ngFor="let module of availableModules; let i = index" 
           (click)="onNavigateToModule(module)"
-          [title]="module.description"
+          [title]="getModuleDescription(module)"
           [class.active]="isModuleActive(module)">
         
         <span class="nav-icon" [innerHTML]="getModuleIcon(module.id)"></span>
@@ -34,11 +33,6 @@
         
         <span class="nav-tooltip" *ngIf="sidebarCollapsed">
           {{ module.title }}
-        </span>
-        
-        <!-- Debug info - opcional -->
-        <span *ngIf="false" style="font-size: 0.6em; color: #666; position: absolute; right: 5px; top: 5px;">
-          {{ i }}: {{ module.path || module.route || 'undefined' }}
         </span>
       </li>
     </ul>

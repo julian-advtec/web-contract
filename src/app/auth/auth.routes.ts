@@ -1,11 +1,17 @@
-// auth/auth.routes.ts
 import { Routes } from '@angular/router';
+import { TwoFactorGuard } from '../core/guards/two-factor.guard';
 
 export const authRoutes: Routes = [
   {
     path: 'login',
     loadComponent: () => import('./components/login/login.component')
       .then(m => m.LoginComponent)
+  },
+  {
+    path: 'verify-2fa',
+    loadComponent: () => import('./pages/verify-2fa/verify-2fa.component')
+      .then(m => m.Verify2faComponent),
+    canActivate: [TwoFactorGuard]  // ✅ AGREGA EL GUARD AQUÍ
   },
   {
     path: 'forgot-password',

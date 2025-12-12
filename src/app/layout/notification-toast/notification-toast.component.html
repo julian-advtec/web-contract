@@ -1,0 +1,22 @@
+<!-- notification-toast.component.html -->
+<div class="toast-container">
+  <div *ngFor="let notification of notifications" 
+       class="toast"
+       [class]="getToastClass(notification.type)"
+       (click)="removeNotification(notification)">
+    <div class="toast-icon">
+      <i [class]="getIconClass(notification.type)"></i>
+    </div>
+    <div class="toast-content">
+      <div *ngIf="notification.title" class="toast-title">
+        {{ notification.title }}
+      </div>
+      <div class="toast-message">
+        {{ notification.message }}
+      </div>
+    </div>
+    <button class="toast-close" (click)="removeNotification(notification)" aria-label="Cerrar notificación">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+</div>

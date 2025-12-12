@@ -1,4 +1,3 @@
-// navbar.component.ts
 import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, NavigationEnd } from '@angular/router';
@@ -30,7 +29,6 @@ export class NavbarComponent implements OnInit {
     // Escuchar cambios de ruta
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationEnd) {
-        console.log('🔄 Cambio de ruta detectado:', event.url);
         this.updateTitle();
       }
     });
@@ -41,64 +39,88 @@ export class NavbarComponent implements OnInit {
     return url === '/dashboard' || url === '/' || url === '';
   }
 
-  private updateTitle() {
-    this.currentUrl = this.router.url;
-    const cleanUrl = this.currentUrl.split('?')[0];
+  isUserManagementPage(): boolean {
+    const cleanUrl = this.currentUrl || this.router.url.split('?')[0];
     
-    // Solo actualizar si NO es el dashboard
+    const isExactRoute = cleanUrl === '/gestion-usuarios' || 
+                         cleanUrl === '/gestion-usuarios/nuevo';
+    
+    const isEditRoute = cleanUrl.startsWith('/gestion-usuarios/editar/');
+    
+    return isExactRoute || isEditRoute;
+  }
+
+  isRadicacionPage(): boolean {
+    const cleanUrl = this.currentUrl || this.router.url.split('?')[0];
+    
+    const isExactRoute = cleanUrl === '/radicacion';
+    const isNewRoute = cleanUrl === '/radicacion/nuevo';
+    const isEditRoute = cleanUrl.startsWith('/radicacion/editar/');
+    
+    return isExactRoute || isNewRoute || isEditRoute;
+  }
+
+  private updateTitle() {
+    this.currentUrl = this.router.url.split('?')[0];
+    const cleanUrl = this.currentUrl;
+    
     if (this.isDashboardPage()) {
       this.currentPageTitle = 'Dashboard';
       this.currentPageSubtitle = 'Panel principal';
       return;
     }
     
-    // Mapeo de rutas a títulos (para páginas que no sean dashboard)
     const titleMap: Record<string, { title: string, subtitle?: string }> = {
-      '/users-management': { title: 'Gestión de Usuarios', subtitle: 'Administración de usuarios' },
-      '/user-management': { title: 'Gestión de Usuarios', subtitle: 'Administración de usuarios' },
-      '/usuarios': { title: 'Gestión de Usuarios', subtitle: 'Administración de usuarios' },
-      '/gestion-usuarios': { title: 'Gestión de Usuarios', subtitle: 'Administración de usuarios' },
-      '/gestion-usuarios/': { title: 'Gestión de Usuarios', subtitle: 'Administración de usuarios' },
-      '/document-management': { title: 'Gestión Documental', subtitle: 'Administración de documentos' },
-      '/radicacion': { title: 'Radicación', subtitle: 'Radicación de documentos' },
-      '/seguimiento': { title: 'Seguimiento', subtitle: 'Seguimiento de documentos' },
-      '/reportes': { title: 'Reportes', subtitle: 'Reportes y estadísticas' },
-      '/configuracion': { title: 'Configuración', subtitle: 'Configuración del sistema' },
-      '/perfil': { title: 'Mi Perfil', subtitle: 'Administrar mi cuenta' },
+      '/gestion-usuarios': { 
+        title: 'Gestión de Usuarios', 
+        subtitle: 'Administración de usuarios' 
+      },
+      '/gestion-usuarios/nuevo': { 
+        title: 'Nuevo Usuario', 
+        subtitle: 'Administración de usuarios' 
+      },
+      '/radicacion': { 
+        title: 'Radicación', 
+        subtitle: 'Radicación de documentos' 
+      },
+      '/radicacion/nuevo': { 
+        title: 'Nuevo Radicado', 
+        subtitle: 'Radicación de documentos' 
+      },
     };
     
-    // DEBUG: Para ver qué está pasando
-    console.log('🔍 URL actual:', cleanUrl);
-    console.log('📋 Buscando en mapeo:', Object.keys(titleMap));
-    
-    // Buscar coincidencia exacta
     if (titleMap[cleanUrl]) {
       this.currentPageTitle = titleMap[cleanUrl].title;
       this.currentPageSubtitle = titleMap[cleanUrl].subtitle || '';
-      console.log('✅ Título encontrado:', this.currentPageTitle);
       return;
     }
     
-    // Buscar coincidencia parcial (sin importar / al final)
-    for (const [route, info] of Object.entries(titleMap)) {
-      const normalizedRoute = route.replace(/\/$/, ''); // Quitar / final
-      const normalizedUrl = cleanUrl.replace(/\/$/, ''); // Quitar / final
-      
-      if (normalizedUrl === normalizedRoute) {
-        this.currentPageTitle = info.title;
-        this.currentPageSubtitle = info.subtitle || '';
-        console.log('✅ Coincidencia parcial:', this.currentPageTitle);
-        return;
-      }
+    if (cleanUrl.startsWith('/gestion-usuarios/editar/')) {
+      this.currentPageTitle = 'Editar Usuario';
+      this.currentPageSubtitle = 'Administración de usuarios';
+      return;
     }
     
-    // Si no encuentra coincidencia, usar la última parte de la URL formateada
+    if (cleanUrl.startsWith('/radicacion/editar/')) {
+      this.currentPageTitle = 'Editar Radicado';
+      this.currentPageSubtitle = 'Radicación de documentos';
+      return;
+    }
+    
     const segments = cleanUrl.split('/').filter(seg => seg.trim() !== '');
     if (segments.length > 0) {
       const lastSegment = segments[segments.length - 1];
-      this.currentPageTitle = this.formatToTitle(lastSegment);
-      this.currentPageSubtitle = '';
-      console.log('⚠️ Usando título formateado:', this.currentPageTitle);
+      
+      if (cleanUrl.startsWith('/gestion-usuarios')) {
+        this.currentPageTitle = 'Gestión de Usuarios';
+        this.currentPageSubtitle = 'Administración de usuarios';
+      } else if (cleanUrl.startsWith('/radicacion')) {
+        this.currentPageTitle = 'Radicación';
+        this.currentPageSubtitle = 'Radicación de documentos';
+      } else {
+        this.currentPageTitle = this.formatToTitle(lastSegment);
+        this.currentPageSubtitle = '';
+      }
     } else {
       this.currentPageTitle = 'Dashboard';
       this.currentPageSubtitle = 'Panel principal';
@@ -116,7 +138,6 @@ export class NavbarComponent implements OnInit {
       .join(' ');
   }
 
-  // Método para obtener el nombre del rol
   getUserRoleName(role: UserRole | undefined | null): string {
     if (!role) return 'Usuario';
 
@@ -132,6 +153,4 @@ export class NavbarComponent implements OnInit {
     };
     return roles[role] || role;
   }
-
-
 }

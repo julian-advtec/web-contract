@@ -1,29 +1,30 @@
-<!-- navbar.component.html -->
-<nav class="navbar" [class.collapsed]="sidebarCollapsed">
+<nav class="navbar"
+     [class.collapsed]="sidebarCollapsed"
+     [class.gestion-usuarios]="isUserManagementPage()"
+     [class.radicacion]="isRadicacionPage()">
   <div class="navbar-content">
-    <!-- Botón para toggle del sidebar -->
 
-    <!-- Brand/Logo - Ahora dinámico -->
     <div class="navbar-brand">
       <h1 *ngIf="isDashboardPage(); else dynamicTitle">
         SISTEMA DE GESTIÓN DOCUMENTAL
       </h1>
+
       <ng-template #dynamicTitle>
         <div class="dynamic-title">
-          <h1 class="page-title">{{ currentPageTitle }}</h1>
-          <p *ngIf="currentPageSubtitle" class="page-subtitle">{{ currentPageSubtitle }}</p>
+          <div class="title-text">
+            <h1 class="page-title">{{ currentPageTitle }}</h1>
+            <p *ngIf="currentPageSubtitle" class="page-subtitle">{{ currentPageSubtitle }}</p>
+          </div>
         </div>
       </ng-template>
     </div>
-    
-    <!-- Información del usuario -->
+
     <div class="navbar-user-section">
       <div class="user-info">
         <span class="user-name">{{ currentUser?.username || 'Usuario' }}</span>
         <span class="user-role">{{ getUserRoleName(currentUser?.role) }}</span>
       </div>
-      
-
     </div>
+
   </div>
 </nav>
