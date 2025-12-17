@@ -73,19 +73,69 @@ export class RadicacionService {
 
         if (!headers.get('Authorization')) {
             console.log('🔐 No hay token, no se puede solicitar documentos');
+            console.log('🔐 Token en localStorage:', localStorage.getItem('access_token') || localStorage.getItem('token'));
+            this.notificationService.warning('No estás autenticado', 'Por favor inicia sesión');
             return of([]);
         }
 
-        return this.http.get<DocumentosResponse>(this.apiUrl, { headers }).pipe(
-            tap(response => console.log('📦 Respuesta completa:', response)),
+        console.log('🔑 Headers enviados:', headers.keys());
+
+        return this.http.get<any>(this.apiUrl, { headers }).pipe(
+            tap(response => {
+                console.log('📦 Respuesta COMPLETA del backend:', response);
+                console.log('📊 Estructura completa:', JSON.stringify(response, null, 2));
+
+                // Debug profundo de la estructura
+                if (response && response.data) {
+                    console.log('📊 response.data tipo:', typeof response.data);
+                    console.log('📊 response.data claves:', Object.keys(response.data));
+                    console.log('📊 ¿response.data.data existe?', response.data.data !== undefined);
+                    console.log('📊 ¿response.data.data es array?', Array.isArray(response.data.data));
+                    console.log('📊 response.data.data:', response.data.data);
+                }
+            }),
             map(response => {
-                // Verificar que la respuesta tenga el formato esperado
-                if (response && response.success && Array.isArray(response.data)) {
-                    console.log(`✅ ${response.data.length} documentos recibidos`);
-                    return response.data;
+                console.log('🔍 Procesando respuesta...');
+
+                // Caso 1: El backend devuelve {ok: true, data: {success: true, data: [...]}}
+                if (response && response.ok === true && response.data) {
+                    console.log('✅ Estructura con "ok" encontrada');
+
+                    // Verificar si data tiene una estructura anidada
+                    if (response.data.success === true && response.data.data && Array.isArray(response.data.data)) {
+                        console.log(`✅ Estructura anidada encontrada: ${response.data.data.length} documentos`);
+                        return response.data.data;
+                    }
+                    // Si data es directamente el array
+                    else if (Array.isArray(response.data)) {
+                        console.log(`✅ Data es array directamente: ${response.data.length} documentos`);
+                        return response.data;
+                    }
+                    // Si data tiene otra estructura
+                    else if (response.data.data && Array.isArray(response.data.data)) {
+                        console.log(`✅ Data.data es array: ${response.data.data.length} documentos`);
+                        return response.data.data;
+                    }
                 }
 
-                console.log('⚠️ Formato de respuesta inesperado:', response);
+                // Caso 2: El backend devuelve {success: true, data: [...]} directamente
+                else if (response && response.success === true) {
+                    console.log('✅ Estructura con "success" encontrada');
+
+                    if (response.data && Array.isArray(response.data)) {
+                        console.log(`✅ ${response.data.length} documentos recibidos`);
+                        return response.data;
+                    }
+                }
+
+                // Caso 3: Es un array directamente
+                else if (Array.isArray(response)) {
+                    console.log(`✅ Respuesta es array directamente: ${response.length} documentos`);
+                    return response;
+                }
+
+                // Caso 4: No se pudo procesar
+                console.warn('⚠️ No se pudo extraer documentos de la respuesta:', response);
                 return [];
             }),
             catchError((error: HttpErrorResponse) => {
@@ -128,8 +178,8 @@ export class RadicacionService {
     }
 
     /**
-     * Crear documento
-     */
+ * Crear documento
+ */
     crearDocumento(createDocumentoDto: CreateDocumentoDto, archivos: File[]): Observable<Documento> {
         console.log('📝 Intentando crear documento:', createDocumentoDto);
         console.log('📁 Archivos a subir:', archivos.map(f => f.name));
@@ -172,79 +222,146 @@ export class RadicacionService {
         // IMPORTANTE: No establecer Content-Type para FormData, el navegador lo hace automáticamente
         const uploadHeaders = headers.delete('Content-Type');
 
-        return this.http.post<DocumentoResponse>(this.apiUrl, formData, { headers: uploadHeaders }).pipe(
-            tap(response => console.log('✅ Respuesta de creación:', response)),
-            map(response => {
-                if (response && response.success && response.data) {
-                    this.notificationService.success('Documento radicado exitosamente');
-                    return response.data;
-                }
-                throw new Error(response?.message || 'Error desconocido al crear documento');
+        return this.http.post<any>(this.apiUrl, formData, { headers: uploadHeaders }).pipe(
+            tap(response => {
+                console.log('✅ Respuesta de creación:', response);
+                console.log('🔍 DEBUG: Respuesta completa:', JSON.stringify(response, null, 2));
             }),
-            catchError((error: HttpErrorResponse) => {
-                console.error('❌ Error creando documento:', {
-                    status: error.status,
-                    message: error.message,
-                    error: error.error
-                });
+            map(response => {
+                console.log('🔍 Analizando respuesta del backend...');
+                console.log('📊 Respuesta completa:', response);
+                console.log('📊 Tipo de respuesta:', typeof response);
 
-                // Manejo específico de errores
-                if (error.status === 401) {
-                    this.notificationService.error('Sesión expirada', 'Por favor inicia sesión nuevamente');
-                    localStorage.removeItem('access_token');
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('user');
-                    this.router.navigate(['/auth/login']);
-                    return throwError(() => new Error('Tu sesión ha expirado. Por favor inicia sesión nuevamente.'));
+                if (response && typeof response === 'object') {
+                    console.log('📊 Claves de la respuesta:', Object.keys(response));
+
+                    // IMPORTANTE: El backend devuelve {ok: true, path: ..., timestamp: ..., data: {...}}
+                    // También puede devolver {success: true, message: ..., data: {...}}
+
+                    // 1. Verificar estructura con "ok" (la que usa actualmente el backend)
+                    if (response.ok === true) {
+                        console.log('✅ Estructura con "ok" encontrada');
+
+                        if (response.data) {
+                            console.log('✅ Data presente:', response.data);
+                            this.notificationService.success('Documento radicado exitosamente');
+                            return response.data;
+                        } else {
+                            console.warn('⚠️ Ok true pero data está undefined/null');
+                            // Si no hay data, pero tiene éxito, retornar la respuesta completa
+                            return response;
+                        }
+                    }
+
+                    // 2. Verificar estructura con "success"
+                    else if (response.success === true) {
+                        console.log('✅ Estructura con "success" encontrada');
+
+                        if (response.data) {
+                            console.log('✅ Data presente:', response.data);
+                            this.notificationService.success('Documento radicado exitosamente');
+                            return response.data;
+                        } else {
+                            console.warn('⚠️ Success true pero data está undefined/null');
+                            return response;
+                        }
+                    }
+
+                    // 3. Si es el documento directamente (sin wrapper)
+                    else if (response.id && response.numeroRadicado) {
+                        console.log('✅ Documento recibido directamente (sin wrapper)');
+                        this.notificationService.success('Documento radicado exitosamente');
+                        return response;
+                    }
+
+                    // 4. Si tiene success: false
+                    else if (response.success === false) {
+                        console.log('❌ Success: false');
+                        throw new Error(response.message || 'Error del servidor al crear documento');
+                    }
+
+                    // 5. Si tiene ok: false
+                    else if (response.ok === false) {
+                        console.log('❌ Ok: false');
+                        throw new Error(response.message || 'Error del servidor al crear documento');
+                    }
+
+                    // 6. Si no coincide con ninguna estructura conocida
+                    else {
+                        console.log('⚠️ Estructura no reconocida, retornando respuesta completa');
+                        return response;
+                    }
                 }
 
-                if (error.status === 403) {
-                    const errorMsg = error.error?.message || 'No tienes permisos para radicar documentos';
-                    this.notificationService.error('Sin permisos', errorMsg);
-                    return throwError(() => new Error(errorMsg));
+                // Si llegamos aquí, la estructura no es la esperada
+                console.error('❌ Respuesta inesperada del servidor:', response);
+                throw new Error('Estructura de respuesta inválida del servidor');
+            }),
+            catchError((error: any) => {
+                console.error('❌ Error completo en crearDocumento:', error);
+
+                // Determinar si es HttpErrorResponse o Error regular
+                if (error instanceof HttpErrorResponse) {
+                    console.error('❌ Es HttpErrorResponse:', {
+                        status: error.status,
+                        statusText: error.statusText,
+                        message: error.message,
+                        error: error.error
+                    });
+
+                    // Manejo específico de errores HTTP
+                    if (error.status === 401) {
+                        this.notificationService.error('Sesión expirada', 'Por favor inicia sesión nuevamente');
+                        localStorage.removeItem('access_token');
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                        this.router.navigate(['/auth/login']);
+                        return throwError(() => new Error('Tu sesión ha expirado. Por favor inicia sesión nuevamente.'));
+                    }
+
+                    if (error.status === 403) {
+                        const errorMsg = error.error?.message || 'No tienes permisos para radicar documentos';
+                        this.notificationService.error('Sin permisos', errorMsg);
+                        return throwError(() => new Error(errorMsg));
+                    }
+
+                    if (error.status === 409) {
+                        const errorMsg = error.error?.message || 'El número de radicado ya existe';
+                        this.notificationService.error('Radicado duplicado', errorMsg);
+                        return throwError(() => new Error(errorMsg));
+                    }
+
+                    if (error.status === 400) {
+                        const errorMsg = error.error?.message || 'Datos inválidos';
+                        this.notificationService.error('Error de validación', errorMsg);
+                        return throwError(() => new Error(errorMsg));
+                    }
+
+                    if (error.status === 500) {
+                        const errorMsg = error.error?.message || 'Error interno del servidor';
+                        this.notificationService.error('Error del servidor', errorMsg);
+                        return throwError(() => new Error(errorMsg));
+                    }
+                } else {
+                    // Es un Error regular (lanzado en el map)
+                    console.error('❌ Es Error regular:', {
+                        name: error.name,
+                        message: error.message,
+                        stack: error.stack
+                    });
+
+                    // Mostrar notificación solo si es un error significativo
+                    if (error.message && !error.message.includes('desconocido')) {
+                        this.notificationService.error('Error', error.message);
+                    }
+
+                    return throwError(() => error);
                 }
 
-                if (error.status === 409) {
-                    const errorMsg = error.error?.message || 'El número de radicado ya existe';
-                    this.notificationService.error('Radicado duplicado', errorMsg);
-                    return throwError(() => new Error(errorMsg));
-                }
-
-                if (error.status === 400) {
-                    const errorMsg = error.error?.message || 'Datos inválidos';
-                    this.notificationService.error('Error de validación', errorMsg);
-                    return throwError(() => new Error(errorMsg));
-                }
-
-                if (error.status === 500) {
-                    const errorMsg = error.error?.message || 'Error interno del servidor';
-                    this.notificationService.error('Error del servidor', errorMsg);
-                    return throwError(() => new Error(errorMsg));
-                }
-
-                // Error general
-                const errorMsg = error.error?.message || error.message || 'Error desconocido';
+                // Manejo común de errores HTTP
+                const errorMsg = error.error?.message || error.message || 'Error desconocido al crear documento';
                 this.notificationService.error('Error', errorMsg);
                 return throwError(() => new Error(errorMsg));
-            })
-        );
-    }
-
-    /**
-     * Método para debug - verificar permisos del usuario actual
-     */
-    debugUserInfo(): Observable<ApiResponse<any>> {
-        const headers = this.getAuthHeaders();
-
-        if (!headers.get('Authorization')) {
-            return throwError(() => new Error('No hay token disponible'));
-        }
-
-        return this.http.get<ApiResponse<any>>(`${this.apiUrl}/debug/user-info`, { headers }).pipe(
-            catchError(error => {
-                console.error('❌ Error debug:', error);
-                // No mostrar notificación para este error
-                return throwError(() => error);
             })
         );
     }
@@ -363,12 +480,10 @@ export class RadicacionService {
 
     descargarArchivo(blob: Blob, nombreArchivo: string): void {
         const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = nombreArchivo;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = nombreArchivo;
+        a.click();
         window.URL.revokeObjectURL(url);
     }
 
@@ -416,4 +531,110 @@ export class RadicacionService {
             })
         );
     }
+
+    // En RadicacionService
+    obtenerArchivosCarpeta(documentoId: string): Observable<any[]> {
+        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+        const headers = new HttpHeaders({
+            'Authorization': `Bearer ${token}`
+        });
+
+        return this.http.get<any[]>(`${this.apiUrl}/${documentoId}/archivos`, { headers })
+            .pipe(
+                catchError(error => {
+                    console.error('Error obteniendo archivos de carpeta:', error);
+                    return throwError(() => error);
+                })
+            );
+    }
+
+
+
+    getArchivoUrl(id: string, index: number, download = false): string {
+        const baseUrl = `${this.apiUrl}/${id}/archivo/${index}`;
+        const params = new URLSearchParams();
+        if (download) params.append('download', 'true');
+        return `${baseUrl}?${params.toString()}`;
+    }
+    /**
+     * Genera la URL de un archivo con token incluido
+     */
+    getArchivoUrlConToken(id: string, index: number, download = false): string {
+        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+        const baseUrl = `${this.apiUrl}/${id}/archivo/${index}`;
+        const params = new URLSearchParams();
+        if (download) params.append('download', 'true');
+        if (token) params.append('token', token);
+        return `${baseUrl}?${params.toString()}`;
+    }
+    /**
+     * Abre el archivo en nueva pestaña para previsualización
+     */
+    previsualizarArchivo(id: string, index: number): void {
+        const url = this.getArchivoUrlConToken(id, index, false);
+        window.open(url, '_blank');
+    }
+    /**
+     * Descarga directamente el archivo sin pasar por Blob
+     */
+    descargarArchivoDirecto(id: string, index: number, nombreArchivo?: string): void {
+        const url = this.getArchivoUrlConToken(id, index, true);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = nombreArchivo || `archivo-${index}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+    /**
+     * Descarga archivo como Blob y retorna Observable<Blob>
+     */
+    descargarArchivoBlob(id: string, index: number): Observable<Blob> {
+        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+        if (!token) return throwError(() => new Error('No estás autenticado'));
+
+        const headers = new HttpHeaders({ 'Authorization': `Bearer ${token}` });
+
+        return this.http.get(`${this.apiUrl}/${id}/archivo/${index}`, {
+            headers,
+            responseType: 'blob'
+        }).pipe(
+            catchError(error => {
+                console.error('Error descargando archivo:', error);
+                return throwError(() => error);
+            })
+        );
+    }
+    /**
+     * Guarda un Blob como archivo en el navegador
+     */
+
+    getArchivoPreviewWordUrl(id: string, index: number): string {
+        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+        return `${this.apiUrl}/${id}/archivo/${index}/preview?token=${token}`;
+    }
+
+
+    getArchivoPreviewUrl(id: string, index: number): string {
+        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+        return `${this.apiUrl}/${id}/archivo/${index}/preview?token=${token}`;
+    }
+
+    /**
+     * Construye la URL base del archivo
+     */
+    private buildArchivoUrl(
+        id: string,
+        index: number,
+        download = false
+    ): string {
+        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+
+        const params = new URLSearchParams();
+        if (token) params.append('token', token);
+        if (download) params.append('download', 'true');
+
+        return `${this.apiUrl}/${id}/archivo/${index}?${params.toString()}`;
+    }
+
 }

@@ -1,4 +1,3 @@
-// En models/documento.model.ts
 export interface Documento {
   id: string;
   numeroRadicado: string;
@@ -26,15 +25,23 @@ export interface Documento {
     fullName: string;
     role: string;
   };
+  tokenPublico?: string;
+  tokenActivo?: boolean;
+  tokenExpiraEn?: Date;
+
+  [key: string]: any; // ✅ esto permite doc['nombreDocumento'+i]
 }
 
 export interface CreateDocumentoDto {
   numeroRadicado: string;
   numeroContrato: string;
+
   nombreContratista: string;
   documentoContratista: string;
+
   fechaInicio: Date;
   fechaFin: Date;
+
   descripcionDoc1?: string;
   descripcionDoc2?: string;
   descripcionDoc3?: string;

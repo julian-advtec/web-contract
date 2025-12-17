@@ -33,13 +33,6 @@
                 <button type="button" class="btn-close" (click)="dismissSuccess()" aria-label="Close"></button>
             </div>
             
-            <!-- Botón de test (solo desarrollo) -->
-            <div *ngIf="puedeTestSistema()" class="mb-3">
-                <button (click)="testSistema()" class="btn btn-warning btn-sm">
-                    <i class="fas fa-vial"></i> Test Sistema de Archivos
-                </button>
-            </div>
-
             <!-- VISTA FORM -->
             <app-radicacion-form 
                 *ngIf="showForm && puedeRadicar"
