@@ -1,3 +1,4 @@
+<!-- src/app/pages/radicacion/radicacion.component.html -->
 <div class="app-container">
     <!-- Sidebar FIXED -->
     <div class="drawer-fixed" [class.collapsed]="sidebarCollapsed">
@@ -18,7 +19,7 @@
         (toggleSidebar)="onToggleSidebar($event)">
     </app-navbar>
 
-    <!-- CONTENIDO PRINCIPAL CON MARGEN - AJUSTADO -->
+    <!-- CONTENIDO PRINCIPAL -->
     <main class="main-with-margin" [class.sidebar-collapsed]="sidebarCollapsed">
         <div class="container-fluid py-4">
             
@@ -32,31 +33,9 @@
                 {{ successMessage }}
                 <button type="button" class="btn-close" (click)="dismissSuccess()" aria-label="Close"></button>
             </div>
-            
-            <!-- VISTA FORM -->
-            <app-radicacion-form 
-                *ngIf="showForm && puedeRadicar"
-                (documentoRadicado)="onDocumentoRadicado($event)"
-                (cancelar)="onCancelarRadicacion()">
-            </app-radicacion-form>
 
-            <!-- Mensaje si no tiene permisos para radicar -->
-            <div *ngIf="showForm && !puedeRadicar" class="alert alert-warning">
-                <i class="fas fa-exclamation-triangle"></i> 
-                No tienes permisos para radicar documentos.
-            </div>
-
-            <!-- VISTA LISTA -->
-            <app-radicacion-list
-                *ngIf="!showForm && puedeVer"
-                (nuevoRadicado)="toggleView()">
-            </app-radicacion-list>
-
-            <!-- Mensaje si no tiene permisos para ver -->
-            <div *ngIf="!showForm && !puedeVer" class="alert alert-warning">
-                <i class="fas fa-exclamation-triangle"></i> 
-                No tienes permisos para ver documentos radicados.
-            </div>
+            <!-- Router outlet para contenido de rutas hijas -->
+            <router-outlet></router-outlet>
 
         </div>
     </main>

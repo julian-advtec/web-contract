@@ -101,6 +101,9 @@
         </div>
       </div>
 
+      <!-- ✅ NUEVO: Campo de Observación -->
+      
+
       <!-- Sección de Documentos -->
       <div class="documentos-section">
         <h4 class="section-title">
@@ -108,18 +111,18 @@
         </h4>
         
         <div class="documentos-grid">
-          <!-- Documento 1 -->
+          <!-- ✅ CAMBIADO: Documento 1 - Cuenta de Cobro -->
           <div class="documento-card">
             <div class="documento-header">
-              <i class="fas fa-file-pdf documento-icon"></i>
-              <h5>Documento 1</h5>
+              <i class="fas fa-file-invoice-dollar documento-icon"></i>
+              <h5>Cuenta de Cobro</h5>
             </div>
             
             <div class="documento-body">
               <input type="text" 
                      class="form-control mb-2" 
-                     formControlName="descripcionDoc1"
-                     placeholder="Descripción del documento">
+                     formControlName="descripcionCuentaCobro"
+                     placeholder="Descripción de la cuenta de cobro">
               
               <div class="file-upload-area" [class.has-file]="documentosSeleccionados[0]">
                 <input type="file" 
@@ -149,18 +152,18 @@
             </div>
           </div>
 
-          <!-- Documento 2 -->
+          <!-- ✅ CAMBIADO: Documento 2 - Seguridad Social -->
           <div class="documento-card">
             <div class="documento-header">
-              <i class="fas fa-file-word documento-icon"></i>
-              <h5>Documento 2</h5>
+              <i class="fas fa-shield-alt documento-icon"></i>
+              <h5>Seguridad Social</h5>
             </div>
             
             <div class="documento-body">
               <input type="text" 
                      class="form-control mb-2" 
-                     formControlName="descripcionDoc2"
-                     placeholder="Descripción del documento">
+                     formControlName="descripcionSeguridadSocial"
+                     placeholder="Descripción de seguridad social">
               
               <div class="file-upload-area" [class.has-file]="documentosSeleccionados[1]">
                 <input type="file" 
@@ -190,18 +193,18 @@
             </div>
           </div>
 
-          <!-- Documento 3 -->
+          <!-- ✅ CAMBIADO: Documento 3 - Informe de Actividades -->
           <div class="documento-card">
             <div class="documento-header">
-              <i class="fas fa-file-image documento-icon"></i>
-              <h5>Documento 3</h5>
+              <i class="fas fa-chart-line documento-icon"></i>
+              <h5>Informe de Actividades</h5>
             </div>
             
             <div class="documento-body">
               <input type="text" 
                      class="form-control mb-2" 
-                     formControlName="descripcionDoc3"
-                     placeholder="Descripción del documento">
+                     formControlName="descripcionInformeActividades"
+                     placeholder="Descripción del informe de actividades">
               
               <div class="file-upload-area" [class.has-file]="documentosSeleccionados[2]">
                 <input type="file" 
@@ -230,6 +233,26 @@
               </small>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group full-width">
+          <label for="observacion" class="form-label">
+            <i class="fas fa-sticky-note"></i> Observación
+          </label>
+          <textarea 
+            id="observacion" 
+            class="form-control" 
+            formControlName="observacion"
+            rows="3"
+            placeholder="Observaciones o comentarios adicionales sobre la radicación..."
+            [class.is-invalid]="radicacionForm.get('observacion')?.invalid && 
+                               radicacionForm.get('observacion')?.touched">
+          </textarea>
+          <small class="form-text text-muted">
+            Opcional. Puede incluir información relevante sobre la radicación.
+          </small>
         </div>
       </div>
 

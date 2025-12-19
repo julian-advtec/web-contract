@@ -53,9 +53,12 @@ export class RadicacionFormComponent {
             ]],
             fechaInicio: ['', Validators.required],
             fechaFin: ['', Validators.required],
-            descripcionDoc1: ['Documento 1', Validators.maxLength(200)],
-            descripcionDoc2: ['Documento 2', Validators.maxLength(200)],
-            descripcionDoc3: ['Documento 3', Validators.maxLength(200)]
+            // ✅ CAMBIADO: Nuevos nombres para las descripciones
+            descripcionCuentaCobro: ['Cuenta de Cobro', Validators.maxLength(200)],
+            descripcionSeguridadSocial: ['Seguridad Social', Validators.maxLength(200)],
+            descripcionInformeActividades: ['Informe de Actividades', Validators.maxLength(200)],
+            // ✅ NUEVO: Campo de observación
+            observacion: ['', Validators.maxLength(500)]
         });
     }
 
@@ -81,10 +84,20 @@ export class RadicacionFormComponent {
 
         this.documentosSeleccionados[index] = file;
 
-        const descripcionControl = `descripcionDoc${index + 1}`;
+        // ✅ CAMBIADO: Usar los nuevos nombres de controles
+        const descripcionControls = [
+            'descripcionCuentaCobro',
+            'descripcionSeguridadSocial',
+            'descripcionInformeActividades'
+        ];
+
+        const descripcionControl = descripcionControls[index];
         const currentValue = this.radicacionForm.get(descripcionControl)?.value;
 
-        if (!currentValue || currentValue.startsWith('Documento')) {
+        // ✅ CAMBIADO: Valores por defecto actualizados
+        const defaultValues = ['Cuenta de Cobro', 'Seguridad Social', 'Informe de Actividades'];
+
+        if (!currentValue || currentValue === defaultValues[index]) {
             const nombreSinExtension = file.name.replace(/\.[^/.]+$/, "");
             this.radicacionForm.get(descripcionControl)?.setValue(nombreSinExtension);
         }
@@ -95,9 +108,19 @@ export class RadicacionFormComponent {
     onSubmit(): void {
         console.log('🔍 ======= INICIANDO ENVÍO DE RADICACIÓN =======');
 
+        // ✅ DEBUG: Verificar valores del formulario
+        console.log('📋 Valores del formulario:', this.radicacionForm.value);
+        console.log('📋 fechaInicio:', this.radicacionForm.value.fechaInicio);
+        console.log('📋 tipo fechaInicio:', typeof this.radicacionForm.value.fechaInicio);
+        console.log('📋 fechaFin:', this.radicacionForm.value.fechaFin);
+        console.log('📋 tipo fechaFin:', typeof this.radicacionForm.value.fechaFin);
+
         // Validar formulario
         if (this.radicacionForm.invalid) {
             console.log('❌ Formulario inválido');
+            console.log('❌ Errores:', this.radicacionForm.errors);
+            console.log('❌ Errores fechaInicio:', this.radicacionForm.get('fechaInicio')?.errors);
+            console.log('❌ Errores fechaFin:', this.radicacionForm.get('fechaFin')?.errors);
             this.marcarControlesComoSucios();
             this.mostrarMensaje('Por favor complete todos los campos requeridos correctamente', 'error');
             return;
@@ -111,12 +134,50 @@ export class RadicacionFormComponent {
             return;
         }
 
-        // Validar fechas
-        const fechaInicio = new Date(this.radicacionForm.value.fechaInicio);
-        const fechaFin = new Date(this.radicacionForm.value.fechaFin);
+        // ✅ SOLUCIÓN DEFINITIVA: Convertir explícitamente las fechas a strings en formato YYYY-MM-DD
+        let fechaInicioStr = this.radicacionForm.value.fechaInicio;
+        let fechaFinStr = this.radicacionForm.value.fechaFin;
+
+        console.log('📅 Fechas originales:');
+        console.log('  fechaInicioStr:', fechaInicioStr);
+        console.log('  fechaFinStr:', fechaFinStr);
+
+        // Si son objetos Date, convertirlos a string YYYY-MM-DD
+        if (fechaInicioStr instanceof Date) {
+            fechaInicioStr = fechaInicioStr.toISOString().split('T')[0];
+            console.log('📅 fechaInicio convertida de Date a string:', fechaInicioStr);
+        }
+
+        if (fechaFinStr instanceof Date) {
+            fechaFinStr = fechaFinStr.toISOString().split('T')[0];
+            console.log('📅 fechaFin convertida de Date a string:', fechaFinStr);
+        }
+
+        // Asegurarse de que son strings
+        fechaInicioStr = String(fechaInicioStr).trim();
+        fechaFinStr = String(fechaFinStr).trim();
+
+        console.log('📅 Fechas finales para envío:');
+        console.log('  fechaInicioStr:', fechaInicioStr);
+        console.log('  fechaFinStr:', fechaFinStr);
+
+        // Validar que las fechas no estén vacías
+        if (!fechaInicioStr || fechaInicioStr === 'undefined' || fechaInicioStr === 'null') {
+            this.mostrarMensaje('La fecha de inicio es requerida', 'error');
+            return;
+        }
+
+        if (!fechaFinStr || fechaFinStr === 'undefined' || fechaFinStr === 'null') {
+            this.mostrarMensaje('La fecha de fin es requerida', 'error');
+            return;
+        }
+
+        // Validar formato de fechas
+        const fechaInicio = new Date(fechaInicioStr);
+        const fechaFin = new Date(fechaFinStr);
 
         if (isNaN(fechaInicio.getTime()) || isNaN(fechaFin.getTime())) {
-            this.mostrarMensaje('Fechas inválidas', 'error');
+            this.mostrarMensaje('Fechas inválidas. Formato esperado: YYYY-MM-DD', 'error');
             return;
         }
 
@@ -128,23 +189,27 @@ export class RadicacionFormComponent {
         this.isLoading = true;
         this.mostrarMensaje('Radicando documento...', 'success');
 
-        // Preparar DTO
+        // ✅ CORREGIDO: Preparar DTO con fechas como strings
         const createDocumentoDto: CreateDocumentoDto = {
             numeroRadicado: this.radicacionForm.value.numeroRadicado.toUpperCase().trim(),
             numeroContrato: this.radicacionForm.value.numeroContrato.trim(),
             nombreContratista: this.radicacionForm.value.nombreContratista.trim(),
             documentoContratista: this.radicacionForm.value.documentoContratista.trim(),
-            fechaInicio: fechaInicio,
-            fechaFin: fechaFin,
-            descripcionDoc1: this.radicacionForm.value.descripcionDoc1?.trim() || 'Documento 1',
-            descripcionDoc2: this.radicacionForm.value.descripcionDoc2?.trim() || 'Documento 2',
-            descripcionDoc3: this.radicacionForm.value.descripcionDoc3?.trim() || 'Documento 3'
+            // ✅ ENVIAR FECHAS COMO STRINGS EXPLÍCITAMENTE
+            fechaInicio: fechaInicioStr,
+            fechaFin: fechaFinStr,
+            // ✅ CAMBIADO: Usar los nuevos nombres de campos
+            descripcionCuentaCobro: this.radicacionForm.value.descripcionCuentaCobro?.trim() || 'Cuenta de Cobro',
+            descripcionSeguridadSocial: this.radicacionForm.value.descripcionSeguridadSocial?.trim() || 'Seguridad Social',
+            descripcionInformeActividades: this.radicacionForm.value.descripcionInformeActividades?.trim() || 'Informe de Actividades',
+            // ✅ NUEVO: Campo observación
+            observacion: this.radicacionForm.value.observacion?.trim() || ''
         };
 
         // Obtener archivos como array
         const archivos = archivosSeleccionados as File[];
 
-        console.log('📤 Datos a enviar:', {
+        console.log('📤 Datos a enviar al servicio:', {
             dto: createDocumentoDto,
             archivos: archivos.map(f => ({ nombre: f.name, tamaño: f.size, tipo: f.type }))
         });
@@ -180,6 +245,10 @@ export class RadicacionFormComponent {
                     mensajeError = '❌ Tu sesión ha expirado. Por favor inicia sesión nuevamente.';
                 } else if (error.message.includes('conexión')) {
                     mensajeError = '❌ Error de conexión. Verifica tu conexión a internet.';
+                } else if (error.message.includes('fechaInicio') || error.message.includes('fechaFin')) {
+                    mensajeError = '❌ Error en las fechas. Por favor verifique que las fechas estén en formato correcto (YYYY-MM-DD).';
+                } else if (error.message.includes('should not be empty') || error.message.includes('must be a string')) {
+                    mensajeError = '❌ Error de validación: algunos campos requeridos están vacíos o tienen formato incorrecto.';
                 }
 
                 this.mostrarMensaje(mensajeError, 'error');
@@ -192,51 +261,18 @@ export class RadicacionFormComponent {
         });
     }
 
-    private debugAuthInfo(): void {
-        console.log('🔐 ======= INFO DE AUTENTICACIÓN =======');
-
-        // Verificar token
-        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
-        console.log('🔑 Token presente:', !!token);
-        if (token) {
-            try {
-                // Decodificar JWT para ver el payload
-                const payload = JSON.parse(atob(token.split('.')[1]));
-                console.log('🔓 Payload del JWT:', {
-                    sub: payload.sub,
-                    username: payload.username,
-                    role: payload.role,
-                    exp: new Date(payload.exp * 1000).toLocaleString(),
-                    iat: new Date(payload.iat * 1000).toLocaleString()
-                });
-            } catch (e) {
-                console.log('❌ No se pudo decodificar el JWT:', e);
-            }
-        }
-
-        // Verificar usuario en localStorage
-        const userStr = localStorage.getItem('user');
-        console.log('👤 User en localStorage:', !!userStr);
-        if (userStr) {
-            try {
-                const user = JSON.parse(userStr);
-                console.log('👤 Datos del usuario:', user);
-            } catch (e) {
-                console.log('❌ Error parseando usuario:', e);
-            }
-        }
-    }
-
     onCancel(): void {
         this.cancelar.emit();
         this.resetForm();
     }
 
     resetForm(): void {
+        // ✅ CAMBIADO: Valores por defecto actualizados
         this.radicacionForm.reset({
-            descripcionDoc1: 'Documento 1',
-            descripcionDoc2: 'Documento 2',
-            descripcionDoc3: 'Documento 3'
+            descripcionCuentaCobro: 'Cuenta de Cobro',
+            descripcionSeguridadSocial: 'Seguridad Social',
+            descripcionInformeActividades: 'Informe de Actividades',
+            observacion: ''
         });
         this.documentosSeleccionados = [null, null, null];
     }

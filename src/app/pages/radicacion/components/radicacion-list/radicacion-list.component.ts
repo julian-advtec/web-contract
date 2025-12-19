@@ -1,14 +1,13 @@
-import { Component, Output, EventEmitter, OnInit, Input } from '@angular/core';
+import { Component, Output, EventEmitter, OnInit, Input, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { RadicacionService } from '../../../../core/services/radicacion.service';
 import { Documento } from '../../../../core/models/documento.model';
 import { UserRole } from '../../../../core/models/user.types';
+import { forkJoin } from 'rxjs';
 
 declare var bootstrap: any;
-
 
 @Component({
     selector: 'app-radicacion-list',
@@ -21,7 +20,7 @@ declare var bootstrap: any;
     templateUrl: './radicacion-list.component.html',
     styleUrls: ['./radicacion-list.component.scss']
 })
-export class RadicacionListComponent implements OnInit {
+export class RadicacionListComponent implements OnInit, AfterViewInit {
     @Output() nuevoRadicado = new EventEmitter<void>();
     @Input() sidebarCollapsed = false;
 
@@ -41,42 +40,17 @@ export class RadicacionListComponent implements OnInit {
     showError = false;
     showSuccess = false;
     successMessage = '';
-    usingMockData = false;
     puedeRadicar = false;
-
-    // Propiedades para vista previa MEJORADA
-    isLoadingPreview = false;
-    previewError = '';
-    previewUrl: SafeResourceUrl | null = null;
-    previewDocumentName = '';
-    previewDocumentId = '';
-    previewDocumentNumber = 0;
-    previewIsPdf = false;
-    previewIsImage = false;
-    previewIsOffice = false;
-    previewFileExtension = '';
-    previewFileSize = '';
-    previewFileType = '';
-
-    // Propiedades para controles de imagen
-    loadingProgress = 0;
-    imageRotation = 0;
-    imageZoom = 1;
-
-    // Navegación entre documentos
-    hasPreviousDocument = false;
-    hasNextDocument = false;
-    currentDocumentIndex = -1;
-    currentDocumentList: any[] = [];
-    currentPreviewDocument: Documento | null = null;
 
     // Rol del usuario actual
     currentUserRole: UserRole = UserRole.RADICADOR;
 
+    // Propiedad para controlar descargas múltiples
+    isDownloadingAll = false;
+
     constructor(
         private radicacionService: RadicacionService,
-        private router: Router,
-        private sanitizer: DomSanitizer
+        private router: Router
     ) { }
 
     ngOnInit(): void {
@@ -84,6 +58,171 @@ export class RadicacionListComponent implements OnInit {
         this.verificarAutenticacionYPermisos();
         this.loadDocumentos();
     }
+
+    ngAfterViewInit(): void {
+        // Inicializar tooltips de Bootstrap después de que la vista esté cargada
+        setTimeout(() => {
+            this.initTooltips();
+        }, 100);
+    }
+
+initTooltips(): void {
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    if (tooltipTriggerList.length > 0 && typeof bootstrap !== 'undefined') {
+        Array.from(tooltipTriggerList).forEach((tooltipTriggerEl: Element) => {
+            new bootstrap.Tooltip(tooltipTriggerEl, {
+                placement: 'top',
+                trigger: 'hover' // Solo al hacer hover
+            });
+        });
+    }
+}
+
+    // ===============================
+    // MÉTODO PARA TOOLTIP DE OBSERVACIÓN
+    // ===============================
+    
+getObservacionTooltip(doc: Documento): string {
+    if (!doc.observacion || doc.observacion.trim() === '') {
+        return '';
+    }
+    
+    // Solo devolver el texto plano de la observación
+    return `Observación: ${doc.observacion.trim()}`;
+}
+
+    // Método auxiliar para escapar HTML
+    private escapeHtml(text: string): string {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ===============================
+    // NUEVOS MÉTODOS PARA LOS BOTONES DE ABRIR Y DESCARGAR TODOS
+    // ===============================
+    
+    /**
+     * Abre todos los documentos de un radicado en nuevas pestañas
+     */
+    abrirTodosDocumentos(documento: Documento): void {
+        console.log('📂 Abriendo todos los documentos para:', documento.numeroRadicado);
+        
+        // Contador para documentos abiertos
+        let documentosAbiertos = 0;
+        
+        // Abrir cada documento que exista en una nueva pestaña
+        for (let i = 1; i <= 3; i++) {
+            if (this.getDocumentByIndex(documento, i)) {
+                const nombreArchivo = this.getDocumentNameByIndex(documento, i);
+                console.log(`   Abriendo documento ${i}: ${nombreArchivo}`);
+                
+                // Abrir documento en nueva pestaña
+                this.previsualizarDocumentoDirecto(documento, i);
+                documentosAbiertos++;
+                
+                // Pequeño delay entre aperturas para evitar problemas
+                setTimeout(() => {}, 100);
+            }
+        }
+        
+        // Mostrar mensaje informativo
+        if (documentosAbiertos > 0) {
+            this.showSuccess = true;
+            this.successMessage = `Se abrieron ${documentosAbiertos} documentos en nuevas pestañas`;
+            
+            setTimeout(() => {
+                this.showSuccess = false;
+            }, 3000);
+        }
+    }
+    
+    /**
+     * Descarga todos los documentos de un radicado - VERSIÓN CORREGIDA
+     */
+    descargarTodosDocumentos(documento: Documento): void {
+        if (this.isDownloadingAll) {
+            console.log('⏳ Ya se está descargando, espera...');
+            return;
+        }
+        
+        console.log('📥 Descargando todos los documentos para:', documento.numeroRadicado);
+        
+        // Crear array de observables para descargas
+        const descargas: any[] = [];
+        const nombresArchivos: string[] = [];
+        const indices: number[] = [];
+        
+        // Preparar todas las descargas
+        for (let i = 1; i <= 3; i++) {
+            if (this.getDocumentByIndex(documento, i)) {
+                const nombreArchivo = this.getDocumentNameByIndex(documento, i);
+                console.log(`   Preparando descarga documento ${i}: ${nombreArchivo}`);
+                
+                // Agregar a los arrays
+                indices.push(i);
+                nombresArchivos.push(nombreArchivo);
+                
+                // Crear observable para la descarga
+                const observable = this.radicacionService.descargarDocumento(documento.id, i);
+                descargas.push(observable);
+            }
+        }
+        
+        if (descargas.length === 0) {
+            console.log('⚠️ No hay documentos para descargar');
+            this.showError = true;
+            this.errorMessage = 'No hay documentos para descargar';
+            setTimeout(() => this.dismissError(), 3000);
+            return;
+        }
+        
+        this.isDownloadingAll = true;
+        this.showSuccess = true;
+        this.successMessage = `Iniciando descarga de ${descargas.length} documentos...`;
+        
+        // Ejecutar todas las descargas en paralelo
+        forkJoin(descargas).subscribe({
+            next: (blobs: Blob[]) => {
+                console.log(`✅ Todos los documentos descargados (${blobs.length} archivos)`);
+                
+                // Descargar cada archivo individualmente
+                blobs.forEach((blob, index) => {
+                    const nombreArchivo = nombresArchivos[index];
+                    const indice = indices[index];
+                    
+                    console.log(`   Descargando: ${nombreArchivo} (índice: ${indice})`);
+                    
+                    // Crear un delay para evitar conflictos de descarga
+                    setTimeout(() => {
+                        this.radicacionService.descargarArchivo(blob, nombreArchivo);
+                    }, index * 300);
+                });
+                
+                this.showSuccess = true;
+                this.successMessage = `✅ Descarga completada: ${blobs.length} archivos`;
+                this.isDownloadingAll = false;
+                
+                setTimeout(() => {
+                    this.showSuccess = false;
+                }, 5000);
+            },
+            error: (error) => {
+                console.error('❌ Error al descargar documentos:', error);
+                this.showError = true;
+                this.errorMessage = `Error al descargar documentos: ${error.message || 'Error desconocido'}`;
+                this.isDownloadingAll = false;
+                
+                setTimeout(() => {
+                    this.showError = false;
+                }, 5000);
+            }
+        });
+    }
+
+    // ===============================
+    // MÉTODOS EXISTENTES CON MODIFICACIONES
+    // ===============================
 
     verificarAutenticacionYPermisos(): void {
         const token = localStorage.getItem('token');
@@ -160,7 +299,6 @@ export class RadicacionListComponent implements OnInit {
         this.isLoading = true;
         this.errorMessage = '';
         this.showError = false;
-        this.usingMockData = false;
 
         console.log('📥 Solicitando documentos al servidor...');
 
@@ -172,6 +310,16 @@ export class RadicacionListComponent implements OnInit {
                 const documentosArray = Array.isArray(documentos) ? documentos : [];
 
                 console.log(`📊 Total de documentos: ${documentosArray.length}`);
+                
+                // DEBUG: Verificar si los documentos tienen observación
+                if (documentosArray.length > 0) {
+                    console.log('🔍 Primer documento recibido:', {
+                        id: documentosArray[0].id,
+                        numeroRadicado: documentosArray[0].numeroRadicado,
+                        tieneObservacion: !!documentosArray[0].observacion,
+                        observacion: documentosArray[0].observacion
+                    });
+                }
 
                 // Aplicar filtros según el rol del usuario
                 const documentosFiltrados = this.filtrarPorRol(documentosArray);
@@ -198,6 +346,11 @@ export class RadicacionListComponent implements OnInit {
                         this.showSuccess = false;
                     }, 3000);
                 }
+
+                // Inicializar tooltips después de cargar datos
+                setTimeout(() => {
+                    this.initTooltips();
+                }, 100);
             },
             error: (error) => {
                 console.error('❌ Error al cargar documentos:', {
@@ -295,7 +448,8 @@ export class RadicacionListComponent implements OnInit {
                 doc.nombreContratista?.toLowerCase().includes(term) ||
                 doc.numeroContrato?.toLowerCase().includes(term) ||
                 doc.documentoContratista?.toLowerCase().includes(term) ||
-                doc.estado?.toLowerCase().includes(term)
+                doc.estado?.toLowerCase().includes(term) ||
+                (doc.observacion && doc.observacion.toLowerCase().includes(term)) // También buscar en observaciones
             );
         }
 
@@ -324,9 +478,9 @@ export class RadicacionListComponent implements OnInit {
 
     getDocumentCount(doc: Documento): number {
         let count = 0;
-        if (doc.nombreDocumento1) count++;
-        if (doc.nombreDocumento2) count++;
-        if (doc.nombreDocumento3) count++;
+        if (doc.cuentaCobro) count++;
+        if (doc.seguridadSocial) count++;
+        if (doc.informeActividades) count++;
         return count;
     }
 
@@ -415,433 +569,44 @@ export class RadicacionListComponent implements OnInit {
         }
     }
 
+    // Formato DD/MM/AAAA
     formatDateShort(date: Date | string): string {
         if (!date) return 'N/A';
-
+        
         try {
             const fecha = new Date(date);
-            return fecha.toLocaleDateString('es-CO', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit'
-            });
+            
+            // Formato DD/MM/AAAA
+            const dia = fecha.getDate().toString().padStart(2, '0');
+            const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
+            const anio = fecha.getFullYear();
+            
+            return `${dia}/${mes}/${anio}`;
         } catch (error) {
             console.error('Error formateando fecha:', error);
             return 'Fecha inválida';
         }
     }
 
-    formatDate(date: Date | string): string {
-        if (!date) return 'N/A';
-
-        try {
-            const fecha = new Date(date);
-            return fecha.toLocaleDateString('es-CO', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        } catch (error) {
-            console.error('Error formateando fecha:', error);
-            return 'Fecha inválida';
+    getDocumentByIndex(doc: Documento, index: number): boolean {
+        switch(index) {
+            case 1: return !!doc.cuentaCobro;
+            case 2: return !!doc.seguridadSocial;
+            case 3: return !!doc.informeActividades;
+            default: return false;
         }
     }
 
-    verDetalles(documento: Documento): void {
-        console.log('🔍 Ver detalles del documento:', documento);
-
-        // Aquí podrías implementar la lógica para ver detalles del documento
-        // Podrías:
-        // 1. Abrir un modal con los detalles
-        // 2. Navegar a una página de detalles
-        // 3. Mostrar un panel lateral con la información
-
-        alert(`Detalles del documento:\n\n` +
-            `📄 Radicado: ${documento.numeroRadicado}\n` +
-            `📋 Contrato: ${documento.numeroContrato}\n` +
-            `👤 Contratista: ${documento.nombreContratista}\n` +
-            `📅 Fecha radicación: ${this.formatDate(documento.fechaRadicacion)}\n` +
-            `🏷️ Estado: ${this.getEstadoTexto(documento.estado)}\n` +
-            `👨‍💼 Radicador: ${documento.nombreRadicador}`);
-    }
-
-    // MÉTODOS DE VISTA PREVIA MEJORADA
-
-    // MÉTODO SIMPLIFICADO PARA VISTA PREVIA
-    // MÉTODO MEJORADO PARA VISTA PREVIA
-    verVistaPrevia(documento: Documento, numeroDocumento: number): void {
-        console.log('📄 Iniciando vista previa para documento:', {
-            id: documento.id,
-            numero: numeroDocumento,
-            contratista: documento.nombreContratista,
-            radicado: documento.numeroRadicado
-        });
-
-        // Resetear estado
-        this.resetPreviewState();
-
-        // Determinar nombre del documento
-        let nombreDocumento = '';
-        let descripcionDocumento = '';
-
-        switch (numeroDocumento) {
-            case 1:
-                nombreDocumento = documento.nombreDocumento1;
-                descripcionDocumento = documento.descripcionDoc1 || 'Documento 1';
-                break;
-            case 2:
-                nombreDocumento = documento.nombreDocumento2;
-                descripcionDocumento = documento.descripcionDoc2 || 'Documento 2';
-                break;
-            case 3:
-                nombreDocumento = documento.nombreDocumento3;
-                descripcionDocumento = documento.descripcionDoc3 || 'Documento 3';
-                break;
-        }
-
-        if (!nombreDocumento) {
-            console.error('❌ No se encontró nombre del documento');
-            this.previewError = 'El documento no tiene un archivo asociado';
-            this.mostrarModalVistaPrevia();
-            return;
-        }
-
-        // Configurar propiedades básicas
-        this.previewDocumentName = nombreDocumento;
-        this.previewDocumentId = documento.id;
-        this.previewDocumentNumber = numeroDocumento;
-        this.previewFileExtension = this.getFileExtension(nombreDocumento);
-        this.currentPreviewDocument = documento;
-
-        // Configurar navegación
-        this.configurarNavegacion(documento, numeroDocumento);
-
-        console.log('🔍 Configuración de vista previa:', {
-            nombre: this.previewDocumentName,
-            descripcion: descripcionDocumento,
-            extension: this.previewFileExtension
-        });
-
-        // Cargar el documento
-        this.cargarDocumentoParaVistaPrevia(documento.id, numeroDocumento);
-    }
-
-    // MÉTODO MEJORADO PARA CARGAR DOCUMENTO
-    cargarDocumentoParaVistaPrevia(documentoId: string, docNumber: number): void {
-        this.isLoadingPreview = true;
-        this.previewError = '';
-        this.loadingProgress = 30;
-
-        const token = localStorage.getItem('token');
-        if (!token) {
-            this.previewError = 'Sesión no válida';
-            this.isLoadingPreview = false;
-            this.mostrarModalVistaPrevia();
-            return;
-        }
-
-        // 🔑 EXTENSIÓN DEL ARCHIVO
-        const ext = this.previewFileExtension;
-
-        let previewUrl = '';
-
-        // 🧠 WORD → PDF (temporal)
-        if (ext === 'doc' || ext === 'docx') {
-            previewUrl =
-                `/api/radicacion/${documentoId}/archivo/${docNumber}/preview?token=${token}`;
-        }
-        // 📄 PDF normal
-        else if (ext === 'pdf') {
-            previewUrl =
-                `/api/radicacion/${documentoId}/archivo/${docNumber}?token=${token}`;
-        }
-        // 🖼️ Imagen
-        else if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
-            this.previewIsImage = true;
-            previewUrl =
-                `/api/radicacion/${documentoId}/archivo/${docNumber}?token=${token}`;
-        }
-
-        // 🎯 FLAGS FINALES
-        this.previewIsPdf = !this.previewIsImage;
-        this.previewIsOffice = false;
-
-        this.previewUrl = this.sanitizer.bypassSecurityTrustResourceUrl(previewUrl);
-
-        setTimeout(() => {
-            this.loadingProgress = 100;
-            this.isLoadingPreview = false;
-            this.mostrarModalVistaPrevia();
-        }, 300);
-    }
-
-
-    // MÉTODO PARA DETECTAR TIPO POR BLOB (más preciso)
-    detectarTipoPorBlob(blob: Blob): void {
-        const mimeType = blob.type;
-        console.log('🔍 Tipo MIME del blob:', mimeType);
-
-        if (mimeType.startsWith('image/')) {
-            this.previewIsImage = true;
-            this.previewIsPdf = false;
-            this.previewIsOffice = false;
-            this.previewFileType = 'Imagen';
-        } else if (mimeType === 'application/pdf') {
-            this.previewIsPdf = true;
-            this.previewIsImage = false;
-            this.previewIsOffice = false;
-            this.previewFileType = 'Documento PDF';
-        } else if (mimeType.includes('word') ||
-            mimeType.includes('excel') ||
-            mimeType.includes('powerpoint') ||
-            mimeType.includes('officedocument')) {
-            this.previewIsOffice = true;
-            this.previewIsImage = false;
-            this.previewIsPdf = false;
-            this.previewFileType = this.getOfficeFileType(this.previewFileExtension);
-        } else {
-            this.previewFileType = `Archivo .${this.previewFileExtension.toUpperCase()}`;
+    getDocumentNameByIndex(doc: Documento, index: number): string {
+        switch(index) {
+            case 1: return doc.cuentaCobro || '';
+            case 2: return doc.seguridadSocial || '';
+            case 3: return doc.informeActividades || '';
+            default: return '';
         }
     }
 
-    // MÉTODO PARA MOSTRAR MODAL (VERSIÓN MÁS ROBUSTA)
-    mostrarModalVistaPrevia(): void {
-        const modalElement = document.getElementById('previewModal');
-        if (!modalElement) {
-            console.error('❌ No se encontró el elemento del modal');
-            return;
-        }
-
-        try {
-            // Ocultar cualquier modal abierto
-            const existingModal = bootstrap.Modal.getInstance(modalElement);
-            if (existingModal) {
-                existingModal.hide();
-            }
-
-            // Crear nueva instancia del modal
-            const modal = new bootstrap.Modal(modalElement, {
-                backdrop: 'static',
-                keyboard: false
-            });
-
-            // Mostrar el modal
-            modal.show();
-
-            console.log('✅ Modal mostrado correctamente');
-
-        } catch (error) {
-            console.error('❌ Error mostrando modal:', error);
-
-            // Fallback: usar show() directamente
-            modalElement.classList.add('show');
-            modalElement.style.display = 'block';
-            modalElement.style.paddingRight = '17px';
-            modalElement.setAttribute('aria-modal', 'true');
-            modalElement.setAttribute('role', 'dialog');
-
-            // Añadir backdrop
-            const backdrop = document.createElement('div');
-            backdrop.className = 'modal-backdrop fade show';
-            document.body.appendChild(backdrop);
-
-            console.log('⚠️ Usando fallback para mostrar modal');
-        }
-    }
-
-    // Detectar tipo de archivo basado en extensión
-    detectarTipoArchivo(): void {
-        const ext = this.previewFileExtension.toLowerCase();
-
-        // Resetear flags
-        this.previewIsPdf = false;
-        this.previewIsImage = false;
-        this.previewIsOffice = false;
-
-        if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext)) {
-            this.previewIsImage = true;
-            this.previewFileType = 'Imagen';
-        } else if (ext === 'pdf') {
-            this.previewIsPdf = true;
-            this.previewFileType = 'Documento PDF';
-        } else if (['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext)) {
-            this.previewIsOffice = true;
-            this.previewFileType = this.getOfficeFileType(ext);
-        } else {
-            this.previewFileType = `Archivo .${ext.toUpperCase()}`;
-        }
-    }
-
-    getOfficeFileType(extension: string): string {
-        switch (extension) {
-            case 'doc':
-            case 'docx':
-                return 'Documento Word';
-            case 'xls':
-            case 'xlsx':
-                return 'Hoja de cálculo Excel';
-            case 'ppt':
-            case 'pptx':
-                return 'Presentación PowerPoint';
-            default:
-                return 'Documento Office';
-        }
-    }
-
-    getFileExtension(filename: string): string {
-        return filename.split('.').pop()?.toLowerCase() || '';
-    }
-
-    configurarNavegacion(documento: Documento, numeroDocumento: number): void {
-        // Encontrar índice del documento actual en la lista paginada
-        this.currentDocumentIndex = this.paginatedDocumentos.findIndex(doc => doc.id === documento.id);
-
-        // Configurar navegación
-        this.hasPreviousDocument = this.currentDocumentIndex > 0;
-        this.hasNextDocument = this.currentDocumentIndex < this.paginatedDocumentos.length - 1;
-
-        // Guardar referencia a la lista actual
-        this.currentDocumentList = [...this.paginatedDocumentos];
-    }
-
-
-
-    formatFileSize(bytes: number): string {
-        if (bytes === 0) return '0 Bytes';
-
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    getErrorMessage(error: any): string {
-        if (error.status === 404) {
-            return 'El archivo no fue encontrado en el servidor.';
-        } else if (error.status === 401 || error.status === 403) {
-            return 'No tienes permisos para ver este archivo.';
-        } else if (error.status === 0) {
-            return 'Error de conexión. Verifica tu conexión a internet.';
-        } else {
-            return error.message || 'Error desconocido al cargar el documento.';
-        }
-    }
-
-    // CONTROLES DE IMAGEN
-    rotateImage(degrees: number): void {
-        this.imageRotation += degrees;
-        this.imageRotation = this.imageRotation % 360;
-    }
-
-    zoomIn(): void {
-        this.imageZoom = Math.min(this.imageZoom + 0.1, 3);
-    }
-
-    zoomOut(): void {
-        this.imageZoom = Math.max(this.imageZoom - 0.1, 0.5);
-    }
-
-    resetZoom(): void {
-        this.imageZoom = 1;
-        this.imageRotation = 0;
-    }
-
-    // MANEJO DE EVENTOS
-    onImageLoaded(): void {
-        console.log('✅ Imagen cargada correctamente');
-    }
-
-    onImageError(): void {
-        this.previewError = 'Error al cargar la imagen. El archivo puede estar corrupto o no ser una imagen válida.';
-    }
-
-    onPdfLoaded(): void {
-        console.log('✅ PDF cargado correctamente');
-    }
-
-    // ACCIONES
-    downloadPreview(): void {
-        if (this.previewDocumentId && this.previewDocumentNumber && this.previewDocumentName) {
-            this.descargarDocumento(this.previewDocumentId, this.previewDocumentNumber, this.previewDocumentName);
-        }
-    }
-
-    openPdfInNewTab(): void {
-        if (this.previewUrl) {
-            window.open(this.previewUrl.toString(), '_blank');
-        }
-    }
-
-    retryPreview(): void {
-        if (this.currentPreviewDocument && this.previewDocumentNumber) {
-            this.cargarDocumentoParaVistaPrevia(this.currentPreviewDocument.id, this.previewDocumentNumber);
-        }
-    }
-
-    viewPreviousDocument(): void {
-        if (this.hasPreviousDocument && this.currentDocumentIndex > 0) {
-            const prevDoc = this.currentDocumentList[this.currentDocumentIndex - 1];
-            // Buscar el primer documento disponible en el documento anterior
-            let docNumber = 1;
-            if (prevDoc.nombreDocumento1) docNumber = 1;
-            else if (prevDoc.nombreDocumento2) docNumber = 2;
-            else if (prevDoc.nombreDocumento3) docNumber = 3;
-
-            this.verVistaPrevia(prevDoc, docNumber);
-        }
-    }
-
-    viewNextDocument(): void {
-        if (this.hasNextDocument && this.currentDocumentIndex < this.currentDocumentList.length - 1) {
-            const nextDoc = this.currentDocumentList[this.currentDocumentIndex + 1];
-            // Buscar el primer documento disponible en el siguiente documento
-            let docNumber = 1;
-            if (nextDoc.nombreDocumento1) docNumber = 1;
-            else if (nextDoc.nombreDocumento2) docNumber = 2;
-            else if (nextDoc.nombreDocumento3) docNumber = 3;
-
-            this.verVistaPrevia(nextDoc, docNumber);
-        }
-    }
-
-    resetPreviewState(): void {
-        // Limpiar URL anterior para liberar memoria
-        if (this.previewUrl) {
-            try {
-                const url = this.previewUrl.toString();
-                if (url.startsWith('blob:')) {
-                    URL.revokeObjectURL(url);
-                }
-            } catch (e) {
-                console.warn('Error al liberar URL del blob:', e);
-            }
-        }
-
-        // Resetear estado
-        this.previewUrl = null;
-        this.previewError = '';
-        this.previewIsPdf = false;
-        this.previewIsImage = false;
-        this.previewIsOffice = false;
-        this.imageRotation = 0;
-        this.imageZoom = 1;
-        this.loadingProgress = 0;
-    }
-
-    descargarDocumento(documentoId: string, numeroDocumento: number, nombreArchivo: string): void {
-        this.radicacionService.descargarDocumento(documentoId, numeroDocumento).subscribe({
-            next: (blob) => {
-                this.radicacionService.descargarArchivo(blob, nombreArchivo);
-            },
-            error: (error) => {
-                alert('Error al descargar documento: ' + (error.message || 'Desconocido'));
-            }
-        });
-    }
-
+    // Métodos de utilidad
     refreshData(): void {
         console.log('🔄 Recargando datos...');
         this.loadDocumentos();
@@ -863,54 +628,8 @@ export class RadicacionListComponent implements OnInit {
     }
 
     // ===============================
-    // PREVISUALIZACIÓN DIRECTA (INLINE)
-    // ===============================
-    previsualizarDocumento(doc: any, index: number) {
-        const nombre = doc.archivos[index]?.nombre || '';
-        const ext = nombre.split('.').pop()?.toLowerCase();
-
-        if (ext === 'doc' || ext === 'docx') {
-            window.open(
-                this.radicacionService.getArchivoPreviewUrl(doc.id, index),
-                '_blank'
-            );
-        } else {
-            this.radicacionService.previsualizarArchivo(doc.id, index);
-        }
-    }
-
-
-
-
-    // ===============================
     // DESCARGA DIRECTA
     // ===============================
-    descargarDocumentoDirecto(documento: Documento, index: number): void {
-        if (!documento?.id || index == null) {
-            console.warn('Documento o índice inválido');
-            return;
-        }
-
-        const nombre =
-            documento[`nombreDocumento${index}` as keyof Documento] as string;
-
-        this.radicacionService.descargarArchivoDirecto(
-            documento.id,
-            index,
-            nombre
-        );
-    }
-
-
-    // ===============================
-    // OBTENER URL DE ARCHIVO
-    // ===============================
-    getArchivoUrl(documentoId: string, numeroDocumento: number, descarga: boolean = false): string {
-        const baseUrl = '/api/radicacion'; // Ajusta según tu API
-        const token = localStorage.getItem('token') || '';
-        return `${baseUrl}/${documentoId}/archivo/${numeroDocumento}?descarga=${descarga}&token=${token}`;
-    }
-
     previsualizarDocumentoDirecto(documento: Documento, index: number): void {
         if (!documento?.id || index == null) {
             console.warn('Documento o índice inválido');
@@ -918,5 +637,25 @@ export class RadicacionListComponent implements OnInit {
         }
 
         this.radicacionService.previsualizarArchivo(documento.id, index);
+    }
+
+    descargarDocumentoDirecto(documento: Documento, index: number): void {
+        if (!documento?.id || index == null) {
+            console.warn('Documento o índice inválido');
+            return;
+        }
+
+        let nombre = '';
+        switch(index) {
+            case 1: nombre = documento.cuentaCobro; break;
+            case 2: nombre = documento.seguridadSocial; break;
+            case 3: nombre = documento.informeActividades; break;
+        }
+
+        this.radicacionService.descargarArchivoDirecto(
+            documento.id,
+            index,
+            nombre
+        );
     }
 }

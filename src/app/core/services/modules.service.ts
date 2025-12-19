@@ -17,7 +17,6 @@ export interface AppModule {
   providedIn: 'root'
 })
 export class ModulesService {
-  
   private allModules: AppModule[] = [
     {
       id: 'dashboard',
@@ -47,6 +46,46 @@ export class ModulesService {
       route: '/radicacion',
       icon: 'radicacion',
       requiredRole: UserRole.RADICADOR,
+      isActive: true
+    },
+    {
+      id: 'nueva-radicacion',
+      title: 'Nueva Radicación',
+      description: 'Crear nuevo documento radicado',
+      path: '/radicacion/nuevo',
+      route: '/radicacion/nuevo',
+      icon: 'radicacion',
+      requiredRole: UserRole.RADICADOR,
+      isActive: true
+    },
+    {
+      id: 'lista-radicacion',
+      title: 'Lista General',
+      description: 'Ver todos los documentos radicados',
+      path: '/radicacion/lista',
+      route: '/radicacion/lista',
+      icon: 'lista-documentos',
+      requiredRole: UserRole.RADICADOR,
+      isActive: true
+    },
+    {
+      id: 'mis-radicaciones',
+      title: 'Mis Radicaciones',
+      description: 'Ver mis documentos radicados',
+      path: '/radicacion/mis-radicaciones',
+      route: '/radicacion/mis-radicaciones',
+      icon: 'mis-documentos',
+      requiredRole: UserRole.RADICADOR,
+      isActive: true
+    },
+    {
+      id: 'rechazados',
+      title: 'Documentos Rechazados',
+      description: 'Ver documentos con estado rechazado',
+      path: '/radicacion/rechazados',
+      route: '/radicacion/rechazados',
+      icon: 'rechazados',
+      requiredRole: UserRole.RADICADOR, // O el rol que quieras
       isActive: true
     },
     {
@@ -131,11 +170,11 @@ export class ModulesService {
     }
   ];
 
-  constructor() {}
+  constructor() { }
 
   getModulesForUser(userRole: UserRole): AppModule[] {
-    return this.allModules.filter(module => 
-      module.isActive && 
+    return this.allModules.filter(module =>
+      module.isActive &&
       this.userHasAccess(userRole, module.requiredRole)
     );
   }
@@ -161,19 +200,14 @@ export class ModulesService {
     return roleHierarchy[userRole]?.includes(requiredRole) || false;
   }
 
-  // Método canAccessRoute para compatibilidad con Role Guard
   canAccessRoute(path: string, userRole: UserRole): boolean {
-    // ADMIN tiene acceso a todo
     if (userRole === UserRole.ADMIN) {
       return true;
     }
 
-    // Obtener módulos permitidos para el usuario
     const userModules = this.getModulesForUser(userRole);
-    
-    // Buscar si el path coincide con algún módulo permitido
-    const matchingModule = userModules.find(module => 
-      path === module.path || 
+    const matchingModule = userModules.find(module =>
+      path === module.path ||
       path.startsWith(module.path + '/')
     );
 

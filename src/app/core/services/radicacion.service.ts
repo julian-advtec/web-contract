@@ -41,11 +41,18 @@ export class RadicacionService {
     ) { }
 
     /**
+     * Obtener token de autenticación
+     */
+    private getToken(): string {
+        return localStorage.getItem('access_token') || localStorage.getItem('token') || '';
+    }
+
+    /**
      * Obtener headers de autenticación
      */
     private getAuthHeaders(): HttpHeaders {
         try {
-            const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+            const token = this.getToken();
 
             if (!token) {
                 console.warn('⚠️ No hay token disponible');
@@ -64,6 +71,25 @@ export class RadicacionService {
     }
 
     /**
+     * Manejar errores de HTTP
+     */
+    private handleError(error: any): Observable<any> {
+        console.error('❌ Error en servicio de radicación:', error);
+
+        let errorMessage = 'Error desconocido';
+
+        if (error.error instanceof ErrorEvent) {
+            // Error del lado del cliente
+            errorMessage = `Error: ${error.error.message}`;
+        } else {
+            // Error del lado del servidor
+            errorMessage = `Error ${error.status}: ${error.message}`;
+        }
+
+        return throwError(() => new Error(errorMessage));
+    }
+
+    /**
      * Obtener todos los documentos
      */
     obtenerDocumentos(): Observable<Documento[]> {
@@ -73,7 +99,7 @@ export class RadicacionService {
 
         if (!headers.get('Authorization')) {
             console.log('🔐 No hay token, no se puede solicitar documentos');
-            console.log('🔐 Token en localStorage:', localStorage.getItem('access_token') || localStorage.getItem('token'));
+            console.log('🔐 Token en localStorage:', this.getToken());
             this.notificationService.warning('No estás autenticado', 'Por favor inicia sesión');
             return of([]);
         }
@@ -178,8 +204,8 @@ export class RadicacionService {
     }
 
     /**
- * Crear documento
- */
+     * Crear documento
+     */
     crearDocumento(createDocumentoDto: CreateDocumentoDto, archivos: File[]): Observable<Documento> {
         console.log('📝 Intentando crear documento:', createDocumentoDto);
         console.log('📁 Archivos a subir:', archivos.map(f => f.name));
@@ -201,113 +227,113 @@ export class RadicacionService {
 
         const formData = new FormData();
 
-        // Agregar datos del formulario
+        // ✅ DEBUG: Verificar fechas que llegan
+        console.log('📅 DEBUG - Fechas recibidas en el servicio:');
+        console.log('  fechaInicio:', createDocumentoDto.fechaInicio, 'tipo:', typeof createDocumentoDto.fechaInicio);
+        console.log('  fechaFin:', createDocumentoDto.fechaFin, 'tipo:', typeof createDocumentoDto.fechaFin);
+
+        // ✅ Asegurar que las fechas sean strings válidos
+        const fechaInicioStr = createDocumentoDto.fechaInicio
+            ? String(createDocumentoDto.fechaInicio).trim()
+            : '';
+
+        const fechaFinStr = createDocumentoDto.fechaFin
+            ? String(createDocumentoDto.fechaFin).trim()
+            : '';
+
+        console.log('📅 Fechas procesadas para FormData:');
+        console.log('  fechaInicioStr:', fechaInicioStr);
+        console.log('  fechaFinStr:', fechaFinStr);
+
+        // ✅ Agregar todos los campos como strings
         formData.append('numeroRadicado', createDocumentoDto.numeroRadicado);
         formData.append('numeroContrato', createDocumentoDto.numeroContrato);
         formData.append('nombreContratista', createDocumentoDto.nombreContratista);
         formData.append('documentoContratista', createDocumentoDto.documentoContratista);
-        formData.append('fechaInicio', createDocumentoDto.fechaInicio.toISOString());
-        formData.append('fechaFin', createDocumentoDto.fechaFin.toISOString());
-        formData.append('descripcionDoc1', createDocumentoDto.descripcionDoc1 || 'Documento 1');
-        formData.append('descripcionDoc2', createDocumentoDto.descripcionDoc2 || 'Documento 2');
-        formData.append('descripcionDoc3', createDocumentoDto.descripcionDoc3 || 'Documento 3');
 
-        // Agregar archivos
+        // ✅ AGREGAR FECHAS COMO STRINGS
+        formData.append('fechaInicio', fechaInicioStr);
+        formData.append('fechaFin', fechaFinStr);
+
+        // ✅ Descripciones con nuevos nombres
+        formData.append('descripcionCuentaCobro', createDocumentoDto.descripcionCuentaCobro || 'Cuenta de Cobro');
+        formData.append('descripcionSeguridadSocial', createDocumentoDto.descripcionSeguridadSocial || 'Seguridad Social');
+        formData.append('descripcionInformeActividades', createDocumentoDto.descripcionInformeActividades || 'Informe de Actividades');
+
+        // ✅ Campo observación
+        if (createDocumentoDto.observacion) {
+            formData.append('observacion', createDocumentoDto.observacion);
+        }
+
+        // ✅ Agregar archivos
         archivos.forEach((archivo) => {
             formData.append('documentos', archivo, archivo.name);
         });
 
+        // ✅ DEBUG: Verificar qué se está enviando
+        console.log('🔍 FormData contenido:');
+        for (let pair of (formData as any).entries()) {
+            console.log(`  ${pair[0]}:`, pair[1]);
+        }
+
         const headers = this.getAuthHeaders();
 
-        // IMPORTANTE: No establecer Content-Type para FormData, el navegador lo hace automáticamente
+        // IMPORTANTE: No establecer Content-Type para FormData
         const uploadHeaders = headers.delete('Content-Type');
 
         return this.http.post<any>(this.apiUrl, formData, { headers: uploadHeaders }).pipe(
             tap(response => {
                 console.log('✅ Respuesta de creación:', response);
-                console.log('🔍 DEBUG: Respuesta completa:', JSON.stringify(response, null, 2));
             }),
             map(response => {
                 console.log('🔍 Analizando respuesta del backend...');
-                console.log('📊 Respuesta completa:', response);
-                console.log('📊 Tipo de respuesta:', typeof response);
 
                 if (response && typeof response === 'object') {
-                    console.log('📊 Claves de la respuesta:', Object.keys(response));
-
-                    // IMPORTANTE: El backend devuelve {ok: true, path: ..., timestamp: ..., data: {...}}
-                    // También puede devolver {success: true, message: ..., data: {...}}
-
-                    // 1. Verificar estructura con "ok" (la que usa actualmente el backend)
+                    // 1. Verificar estructura con "ok"
                     if (response.ok === true) {
-                        console.log('✅ Estructura con "ok" encontrada');
-
                         if (response.data) {
-                            console.log('✅ Data presente:', response.data);
                             this.notificationService.success('Documento radicado exitosamente');
                             return response.data;
-                        } else {
-                            console.warn('⚠️ Ok true pero data está undefined/null');
-                            // Si no hay data, pero tiene éxito, retornar la respuesta completa
-                            return response;
                         }
                     }
-
                     // 2. Verificar estructura con "success"
                     else if (response.success === true) {
-                        console.log('✅ Estructura con "success" encontrada');
-
                         if (response.data) {
-                            console.log('✅ Data presente:', response.data);
                             this.notificationService.success('Documento radicado exitosamente');
                             return response.data;
-                        } else {
-                            console.warn('⚠️ Success true pero data está undefined/null');
-                            return response;
                         }
                     }
-
-                    // 3. Si es el documento directamente (sin wrapper)
+                    // 3. Si es el documento directamente
                     else if (response.id && response.numeroRadicado) {
-                        console.log('✅ Documento recibido directamente (sin wrapper)');
                         this.notificationService.success('Documento radicado exitosamente');
                         return response;
                     }
-
                     // 4. Si tiene success: false
                     else if (response.success === false) {
-                        console.log('❌ Success: false');
                         throw new Error(response.message || 'Error del servidor al crear documento');
                     }
-
                     // 5. Si tiene ok: false
                     else if (response.ok === false) {
-                        console.log('❌ Ok: false');
                         throw new Error(response.message || 'Error del servidor al crear documento');
-                    }
-
-                    // 6. Si no coincide con ninguna estructura conocida
-                    else {
-                        console.log('⚠️ Estructura no reconocida, retornando respuesta completa');
-                        return response;
                     }
                 }
 
-                // Si llegamos aquí, la estructura no es la esperada
                 console.error('❌ Respuesta inesperada del servidor:', response);
                 throw new Error('Estructura de respuesta inválida del servidor');
             }),
             catchError((error: any) => {
                 console.error('❌ Error completo en crearDocumento:', error);
 
-                // Determinar si es HttpErrorResponse o Error regular
                 if (error instanceof HttpErrorResponse) {
-                    console.error('❌ Es HttpErrorResponse:', {
+                    console.error('❌ Error HTTP:', {
                         status: error.status,
-                        statusText: error.statusText,
-                        message: error.message,
-                        error: error.error
+                        error: error.error,
+                        message: error.message
                     });
+
+                    // Mostrar el error del backend si está disponible
+                    const backendError = error.error?.message || error.error || error.message;
+                    console.log('❌ Error del backend:', backendError);
 
                     // Manejo específico de errores HTTP
                     if (error.status === 401) {
@@ -319,46 +345,15 @@ export class RadicacionService {
                         return throwError(() => new Error('Tu sesión ha expirado. Por favor inicia sesión nuevamente.'));
                     }
 
-                    if (error.status === 403) {
-                        const errorMsg = error.error?.message || 'No tienes permisos para radicar documentos';
-                        this.notificationService.error('Sin permisos', errorMsg);
-                        return throwError(() => new Error(errorMsg));
-                    }
-
-                    if (error.status === 409) {
-                        const errorMsg = error.error?.message || 'El número de radicado ya existe';
-                        this.notificationService.error('Radicado duplicado', errorMsg);
-                        return throwError(() => new Error(errorMsg));
-                    }
-
                     if (error.status === 400) {
-                        const errorMsg = error.error?.message || 'Datos inválidos';
+                        // Mostrar el mensaje de error específico del backend
+                        const errorMsg = typeof backendError === 'string' ? backendError :
+                            backendError?.message || 'Datos inválidos. Verifique los campos.';
                         this.notificationService.error('Error de validación', errorMsg);
                         return throwError(() => new Error(errorMsg));
                     }
-
-                    if (error.status === 500) {
-                        const errorMsg = error.error?.message || 'Error interno del servidor';
-                        this.notificationService.error('Error del servidor', errorMsg);
-                        return throwError(() => new Error(errorMsg));
-                    }
-                } else {
-                    // Es un Error regular (lanzado en el map)
-                    console.error('❌ Es Error regular:', {
-                        name: error.name,
-                        message: error.message,
-                        stack: error.stack
-                    });
-
-                    // Mostrar notificación solo si es un error significativo
-                    if (error.message && !error.message.includes('desconocido')) {
-                        this.notificationService.error('Error', error.message);
-                    }
-
-                    return throwError(() => error);
                 }
 
-                // Manejo común de errores HTTP
                 const errorMsg = error.error?.message || error.message || 'Error desconocido al crear documento';
                 this.notificationService.error('Error', errorMsg);
                 return throwError(() => new Error(errorMsg));
@@ -532,12 +527,8 @@ export class RadicacionService {
         );
     }
 
-    // En RadicacionService
     obtenerArchivosCarpeta(documentoId: string): Observable<any[]> {
-        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
-        const headers = new HttpHeaders({
-            'Authorization': `Bearer ${token}`
-        });
+        const headers = this.getAuthHeaders();
 
         return this.http.get<any[]>(`${this.apiUrl}/${documentoId}/archivos`, { headers })
             .pipe(
@@ -548,25 +539,25 @@ export class RadicacionService {
             );
     }
 
-
-
     getArchivoUrl(id: string, index: number, download = false): string {
         const baseUrl = `${this.apiUrl}/${id}/archivo/${index}`;
         const params = new URLSearchParams();
         if (download) params.append('download', 'true');
         return `${baseUrl}?${params.toString()}`;
     }
+
     /**
      * Genera la URL de un archivo con token incluido
      */
     getArchivoUrlConToken(id: string, index: number, download = false): string {
-        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+        const token = this.getToken();
         const baseUrl = `${this.apiUrl}/${id}/archivo/${index}`;
         const params = new URLSearchParams();
         if (download) params.append('download', 'true');
         if (token) params.append('token', token);
         return `${baseUrl}?${params.toString()}`;
     }
+
     /**
      * Abre el archivo en nueva pestaña para previsualización
      */
@@ -574,6 +565,7 @@ export class RadicacionService {
         const url = this.getArchivoUrlConToken(id, index, false);
         window.open(url, '_blank');
     }
+
     /**
      * Descarga directamente el archivo sin pasar por Blob
      */
@@ -586,11 +578,12 @@ export class RadicacionService {
         link.click();
         document.body.removeChild(link);
     }
+
     /**
      * Descarga archivo como Blob y retorna Observable<Blob>
      */
     descargarArchivoBlob(id: string, index: number): Observable<Blob> {
-        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+        const token = this.getToken();
         if (!token) return throwError(() => new Error('No estás autenticado'));
 
         const headers = new HttpHeaders({ 'Authorization': `Bearer ${token}` });
@@ -605,18 +598,14 @@ export class RadicacionService {
             })
         );
     }
-    /**
-     * Guarda un Blob como archivo en el navegador
-     */
 
     getArchivoPreviewWordUrl(id: string, index: number): string {
-        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+        const token = this.getToken();
         return `${this.apiUrl}/${id}/archivo/${index}/preview?token=${token}`;
     }
 
-
     getArchivoPreviewUrl(id: string, index: number): string {
-        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+        const token = this.getToken();
         return `${this.apiUrl}/${id}/archivo/${index}/preview?token=${token}`;
     }
 
@@ -628,7 +617,7 @@ export class RadicacionService {
         index: number,
         download = false
     ): string {
-        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+        const token = this.getToken();
 
         const params = new URLSearchParams();
         if (token) params.append('token', token);
@@ -637,4 +626,110 @@ export class RadicacionService {
         return `${this.apiUrl}/${id}/archivo/${index}?${params.toString()}`;
     }
 
+    /**
+     * Método para obtener MIS documentos (filtrando por usuario actual)
+     */
+    obtenerMisDocumentos(): Observable<Documento[]> {
+        const headers = this.getAuthHeaders();
+
+        if (!headers.get('Authorization')) {
+            this.notificationService.warning('No estás autenticado', 'Por favor inicia sesión');
+            return of([]);
+        }
+
+        console.log('📋 Solicitando MIS documentos...');
+
+        return this.http.get<any>(`${this.apiUrl}`, { headers }).pipe(
+            tap(response => {
+                console.log('📦 Respuesta COMPLETA para MIS documentos:', response);
+            }),
+            map(response => {
+                console.log('🔍 Procesando respuesta para MIS documentos...');
+
+                let documentosArray: any[] = [];
+
+                // Caso 1: El backend devuelve {ok: true, data: {success: true, data: [...]}}
+                if (response && response.ok === true && response.data) {
+                    // Verificar si data tiene una estructura anidada
+                    if (response.data.success === true && response.data.data && Array.isArray(response.data.data)) {
+                        console.log(`✅ Estructura anidada encontrada: ${response.data.data.length} documentos`);
+                        documentosArray = response.data.data;
+                    }
+                    // Si data es directamente el array
+                    else if (Array.isArray(response.data)) {
+                        console.log(`✅ Data es array directamente: ${response.data.length} documentos`);
+                        documentosArray = response.data;
+                    }
+                    // Si data tiene otra estructura
+                    else if (response.data.data && Array.isArray(response.data.data)) {
+                        console.log(`✅ Data.data es array: ${response.data.data.length} documentos`);
+                        documentosArray = response.data.data;
+                    }
+                }
+
+                // Caso 2: El backend devuelve {success: true, data: [...]} directamente
+                else if (response && response.success === true) {
+                    if (response.data && Array.isArray(response.data)) {
+                        console.log(`✅ ${response.data.length} documentos recibidos`);
+                        documentosArray = response.data;
+                    }
+                }
+
+                // Caso 3: Es un array directamente
+                else if (Array.isArray(response)) {
+                    console.log(`✅ Respuesta es array directamente: ${response.length} documentos`);
+                    documentosArray = response;
+                }
+
+                // Obtener el usuario actual para filtrar
+                const userStr = localStorage.getItem('user');
+                let currentUsername = '';
+
+                if (userStr) {
+                    try {
+                        const user = JSON.parse(userStr);
+                        currentUsername = user.username;
+                        console.log('👤 Filtrando por usuario:', currentUsername);
+                    } catch (error) {
+                        console.error('Error parseando usuario:', error);
+                    }
+                }
+
+                // Filtrar documentos por el usuario que los radicó
+                const documentosFiltrados = documentosArray.filter(doc => {
+                    // Verificar diferentes posibles nombres de campo
+                    const radicadorUsername = doc.radicador?.username ||
+                        doc.usuarioRadicador ||
+                        doc.radicadoPor;
+
+                    console.log(`📄 Documento ${doc.numeroRadicado}: radicador=${radicadorUsername}, usuarioActual=${currentUsername}`);
+
+                    return radicadorUsername === currentUsername;
+                });
+
+                console.log(`📊 Total documentos después de filtrar: ${documentosFiltrados.length}`);
+
+                return documentosFiltrados;
+            }),
+            catchError((error: HttpErrorResponse) => {
+                console.error('❌ Error obteniendo MIS documentos:', error);
+
+                // Si hay error, intentar crear un endpoint específico
+                console.log('🔄 Intentando con endpoint específico...');
+
+                return this.http.get<any>(`${this.apiUrl}/mis-documentos`, { headers }).pipe(
+                    map(response => {
+                        if (response?.success === true && Array.isArray(response.data)) {
+                            return response.data;
+                        }
+                        if (Array.isArray(response)) {
+                            return response;
+                        }
+                        return [];
+                    }),
+                    catchError(() => of([]))
+                );
+            })
+        );
+    }
 }

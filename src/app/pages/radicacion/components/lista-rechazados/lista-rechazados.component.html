@@ -1,3 +1,4 @@
+<!-- src/app/pages/radicacion/components/lista-rechazados/lista-rechazados.component.html -->
 <div class="radicacion-list-container" [class.sidebar-collapsed]="sidebarCollapsed">
   <div class="radicacion-list-inner">
 
@@ -10,7 +11,7 @@
         <input
           type="text"
           class="form-control"
-          placeholder="Buscar radicado, contratista o contrato..."
+          placeholder="Buscar radicado, contratista o contrato rechazados..."
           [(ngModel)]="searchTerm"
           (input)="onSearch()" />
       </div>
@@ -32,28 +33,28 @@
 
         <!-- Loading -->
         <div *ngIf="isLoading" class="text-center py-5">
-          <div class="spinner-border text-primary"></div>
-          <p class="mt-2">Cargando documentos...</p>
+          <div class="spinner-border text-danger"></div>
+          <p class="mt-2">Cargando documentos rechazados...</p>
         </div>
 
         <!-- Empty -->
         <div *ngIf="!isLoading && filteredDocumentos.length === 0" class="text-center py-5">
-          <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+          <i class="fas fa-ban fa-3x text-muted mb-3"></i>
 
           <h5 class="text-muted" *ngIf="searchTerm">
             No se encontraron resultados para "{{ searchTerm }}"
           </h5>
 
           <h5 class="text-muted" *ngIf="!searchTerm">
-            No hay documentos radicados
+            ¡Excelente! No hay documentos rechazados
           </h5>
-
-          <button class="btn btn-primary mt-3" (click)="nuevoRadicado.emit()">
-            <i class="fas fa-plus me-2"></i> Nuevo Radicado
-          </button>
+          
+          <p class="text-muted small mt-2" *ngIf="!searchTerm">
+            Todos los documentos están aprobados o en proceso
+          </p>
         </div>
 
-        <!-- Lista de radicados -->
+        <!-- Lista de radicados rechazados -->
         <div *ngIf="!isLoading && filteredDocumentos.length > 0" class="users-list-container">
 
           <!-- Header -->
@@ -77,36 +78,30 @@
               <!-- Radicado -->
               <div class="user-info">
                 <div class="user-details">
-                  <h4 class="user-name">{{ doc.numeroRadicado }}</h4>
-                  <p class="user-username">Radicado</p>
+                  <h4 class="user-name">{{ doc.numeroRadicado || 'N/A' }}</h4>
+                  <p class="user-username">Rechazado</p>
                 </div>
               </div>
 
               <!-- Contratista -->
               <div class="user-email">
                 <p class="email-text">
-                  {{ doc.nombreContratista }}
+                  {{ doc.nombreContratista || 'N/A' }}
                   <span class="text-muted d-block small">
-                    {{ doc.documentoContratista }}
+                    {{ doc.documentoContratista || 'Sin documento' }}
                   </span>
                 </p>
               </div>
 
               <!-- Contrato -->
               <div class="user-role">
-                <span class="role-badge">{{ doc.numeroContrato }}</span>
+                <span class="role-badge">{{ doc.numeroContrato || 'N/A' }}</span>
               </div>
 
               <!-- Estado -->
               <div class="user-status">
                 <span class="status-badge" [ngClass]="getEstadoClass(doc.estado)">
-                  <i
-                    class="fas"
-                    [class.fa-check-circle]="doc.estado === 'APROBADO'"
-                    [class.fa-times-circle]="doc.estado === 'RECHAZADO'"
-                    [class.fa-clock]="doc.estado === 'PENDIENTE'"
-                    [class.fa-file-alt]="doc.estado === 'RADICADO'">
-                  </i>
+                  <i class="fas fa-times-circle me-1"></i>
                   {{ getEstadoTexto(doc.estado) }}
                 </span>
               </div>
@@ -128,13 +123,21 @@
               <!-- Documentos -->
               <div class="user-actions">
                 <div class="actions-buttons">
+                  <!-- Indicador de cantidad de documentos -->
+                  <span class="badge bg-secondary me-2" *ngIf="getDocumentCount(doc) > 0">
+                    {{ getDocumentCount(doc) }} doc(s)
+                  </span>
+
                   <!-- Botón para abrir todos los documentos -->
                   <button
                     class="btn-action btn-primary"
                     title="Abrir todos los documentos"
                     (click)="abrirTodosDocumentos(doc)"
+                    [disabled]="isDownloadingAll"
                     *ngIf="getDocumentCount(doc) > 0">
-                    <i class="fas fa-folder-open me-1"></i> Abrir todos
+                    <i class="fas fa-folder-open me-1"></i>
+                    <span *ngIf="!isDownloadingAll">Abrir todos</span>
+                    <span *ngIf="isDownloadingAll">Procesando...</span>
                   </button>
 
                   <!-- Botón para descargar todos los documentos -->
@@ -142,9 +145,17 @@
                     class="btn-action btn-success ms-1"
                     title="Descargar todos los documentos"
                     (click)="descargarTodosDocumentos(doc)"
+                    [disabled]="isDownloadingAll"
                     *ngIf="getDocumentCount(doc) > 0">
-                    <i class="fas fa-download me-1"></i> Descargar todos
+                    <i class="fas fa-download me-1"></i>
+                    <span *ngIf="!isDownloadingAll">Descargar todos</span>
+                    <span *ngIf="isDownloadingAll">Descargando...</span>
                   </button>
+
+                  <!-- Mensaje si no hay documentos -->
+                  <span class="text-muted small" *ngIf="getDocumentCount(doc) === 0">
+                    Sin documentos
+                  </span>
                 </div>
               </div>
 
@@ -154,7 +165,11 @@
           <!-- Footer / Paginación -->
           <div class="users-footer">
             <div class="footer-content-row">
-              <div class="footer-empty"></div>
+              <div class="footer-info">
+                <span class="text-muted small">
+                  Mostrando {{ paginatedDocumentos.length }} de {{ filteredDocumentos.length }} documentos rechazados
+                </span>
+              </div>
 
               <div class="footer-pagination">
                 <button
@@ -177,12 +192,6 @@
                   [disabled]="currentPage === totalPages"
                   (click)="changePage(currentPage + 1)">
                   <i class="fas fa-chevron-right"></i>
-                </button>
-              </div>
-
-              <div class="footer-actions">
-                <button class="btn btn-primary" (click)="nuevoRadicado.emit()">
-                  <i class="fas fa-plus me-2"></i> Nuevo Radicado
                 </button>
               </div>
             </div>

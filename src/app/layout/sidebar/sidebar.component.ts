@@ -17,41 +17,41 @@ import { NotificationService } from '../../core/services/notification.service';
 })
 export class SidebarComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
-  
+
   // Variables privadas
   private _availableModules: AppModule[] = [];
   private _currentUser: User | null = null;
 
   // Inputs con setters
-  @Input() 
+  @Input()
   set currentUser(user: User | null) {
     this._currentUser = user;
   }
-  
+
   get currentUser(): User | null {
     return this._currentUser;
   }
 
-  @Input() 
+  @Input()
   set availableModules(modules: AppModule[]) {
     console.log('Sidebar - Módulos recibidos:', modules);
-    
+
     if (modules && modules.length > 0) {
       this._availableModules = modules;
     } else {
       this._availableModules = this.getDefaultModules();
     }
-    
+
     console.log('Sidebar - Módulos normalizados:', this._availableModules);
   }
-  
+
   get availableModules(): AppModule[] {
     return this._availableModules;
   }
 
   @Input() getUserRoleName!: (role: UserRole | undefined | null) => string;
   @Input() sidebarCollapsed: boolean = false;
-  
+
   @Output() toggleSidebar = new EventEmitter<boolean>();
   @Output() logout = new EventEmitter<void>();
 
@@ -63,7 +63,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     console.log('Sidebar - OnInit - Módulos finales:', this.availableModules);
-    
+
     if (this.isMobile()) {
       this.sidebarCollapsed = true;
     } else {
@@ -78,19 +78,19 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   onNavigateToModule(module: AppModule) {
     console.log('Sidebar - onNavigateToModule llamado con:', module);
-    
+
     if (!module || !module.path) {
       console.error('ERROR: Módulo inválido o sin path');
       console.error('Módulo recibido:', module);
       return;
     }
-    
+
     const path = module.path;
     console.log('Sidebar - Navegando a:', path);
-    
+
     try {
       this.router.navigate([path]);
-      
+
       if (this.isMobile()) {
         this.sidebarCollapsed = true;
         this.toggleSidebar.emit(true);
@@ -145,13 +145,36 @@ export class SidebarComponent implements OnInit, OnDestroy {
         isActive: true
       }
     ];
+
+
   }
+
+
 
   isModuleActive(module: AppModule): boolean {
     if (!module || !module.path) return false;
-    
+
     const currentPath = this.router.url;
     return currentPath === module.path || currentPath.startsWith(module.path + '/');
+  }
+
+  canShowModule(module: AppModule): boolean {
+    if (!this.currentUser) return false;
+
+    if (!module.requiredRole) return true;
+
+    const userRole = this.currentUser.role?.toLowerCase();
+    const requiredRole = module.requiredRole.toLowerCase();
+
+    // Admin ve todo
+    if (userRole === 'admin') return true;
+
+    // Radicador ve radicación y mis-radicaciones
+    if (userRole === 'radicador') {
+      return ['radicador', 'admin'].includes(requiredRole);
+    }
+
+    return userRole === requiredRole;
   }
 
   getModuleIcon(moduleId: string): SafeHtml {
@@ -198,7 +221,24 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
       'rendicion-cuentas': `<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor">
         <path d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320ZM280-360h400v-80H280v80Zm0-160h400v-80H280v80Z"/>
-      </svg>`
+      </svg>`,
+
+      'nueva-radicacion': `<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor">
+      <path d="M440-440v120q0 17 11.5 28.5T480-280q17 0 28.5 11.5T520-320v-120h120q17 0 28.5-11.5T680-480q0 17-11.5-28.5T640-520H520v-120q0-17-11.5-28.5T480-680q-17 0-28.5 11.5T440-640v120H320q-17 0-28.5 11.5T280-480q0 17 11.5 28.5T320-440h120Zm40 360q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/>
+    </svg>`,
+
+      'lista-radicacion': `<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor">
+      <path d="M280-280h280v-80H280v80Zm0-160h400v-80H280v80Zm0-160h400v-80H280v80Zm-80 480q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm0-560v560-560Z"/>
+    </svg>`,
+
+      'mis-radicaciones': `<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor">
+      <path d="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Zm80-80h480v-32q0-11-5.5-20T700-306q-54-27-109-40.5T480-360q-56 0-111 13.5T260-306q-9 5-14.5 14t-5.5 20v32Zm240-320q33 0 56.5-23.5T560-640q0-33-23.5-56.5T480-720q-33 0-56.5 23.5T400-640q0 33 23.5 56.5T480-560Zm0-80Zm0 400Z"/>
+    </svg>`,
+    
+      'rechazados': `<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor">
+  <path d="m336-280 144-144 144 144 56-56-144-144 144-144-56-56-144 144-144-144-56 56 144 144-144 144 56 56ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/>
+</svg>`,
+
     };
 
     const iconSvg = icons[moduleId] || `<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor">

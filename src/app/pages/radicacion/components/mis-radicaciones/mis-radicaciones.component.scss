@@ -1,3 +1,4 @@
+// src/app/pages/radicacion/components/mis-radicaciones/mis-radicaciones.component.scss
 @import '../../../../shared/layout-styles.scss';
 
 /* ===== VARIABLES ESPECÍFICAS DE RADICACIÓN ===== */
@@ -11,7 +12,7 @@ $color-pending: #6B7280;
 $color-pending-light: rgba(107, 114, 128, 0.1);
 $color-danger: #EF4444;
 
-/* ===== CONTENEDOR PRINCIPAL - OCUPA 100% ===== */
+/* ===== CONTENEDOR PRINCIPAL - SIN ESTRUCTURA DE SIDEBAR ===== */
 .radicacion-list-container {
   width: 100%;
   height: 100%;
@@ -25,6 +26,35 @@ $color-danger: #EF4444;
     margin: 0 auto;
     width: 100%;
     min-height: 100%;
+  }
+}
+
+/* ===== TÍTULO PERSONALIZADO ===== */
+.card:first-child {
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, $color-verde-light, rgba(16, 185, 129, 0.05));
+  border: 1px solid $color-verde-medium;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
+  
+  .card-body {
+    padding: 1.2rem 1.5rem;
+  }
+  
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: $color-verde-dark;
+  }
+  
+  .text-muted {
+    color: #6B7280 !important;
+    font-size: 0.9rem;
+  }
+  
+  h3 {
+    font-size: 2rem;
+    font-weight: 800;
   }
 }
 
@@ -74,6 +104,18 @@ $color-danger: #EF4444;
       &::placeholder {
         color: rgba(16, 185, 129, 0.6);
         font-size: 0.9rem;
+      }
+    }
+    
+    .btn-outline-secondary {
+      border: none;
+      background-color: rgba(16, 185, 129, 0.08);
+      color: $color-verde;
+      padding: 0.7rem 1rem;
+      border-left: 1px solid $color-verde-light;
+      
+      &:hover {
+        background-color: $color-verde-light;
       }
     }
   }
@@ -129,7 +171,6 @@ $color-danger: #EF4444;
   width: 100%;
 }
 
-/* ===== TARJETA DE DOCUMENTO ===== */
 /* ===== TARJETA DE DOCUMENTO ===== */
 .user-card {
   display: grid;
@@ -246,7 +287,7 @@ $color-danger: #EF4444;
     background-color: white;
     border: 1px solid;
 
-    &.active {
+    &.radicado {
       color: $color-verde;
       border-color: $color-verde;
       
@@ -255,7 +296,7 @@ $color-danger: #EF4444;
       }
     }
 
-    &.inactive {
+    &.rechazado {
       color: $color-danger;
       border-color: $color-danger;
       
@@ -264,7 +305,17 @@ $color-danger: #EF4444;
       }
     }
 
-    &.warning {
+    &.cancelado {
+      color: $color-danger;
+      border-color: $color-danger;
+      background-color: rgba(239, 68, 68, 0.1);
+      
+      i {
+        color: $color-danger;
+      }
+    }
+
+    &.warning, &.pending, &.en_revision, &.pendiente {
       color: $color-warning;
       border-color: $color-warning;
       
@@ -273,12 +324,117 @@ $color-danger: #EF4444;
       }
     }
 
-    &.pending {
-      color: $color-pending;
-      border-color: $color-pending;
+    &.aprobado {
+      color: $color-verde;
+      border-color: $color-verde;
       
       i {
-        color: $color-pending;
+        color: $color-verde;
+      }
+    }
+
+    &.revisado {
+      color: #3B82F6;
+      border-color: #3B82F6;
+      
+      i {
+        color: #3B82F6;
+      }
+    }
+
+    &.auditoria {
+      color: #8B5CF6;
+      border-color: #8B5CF6;
+      
+      i {
+        color: #8B5CF6;
+      }
+    }
+
+    &.aprobado-auditoria {
+      color: #10B981;
+      border-color: #10B981;
+      background-color: rgba(16, 185, 129, 0.1);
+      
+      i {
+        color: #10B981;
+      }
+    }
+
+    &.contabilidad {
+      color: #EC4899;
+      border-color: #EC4899;
+      
+      i {
+        color: #EC4899;
+      }
+    }
+
+    &.procesado {
+      color: #8B5CF6;
+      border-color: #8B5CF6;
+      background-color: rgba(139, 92, 246, 0.1);
+      
+      i {
+        color: #8B5CF6;
+      }
+    }
+
+    &.tesoreria {
+      color: #F59E0B;
+      border-color: #F59E0B;
+      
+      i {
+        color: #F59E0B;
+      }
+    }
+
+    &.listo-firma {
+      color: #10B981;
+      border-color: #10B981;
+      background-color: rgba(16, 185, 129, 0.15);
+      
+      i {
+        color: #10B981;
+      }
+    }
+
+    &.revision-gerencia {
+      color: #F59E0B;
+      border-color: #F59E0B;
+      background-color: rgba(245, 158, 11, 0.1);
+      
+      i {
+        color: #F59E0B;
+      }
+    }
+
+    &.firmado {
+      color: #10B981;
+      border-color: #10B981;
+      background-color: rgba(16, 185, 129, 0.2);
+      
+      i {
+        color: #10B981;
+      }
+    }
+
+    &.rendicion {
+      color: #8B5CF6;
+      border-color: #8B5CF6;
+      
+      i {
+        color: #8B5CF6;
+      }
+    }
+
+    &.finalizado {
+      color: #10B981;
+      border-color: #10B981;
+      background-color: rgba(16, 185, 129, 0.25);
+      
+      i {
+        color: #10B981;
       }
     }
   }
@@ -318,16 +474,6 @@ $color-danger: #EF4444;
   }
 }
 
-/* Ajustar altura para dos líneas */
-.user-card {
-  .user-last-access {
-    min-height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-}
-
 /* ===== ACCIONES ===== */
 .user-actions {
   .actions-buttons {
@@ -337,7 +483,6 @@ $color-danger: #EF4444;
     align-items: center;
     flex-wrap: wrap;
 
-    /* ===== ESTILOS PARA BOTONES DE ABRIR/DESCARGAR TODOS ===== */
     .btn-action {
       &.btn-primary {
         background-color: $color-verde !important;
@@ -392,7 +537,6 @@ $color-danger: #EF4444;
       }
     }
     
-    /* Espaciado entre botones */
     .ms-1 {
       margin-left: 6px !important;
     }
@@ -516,7 +660,25 @@ $color-danger: #EF4444;
   }
 }
 
-/* ===== LOADING STATE ===== */
+/* ===== MENSAJES DE ESTADO ===== */
+.messages-container {
+  margin-bottom: 1.2rem;
+  
+  .alert {
+    border-radius: 8px;
+    border: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    font-size: 0.9rem;
+    
+    .btn-close {
+      border-radius: 4px;
+      font-size: 0.8rem;
+      padding: 0.2rem 0.6rem;
+    }
+  }
+}
+
+/* ===== ESTADOS DE CARGA Y VACÍO ===== */
 .text-center {
   text-align: center;
 }
@@ -544,36 +706,7 @@ $color-danger: #EF4444;
   color: #6b7280 !important;
 }
 
-/* ===== TOOLTIP PERSONALIZADO ===== */
-.observacion-tooltip {
-  position: absolute;
-  background: #333;
-  color: white;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  max-width: 300px;
-  width: max-content;
-  z-index: 1000;
-  pointer-events: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  white-space: normal;
-  line-height: 1.4;
-  text-align: left;
-  
-  &::after {
-    content: '';
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border-width: 5px;
-    border-style: solid;
-    border-color: #333 transparent transparent transparent;
-  }
-}
-
-/* ===== RESPONSIVE ===== */
+/* ===== RESPONSIVE PARA COMPONENTES HIJOS ===== */
 
 /* Pantallas grandes (1200px a 1600px) - Compacto */
 @media (min-width: 1200px) and (max-width: 1600px) {
@@ -731,6 +864,20 @@ $color-danger: #EF4444;
     }
   }
   
+  .card:first-child {
+    .card-body {
+      padding: 1rem;
+    }
+    
+    h2 {
+      font-size: 1.3rem;
+    }
+    
+    h3 {
+      font-size: 1.5rem;
+    }
+  }
+  
   .users-list-container {
     padding: 12px;
   }
@@ -847,45 +994,6 @@ $color-danger: #EF4444;
       width: 30px;
       height: 30px;
       font-size: 0.8rem;
-    }
-  }
-}
-
-/* ===== MENSAJES ===== */
-.messages-container {
-  margin-bottom: 1.2rem;
-  
-  .alert {
-    border-radius: 8px;
-    border: none;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-    font-size: 0.9rem;
-    
-    .btn-close {
-      border-radius: 4px;
-      font-size: 0.8rem;
-      padding: 0.2rem 0.6rem;
-    }
-  }
-}
-
-/* Asegurar que tooltips de Bootstrap funcionen */
-.tooltip {
-  .tooltip-inner {
-    background-color: #333;
-    color: white;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 0.8rem;
-    max-width: 300px;
-    white-space: normal;
-    text-align: left;
-    line-height: 1.4;
-  }
-  
-  .tooltip-arrow {
-    &::before {
-      border-top-color: #333 !important;
     }
   }
 }
