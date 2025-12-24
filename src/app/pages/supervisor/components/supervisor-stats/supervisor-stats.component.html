@@ -1,0 +1,142 @@
+<div class="container-fluid">
+      <div class="row mb-4">
+        <div class="col">
+          <h2 class="mb-1">
+            <i class="bi bi-graph-up me-2"></i>Estadísticas del Supervisor
+          </h2>
+          <p class="text-muted">
+            Métricas y estadísticas de tu actividad
+          </p>
+        </div>
+      </div>
+
+      <div *ngIf="loading" class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Cargando...</span>
+        </div>
+      </div>
+
+      <div *ngIf="error" class="alert alert-danger">
+        {{ error }}
+      </div>
+
+      <div *ngIf="!loading && stats" class="row">
+        <!-- Tarjetas de estadísticas -->
+        <div class="col-md-3 mb-3">
+          <div class="card border-primary">
+            <div class="card-body text-center">
+              <h1 class="display-4 text-primary">{{ stats.pendientes }}</h1>
+              <p class="card-text text-muted">Pendientes</p>
+              <div class="progress" style="height: 6px;">
+                <div class="progress-bar bg-primary" 
+                     [style.width]="getPercentage(stats.pendientes, stats.total) + '%'"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <div class="card border-success">
+            <div class="card-body text-center">
+              <h1 class="display-4 text-success">{{ stats.aprobados }}</h1>
+              <p class="card-text text-muted">Aprobados</p>
+              <div class="progress" style="height: 6px;">
+                <div class="progress-bar bg-success" 
+                     [style.width]="getPercentage(stats.aprobados, stats.total) + '%'"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <div class="card border-warning">
+            <div class="card-body text-center">
+              <h1 class="display-4 text-warning">{{ stats.observados }}</h1>
+              <p class="card-text text-muted">Observados</p>
+              <div class="progress" style="height: 6px;">
+                <div class="progress-bar bg-warning" 
+                     [style.width]="getPercentage(stats.observados, stats.total) + '%'"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-3 mb-3">
+          <div class="card border-danger">
+            <div class="card-body text-center">
+              <h1 class="display-4 text-danger">{{ stats.rechazados }}</h1>
+              <p class="card-text text-muted">Rechazados</p>
+              <div class="progress" style="height: 6px;">
+                <div class="progress-bar bg-danger" 
+                     [style.width]="getPercentage(stats.rechazados, stats.total) + '%'"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gráfico de pastel -->
+        <div class="col-md-6 mb-4">
+          <div class="card">
+            <div class="card-header bg-light">
+              <h5 class="mb-0">Distribución de Decisiones</h5>
+            </div>
+            <div class="card-body text-center">
+              <canvas #pieChart width="400" height="400"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resumen -->
+        <div class="col-md-6 mb-4">
+          <div class="card">
+            <div class="card-header bg-light">
+              <h5 class="mb-0">Resumen General</h5>
+            </div>
+            <div class="card-body">
+              <table class="table table-sm">
+                <tbody>
+                  <tr>
+                    <td>Total Procesados:</td>
+                    <td class="fw-bold">{{ stats.total }}</td>
+                  </tr>
+                  <tr>
+                    <td>Pendientes:</td>
+                    <td>
+                      <span class="badge bg-primary">{{ stats.pendientes }}</span>
+                      ({{ getPercentage(stats.pendientes, stats.total) }}%)
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Aprobados:</td>
+                    <td>
+                      <span class="badge bg-success">{{ stats.aprobados }}</span>
+                      ({{ getPercentage(stats.aprobados, stats.total) }}%)
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Observados:</td>
+                    <td>
+                      <span class="badge bg-warning">{{ stats.observados }}</span>
+                      ({{ getPercentage(stats.observados, stats.total) }}%)
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Rechazados:</td>
+                    <td>
+                      <span class="badge bg-danger">{{ stats.rechazados }}</span>
+                      ({{ getPercentage(stats.rechazados, stats.total) }}%)
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Eficiencia:</td>
+                    <td class="fw-bold text-success">
+                      {{ getPercentage((stats.aprobados + stats.observados + stats.rechazados), stats.total) }}%
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>

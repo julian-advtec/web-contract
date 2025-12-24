@@ -1,32 +1,46 @@
+// src/app/core/models/documento.model.ts
+export type SupervisorEstado = 'PENDIENTE' | 'APROBADO' | 'OBSERVADO' | 'RECHAZADO';
+
+export interface Supervisor {
+  id: string;
+  estado: SupervisorEstado;
+  observacion?: string;
+  fechaCreacion: string;
+  fechaActualizacion: string;
+  fechaAprobacion?: string;
+  nombreArchivoSupervisor?: string;
+}
+
+// src/app/core/models/documento.model.ts
 export interface Documento {
   id: string;
   numeroRadicado: string;
   numeroContrato: string;
   nombreContratista: string;
   documentoContratista: string;
-  fechaInicio: Date;
-  fechaFin: Date;
+  fechaInicio: Date | string;
+  fechaFin: Date | string;
   estado: string;
   
-  // ✅ Campos de documentos actualizados
+  // Campos de documentos actualizados
   cuentaCobro: string;
   seguridadSocial: string;
   informeActividades: string;
   
-  // ✅ Descripciones actualizadas
+  // Descripciones actualizadas
   descripcionCuentaCobro: string;
   descripcionSeguridadSocial: string;
   descripcionInformeActividades: string;
   
-  // ✅ Nuevo campo observación
+  // Nuevo campo observación
   observacion?: string;
   
   // Información del radicador
   nombreRadicador: string;
   usuarioRadicador: string;
-  fechaRadicacion: Date;
+  fechaRadicacion: Date | string;
   rutaCarpetaRadicado: string;
-  ultimoAcceso?: Date;
+  ultimoAcceso?: Date | string;
   ultimoUsuario?: string;
   
   // Relación con el usuario radicador
@@ -40,24 +54,33 @@ export interface Documento {
   // Campos de token público
   tokenPublico?: string;
   tokenActivo?: boolean;
-  tokenExpiraEn?: Date;
+  tokenExpiraEn?: Date | string;
 
-  // Si necesitas acceso dinámico a los campos de documentos
-  [key: string]: any;
+  // ✅ AGREGAR ESTA PROPIEDAD
+  contratistaId?: string;
+
+  // ✅ AGREGAR createdAt y updatedAt
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
 }
 
+// DTO para crear documento
 export interface CreateDocumentoDto {
   numeroRadicado: string;
   numeroContrato: string;
   nombreContratista: string;
   documentoContratista: string;
-  // ✅ Acepta Date | string para flexibilidad
   fechaInicio: Date | string;
   fechaFin: Date | string;
   
-  // ✅ NUEVOS CAMPOS
-  descripcionCuentaCobro?: string;
-  descripcionSeguridadSocial?: string;
-  descripcionInformeActividades?: string;
+  // Descripciones
+  descripcionCuentaCobro: string;
+  descripcionSeguridadSocial: string;
+  descripcionInformeActividades: string;
+  
+  // Campo observación
   observacion?: string;
+  
+  // Archivos (para formulario)
+  archivos?: File[];
 }

@@ -4,7 +4,7 @@ import { Observable, throwError, of } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
-import { Documento, CreateDocumentoDto } from '../models/documento.model';
+import { Documento, CreateDocumentoDto } from '../models/documento.model'; // ✅ Ahora existe
 import { NotificationService } from './notification.service';
 
 // Interfaces para las respuestas del backend

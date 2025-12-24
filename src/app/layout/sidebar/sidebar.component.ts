@@ -1,22 +1,26 @@
 // src/app/layout/sidebar/sidebar.component.ts
-import { Component, Input, Output, EventEmitter, HostListener, OnInit, OnDestroy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, HostListener, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { User, UserRole } from '../../core/models/user.types';
-import { AppModule } from '../../core/services/modules.service';
+import { AppModule, ModulesService } from '../../core/services/modules.service';
 import { NotificationService } from '../../core/services/notification.service';
 
 @Component({
   selector: 'app-sidebar',
-  templateUrl: './sidebar.component.html',
-  styleUrls: ['./sidebar.component.scss'],
   standalone: true,
-  imports: [CommonModule, RouterModule]
+  imports: [CommonModule, RouterModule],
+  templateUrl: './sidebar.component.html',
+  styleUrls: ['./sidebar.component.scss']
 })
 export class SidebarComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
+  private modulesService = inject(ModulesService);
+  private sanitizer = inject(DomSanitizer);
+  private router = inject(Router);
+  private notificationService = inject(NotificationService);
 
   // Variables privadas
   private _availableModules: AppModule[] = [];
@@ -26,6 +30,11 @@ export class SidebarComponent implements OnInit, OnDestroy {
   @Input()
   set currentUser(user: User | null) {
     this._currentUser = user;
+    if (user) {
+      this._availableModules = this.modulesService.getModulesForUser(user.role);
+    } else {
+      this._availableModules = this.getDefaultModules();
+    }
   }
 
   get currentUser(): User | null {
@@ -54,12 +63,6 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   @Output() toggleSidebar = new EventEmitter<boolean>();
   @Output() logout = new EventEmitter<void>();
-
-  constructor(
-    private sanitizer: DomSanitizer,
-    private router: Router,
-    private notificationService: NotificationService
-  ) { }
 
   ngOnInit() {
     console.log('Sidebar - OnInit - Módulos finales:', this.availableModules);
@@ -145,11 +148,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
         isActive: true
       }
     ];
-
-
   }
-
-
 
   isModuleActive(module: AppModule): boolean {
     if (!module || !module.path) return false;
@@ -169,9 +168,14 @@ export class SidebarComponent implements OnInit, OnDestroy {
     // Admin ve todo
     if (userRole === 'admin') return true;
 
-    // Radicador ve radicación y mis-radicaciones
+    // Radicador ve radicación
     if (userRole === 'radicador') {
       return ['radicador', 'admin'].includes(requiredRole);
+    }
+
+    // Supervisor ve supervisión
+    if (userRole === 'supervisor') {
+      return ['supervisor', 'admin'].includes(requiredRole);
     }
 
     return userRole === requiredRole;
@@ -187,11 +191,11 @@ export class SidebarComponent implements OnInit, OnDestroy {
         <path d="M40-160v-112q0-34 17.5-62.5T104-378q62-31 126-46.5T360-440q66 0 130 15.5T616-378q29 15 46.5 43.5T680-272v112H40Zm720 0v-120q0-44-24.5-84.5T666-434q51 6 96 20.5t84 35.5q36 20 55 44.5t19 53.5v120H760ZM360-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47Zm400-160q0 66-47 113t-113 47q-11 0-28-2.5t-28-5.5q27-32 41.5-71t14.5-81q0-42-14.5-81T544-792q14-5 28-6.5t28-1.5q66 0 113 47t47 113Z"/>
       </svg>`,
 
-      'radicacion': `<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor">
+      'radicacion': `<svg xmlns="http://www.w3.org2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor">
         <path d="M280-280h280v-80H280v80Zm0-160h400v-80H280v80Zm0-160h400v-80H280v80Zm-80 480q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm0-560v560-560Z"/>
       </svg>`,
 
-      'supervision': `<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor">
+      'supervisor': `<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor">
         <path d="M120-120v-120q0-34 23.5-56.5T200-320h120q8 0 15 2t13 6q-5 14-7.5 29t-2.5 31H200v120H120Zm640 0v-120H640q0 16-2.5 31t-7.5 29q6-4 13-6t15-2h120q33 0 56.5 23.5T880-240v120H760ZM400-320q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35Zm160-320q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35ZM120-640v-120h120v120H120Zm640 0v-120h120v120H760ZM360-400q17 0 28.5-11.5T400-440q0-17-11.5-28.5T360-480q-17 0-28.5 11.5T320-440q0 17 11.5 28.5T360-400Zm240-400q17 0 28.5-11.5T640-840q0-17-11.5-28.5T600-880q-17 0-28.5 11.5T560-840q0 17 11.5 28.5T600-800Z"/>
       </svg>`,
 

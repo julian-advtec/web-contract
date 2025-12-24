@@ -1,0 +1,256 @@
+<div class="supervisor-form-container" [class.sidebar-collapsed]="sidebarCollapsed">
+  <div class="supervisor-form-inner">
+    
+    <!-- Header -->
+    <div class="page-header">
+      <h1 class="page-title">🔍 Revisión de Documento</h1>
+      <p class="page-subtitle">Revisa el documento y toma una decisión</p>
+    </div>
+
+    <!-- Mensajes -->
+    <div *ngIf="error" class="alert alert-danger alert-dismissible fade show" role="alert">
+      <i class="fas fa-exclamation-circle me-2"></i>
+      {{ error }}
+      <button type="button" class="btn-close" (click)="error = ''"></button>
+    </div>
+
+    <!-- Loading -->
+    <div *ngIf="loading" class="text-center py-5">
+      <div class="loading-spinner"></div>
+      <p class="mt-3 text-muted">Cargando documento...</p>
+    </div>
+
+    <!-- Contenido principal -->
+    <div *ngIf="!loading && document" class="supervision-content">
+      
+      <!-- Información básica del documento -->
+      <div class="card shadow main-card mb-4">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">📋 Información del Documento</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <p><strong>Radicado:</strong> {{ document.numeroRadicado || 'N/A' }}</p>
+              <p><strong>Contrato:</strong> {{ document.numeroContrato || 'N/A' }}</p>
+              <p><strong>Contratista:</strong> {{ document.nombreContratista || 'N/A' }}</p>
+              <p><strong>Documento:</strong> {{ document.documentoContratista || 'N/A' }}</p>
+            </div>
+            <div class="col-md-6">
+              <p><strong>Radicado por:</strong> {{ document.nombreRadicador || 'N/A' }}</p>
+              <p><strong>Fecha Radicación:</strong> {{ formatDate(document.fechaRadicacion) }}</p>
+              <p><strong>Fecha Inicio:</strong> {{ formatDate(document.fechaInicio) }}</p>
+              <p><strong>Fecha Fin:</strong> {{ formatDate(document.fechaFin) }}</p>
+              <p>
+                <strong>Estado:</strong> 
+                <span [class]="getEstadoClass(document.estado)" class="ms-2">
+                  {{ document.estado || 'PENDIENTE' }}
+                </span>
+              </p>
+            </div>
+          </div>
+          
+          <!-- Observaciones existentes -->
+          <div *ngIf="document.observacion" class="mt-4 pt-3 border-top">
+            <h6><i class="fas fa-comment me-2"></i>Observaciones Existentes:</h6>
+            <div class="alert alert-info mt-2">
+              {{ document.observacion }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Documentos adjuntos -->
+      <div class="card shadow main-card mb-4">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0">📎 Documentos Adjuntos</h5>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <!-- Cuenta de Cobro -->
+            <div *ngIf="document.cuentaCobro || document.archivo1" class="col-md-4">
+              <button class="btn btn-outline-primary w-100" 
+                      (click)="descargarArchivo(1)" 
+                      [disabled]="loading">
+                <i class="fas fa-file-invoice-dollar me-2"></i>
+                Cuenta de Cobro
+              </button>
+            </div>
+            
+            <!-- Seguridad Social -->
+            <div *ngIf="document.seguridadSocial || document.archivo2" class="col-md-4">
+              <button class="btn btn-outline-primary w-100" 
+                      (click)="descargarArchivo(2)"
+                      [disabled]="loading">
+                <i class="fas fa-shield-alt me-2"></i>
+                Seguridad Social
+              </button>
+            </div>
+            
+            <!-- Informe Actividades -->
+            <div *ngIf="document.informeActividades || document.archivo3" class="col-md-4">
+              <button class="btn btn-outline-primary w-100" 
+                      (click)="descargarArchivo(3)"
+                      [disabled]="loading">
+                <i class="fas fa-tasks me-2"></i>
+                Informe Actividades
+              </button>
+            </div>
+            
+            <!-- Archivo 4 -->
+            <div *ngIf="document.archivo4" class="col-md-4">
+              <button class="btn btn-outline-primary w-100" 
+                      (click)="descargarArchivo(4)"
+                      [disabled]="loading">
+                <i class="fas fa-file-pdf me-2"></i>
+                Documento 4
+              </button>
+            </div>
+            
+            <!-- Archivo 5 -->
+            <div *ngIf="document.archivo5" class="col-md-4">
+              <button class="btn btn-outline-primary w-100" 
+                      (click)="descargarArchivo(5)"
+                      [disabled]="loading">
+                <i class="fas fa-file-pdf me-2"></i>
+                Documento 5
+              </button>
+            </div>
+          </div>
+          
+          <!-- Sin documentos -->
+          <div *ngIf="!document.cuentaCobro && !document.seguridadSocial && !document.informeActividades && 
+                     !document.archivo1 && !document.archivo2 && !document.archivo3 && 
+                     !document.archivo4 && !document.archivo5" 
+               class="text-center py-4">
+            <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+            <p class="text-muted mb-0">No hay documentos adjuntos</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Formulario de decisión -->
+      <div class="card shadow main-card">
+        <div class="card-header bg-warning text-dark">
+          <h5 class="mb-0">⚖️ Decisión de Supervisión</h5>
+        </div>
+        <div class="card-body">
+          <form (ngSubmit)="submitDecision()" #supervisionForm="ngForm">
+            
+            <!-- Decisión -->
+            <div class="mb-4">
+              <label class="form-label fw-bold">Decisión *</label>
+              <div class="row">
+                <div class="col-md-4">
+                  <div class="form-check decision-option">
+                    <input class="form-check-input" type="radio" name="decision" 
+                           id="aprobar" value="APROBADO" [(ngModel)]="decision" required>
+                    <label class="form-check-label" for="aprobar">
+                      <div class="decision-content">
+                        <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                        <h6>Aprobar</h6>
+                        <small class="text-muted">El documento cumple con todos los requisitos</small>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+                
+                <div class="col-md-4">
+                  <div class="form-check decision-option">
+                    <input class="form-check-input" type="radio" name="decision" 
+                           id="observar" value="OBSERVADO" [(ngModel)]="decision" required>
+                    <label class="form-check-label" for="observar">
+                      <div class="decision-content">
+                        <i class="fas fa-comment fa-2x text-warning mb-2"></i>
+                        <h6>Observar</h6>
+                        <small class="text-muted">El documento requiere correcciones menores</small>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+                
+                <div class="col-md-4">
+                  <div class="form-check decision-option">
+                    <input class="form-check-input" type="radio" name="decision" 
+                           id="rechazar" value="RECHAZADO" [(ngModel)]="decision" required>
+                    <label class="form-check-label" for="rechazar">
+                      <div class="decision-content">
+                        <i class="fas fa-times-circle fa-2x text-danger mb-2"></i>
+                        <h6>Rechazar</h6>
+                        <small class="text-muted">El documento no cumple los requisitos mínimos</small>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Observaciones -->
+            <div class="mb-4">
+              <label for="observaciones" class="form-label fw-bold">
+                <i class="fas fa-comment me-2"></i>Observaciones
+                <span *ngIf="decision !== 'APROBADO' && decision !== ''" class="text-danger">*</span>
+              </label>
+              <textarea class="form-control" id="observaciones" rows="4"
+                        [(ngModel)]="observaciones" name="observaciones"
+                        [required]="decision !== 'APROBADO' && decision !== ''"
+                        placeholder="Ingrese observaciones detalladas..."></textarea>
+              <div class="form-text mt-2">
+                <small>
+                  <i class="fas fa-info-circle me-1"></i>
+                  <span *ngIf="decision === 'APROBADO'">Las observaciones son opcionales para documentos aprobados</span>
+                  <span *ngIf="decision !== 'APROBADO' && decision !== ''">Las observaciones son obligatorias para documentos observados o rechazados</span>
+                </small>
+              </div>
+            </div>
+
+            <!-- Archivo adjunto -->
+            <div class="mb-4">
+              <label for="archivoAdjunto" class="form-label fw-bold">
+                <i class="fas fa-paperclip me-2"></i>Archivo Adjunto (Opcional)
+              </label>
+              <input type="file" class="form-control" id="archivoAdjunto"
+                     (change)="onFileSelected($event)" 
+                     accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+              <div class="form-text mt-2">
+                <small>
+                  <i class="fas fa-info-circle me-1"></i>
+                  Puede adjuntar un archivo PDF, imagen o documento Word (max. 10MB)
+                </small>
+              </div>
+              <div *ngIf="selectedFile" class="alert alert-info mt-3">
+                <i class="fas fa-file me-2"></i>
+                Archivo seleccionado: <strong>{{ selectedFile.name }}</strong>
+                <button type="button" class="btn btn-sm btn-outline-danger ms-3" 
+                        (click)="selectedFile = null">
+                  <i class="fas fa-times"></i> Quitar
+                </button>
+              </div>
+            </div>
+
+            <!-- Botones -->
+            <div class="d-flex justify-content-end gap-3 pt-4 border-top">
+              <button type="button" class="btn btn-outline-secondary px-4" 
+                      (click)="cancelar()"
+                      [disabled]="loading">
+                <i class="fas fa-arrow-left me-2"></i> Volver
+              </button>
+              <button type="submit" class="btn btn-primary px-4" 
+                      [disabled]="loading || !decision || (decision !== 'APROBADO' && !observaciones.trim())">
+                <span *ngIf="!loading">
+                  <i class="fas fa-paper-plane me-2"></i> Enviar Decisión
+                </span>
+                <span *ngIf="loading">
+                  <i class="fas fa-spinner fa-spin me-2"></i> Procesando...
+                </span>
+              </button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>

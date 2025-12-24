@@ -66,30 +66,30 @@ export class RadicacionListComponent implements OnInit, AfterViewInit {
         }, 100);
     }
 
-initTooltips(): void {
-    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-    if (tooltipTriggerList.length > 0 && typeof bootstrap !== 'undefined') {
-        Array.from(tooltipTriggerList).forEach((tooltipTriggerEl: Element) => {
-            new bootstrap.Tooltip(tooltipTriggerEl, {
-                placement: 'top',
-                trigger: 'hover' // Solo al hacer hover
+    initTooltips(): void {
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        if (tooltipTriggerList.length > 0 && typeof bootstrap !== 'undefined') {
+            Array.from(tooltipTriggerList).forEach((tooltipTriggerEl: Element) => {
+                new bootstrap.Tooltip(tooltipTriggerEl, {
+                    placement: 'top',
+                    trigger: 'hover' // Solo al hacer hover
+                });
             });
-        });
+        }
     }
-}
 
     // ===============================
     // MÉTODO PARA TOOLTIP DE OBSERVACIÓN
     // ===============================
-    
-getObservacionTooltip(doc: Documento): string {
-    if (!doc.observacion || doc.observacion.trim() === '') {
-        return '';
+
+    getObservacionTooltip(doc: Documento): string {
+        if (!doc.observacion || doc.observacion.trim() === '') {
+            return '';
+        }
+
+        // Solo devolver el texto plano de la observación
+        return `Observación: ${doc.observacion.trim()}`;
     }
-    
-    // Solo devolver el texto plano de la observación
-    return `Observación: ${doc.observacion.trim()}`;
-}
 
     // Método auxiliar para escapar HTML
     private escapeHtml(text: string): string {
@@ -101,42 +101,42 @@ getObservacionTooltip(doc: Documento): string {
     // ===============================
     // NUEVOS MÉTODOS PARA LOS BOTONES DE ABRIR Y DESCARGAR TODOS
     // ===============================
-    
+
     /**
      * Abre todos los documentos de un radicado en nuevas pestañas
      */
     abrirTodosDocumentos(documento: Documento): void {
         console.log('📂 Abriendo todos los documentos para:', documento.numeroRadicado);
-        
+
         // Contador para documentos abiertos
         let documentosAbiertos = 0;
-        
+
         // Abrir cada documento que exista en una nueva pestaña
         for (let i = 1; i <= 3; i++) {
             if (this.getDocumentByIndex(documento, i)) {
                 const nombreArchivo = this.getDocumentNameByIndex(documento, i);
                 console.log(`   Abriendo documento ${i}: ${nombreArchivo}`);
-                
+
                 // Abrir documento en nueva pestaña
                 this.previsualizarDocumentoDirecto(documento, i);
                 documentosAbiertos++;
-                
+
                 // Pequeño delay entre aperturas para evitar problemas
-                setTimeout(() => {}, 100);
+                setTimeout(() => { }, 100);
             }
         }
-        
+
         // Mostrar mensaje informativo
         if (documentosAbiertos > 0) {
             this.showSuccess = true;
             this.successMessage = `Se abrieron ${documentosAbiertos} documentos en nuevas pestañas`;
-            
+
             setTimeout(() => {
                 this.showSuccess = false;
             }, 3000);
         }
     }
-    
+
     /**
      * Descarga todos los documentos de un radicado - VERSIÓN CORREGIDA
      */
@@ -145,30 +145,30 @@ getObservacionTooltip(doc: Documento): string {
             console.log('⏳ Ya se está descargando, espera...');
             return;
         }
-        
+
         console.log('📥 Descargando todos los documentos para:', documento.numeroRadicado);
-        
+
         // Crear array de observables para descargas
         const descargas: any[] = [];
         const nombresArchivos: string[] = [];
         const indices: number[] = [];
-        
+
         // Preparar todas las descargas
         for (let i = 1; i <= 3; i++) {
             if (this.getDocumentByIndex(documento, i)) {
                 const nombreArchivo = this.getDocumentNameByIndex(documento, i);
                 console.log(`   Preparando descarga documento ${i}: ${nombreArchivo}`);
-                
+
                 // Agregar a los arrays
                 indices.push(i);
                 nombresArchivos.push(nombreArchivo);
-                
+
                 // Crear observable para la descarga
                 const observable = this.radicacionService.descargarDocumento(documento.id, i);
                 descargas.push(observable);
             }
         }
-        
+
         if (descargas.length === 0) {
             console.log('⚠️ No hay documentos para descargar');
             this.showError = true;
@@ -176,33 +176,33 @@ getObservacionTooltip(doc: Documento): string {
             setTimeout(() => this.dismissError(), 3000);
             return;
         }
-        
+
         this.isDownloadingAll = true;
         this.showSuccess = true;
         this.successMessage = `Iniciando descarga de ${descargas.length} documentos...`;
-        
+
         // Ejecutar todas las descargas en paralelo
         forkJoin(descargas).subscribe({
             next: (blobs: Blob[]) => {
                 console.log(`✅ Todos los documentos descargados (${blobs.length} archivos)`);
-                
+
                 // Descargar cada archivo individualmente
                 blobs.forEach((blob, index) => {
                     const nombreArchivo = nombresArchivos[index];
                     const indice = indices[index];
-                    
+
                     console.log(`   Descargando: ${nombreArchivo} (índice: ${indice})`);
-                    
+
                     // Crear un delay para evitar conflictos de descarga
                     setTimeout(() => {
                         this.radicacionService.descargarArchivo(blob, nombreArchivo);
                     }, index * 300);
                 });
-                
+
                 this.showSuccess = true;
                 this.successMessage = `✅ Descarga completada: ${blobs.length} archivos`;
                 this.isDownloadingAll = false;
-                
+
                 setTimeout(() => {
                     this.showSuccess = false;
                 }, 5000);
@@ -212,7 +212,7 @@ getObservacionTooltip(doc: Documento): string {
                 this.showError = true;
                 this.errorMessage = `Error al descargar documentos: ${error.message || 'Error desconocido'}`;
                 this.isDownloadingAll = false;
-                
+
                 setTimeout(() => {
                     this.showError = false;
                 }, 5000);
@@ -310,7 +310,7 @@ getObservacionTooltip(doc: Documento): string {
                 const documentosArray = Array.isArray(documentos) ? documentos : [];
 
                 console.log(`📊 Total de documentos: ${documentosArray.length}`);
-                
+
                 // DEBUG: Verificar si los documentos tienen observación
                 if (documentosArray.length > 0) {
                     console.log('🔍 Primer documento recibido:', {
@@ -572,15 +572,15 @@ getObservacionTooltip(doc: Documento): string {
     // Formato DD/MM/AAAA
     formatDateShort(date: Date | string): string {
         if (!date) return 'N/A';
-        
+
         try {
             const fecha = new Date(date);
-            
+
             // Formato DD/MM/AAAA
             const dia = fecha.getDate().toString().padStart(2, '0');
             const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
             const anio = fecha.getFullYear();
-            
+
             return `${dia}/${mes}/${anio}`;
         } catch (error) {
             console.error('Error formateando fecha:', error);
@@ -589,7 +589,7 @@ getObservacionTooltip(doc: Documento): string {
     }
 
     getDocumentByIndex(doc: Documento, index: number): boolean {
-        switch(index) {
+        switch (index) {
             case 1: return !!doc.cuentaCobro;
             case 2: return !!doc.seguridadSocial;
             case 3: return !!doc.informeActividades;
@@ -598,7 +598,7 @@ getObservacionTooltip(doc: Documento): string {
     }
 
     getDocumentNameByIndex(doc: Documento, index: number): string {
-        switch(index) {
+        switch (index) {
             case 1: return doc.cuentaCobro || '';
             case 2: return doc.seguridadSocial || '';
             case 3: return doc.informeActividades || '';
@@ -646,7 +646,7 @@ getObservacionTooltip(doc: Documento): string {
         }
 
         let nombre = '';
-        switch(index) {
+        switch (index) {
             case 1: nombre = documento.cuentaCobro; break;
             case 2: nombre = documento.seguridadSocial; break;
             case 3: nombre = documento.informeActividades; break;
@@ -658,4 +658,11 @@ getObservacionTooltip(doc: Documento): string {
             nombre
         );
     }
+
+    navigateToNuevoRadicado() {
+        console.log('Navegando a /radicacion/nuevo');
+        this.router.navigate(['/radicacion/nuevo']);
+    }
+
+
 }

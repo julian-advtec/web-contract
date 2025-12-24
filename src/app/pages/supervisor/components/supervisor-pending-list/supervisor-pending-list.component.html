@@ -1,0 +1,356 @@
+<!-- src/app/pages/supervisor/components/supervisor-pending-list/supervisor-pending-list.component.html -->
+<div class="supervisor-pending-container" [class.sidebar-collapsed]="sidebarCollapsed">
+  <div class="supervisor-pending-inner">
+
+    <!-- Header -->
+    <div class="page-header">
+      <div class="header-content">
+        <div class="header-title-section">
+          <h1 class="page-title">
+            <i class="fas fa-tasks me-2"></i> Documentos Pendientes
+          </h1>
+          <p class="page-subtitle">Documentos que requieren tu revisión como supervisor</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-outline-primary" (click)="refreshData()" [disabled]="isLoading">
+            <i class="fas fa-sync-alt" [class.fa-spin]="isLoading"></i>
+            Actualizar
+          </button>
+          <button class="btn btn-success ms-2" (click)="exportarReporte()" [disabled]="isProcessing || documentos.length === 0">
+            <i class="fas fa-file-export me-1"></i> Exportar Reporte
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mensajes de estado -->
+    <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+      <div class="d-flex align-items-center">
+        <i class="fas fa-exclamation-circle me-2"></i>
+        <span>{{ errorMessage }}</span>
+      </div>
+      <button type="button" class="btn-close" (click)="dismissError()" aria-label="Close"></button>
+    </div>
+    
+    <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+      <div class="d-flex align-items-center">
+        <i class="fas fa-check-circle me-2"></i>
+        <span>{{ successMessage }}</span>
+      </div>
+      <button type="button" class="btn-close" (click)="dismissSuccess()" aria-label="Close"></button>
+    </div>
+
+    <!-- Barra de búsqueda -->
+    <div class="search-container mt-3 mb-4">
+      <div class="input-group search-group">
+        <span class="input-group-text">
+          <i class="fas fa-search"></i>
+        </span>
+        <input
+          type="text"
+          class="form-control"
+          placeholder="Buscar radicado, contratista, contrato..."
+          [(ngModel)]="searchTerm"
+          (input)="onSearch()"
+          [disabled]="isLoading" />
+        <button *ngIf="searchTerm" 
+                class="btn btn-outline-secondary" 
+                type="button" 
+                (click)="clearSearch()"
+                [disabled]="isLoading">
+          <i class="fas fa-times"></i> Limpiar
+        </button>
+      </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="stats-container mb-4">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="stat-card total">
+            <div class="stat-icon">
+              <i class="fas fa-file-alt"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ estadisticas.totalPendientes }}</h3>
+              <p>Documentos Pendientes</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="stat-card recent">
+            <div class="stat-icon">
+              <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ estadisticas.recientes }}</h3>
+              <p>Recientes (Últimos 7 días)</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="stat-card urgent">
+            <div class="stat-icon">
+              <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="stat-info">
+              <h3>{{ estadisticas.urgentes }}</h3>
+              <p>Documentos Urgentes</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contenido principal -->
+    <div class="card shadow main-card">
+      <div class="card-body p-0">
+        
+        <!-- Loading -->
+        <div *ngIf="isLoading" class="text-center py-5">
+          <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+          <p class="mt-3 text-muted">Cargando documentos pendientes...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div *ngIf="!isLoading && filteredDocumentos.length === 0" class="text-center py-5">
+          <i class="fas fa-check-circle fa-4x text-success mb-4"></i>
+          <h4 class="text-muted mb-2">¡Excelente! No hay documentos pendientes</h4>
+          <p class="text-muted mb-4">Todos los documentos han sido revisados</p>
+          <button class="btn btn-primary" (click)="refreshData()">
+            <i class="fas fa-sync-alt me-1"></i> Refrescar
+          </button>
+        </div>
+
+        <!-- Lista de documentos -->
+        <div *ngIf="!isLoading && filteredDocumentos.length > 0" class="documentos-container">
+          
+          <!-- Header de la tabla -->
+          <div class="documentos-header">
+            <div class="header-item">Radicado</div>
+            <div class="header-item">Contratista</div>
+            <div class="header-item">Contrato</div>
+            <div class="header-item">Estado</div>
+            <div class="header-item">Fechas</div>
+            <div class="header-item">Documentos</div>
+            <div class="header-item acciones-header">Acciones</div>
+          </div>
+
+          <!-- Lista de radicados -->
+          <div class="documentos-list">
+            <div *ngFor="let doc of paginatedDocumentos" 
+                 class="documento-card"
+                 [class.urgente]="esDocumentoUrgente(doc)"
+                 [title]="getObservacionTooltip(doc)"
+                 [attr.data-bs-toggle]="doc.observacion ? 'tooltip' : null"
+                 [attr.data-bs-placement]="'top'">
+
+              <!-- Radicado -->
+              <div class="documento-info">
+                <div class="documento-details">
+                  <h4 class="documento-numero">
+                    <i class="fas fa-hashtag me-1"></i>{{ doc.numeroRadicado }}
+                    <span *ngIf="esDocumentoUrgente(doc)" class="urgente-badge">
+                      <i class="fas fa-exclamation-triangle me-1"></i>URGENTE
+                    </span>
+                  </h4>
+                  <p class="documento-fecha">
+                    <i class="far fa-calendar me-1"></i>
+                    {{ formatDate(doc.fechaRadicacion) }}
+                  </p>
+                  <small class="text-muted">
+                    <i class="far fa-clock me-1"></i>
+                    {{ getDiasTranscurridos(doc.fechaRadicacion) }} días
+                  </small>
+                </div>
+              </div>
+
+              <!-- Contratista -->
+              <div class="documento-contratista">
+                <p class="contratista-text">
+                  <strong>{{ doc.nombreContratista }}</strong>
+                  <span class="text-muted d-block small mt-1">
+                    <i class="fas fa-id-card me-1"></i>
+                    {{ doc.documentoContratista }}
+                  </span>
+                </p>
+              </div>
+
+              <!-- Contrato -->
+              <div class="documento-contrato">
+                <span class="contrato-badge">
+                  <i class="fas fa-file-contract me-1"></i>
+                  {{ doc.numeroContrato }}
+                </span>
+              </div>
+
+              <!-- Estado -->
+              <div class="documento-estado">
+                <span class="estado-badge" [ngClass]="getEstadoClass(doc.estado)">
+                  <i class="fas me-1"
+                     [class.fa-check-circle]="doc.estado === 'APROBADO'"
+                     [class.fa-times-circle]="doc.estado === 'RECHAZADO'"
+                     [class.fa-clock]="doc.estado === 'PENDIENTE'"
+                     [class.fa-file-alt]="doc.estado === 'RADICADO'"
+                     [class.fa-eye]="doc.estado === 'EN_REVISION'">
+                  </i>
+                  {{ getEstadoTexto(doc.estado) }}
+                </span>
+              </div>
+
+              <!-- Fechas -->
+              <div class="documento-fechas">
+                <div class="fechas-container">
+                  <div class="fecha-line">
+                    <span class="fecha-label">Inicio:</span>
+                    <span class="fecha-value">{{ formatDateShort(doc.fechaInicio) }}</span>
+                  </div>
+                  <div class="fecha-line">
+                    <span class="fecha-label">Fin:</span>
+                    <span class="fecha-value">{{ formatDateShort(doc.fechaFin) }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Documentos -->
+              <div class="documento-archivos">
+                <div class="archivos-buttons">
+                  <div class="btn-group-vertical" role="group">
+                    <button
+                      class="btn btn-primary btn-sm"
+                      title="Ver todos los documentos"
+                      (click)="abrirTodosDocumentos(doc)"
+                      [disabled]="getDocumentCount(doc) === 0">
+                      <i class="fas fa-folder-open me-1"></i> Ver ({{ getDocumentCount(doc) }})
+                    </button>
+                    
+                    <button
+                      class="btn btn-success btn-sm mt-1"
+                      title="Descargar todos los documentos"
+                      (click)="descargarTodosDocumentos(doc)"
+                      [disabled]="getDocumentCount(doc) === 0 || isDownloadingAll">
+                      <i class="fas fa-download me-1"></i> Descargar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Acciones -->
+              <div class="documento-acciones">
+                <div class="acciones-buttons">
+                  <div class="btn-group-vertical" role="group">
+                    <button 
+                      class="btn btn-primary btn-sm mb-1" 
+                      (click)="revisarDocumento(doc.id)"
+                      title="Revisar documento en detalle">
+                      <i class="fas fa-eye me-1"></i> Revisar
+                    </button>
+                    
+                    <div class="btn-group" role="group">
+                      <button 
+                        class="btn btn-success btn-sm" 
+                        (click)="aprobarDocumento(doc)"
+                        title="Aprobar documento"
+                        [disabled]="isProcessing"
+                        *ngIf="doc.estado === 'RADICADO' || doc.estado === 'PENDIENTE' || doc.estado === 'EN_REVISION'">
+                        <i class="fas fa-check me-1"></i> Aprobar
+                      </button>
+                      
+                      <button 
+                        class="btn btn-danger btn-sm" 
+                        (click)="rechazarDocumento(doc)"
+                        title="Rechazar documento"
+                        [disabled]="isProcessing"
+                        *ngIf="doc.estado === 'RADICADO' || doc.estado === 'PENDIENTE' || doc.estado === 'EN_REVISION'">
+                        <i class="fas fa-times me-1"></i> Rechazar
+                      </button>
+                    </div>
+                    
+                    <button 
+                      class="btn btn-warning btn-sm mt-1" 
+                      (click)="observarDocumento(doc)"
+                      title="Observar documento (requiere cambios)"
+                      [disabled]="isProcessing"
+                      *ngIf="doc.estado === 'RADICADO' || doc.estado === 'PENDIENTE' || doc.estado === 'EN_REVISION'">
+                      <i class="fas fa-comment me-1"></i> Observar
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Paginación -->
+          <div class="documentos-pagination" *ngIf="totalPages > 1">
+            <div class="pagination-info">
+              Mostrando {{ (currentPage - 1) * pageSize + 1 }} - 
+              {{ getPaginatedEnd() }}
+              de {{ filteredDocumentos.length }} documentos
+            </div>
+            
+            <div class="pagination-controls">
+              <button
+                class="btn btn-outline-primary btn-sm"
+                [disabled]="currentPage === 1"
+                (click)="changePage(currentPage - 1)">
+                <i class="fas fa-chevron-left"></i> Anterior
+              </button>
+
+              <div class="page-numbers">
+                <button
+                  *ngFor="let page of pages"
+                  class="btn btn-sm"
+                  [class.btn-primary]="page === currentPage"
+                  [class.btn-outline-primary]="page !== currentPage"
+                  (click)="changePage(page)">
+                  {{ page }}
+                </button>
+              </div>
+
+              <button
+                class="btn btn-outline-primary btn-sm"
+                [disabled]="currentPage === totalPages"
+                (click)="changePage(currentPage + 1)">
+                Siguiente <i class="fas fa-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Información adicional -->
+    <div class="card mt-4">
+      <div class="card-body">
+        <h5 class="card-title">
+          <i class="fas fa-info-circle me-2"></i>Información importante
+        </h5>
+        <ul class="list-group list-group-flush">
+          <li class="list-group-item">
+            <i class="fas fa-circle text-primary me-2"></i>
+            Los documentos marcados como <span class="badge bg-danger">URGENTE</span> tienen más de 3 días sin revisar
+          </li>
+          <li class="list-group-item">
+            <i class="fas fa-circle text-success me-2"></i>
+            Puedes <strong>Aprobar</strong> documentos que cumplan con todos los requisitos
+          </li>
+          <li class="list-group-item">
+            <i class="fas fa-circle text-danger me-2"></i>
+            <strong>Rechazar</strong> documentos que no cumplan con los requisitos mínimos
+          </li>
+          <li class="list-group-item">
+            <i class="fas fa-circle text-warning me-2"></i>
+            <strong>Observar</strong> documentos que requieren correcciones menores
+          </li>
+          <li class="list-group-item">
+            <i class="fas fa-circle text-info me-2"></i>
+            Usa el botón <strong>Revisar</strong> para ver el documento completo y sus detalles
+          </li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</div>

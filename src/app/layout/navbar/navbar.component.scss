@@ -1,3 +1,4 @@
+// src/app/layout/navbar/navbar.component.scss
 // ======================================================
 // VARIABLES
 // ======================================================
@@ -12,7 +13,7 @@ $text-color: #1f2937;
 $border-color: #e5e7eb;
 $hover-color: #e9ecef;
 $primary-green: #10b981;
-
+$danger-red: #ef4444;
 
 // ======================================================
 // NAVBAR PRINCIPAL
@@ -31,7 +32,7 @@ $primary-green: #10b981;
   align-items: center;
   border-bottom: 1px solid $border-color;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  overflow: hidden; // NECESARIO PARA QUE LA IMAGEN NO SE SALGA
+  overflow: hidden;
 
   // Sidebar colapsado
   &.collapsed {
@@ -48,10 +49,10 @@ $primary-green: #10b981;
     height: 100%;
     padding: 0 2rem;
     position: relative;
-    z-index: 2; // QUE QUEDE SOBRE LA IMAGEN
+    z-index: 2;
   }
 
-  // Toggle del sidebar
+  // Botón toggle
   .sidebar-toggle {
     background: $primary-green;
     border: none;
@@ -122,25 +123,25 @@ $primary-green: #10b981;
     .user-info {
       display: flex;
       flex-direction: column;
-      text-align: center;
+      text-align: right;
 
       .user-name {
         font-weight: 600;
         font-size: 1rem;
-        color: #fff !important;
+        color: $text-color;
       }
 
       .user-role {
         font-size: 0.875rem;
-        color: #fff !important;
-        opacity: 1 !important;
+        color: #6b7280;
+        opacity: 0.8;
       }
     }
 
     .logout-btn {
-      background: rgba(239, 68, 68, 0.1);
-      border: 1px solid rgba(239, 68, 68, 0.2);
-      color: #ef4444;
+      background: rgba($danger-red, 0.1);
+      border: 1px solid rgba($danger-red, 0.2);
+      color: $danger-red;
       font-size: 1.2rem;
       cursor: pointer;
       padding: 0.6rem;
@@ -153,17 +154,18 @@ $primary-green: #10b981;
       height: 45px;
 
       &:hover {
-        background: rgba(239, 68, 68, 0.2);
+        background: rgba($danger-red, 0.2);
         transform: translateY(-2px);
       }
     }
   }
 }
 
+// ======================================================
+// FONDOS ESPECÍFICOS POR MÓDULO
+// ======================================================
 
-// ======================================================
-// FONDO SOLO PARA GESTIÓN DE USUARIOS
-// ======================================================
+// Gestión de Usuarios
 .navbar.gestion-usuarios {
   position: relative;
   
@@ -186,10 +188,7 @@ $primary-green: #10b981;
   }
 }
 
-// ======================================================
-// FONDO SOLO PARA GESTIÓN RADICADORES
-// ======================================================
-
+// Radicación
 .navbar.radicacion {
   position: relative;
   
@@ -203,6 +202,29 @@ $primary-green: #10b981;
     min-width: 260px;
     height: 100%;
     background-image: url('/assets/images/RDC1.jpg');
+    background-size: cover;
+    background-position: center right;
+    background-repeat: no-repeat;
+    opacity: 1;
+    z-index: 1;
+    pointer-events: none;
+  }
+}
+
+// Supervisor (agregar fondo si tienes imagen)
+.navbar.supervisor {
+  position: relative;
+  
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 27%;
+    max-width: 480px;
+    min-width: 260px;
+    height: 100%;
+    background-image: url('/assets/images/SPV1.jpg'); // Ajusta la ruta si tienes imagen
     background-size: cover;
     background-position: center right;
     background-repeat: no-repeat;
@@ -233,40 +255,36 @@ $primary-green: #10b981;
   }
 }
 
-
-// ---------- Tablet
+// Tablet
 @include tablet {
   .navbar {
     .navbar-brand {
       h1 { font-size: 1.4rem; }
-
+      
       .dynamic-title {
         .page-title { font-size: 1.4rem; }
         .page-subtitle { font-size: 0.9rem; }
       }
     }
-
-    .navbar-content {
-      padding: 0 1.5rem;
-    }
+    
+    .navbar-content { padding: 0 1.5rem; }
   }
 }
 
-
-// ---------- Small tablet
+// Small tablet
 @include small-tablet {
   .navbar {
     .navbar-brand {
       h1 { font-size: 1.3rem; }
-
+      
       .dynamic-title {
         .page-title { font-size: 1.3rem; }
         .page-subtitle { font-size: 0.85rem; }
       }
     }
-
+    
     .navbar-content { padding: 0 1.25rem; }
-
+    
     .sidebar-toggle,
     .logout-btn {
       width: 40px;
@@ -276,18 +294,17 @@ $primary-green: #10b981;
   }
 }
 
-
-// ---------- Mobile
+// Mobile
 @include mobile {
   .navbar {
     left: $sidebar-width-collapsed !important;
     width: calc(100vw - #{$sidebar-width-collapsed}) !important;
-
+    
     .navbar-content { padding: 0 1rem; }
-
+    
     .navbar-brand {
       h1 { font-size: 1.1rem; }
-
+      
       .dynamic-title {
         .page-title {
           font-size: 1.1rem;
@@ -296,18 +313,17 @@ $primary-green: #10b981;
           overflow: hidden;
           text-overflow: ellipsis;
         }
-
+        
         .page-subtitle { display: none; }
       }
     }
-
+    
     .user-role { display: none; }
-
+    
     .user-name {
       font-size: 0.9rem;
-      color: #fff !important;
     }
-
+    
     .sidebar-toggle,
     .logout-btn {
       width: 38px;
@@ -315,36 +331,35 @@ $primary-green: #10b981;
       padding: 0.5rem;
     }
   }
-
-  .navbar.gestion-usuarios::after {
+  
+  .navbar.gestion-usuarios::after,
+  .navbar.radicacion::after,
+  .navbar.supervisor::after {
     display: none;
   }
 }
 
-
-// ---------- Extra Small
+// Extra Small
 @media (max-width: 480px) {
   .navbar {
     .navbar-brand {
       h1 { font-size: 1rem; }
+      
       .dynamic-title .page-title {
         font-size: 1rem;
         max-width: 150px;
       }
     }
-
+    
     .navbar-content { padding: 0 0.75rem; }
-
+    
     .sidebar-toggle,
     .logout-btn {
       width: 36px;
       height: 36px;
       padding: 0.4rem;
     }
-
-    .user-name {
-      font-size: 0.85rem;
-      color: #fff !important;
-    }
+    
+    .user-name { font-size: 0.85rem; }
   }
 }

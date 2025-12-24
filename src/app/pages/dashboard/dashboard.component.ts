@@ -42,6 +42,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
     } else {
       this.sidebarCollapsed = true; // En móvil, por defecto colapsado
     }
+
+    // Debug: Verificar módulos cargados
+    console.log('🔍 Dashboard - Usuario actual:', this.currentUser);
+    console.log('🔍 Dashboard - Módulos disponibles:', this.availableModules);
+    
+    // Verificar específicamente el módulo de supervisión
+    const supervisionModule = this.availableModules.find(m => m.id === 'supervision');
+    console.log('🔍 Dashboard - Módulo de supervisión:', supervisionModule);
+    if (supervisionModule) {
+      console.log('🔍 Dashboard - Path del módulo supervisión:', supervisionModule.path);
+      console.log('🔍 Dashboard - Path debe ser /supervisor');
+    }
   }
 
   ngOnDestroy(): void {
@@ -103,10 +115,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private loadAvailableModules(): void {
     if (this.currentUser?.role) {
       this.availableModules = this.modulesService.getModulesForUser(this.currentUser.role);
+      
+      // DEBUG: Verificar cada módulo
+      this.availableModules.forEach(module => {
+        console.log(`📋 Módulo: ${module.id} - Path: ${module.path} - Rol requerido: ${module.requiredRole}`);
+      });
     } else {
       this.availableModules = this.modulesService.getDefaultModules();
     }
-    console.log('📋 Módulos disponibles:', this.availableModules);
+    
+    console.log('📋 Módulos disponibles cargados:', this.availableModules);
   }
 
   // ✅ Obtener nombre del rol para mostrar
@@ -168,6 +186,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   navigateToModule(route: string) {
+    console.log('🔗 Dashboard - Navegando a módulo:', route);
     this.router.navigate([route]);
   }
 

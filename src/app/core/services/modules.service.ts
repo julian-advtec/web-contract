@@ -89,12 +89,12 @@ export class ModulesService {
       isActive: true
     },
     {
-      id: 'supervision',
-      title: 'Supervisión',
-      description: 'Supervisión de procesos',
-      path: '/supervision',
-      route: '/supervision',
-      icon: 'supervision',
+      id: 'supervisor',
+      title: 'Supervisor',
+      description: 'Supervisor de procesos',
+      path: '/supervisor',
+      route: '/supervisor',
+      icon: 'supervisor',
       requiredRole: UserRole.SUPERVISOR,
       isActive: true
     },

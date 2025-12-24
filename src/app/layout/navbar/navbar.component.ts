@@ -1,3 +1,4 @@
+// src/app/layout/navbar/navbar.component.ts
 import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, NavigationEnd } from '@angular/router';
@@ -5,10 +6,10 @@ import { User, UserRole } from '../../core/models/user.types';
 
 @Component({
   selector: 'app-navbar',
-  templateUrl: './navbar.component.html',
-  styleUrls: ['./navbar.component.scss'],
   standalone: true,
-  imports: [CommonModule]
+  imports: [CommonModule],
+  templateUrl: './navbar.component.html',
+  styleUrls: ['./navbar.component.scss']
 })
 export class NavbarComponent implements OnInit {
   @Input() currentUser: User | null = null;
@@ -60,6 +61,18 @@ export class NavbarComponent implements OnInit {
     return isExactRoute || isNewRoute || isEditRoute;
   }
 
+  isSupervisorPage(): boolean {
+    const cleanUrl = this.currentUrl || this.router.url.split('?')[0];
+    
+    const isSupervisorRoutes = cleanUrl === '/supervisor' || 
+                              cleanUrl === '/supervisor/pendientes' ||
+                              cleanUrl === '/supervisor/historial' ||
+                              cleanUrl === '/supervisor/estadisticas' ||
+                              cleanUrl.startsWith('/supervisor/revisar/');
+    
+    return isSupervisorRoutes;
+  }
+
   private updateTitle() {
     this.currentUrl = this.router.url.split('?')[0];
     const cleanUrl = this.currentUrl;
@@ -84,9 +97,67 @@ export class NavbarComponent implements OnInit {
         subtitle: 'Radicación de documentos' 
       },
       '/radicacion/nuevo': { 
-        title: 'Nuevo Radicado', 
+        title: 'Nueva Radicación', 
         subtitle: 'Radicación de documentos' 
       },
+      '/radicacion/lista': { 
+        title: 'Lista de Radicaciones', 
+        subtitle: 'Radicación de documentos' 
+      },
+      '/radicacion/mis-radicaciones': { 
+        title: 'Mis Radicaciones', 
+        subtitle: 'Radicación de documentos' 
+      },
+      '/radicacion/rechazados': { 
+        title: 'Documentos Rechazados', 
+        subtitle: 'Radicación de documentos' 
+      },
+      // =========== SUPERVISOR ===========
+      '/supervisor': { 
+        title: 'Supervisión', 
+        subtitle: 'Revisión y aprobación de documentos' 
+      },
+      '/supervisor/pendientes': { 
+        title: 'Pendientes de Supervisión', 
+        subtitle: 'Documentos pendientes de revisión' 
+      },
+      '/supervisor/historial': { 
+        title: 'Historial de Supervisión', 
+        subtitle: 'Historial de supervisiones realizadas' 
+      },
+      '/supervisor/estadisticas': { 
+        title: 'Estadísticas de Supervisión', 
+        subtitle: 'Estadísticas de actividad' 
+      },
+      // =================================
+      '/reportes': { 
+        title: 'Reportes', 
+        subtitle: 'Reportes y estadísticas del sistema' 
+      },
+      '/auditoria': { 
+        title: 'Auditoría de Cuentas', 
+        subtitle: 'Auditoría de documentos contables' 
+      },
+      '/contabilidad': { 
+        title: 'Contabilidad', 
+        subtitle: 'Gestión contable' 
+      },
+      '/tesoreria': { 
+        title: 'Tesorería', 
+        subtitle: 'Gestión de tesorería' 
+      },
+      '/asesor-gerencia': { 
+        title: 'Asesoría de Gerencia', 
+        subtitle: 'Revisión gerencial de documentos' 
+      },
+      '/rendicion-cuentas': { 
+        title: 'Rendición de Cuentas', 
+        subtitle: 'Proceso de rendición de cuentas' 
+      },
+      '/configuracion': { 
+        title: 'Configuración', 
+        subtitle: 'Configuración del sistema' 
+      }
     };
     
     if (titleMap[cleanUrl]) {
@@ -107,6 +178,12 @@ export class NavbarComponent implements OnInit {
       return;
     }
     
+    if (cleanUrl.startsWith('/supervisor/revisar/')) {
+      this.currentPageTitle = 'Revisar Documento';
+      this.currentPageSubtitle = 'Supervisión de documento';
+      return;
+    }
+    
     const segments = cleanUrl.split('/').filter(seg => seg.trim() !== '');
     if (segments.length > 0) {
       const lastSegment = segments[segments.length - 1];
@@ -117,6 +194,30 @@ export class NavbarComponent implements OnInit {
       } else if (cleanUrl.startsWith('/radicacion')) {
         this.currentPageTitle = 'Radicación';
         this.currentPageSubtitle = 'Radicación de documentos';
+      } else if (cleanUrl.startsWith('/supervisor')) {
+        this.currentPageTitle = 'Supervisión';
+        this.currentPageSubtitle = 'Revisión y aprobación de documentos';
+      } else if (cleanUrl.startsWith('/auditoria')) {
+        this.currentPageTitle = 'Auditoría de Cuentas';
+        this.currentPageSubtitle = 'Auditoría de documentos contables';
+      } else if (cleanUrl.startsWith('/contabilidad')) {
+        this.currentPageTitle = 'Contabilidad';
+        this.currentPageSubtitle = 'Gestión contable';
+      } else if (cleanUrl.startsWith('/tesoreria')) {
+        this.currentPageTitle = 'Tesorería';
+        this.currentPageSubtitle = 'Gestión de tesorería';
+      } else if (cleanUrl.startsWith('/asesor-gerencia')) {
+        this.currentPageTitle = 'Asesoría de Gerencia';
+        this.currentPageSubtitle = 'Revisión gerencial de documentos';
+      } else if (cleanUrl.startsWith('/rendicion-cuentas')) {
+        this.currentPageTitle = 'Rendición de Cuentas';
+        this.currentPageSubtitle = 'Proceso de rendición de cuentas';
+      } else if (cleanUrl.startsWith('/reportes')) {
+        this.currentPageTitle = 'Reportes';
+        this.currentPageSubtitle = 'Reportes y estadísticas del sistema';
+      } else if (cleanUrl.startsWith('/configuracion')) {
+        this.currentPageTitle = 'Configuración';
+        this.currentPageSubtitle = 'Configuración del sistema';
       } else {
         this.currentPageTitle = this.formatToTitle(lastSegment);
         this.currentPageSubtitle = '';
