@@ -1,134 +1,33 @@
 <div class="supervisor-pending-container" [class.sidebar-collapsed]="sidebarCollapsed">
   <div class="supervisor-pending-inner">
 
-    <!-- Header -->
-    <div class="page-header">
-      <div class="header-content">
-        <div class="header-title-section">
-          <h1 class="page-title">
-            <i class="fas fa-file-check me-2"></i> Documentos RADICADOS
-          </h1>
-          <p class="page-subtitle">Documentos en estado RADICADO para revisión como supervisor</p>
-        </div>
-        <div class="header-actions">
-          <button class="btn btn-primary" (click)="refreshData()" [disabled]="isLoading">
-            <i class="fas fa-sync-alt" [class.fa-spin]="isLoading"></i>
-            Actualizar
-          </button>
-          
-          <!-- Botón para forzar asignación -->
-          <button class="btn btn-warning ms-2" (click)="forzarAsignacion()" [disabled]="isProcessing" 
-                  title="Asignar todos los documentos RADICADOS a supervisores">
-            <i class="fas fa-bolt me-1"></i>
-            Asignar RADICADOS
-          </button>
-          
-          <!-- Verificar supervisores -->
-          <button class="btn btn-info ms-2" (click)="verificarSupervisores()" [disabled]="isProcessing">
-            <i class="fas fa-user-check me-1"></i>
-            Verificar Supervisores
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Mensajes de estado -->
-    <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
-      <div class="d-flex align-items-center">
-        <i class="fas fa-exclamation-circle me-2"></i>
-        <span>{{ errorMessage }}</span>
-      </div>
-      <button type="button" class="btn-close" (click)="dismissError()" aria-label="Close"></button>
-    </div>
-
-    <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show mt-3" role="alert">
-      <div class="d-flex align-items-center">
-        <i class="fas fa-check-circle me-2"></i>
-        <span>{{ successMessage }}</span>
-      </div>
-      <button type="button" class="btn-close" (click)="dismissSuccess()" aria-label="Close"></button>
-    </div>
-
-    <div *ngIf="infoMessage" class="alert alert-info alert-dismissible fade show mt-3" role="alert">
-      <div class="d-flex align-items-center">
-        <i class="fas fa-info-circle me-2"></i>
-        <span>{{ infoMessage }}</span>
-      </div>
-      <button type="button" class="btn-close" (click)="dismissInfo()" aria-label="Close"></button>
-    </div>
-
-    <!-- Estadísticas -->
-    <div class="stats-container mb-4" *ngIf="!cargandoEstadisticas && estadisticas.totalDocumentosRadicados > 0">
-      <div class="row g-3">
-        <div class="col-md-3">
-          <div class="stat-card total">
-            <div class="stat-icon">
-              <i class="fas fa-file-alt"></i>
-            </div>
-            <div class="stat-info">
-              <h3>{{ estadisticas.totalDocumentosRadicados || 0 }}</h3>
-              <p>Total RADICADOS</p>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="stat-card disponibles">
-            <div class="stat-icon">
-              <i class="fas fa-clock"></i>
-            </div>
-            <div class="stat-info">
-              <h3>{{ documentos.length }}</h3>
-              <p>Disponibles</p>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="stat-card en-revision">
-            <div class="stat-icon">
-              <i class="fas fa-eye"></i>
-            </div>
-            <div class="stat-info">
-              <h3>{{ estadisticas.totales?.pendientes || 0 }}</h3>
-              <p>En Revisión</p>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="stat-card recientes">
-            <div class="stat-icon">
-              <i class="fas fa-history"></i>
-            </div>
-            <div class="stat-info">
-              <h3>{{ contarDocumentosRecientes() }}</h3>
-              <p>Recientes (7 días)</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Barra de búsqueda -->
+    <!-- Barra de búsqueda y acciones -->
     <div class="search-container mt-3 mb-4">
-      <div class="d-flex flex-wrap gap-2">
+      <div class="d-flex flex-wrap gap-2 align-items-center">
         <div class="input-group search-group flex-grow-1">
           <span class="input-group-text">
             <i class="fas fa-search"></i>
           </span>
           <input type="text" class="form-control" placeholder="Buscar radicado, contratista, contrato..."
             [(ngModel)]="searchTerm" (input)="onSearch()" [disabled]="isLoading" />
-          <button *ngIf="searchTerm" class="btn btn-outline-secondary" type="button" (click)="clearSearch()"
-            [disabled]="isLoading">
-            <i class="fas fa-times"></i> Limpiar
-          </button>
         </div>
-        
-        <!-- Diagnóstico -->
-        <button class="btn btn-secondary" (click)="realizarDiagnostico()" [disabled]="isDiagnosticando"
-                title="Diagnóstico del sistema">
-          <i class="fas fa-stethoscope me-1"></i> 
-          {{ isDiagnosticando ? 'Diagnosticando...' : 'Diagnóstico' }}
-        </button>
       </div>
+    </div>
+
+    <!-- Mensajes de estado -->
+    <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
+      <i class="fas fa-exclamation-triangle me-2"></i> {{ errorMessage }}
+      <button type="button" class="btn-close" (click)="dismissError()"></button>
+    </div>
+
+    <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show" role="alert">
+      <i class="fas fa-check-circle me-2"></i> {{ successMessage }}
+      <button type="button" class="btn-close" (click)="dismissSuccess()"></button>
+    </div>
+
+    <div *ngIf="infoMessage" class="alert alert-info alert-dismissible fade show" role="alert">
+      <i class="fas fa-info-circle me-2"></i> {{ infoMessage }}
+      <button type="button" class="btn-close" (click)="dismissInfo()"></button>
     </div>
 
     <!-- Contenido principal -->
@@ -147,25 +46,22 @@
             <i class="fas fa-file-search fa-4x text-secondary mb-4"></i>
             <h4 class="text-muted mb-2">No hay documentos RADICADOS disponibles</h4>
             <p class="text-muted mb-3">Los documentos que están en estado "RADICADO" aparecerán aquí para revisión</p>
-            
+
             <div class="mt-4">
-              <p><strong>¿Por qué no hay documentos?</strong></p>
-              <ul class="list-unstyled text-start d-inline-block">
+              <p class="text-start"><strong>¿Por qué no hay documentos?</strong></p>
+              <ul class="list-unstyled text-start">
                 <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Verifica que hay documentos en estado "RADICADO"</li>
                 <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Usa el botón "Asignar RADICADOS" para forzar asignación</li>
-                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Ejecuta "Diagnóstico" para ver el estado del sistema</li>
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Verifica que estás autenticado como supervisor</li>
               </ul>
             </div>
-            
-            <div class="d-flex justify-content-center gap-2 mt-4">
-              <button class="btn btn-primary" (click)="refreshData()">
+
+            <div class="d-flex justify-content-center gap-2 mt-4 flex-wrap">
+              <button class="btn btn-primary" (click)="refreshData()" [disabled]="isLoading">
                 <i class="fas fa-sync-alt me-1"></i> Refrescar
               </button>
               <button class="btn btn-warning" (click)="forzarAsignacion()" [disabled]="isProcessing">
                 <i class="fas fa-bolt me-1"></i> Asignar RADICADOS
-              </button>
-              <button class="btn btn-info" (click)="realizarDiagnostico()" [disabled]="isDiagnosticando">
-                <i class="fas fa-stethoscope me-1"></i> Diagnóstico
               </button>
             </div>
           </div>
@@ -189,20 +85,18 @@
           <div class="documentos-list">
             <div *ngFor="let doc of paginatedDocumentos" class="documento-card"
               [class.reciente]="esDocumentoReciente(doc)"
-              [title]="getTooltipInfo(doc)"
-              [attr.data-bs-toggle]="getTooltipInfo(doc) ? 'tooltip' : null" 
-              [attr.data-bs-placement]="'top'">
-
+              [title]="getTooltipInfo(doc)">
+              
               <!-- Radicado -->
               <div class="documento-info">
                 <div class="documento-details">
-                  <h4 class="documento-numero">
+                  <h5 class="documento-numero mb-1">
                     <i class="fas fa-hashtag me-1"></i>{{ doc.numeroRadicado }}
                     <span *ngIf="esDocumentoReciente(doc)" class="reciente-badge">
                       <i class="fas fa-star me-1"></i>NUEVO
                     </span>
-                  </h4>
-                  <p class="documento-fecha">
+                  </h5>
+                  <p class="documento-fecha mb-1">
                     <i class="far fa-calendar me-1"></i>
                     {{ formatDate(doc.fechaRadicacion) }}
                   </p>
@@ -215,13 +109,13 @@
 
               <!-- Contratista -->
               <div class="documento-contratista">
-                <p class="contratista-text">
+                <p class="contratista-text mb-1">
                   <strong>{{ doc.nombreContratista }}</strong>
-                  <span class="text-muted d-block small mt-1">
-                    <i class="fas fa-id-card me-1"></i>
-                    {{ doc.documentoContratista }}
-                  </span>
                 </p>
+                <small class="text-muted">
+                  <i class="fas fa-id-card me-1"></i>
+                  {{ doc.documentoContratista }}
+                </small>
               </div>
 
               <!-- Contrato -->
@@ -260,29 +154,28 @@
                     <span class="fecha-label">Fin:</span>
                     <span class="fecha-value">{{ formatDateShort(doc.fechaFin) }}</span>
                   </div>
-                  <div class="fecha-line" *ngIf="doc.ultimoAcceso">
-                    <span class="fecha-label">Últ. acceso:</span>
-                    <span class="fecha-value">{{ formatDateShort(doc.ultimoAcceso) }}</span>
-                  </div>
                 </div>
               </div>
 
               <!-- Documentos -->
               <div class="documento-archivos">
                 <div class="archivos-info">
-                  <div class="archivo-count">
+                  <div class="archivo-count mb-2">
                     <i class="fas fa-file me-1"></i>
                     {{ getDocumentCount(doc) }} documentos
                   </div>
                   <div class="archivos-preview">
-                    <span *ngIf="doc.cuentaCobro" class="archivo-type">
-                      <i class="fas fa-file-invoice text-primary me-1"></i>Cuenta
+                    <span *ngIf="doc.cuentaCobro" class="archivo-type badge bg-primary me-1 mb-1" 
+                          (click)="previsualizarDocumentoEspecifico(doc, 1)" style="cursor: pointer;">
+                      <i class="fas fa-file-invoice me-1"></i>Cuenta
                     </span>
-                    <span *ngIf="doc.seguridadSocial" class="archivo-type">
-                      <i class="fas fa-shield-alt text-success me-1"></i>Seg. Social
+                    <span *ngIf="doc.seguridadSocial" class="archivo-type badge bg-success me-1 mb-1"
+                          (click)="previsualizarDocumentoEspecifico(doc, 2)" style="cursor: pointer;">
+                      <i class="fas fa-shield-alt me-1"></i>SS
                     </span>
-                    <span *ngIf="doc.informeActividades" class="archivo-type">
-                      <i class="fas fa-chart-line text-info me-1"></i>Informe
+                    <span *ngIf="doc.informeActividades" class="archivo-type badge bg-info"
+                          (click)="previsualizarDocumentoEspecifico(doc, 3)" style="cursor: pointer;">
+                      <i class="fas fa-chart-line me-1"></i>Informe
                     </span>
                   </div>
                 </div>
@@ -291,42 +184,66 @@
               <!-- Acciones -->
               <div class="documento-acciones">
                 <div class="acciones-buttons">
-                  <div class="btn-group-vertical" role="group">
+                  <div class="d-flex flex-column gap-1">
                     <!-- Tomar para revisión -->
-                    <button class="btn btn-primary btn-sm mb-1" (click)="tomarParaRevision(doc)" 
-                            title="Tomar documento para revisión" [disabled]="isProcessing">
-                      <i class="fas fa-hand-paper me-1"></i> Tomar para Revisión
+                    <button class="btn btn-primary btn-sm" (click)="tomarParaRevision(doc)"
+                            title="Tomar documento para revisión" [disabled]="isProcessing || doc.estado !== 'RADICADO'">
+                      <i class="fas fa-hand-paper me-1"></i> Tomar
                     </button>
 
-                    <!-- Ver documentos -->
-                    <div class="btn-group btn-group-sm" role="group">
-                      <button class="btn btn-info" (click)="verDetalle(doc.id)" title="Ver detalle del documento">
-                        <i class="fas fa-eye me-1"></i> Ver
+                    <!-- Botones de vista rápida -->
+                    <div class="d-flex gap-1" *ngIf="getDocumentCount(doc) > 0">
+                      <button class="btn btn-outline-info btn-sm flex-fill" 
+                              (click)="previsualizarDocumentoEspecifico(doc, 1)"
+                              [disabled]="!doc.cuentaCobro"
+                              title="Ver Cuenta de Cobro">
+                        <i class="fas fa-eye"></i>
                       </button>
-                      <button class="btn btn-success" (click)="descargarTodosDocumentos(doc)" 
-                              title="Descargar todos los documentos" [disabled]="getDocumentCount(doc) === 0">
-                        <i class="fas fa-download me-1"></i> Descargar
+                      <button class="btn btn-outline-info btn-sm flex-fill" 
+                              (click)="previsualizarDocumentoEspecifico(doc, 2)"
+                              [disabled]="!doc.seguridadSocial"
+                              title="Ver Seguridad Social">
+                        <i class="fas fa-eye"></i>
+                      </button>
+                      <button class="btn btn-outline-info btn-sm flex-fill" 
+                              (click)="previsualizarDocumentoEspecifico(doc, 3)"
+                              [disabled]="!doc.informeActividades"
+                              title="Ver Informe de Actividades">
+                        <i class="fas fa-eye"></i>
                       </button>
                     </div>
 
-                    <!-- Previsualización rápida -->
-                    <button class="btn btn-outline-primary btn-sm mt-1" (click)="previsualizarDocumento(doc, 1)" 
-                            *ngIf="doc.cuentaCobro" title="Ver cuenta de cobro">
-                      <i class="fas fa-file-pdf me-1"></i> Cuenta
-                    </button>
+                    <!-- Botones de descarga rápida -->
+                    <div class="d-flex gap-1" *ngIf="getDocumentCount(doc) > 0">
+                      <button class="btn btn-outline-success btn-sm flex-fill" 
+                              (click)="descargarDocumentoEspecifico(doc, 1)"
+                              [disabled]="!doc.cuentaCobro || isProcessing"
+                              title="Descargar Cuenta de Cobro">
+                        <i class="fas fa-download"></i>
+                      </button>
+                      <button class="btn btn-outline-success btn-sm flex-fill" 
+                              (click)="descargarDocumentoEspecifico(doc, 2)"
+                              [disabled]="!doc.seguridadSocial || isProcessing"
+                              title="Descargar Seguridad Social">
+                        <i class="fas fa-download"></i>
+                      </button>
+                      <button class="btn btn-outline-success btn-sm flex-fill" 
+                              (click)="descargarDocumentoEspecifico(doc, 3)"
+                              [disabled]="!doc.informeActividades || isProcessing"
+                              title="Descargar Informe de Actividades">
+                        <i class="fas fa-download"></i>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-
             </div>
           </div>
 
           <!-- Paginación -->
           <div class="documentos-pagination" *ngIf="totalPages > 1">
             <div class="pagination-info">
-              Mostrando {{ (currentPage - 1) * pageSize + 1 }} -
-              {{ getPaginatedEnd() }}
-              de {{ filteredDocumentos.length }} documentos RADICADOS
+              Página {{ currentPage }} de {{ totalPages }}
             </div>
 
             <div class="pagination-controls">
@@ -336,8 +253,10 @@
               </button>
 
               <div class="page-numbers">
-                <button *ngFor="let page of pages" class="btn btn-sm" [class.btn-primary]="page === currentPage"
-                  [class.btn-outline-primary]="page !== currentPage" (click)="changePage(page)">
+                <button *ngFor="let page of pages" class="btn btn-sm" 
+                  [class.btn-primary]="page === currentPage"
+                  [class.btn-outline-primary]="page !== currentPage" 
+                  (click)="changePage(page)">
                   {{ page }}
                 </button>
               </div>
@@ -348,53 +267,8 @@
               </button>
             </div>
           </div>
-
         </div>
       </div>
     </div>
-
-    <!-- Información para supervisor -->
-    <div class="card mt-4">
-      <div class="card-body">
-        <h5 class="card-title">
-          <i class="fas fa-graduation-cap me-2"></i>Guía para el supervisor
-        </h5>
-        <div class="row">
-          <div class="col-md-6">
-            <ul class="list-group list-group-flush">
-              <li class="list-group-item">
-                <i class="fas fa-circle text-primary me-2"></i>
-                <strong>Documentos RADICADOS:</strong> Son documentos que han sido radicados y están listos para tu revisión
-              </li>
-              <li class="list-group-item">
-                <i class="fas fa-circle text-success me-2"></i>
-                <strong>Tomar para revisión:</strong> Reserva el documento para que otros supervisores no puedan tomarlo
-              </li>
-              <li class="list-group-item">
-                <i class="fas fa-circle text-warning me-2"></i>
-                <strong>Documentos recientes:</strong> Los marcados con <span class="badge bg-warning">NUEVO</span> tienen menos de 24 horas
-              </li>
-            </ul>
-          </div>
-          <div class="col-md-6">
-            <ul class="list-group list-group-flush">
-              <li class="list-group-item">
-                <i class="fas fa-circle text-info me-2"></i>
-                <strong>Ver documentos:</strong> Puedes previsualizar los documentos antes de descargarlos
-              </li>
-              <li class="list-group-item">
-                <i class="fas fa-circle text-danger me-2"></i>
-                <strong>Documentos antiguos:</strong> Los que llevan más de 7 días se marcan en rojo
-              </li>
-              <li class="list-group-item">
-                <i class="fas fa-circle text-secondary me-2"></i>
-                <strong>Sin documentos:</strong> Si no ves documentos, usa "Asignar RADICADOS" o contacta al administrador
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-
   </div>
 </div>

@@ -11,57 +11,56 @@ export interface Supervisor {
   nombreArchivoSupervisor?: string;
 }
 
-// src/app/core/models/documento.model.ts
 export interface Documento {
   id: string;
   numeroRadicado: string;
   numeroContrato: string;
   nombreContratista: string;
   documentoContratista: string;
-  fechaInicio: Date | string;
-  fechaFin: Date | string;
+  fechaInicio: Date;
+  fechaFin: Date;
   estado: string;
-  
-  // Campos de documentos actualizados
+  fechaRadicacion: Date;
   cuentaCobro: string;
   seguridadSocial: string;
   informeActividades: string;
-  
-  // Descripciones actualizadas
   descripcionCuentaCobro: string;
   descripcionSeguridadSocial: string;
   descripcionInformeActividades: string;
-  
-  // Nuevo campo observación
-  observacion?: string;
-  
-  // Información del radicador
+  observacion: string;
   nombreRadicador: string;
   usuarioRadicador: string;
-  fechaRadicacion: Date | string;
   rutaCarpetaRadicado: string;
-  ultimoAcceso?: Date | string;
-  ultimoUsuario?: string;
-  
-  // Relación con el usuario radicador
-  radicador?: {
-    id: string;
-    username: string;
-    fullName: string;
-    role: string;
-  };
-  
-  // Campos de token público
-  tokenPublico?: string;
-  tokenActivo?: boolean;
-  tokenExpiraEn?: Date | string;
-
-  // ✅ AGREGAR ESTA PROPIEDAD
+  radicador: any;
+  tokenPublico: string;
+  tokenActivo: boolean;
+  tokenExpiraEn: Date;
   contratistaId?: string;
-
-  // ✅ AGREGAR createdAt y updatedAt
-  createdAt?: Date | string;
-  updatedAt?: Date | string;
+  createdAt: Date;
+  updatedAt: Date;
+  ultimoAcceso: Date;
+  ultimoUsuario: string;
+  
+  // ✅ CAMPOS AÑADIDOS
+  fechaActualizacion?: Date;
+  usuarioAsignadoNombre?: string;
+  
+  // Campos específicos para supervisor
+  disponible?: boolean;
+  asignacion?: {
+    id?: string;
+    estado?: string;
+    fechaInicioRevision?: Date;
+    supervisor?: {
+      id: string;
+      nombre: string;
+      username: string;
+    };
+    enRevision?: boolean;
+    puedoTomar?: boolean;
+    usuarioAsignado?: string;
+    supervisorActual?: string;
+  };
 }
 
 // DTO para crear documento
@@ -72,15 +71,15 @@ export interface CreateDocumentoDto {
   documentoContratista: string;
   fechaInicio: Date | string;
   fechaFin: Date | string;
-  
+
   // Descripciones
   descripcionCuentaCobro: string;
   descripcionSeguridadSocial: string;
   descripcionInformeActividades: string;
-  
+
   // Campo observación
   observacion?: string;
-  
+
   // Archivos (para formulario)
   archivos?: File[];
 }
