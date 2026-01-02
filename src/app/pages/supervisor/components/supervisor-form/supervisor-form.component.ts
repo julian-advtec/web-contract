@@ -1,4 +1,3 @@
-import { SupervisorComponent } from './../../supervisor.component';
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
@@ -22,6 +21,10 @@ export class SupervisorFormComponent implements OnInit {
   isProcessing = false;
 
   revisionForm!: FormGroup;
+
+  maxFileSize = 10 * 1024 * 1024;
+  mostrarCampoArchivo = false;
+  archivoAprobacion: File | null = null;
 
   documentosExistentes = [
     { nombre: '', disponible: false },
@@ -62,13 +65,8 @@ export class SupervisorFormComponent implements OnInit {
       supervisorAsignado: [{ value: '', disabled: true }],
       fechaAsignacion: [{ value: '', disabled: true }],
 
-      descripcionCuentaCobro: [{ value: '', disabled: true }],
-      descripcionSeguridadSocial: [{ value: '', disabled: true }],
-      descripcionInformeActividades: [{ value: '', disabled: true }],
-
       estadoRevision: ['PENDIENTE', Validators.required],
       observacionSupervisor: ['', [Validators.required, Validators.minLength(10)]],
-      recomendacion: ['', Validators.maxLength(500)],
       fechaRevision: [{ value: this.getCurrentDate(), disabled: true }],
       supervisorRevisor: [{ value: this.getCurrentUser(), disabled: true }]
     });
@@ -94,13 +92,11 @@ export class SupervisorFormComponent implements OnInit {
   cargarDocumento(id: string): void {
     this.isLoading = true;
 
-    // ✅ Usar el servicio del supervisor
     this.supervisorService.obtenerDocumentoPorId(id)
       .subscribe({
         next: (response: any) => {
           console.log('📊 Respuesta completa del backend:', response);
 
-          // Extraer datos según la estructura del backend
           const documentoData = response?.data?.documento || response?.documento || response?.data || response;
 
           console.log('📝 Datos del documento extraídos:', documentoData);
@@ -111,13 +107,11 @@ export class SupervisorFormComponent implements OnInit {
         },
         error: (error: any) => {
           console.error('❌ Error cargando documento desde supervisor:', error);
-          // Intentar con el servicio de radicación como respaldo
           this.cargarDocumentoDesdeRadicacion(id);
         }
       });
   }
 
-  // ✅ Método de respaldo usando el servicio de radicación
   cargarDocumentoDesdeRadicacion(id: string): void {
     this.radicacionService.obtenerDocumentoPorId(id)
       .subscribe({
@@ -141,7 +135,6 @@ export class SupervisorFormComponent implements OnInit {
   poblarFormulario(documento: any): void {
     console.log('📝 Poblando formulario con datos:', documento);
 
-    // Usar valores anidados o directos según la estructura
     const docData = documento.documento || documento;
 
     this.revisionForm.patchValue({
@@ -162,10 +155,6 @@ export class SupervisorFormComponent implements OnInit {
         'N/A',
       fechaAsignacion: this.formatDateForInput(docData.fechaAsignacion || docData.updatedAt),
 
-      descripcionCuentaCobro: docData.descripcionCuentaCobro || 'Cuenta de Cobro',
-      descripcionSeguridadSocial: docData.descripcionSeguridadSocial || 'Seguridad Social',
-      descripcionInformeActividades: docData.descripcionInformeActividades || 'Informe de Actividades',
-
       fechaRevision: this.getCurrentDate(),
       supervisorRevisor: this.getCurrentUser()
     });
@@ -176,7 +165,6 @@ export class SupervisorFormComponent implements OnInit {
   }
 
   cargarDocumentosExistentes(documento: any): void {
-    // Extraer datos del documento anidado si existe
     const docData = documento.documento || documento;
 
     console.log('📁 Datos para cargar documentos:', docData);
@@ -210,7 +198,6 @@ export class SupervisorFormComponent implements OnInit {
     }
   }
 
-  // Métodos para manejar documentos masivos
   tieneDocumentosDisponibles(): boolean {
     return this.documentosExistentes.some(doc => doc.disponible);
   }
@@ -227,15 +214,13 @@ export class SupervisorFormComponent implements OnInit {
 
     console.log('📂 Abriendo todos los documentos...');
 
-    // Contador para documentos abiertos
     let documentosAbiertos = 0;
 
-    // Abrir cada documento disponible en una nueva pestaña
     for (let i = 0; i < 3; i++) {
       if (this.documentosExistentes[i].disponible) {
         setTimeout(() => {
           this.verDocumento(i);
-        }, i * 300); // Pequeño delay entre aperturas
+        }, i * 300);
         documentosAbiertos++;
       }
     }
@@ -254,7 +239,6 @@ export class SupervisorFormComponent implements OnInit {
 
     const indicesDisponibles = [];
 
-    // Preparar todas las descargas
     for (let i = 0; i < 3; i++) {
       if (this.documentosExistentes[i].disponible) {
         indicesDisponibles.push(i);
@@ -270,7 +254,6 @@ export class SupervisorFormComponent implements OnInit {
     this.notificationService.info('Descarga iniciada',
       `Descargando ${indicesDisponibles.length} documentos...`);
 
-    // Usar forkJoin para descargar todos los documentos en paralelo
     const descargas = indicesDisponibles.map(index =>
       this.descargarDocumentoObservable(index)
     );
@@ -289,7 +272,6 @@ export class SupervisorFormComponent implements OnInit {
     });
   }
 
-  // ✅ Método para descargar documento como Observable
   descargarDocumentoObservable(index: number): Observable<void> {
     return new Observable<void>(observer => {
       try {
@@ -297,7 +279,7 @@ export class SupervisorFormComponent implements OnInit {
         setTimeout(() => {
           observer.next();
           observer.complete();
-        }, 500); // Delay para evitar conflictos
+        }, 500);
       } catch (error) {
         observer.error(error);
       }
@@ -306,110 +288,39 @@ export class SupervisorFormComponent implements OnInit {
 
   verDocumento(index: number): void {
     if (index < 0 || index > 2 || !this.documentosExistentes[index].disponible) {
-        this.notificationService.warning('Documento no disponible', 
-            'El documento seleccionado no está disponible para visualización');
-        return;
-    }
-    
-    console.log(`👁️ Visualizando documento ${index} usando RadicacionService`);
-    
-    // ✅ Usar directamente el servicio de radicación
-    this.radicacionService.previsualizarArchivo(this.documentoId, index + 1);
-}
-
-descargarDocumento(index: number): void {
-    if (index < 0 || index > 2 || !this.documentosExistentes[index].disponible) {
-        this.notificationService.warning('Documento no disponible', 
-            'El documento seleccionado no está disponible para descarga');
-        return;
-    }
-    
-    let nombreArchivo = '';
-    const docData = this.radicadoData.documento || this.radicadoData;
-    
-    switch (index) {
-        case 0:
-            nombreArchivo = docData.cuentaCobro || 'cuenta_cobro.pdf';
-            break;
-        case 1:
-            nombreArchivo = docData.seguridadSocial || 'seguridad_social.pdf';
-            break;
-        case 2:
-            nombreArchivo = docData.informeActividades || 'informe_actividades.pdf';
-            break;
-    }
-    
-    console.log(`📥 Descargando documento ${index}: ${nombreArchivo}`);
-    
-    // ✅ Usar directamente el servicio de radicación
-    this.radicacionService.descargarArchivoDirecto(this.documentoId, index + 1, nombreArchivo);
-}
-
-  
-  // ✅ Método para descargar blob
-  descargarBlob(blob: Blob, nombreArchivo: string): void {
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = nombreArchivo;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-  }
-
-  guardarRevision(): void {
-    if (this.revisionForm.invalid) {
-      this.notificationService.warning('Formulario incompleto',
-        'Por favor completa todos los campos requeridos');
+      this.notificationService.warning('Documento no disponible',
+        'El documento seleccionado no está disponible para visualización');
       return;
     }
 
-    const confirmar = confirm('¿Estás seguro de guardar la revisión? Esta acción cambiará el estado del documento.');
-    if (!confirmar) return;
+    console.log(`👁️ Visualizando documento ${index} usando RadicacionService`);
+    this.radicacionService.previsualizarArchivo(this.documentoId, index + 1);
+  }
 
-    this.isProcessing = true;
-    const formData = this.revisionForm.getRawValue();
+  descargarDocumento(index: number): void {
+    if (index < 0 || index > 2 || !this.documentosExistentes[index].disponible) {
+      this.notificationService.warning('Documento no disponible',
+        'El documento seleccionado no está disponible para descarga');
+      return;
+    }
 
-    const datosRevision = {
-      documentoId: this.documentoId,
-      numeroRadicado: formData.numeroRadicado,
+    let nombreArchivo = '';
+    const docData = this.radicadoData.documento || this.radicadoData;
 
-      estado: formData.estadoRevision,
-      observacion: formData.observacionSupervisor,
-      recomendacion: formData.recomendacion,
-      fechaRevision: new Date(),
-      supervisor: formData.supervisorRevisor,
+    switch (index) {
+      case 0:
+        nombreArchivo = docData.cuentaCobro || 'cuenta_cobro.pdf';
+        break;
+      case 1:
+        nombreArchivo = docData.seguridadSocial || 'seguridad_social.pdf';
+        break;
+      case 2:
+        nombreArchivo = docData.informeActividades || 'informe_actividades.pdf';
+        break;
+    }
 
-      datosOriginales: {
-        radicador: formData.radicadorNombre,
-        fechaRadicacion: formData.fechaRadicacion,
-        contratista: formData.nombreContratista,
-        contrato: formData.numeroContrato
-      }
-    };
-
-    console.log('📤 Enviando revisión del supervisor:', datosRevision);
-
-    // ✅ Usando el método del servicio del supervisor
-    this.supervisorService.guardarRevision(this.documentoId, datosRevision)
-      .subscribe({
-        next: (resultado: any) => {
-          console.log('✅ Revisión guardada:', resultado);
-          this.notificationService.success('Éxito', 'Revisión guardada correctamente');
-          this.isProcessing = false;
-
-          setTimeout(() => {
-            this.volverALista();
-          }, 2000);
-        },
-        error: (error: any) => {
-          console.error('❌ Error guardando revisión:', error);
-          this.notificationService.error('Error',
-            `No se pudo guardar la revisión: ${error.message || 'Error desconocido'}`);
-          this.isProcessing = false;
-        }
-      });
+    console.log(`📥 Descargando documento ${index}: ${nombreArchivo}`);
+    this.radicacionService.descargarArchivoDirecto(this.documentoId, index + 1, nombreArchivo);
   }
 
   getNombreArchivo(index: number): string {
@@ -423,33 +334,6 @@ descargarDocumento(index: number): void {
     return parts[parts.length - 1] || path;
   }
 
-  getDocumentoIcon(index: number): string {
-    switch (index) {
-      case 0: return 'fas fa-file-invoice-dollar';
-      case 1: return 'fas fa-shield-alt';
-      case 2: return 'fas fa-chart-line';
-      default: return 'fas fa-file';
-    }
-  }
-
-  getDocumentoTitle(index: number): string {
-    switch (index) {
-      case 0: return 'Cuenta de Cobro';
-      case 1: return 'Seguridad Social';
-      case 2: return 'Informe de Actividades';
-      default: return 'Documento';
-    }
-  }
-
-  getDocumentoColor(index: number): string {
-    switch (index) {
-      case 0: return 'primary';
-      case 1: return 'success';
-      case 2: return 'info';
-      default: return 'secondary';
-    }
-  }
-
   volverALista(): void {
     this.router.navigate(['/supervisor/pendientes']);
   }
@@ -460,13 +344,91 @@ descargarDocumento(index: number): void {
     }
   }
 
-  // ✅ NUEVO: Método para debug
-  debugData(): void {
-    console.log('=== DEBUG DATOS ===');
-    console.log('Documento ID:', this.documentoId);
-    console.log('Radicado Data:', this.radicadoData);
-    console.log('Form Values:', this.revisionForm.getRawValue());
-    console.log('Documentos Existentes:', this.documentosExistentes);
-    console.log('Documento principal (data):', this.radicadoData?.documento || this.radicadoData);
+  onEstadoChange(estado: string): void {
+    this.mostrarCampoArchivo = estado === 'APROBADO';
+    if (estado !== 'APROBADO') {
+      this.archivoAprobacion = null;
+    }
+  }
+
+  onArchivoAprobacionSelected(event: any): void {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (file.size > this.maxFileSize) {
+      this.notificationService.error('Error', 'El archivo excede el tamaño máximo de 10MB');
+      event.target.value = '';
+      return;
+    }
+
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'image/jpeg',
+      'image/png'
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      this.notificationService.error('Error', 'Tipo de archivo no permitido');
+      event.target.value = '';
+      return;
+    }
+
+    this.archivoAprobacion = file;
+    this.notificationService.success('Archivo cargado', 'Archivo de aprobación cargado correctamente');
+  }
+
+  guardarRevision(): void {
+    if (this.revisionForm.invalid) {
+      this.notificationService.warning('Formulario incompleto',
+        'Por favor completa todos los campos requeridos');
+      return;
+    }
+
+    const estado = this.revisionForm.get('estadoRevision')?.value;
+
+    if (estado === 'APROBADO' && !this.archivoAprobacion) {
+      this.notificationService.error('Error',
+        'Debe adjuntar un archivo de aprobación cuando el estado es APROBADO');
+      return;
+    }
+
+    const confirmar = confirm('¿Estás seguro de guardar la revisión? Esta acción cambiará el estado del documento.');
+    if (!confirmar) return;
+
+    this.isProcessing = true;
+    const formData = this.revisionForm.getRawValue();
+
+    // ✅ CORREGIDO: Solo enviar campos permitidos
+    const datosRevision = {
+      estado: estado,
+      observacion: formData.observacionSupervisor
+      
+    };
+
+    console.log('📤 Enviando revisión CORREGIDA del supervisor:', datosRevision);
+
+    const requestObservable = estado === 'APROBADO' && this.archivoAprobacion
+      ? this.supervisorService.guardarRevisionConArchivo(this.documentoId, datosRevision, this.archivoAprobacion)
+      : this.supervisorService.guardarRevision(this.documentoId, datosRevision);
+
+    requestObservable.subscribe({
+      next: (resultado: any) => {
+        console.log('✅ Revisión guardada exitosamente:', resultado);
+        this.notificationService.success('Éxito', 'Revisión guardada correctamente');
+        this.isProcessing = false;
+
+        setTimeout(() => {
+          this.volverALista();
+        }, 2000);
+      },
+      error: (error: any) => {
+        console.error('❌ Error guardando revisión:', error);
+        const errorMsg = error.error?.message || error.message || 'Error desconocido';
+        this.notificationService.error('Error', `No se pudo guardar la revisión: ${errorMsg}`);
+        this.isProcessing = false;
+      }
+    });
   }
 }

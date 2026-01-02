@@ -25,7 +25,7 @@ declare var bootstrap: any;
 })
 export class ListaRechazadosComponent implements OnInit, OnDestroy {
 
-    @Input() sidebarCollapsed = false;
+     @Input() sidebarCollapsed = false;
 
     // Datos del usuario
     currentUser: User | null = null;
@@ -38,7 +38,7 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
     // Estados
     isLoading = true;
     searchTerm = '';
-    modoPrueba = true; // Modo prueba activado por defecto
+    modoPrueba = false; // ❌ CAMBIO: Modo prueba DESACTIVADO
 
     // Paginación
     currentPage = 1;
@@ -68,7 +68,8 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
         private cdr: ChangeDetectorRef
     ) { }
 
-    ngOnInit(): void {
+
+ngOnInit(): void {
         console.log('🔍 ListaRechazadosComponent - ngOnInit llamado');
         console.log('📌 URL actual:', window.location.href);
         console.log('📍 Ruta Router:', this.router.url);
@@ -76,8 +77,8 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
 
         this.loadCurrentUser();
         
-        // Cargar datos de prueba inmediatamente
-        this.cargarDatosPrueba();
+        // ❌ CAMBIO: Cargar datos reales en lugar de prueba
+        this.loadDocumentosRechazados();
     }
 
     ngOnDestroy(): void {
@@ -149,12 +150,12 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
         console.log('📥 Cargando documentos rechazados...');
 
         if (this.modoPrueba) {
-            // Usar datos de prueba
-            this.cargarDatosPrueba();
+            // Usar datos de prueba (ya no se usa por defecto)
+      
             return;
         }
 
-        // Código original del servicio (comentado temporalmente)
+        // Código del servicio real
         this.radicacionService.obtenerDocumentos()
             .pipe(
                 takeUntil(this.destroy$),
@@ -169,13 +170,13 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
 
                     const documentosArray = Array.isArray(documentos) ? documentos : [];
 
-                    // Filtrar solo los documentos rechazados
+                    // ✅ CAMBIO: Filtrar solo los documentos rechazados por SUPERVISOR
                     const documentosRechazados = documentosArray.filter(doc =>
-                        doc.estado && doc.estado.toUpperCase() === 'RECHAZADO'
+                        doc.estado && doc.estado.toUpperCase() === 'RECHAZADO_SUPERVISOR'
                     );
 
                     console.log(`📊 Total de documentos: ${documentosArray.length}`);
-                    console.log(`📊 Documentos rechazados: ${documentosRechazados.length}`);
+                    console.log(`📊 Documentos rechazados por supervisor: ${documentosRechazados.length}`);
 
                     this.documentos = documentosRechazados;
                     this.filteredDocumentos = [...documentosRechazados];
@@ -183,10 +184,10 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
 
                     if (this.documentos.length === 0) {
                         this.showSuccess = true;
-                        this.successMessage = 'No hay documentos rechazados';
+                        this.successMessage = 'No hay documentos rechazados por supervisor';
                     } else {
                         this.showSuccess = true;
-                        this.successMessage = `Se encontraron ${this.documentos.length} documentos rechazados`;
+                        this.successMessage = `Se encontraron ${this.documentos.length} documentos rechazados por supervisor`;
 
                         setTimeout(() => {
                             this.showSuccess = false;
@@ -205,261 +206,9 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
             });
     }
 
-    // ===============================
-    // DATOS DE PRUEBA COMPLETOS
-    // ===============================
-    cargarDatosPrueba(): void {
-        this.isLoading = true;
-        console.log('🧪 Cargando datos de prueba...');
 
-        // Datos de prueba completos según la estructura de Documento
-        const mockDocumentos: Documento[] = [
-            {
-                id: '1',
-                numeroRadicado: 'RAD-2024-001',
-                numeroContrato: 'CONTRATO-001-2024',
-                nombreContratista: 'Empresa Constructora S.A.',
-                documentoContratista: '123456789',
-                fechaInicio: new Date('2024-01-15'),
-                fechaFin: new Date('2024-06-15'),
-                estado: 'RECHAZADO',
-                cuentaCobro: 'cuenta_cobro_1.pdf',
-                seguridadSocial: 'seguridad_social_1.pdf',
-                informeActividades: '',
-                descripcionCuentaCobro: 'Cuenta de Cobro Enero 2024',
-                descripcionSeguridadSocial: 'Certificado de Seguridad Social',
-                descripcionInformeActividades: '',
-                observacion: 'Documentación incompleta. Faltan firmas en el contrato.',
-                radicador: {
-                    id: '1',
-                    nombre: 'Administrador Sistema',
-                    email: 'admin@sistema.com',
-                    role: UserRole.ADMIN,
-                    isActive: true,
-                    createdAt: new Date(),
-                    updatedAt: new Date()
-                } as any, // Usar 'as any' temporalmente para evitar complejidad
-                nombreRadicador: 'Administrador Sistema',
-                usuarioRadicador: 'admin',
-                contratistaId: 'CT-001',
-                fechaRadicacion: new Date('2024-01-10'),
-                rutaCarpetaRadicado: '/documentos/radicados/RAD-2024-001',
-                ultimoAcceso: new Date('2024-01-12'),
-                ultimoUsuario: 'admin',
-                tokenPublico: 'token_publico_001',
-                tokenActivo: false,
-                tokenExpiraEn: new Date('2024-12-31'),
-                createdAt: new Date('2024-01-10'),
-                updatedAt: new Date('2024-01-12')
-            },
-            {
-                id: '2',
-                numeroRadicado: 'RAD-2024-002',
-                numeroContrato: 'CONTRATO-002-2024',
-                nombreContratista: 'Servicios Técnicos Ltda.',
-                documentoContratista: '987654321',
-                fechaInicio: new Date('2024-02-01'),
-                fechaFin: new Date('2024-12-31'),
-                estado: 'RECHAZADO',
-                cuentaCobro: 'cuenta_cobro_2.pdf',
-                seguridadSocial: '',
-                informeActividades: 'informe_actividades_2.pdf',
-                descripcionCuentaCobro: 'Cuenta de Cobro Febrero 2024',
-                descripcionSeguridadSocial: '',
-                descripcionInformeActividades: 'Informe de Actividades Mensual',
-                observacion: 'Certificado de seguridad social vencido. Renovar documento.',
-                radicador: {
-                    id: '2',
-                    nombre: 'Juan Pérez',
-                    email: 'juan.perez@empresa.com',
-                    role: UserRole.RADICADOR,
-                    isActive: true,
-                    createdAt: new Date(),
-                    updatedAt: new Date()
-                } as any,
-                nombreRadicador: 'Juan Pérez',
-                usuarioRadicador: 'juan.perez',
-                contratistaId: 'CT-002',
-                fechaRadicacion: new Date('2024-01-25'),
-                rutaCarpetaRadicado: '/documentos/radicados/RAD-2024-002',
-                ultimoAcceso: new Date('2024-01-28'),
-                ultimoUsuario: 'juan.perez',
-                tokenPublico: 'token_publico_002',
-                tokenActivo: false,
-                tokenExpiraEn: new Date('2024-12-31'),
-                createdAt: new Date('2024-01-25'),
-                updatedAt: new Date('2024-01-28')
-            },
-            {
-                id: '3',
-                numeroRadicado: 'RAD-2024-003',
-                numeroContrato: 'CONTRATO-003-2024',
-                nombreContratista: 'Consultores Asociados',
-                documentoContratista: '456789123',
-                fechaInicio: new Date('2024-03-10'),
-                fechaFin: new Date('2024-09-10'),
-                estado: 'RECHAZADO',
-                cuentaCobro: '',
-                seguridadSocial: 'seguridad_social_3.pdf',
-                informeActividades: 'informe_actividades_3.pdf',
-                descripcionCuentaCobro: '',
-                descripcionSeguridadSocial: 'Certificado EPS y ARL',
-                descripcionInformeActividades: 'Informe Trimestral de Actividades',
-                observacion: 'Informe de actividades no cumple con los requisitos mínimos establecidos.',
-                radicador: {
-                    id: '3',
-                    nombre: 'María González',
-                    email: 'maria.gonzalez@empresa.com',
-                    role: UserRole.RADICADOR,
-                    isActive: true,
-                    createdAt: new Date(),
-                    updatedAt: new Date()
-                } as any,
-                nombreRadicador: 'María González',
-                usuarioRadicador: 'maria.gonzalez',
-                contratistaId: 'CT-003',
-                fechaRadicacion: new Date('2024-03-05'),
-                rutaCarpetaRadicado: '/documentos/radicados/RAD-2024-003',
-                ultimoAcceso: new Date('2024-03-08'),
-                ultimoUsuario: 'maria.gonzalez',
-                tokenPublico: 'token_publico_003',
-                tokenActivo: false,
-                tokenExpiraEn: new Date('2024-12-31'),
-                createdAt: new Date('2024-03-05'),
-                updatedAt: new Date('2024-03-08')
-            },
-            {
-                id: '4',
-                numeroRadicado: 'RAD-2024-004',
-                numeroContrato: 'CONTRATO-004-2024',
-                nombreContratista: 'Ingeniería y Proyectos S.A.S.',
-                documentoContratista: '321654987',
-                fechaInicio: new Date('2024-04-05'),
-                fechaFin: new Date('2024-10-05'),
-                estado: 'RECHAZADO',
-                cuentaCobro: 'cuenta_cobro_4.pdf',
-                seguridadSocial: 'seguridad_social_4.pdf',
-                informeActividades: 'informe_actividades_4.pdf',
-                descripcionCuentaCobro: 'Cuenta de Cobro Proyecto Ingeniería',
-                descripcionSeguridadSocial: 'Certificado de Afiliación',
-                descripcionInformeActividades: 'Informe de Avance de Obra',
-                observacion: 'Cuenta de cobro con valores incorrectos. Revisar cálculos.',
-                radicador: {
-                    id: '1',
-                    nombre: 'Administrador Sistema',
-                    email: 'admin@sistema.com',
-                    role: UserRole.ADMIN,
-                    isActive: true,
-                    createdAt: new Date(),
-                    updatedAt: new Date()
-                } as any,
-                nombreRadicador: 'Administrador Sistema',
-                usuarioRadicador: 'admin',
-                contratistaId: 'CT-004',
-                fechaRadicacion: new Date('2024-04-01'),
-                rutaCarpetaRadicado: '/documentos/radicados/RAD-2024-004',
-                ultimoAcceso: new Date('2024-04-03'),
-                ultimoUsuario: 'admin',
-                tokenPublico: 'token_publico_004',
-                tokenActivo: false,
-                tokenExpiraEn: new Date('2024-12-31'),
-                createdAt: new Date('2024-04-01'),
-                updatedAt: new Date('2024-04-03')
-            },
-            {
-                id: '5',
-                numeroRadicado: 'RAD-2024-005',
-                numeroContrato: 'CONTRATO-005-2024',
-                nombreContratista: 'Logística Integral',
-                documentoContratista: '789123456',
-                fechaInicio: new Date('2024-05-20'),
-                fechaFin: new Date('2024-11-20'),
-                estado: 'RECHAZADO',
-                cuentaCobro: 'cuenta_cobro_5.pdf',
-                seguridadSocial: '',
-                informeActividades: '',
-                descripcionCuentaCobro: 'Cuenta de Cobro Servicios Logísticos',
-                descripcionSeguridadSocial: '',
-                descripcionInformeActividades: '',
-                observacion: 'Falta documentación de respaldo para los costos presentados.',
-                radicador: {
-                    id: '4',
-                    nombre: 'Carlos Rodríguez',
-                    email: 'carlos.rodriguez@empresa.com',
-                    role: UserRole.RADICADOR,
-                    isActive: true,
-                    createdAt: new Date(),
-                    updatedAt: new Date()
-                } as any,
-                nombreRadicador: 'Carlos Rodríguez',
-                usuarioRadicador: 'carlos.rodriguez',
-                contratistaId: 'CT-005',
-                fechaRadicacion: new Date('2024-05-15'),
-                rutaCarpetaRadicado: '/documentos/radicados/RAD-2024-005',
-                ultimoAcceso: new Date('2024-05-18'),
-                ultimoUsuario: 'carlos.rodriguez',
-                tokenPublico: 'token_publico_005',
-                tokenActivo: false,
-                tokenExpiraEn: new Date('2024-12-31'),
-                createdAt: new Date('2024-05-15'),
-                updatedAt: new Date('2024-05-18')
-            }
-        ];
 
-        // Simular delay de API
-        setTimeout(() => {
-            console.log('✅ Datos de prueba cargados:', mockDocumentos);
-            
-            this.documentos = mockDocumentos;
-            this.filteredDocumentos = [...mockDocumentos];
-            this.updatePagination();
-            this.isLoading = false;
-            
-            this.showSuccess = true;
-            this.successMessage = `✅ Se cargaron ${this.documentos.length} documentos de prueba`;
-            
-            setTimeout(() => {
-                this.showSuccess = false;
-            }, 3000);
-            
-            setTimeout(() => {
-                this.initTooltips();
-            }, 100);
-            
-            this.cdr.detectChanges();
-        }, 800); // Simular 800ms de carga
-    }
-
-    limpiarDatosPrueba(): void {
-        this.documentos = [];
-        this.filteredDocumentos = [];
-        this.paginatedDocumentos = [];
-        this.searchTerm = '';
-        this.currentPage = 1;
-        
-        this.showSuccess = true;
-        this.successMessage = 'Datos de prueba limpiados';
-        
-        setTimeout(() => {
-            this.showSuccess = false;
-        }, 2000);
-        
-        this.cdr.detectChanges();
-    }
-
-    toggleModoPrueba(): void {
-        this.modoPrueba = !this.modoPrueba;
-        
-        if (this.modoPrueba) {
-            this.cargarDatosPrueba();
-        } else {
-            this.limpiarDatosPrueba();
-        }
-    }
-
-    // ===============================
-    // MÉTODOS DE BÚSQUEDA Y PAGINACIÓN
-    // ===============================
+    
     onSearch(): void {
         if (!this.searchTerm.trim()) {
             this.filteredDocumentos = [...this.documentos];
@@ -541,7 +290,7 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
             if (isNaN(fecha.getTime())) {
                 return 'Fecha inválida';
             }
-            
+
             const dia = fecha.getDate().toString().padStart(2, '0');
             const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
             const anio = fecha.getFullYear();
@@ -606,19 +355,19 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
         // Simular descarga en modo prueba
         if (this.modoPrueba) {
             this.isDownloadingAll = true;
-            
+
             setTimeout(() => {
                 this.showSuccess = true;
                 this.successMessage = `✅ Descarga simulada completada para ${documento.numeroRadicado}`;
                 this.isDownloadingAll = false;
-                
+
                 setTimeout(() => {
                     this.showSuccess = false;
                 }, 3000);
-                
+
                 this.cdr.detectChanges();
             }, 1500);
-            
+
             return;
         }
 
@@ -697,11 +446,11 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
         if (this.modoPrueba) {
             this.showSuccess = true;
             this.successMessage = `Previsualizando documento ${index} de ${documento.numeroRadicado} (modo prueba)`;
-            
+
             setTimeout(() => {
                 this.showSuccess = false;
             }, 2000);
-            
+
             return;
         }
 
@@ -717,10 +466,10 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
 
     verDetallePrueba(doc: Documento): void {
         console.log('🔍 Ver detalle de prueba para:', doc);
-        
+
         this.showSuccess = true;
         this.successMessage = `Detalle de ${doc.numeroRadicado}: ${doc.observacion || 'Sin observaciones'}`;
-        
+
         setTimeout(() => {
             this.showSuccess = false;
         }, 3000);
@@ -742,13 +491,9 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
     }
 
     refreshData(): void {
-        console.log('🔄 Recargando documentos rechazados...');
-        
-        if (this.modoPrueba) {
-            this.cargarDatosPrueba();
-        } else {
-            this.loadDocumentosRechazados();
-        }
+
+        this.loadDocumentosRechazados();
+
     }
 
     clearSearch(): void {

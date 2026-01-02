@@ -677,3 +677,153 @@ $text-muted: #6B7280;
 .ms-1 { margin-left: 0.25rem !important; }
 .flex-fill { flex: 1 1 auto !important; }
 
+/* ===============================
+   ESTILOS COMPARTIDOS – SUBIDA DE ARCHIVOS
+   =============================== */
+
+.documentos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.documento-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 16px;
+  transition: all 0.3s ease;
+}
+
+.documento-card:hover {
+  border-color: #10b981;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
+}
+
+/* HEADER */
+.documento-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.documento-icon {
+  font-size: 20px;
+  color: #10b981;
+}
+
+.documento-header h5 {
+  margin: 0;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* BODY */
+.documento-body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===============================
+   FILE UPLOAD (CLAVE)
+   =============================== */
+
+.file-upload-area {
+  position: relative;
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 8px;
+}
+
+.file-upload-area:hover {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.05);
+}
+
+/* cuando ya hay archivo */
+.file-upload-area.has-file {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+/* ocultar input */
+.file-input {
+  display: none;
+}
+
+/* label clickeable */
+.file-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+}
+
+.file-label i {
+  font-size: 24px;
+  color: #10b981;
+}
+
+.file-name {
+  font-size: 13px;
+  color: #10b981;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+/* botón quitar */
+.file-actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+
+.btn-remove {
+  background: #ef4444;
+  color: white;
+  border: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.btn-remove:hover {
+  background: #dc2626;
+  transform: scale(1.05);
+}
+
+/* ===============================
+   INPUTS
+   =============================== */
+
+.form-control {
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.form-text {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 4px;
+}

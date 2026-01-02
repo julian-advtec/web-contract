@@ -201,11 +201,97 @@ export class SupervisorService {
         );
     }
 
-
+    /**
+     * ✅ Método del supervisor: Guardar revisión de un documento
+     */
 
 
     /**
-     * ✅ Aprobar documento
+     * ✅ Método del supervisor: Guardar revisión con archivo (si es APROBADO)
+     */
+    guardarRevisionConArchivo(
+        documentoId: string,
+        datosRevision: any,
+        archivo: File | null
+    ): Observable<any> {
+        const formData = new FormData();
+
+        // ✅ SOLO campos permitidos por el DTO del backend
+        formData.append('estado', datosRevision.estado);
+        formData.append('observacion', datosRevision.observacion || '');
+
+        // ❌ NO incluir 'recomendacion' - no existe en el DTO
+
+        console.log('📤 Enviando datos (FormData):', {
+            estado: datosRevision.estado,
+            observacion: datosRevision.observacion,
+            tieneArchivo: !!archivo
+        });
+
+        // Agregar archivo solo si existe y el estado es APROBADO
+        if (archivo && datosRevision.estado === 'APROBADO') {
+            formData.append('archivo', archivo, archivo.name);
+        }
+
+        const headers = new HttpHeaders({
+            'Authorization': this.getAuthToken()
+            // No incluir Content-Type, FormData lo maneja automáticamente
+        });
+
+        return this.http.post<any>(`${this.apiUrl}/revisar/${documentoId}`, formData, { headers })
+            .pipe(
+                map(response => {
+                    console.log('✅ Revisión con archivo guardada:', response);
+                    return response;
+                }),
+                catchError(this.handleError)
+            );
+    }
+
+    /**
+     * ✅ Método del supervisor: Guardar revisión sin archivo
+     */
+    guardarRevision(documentoId: string, datosRevision: any): Observable<any> {
+        const headers = this.getAuthHeaders();
+
+        const payload = {
+            estado: datosRevision.estado,
+            observacion: datosRevision.observacion,
+            
+        };
+
+        console.log(`📤 Enviando revisión para documento ${documentoId}:`, payload);
+
+        return this.http.post<any>(`${this.apiUrl}/revisar/${documentoId}`, payload, { headers })
+            .pipe(
+                map(response => {
+                    console.log('✅ Revisión guardada:', response);
+
+                    if (response?.ok === true && response.data) {
+                        return response.data;
+                    }
+                    if (response?.success === true) {
+                        return response.data || response;
+                    }
+                    return response;
+                }),
+                catchError((error: any) => {
+                    console.error('❌ Error guardando revisión:', error);
+                    return throwError(() => new Error(error.message || 'Error al guardar la revisión'));
+                })
+            );
+    }
+
+    /**
+     * ✅ Obtener token de autenticación para FormData
+     */
+    private getAuthToken(): string {
+        const token = localStorage.getItem('access_token') || localStorage.getItem('token') || '';
+        return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+    }
+
+    /**
+     * ✅ Aprobar documento (método alternativo)
      */
     aprobarDocumento(id: string, observaciones?: string): Observable<any> {
         const body = {
@@ -233,7 +319,7 @@ export class SupervisorService {
     }
 
     /**
-     * ✅ Rechazar documento
+     * ✅ Rechazar documento (método alternativo)
      */
     rechazarDocumento(id: string, motivo: string): Observable<any> {
         const body = {
@@ -261,7 +347,7 @@ export class SupervisorService {
     }
 
     /**
-     * ✅ Observar documento
+     * ✅ Observar documento (método alternativo)
      */
     observarDocumento(id: string, observaciones: string): Observable<any> {
         const body = {
@@ -377,7 +463,118 @@ export class SupervisorService {
     }
 
     /**
-     * Método simplificado para mapear documentos
+     * ✅ Obtener documento por ID para el formulario de revisión
+     */
+    obtenerDocumentoPorId(id: string): Observable<any> {
+        const headers = this.getAuthHeaders();
+        console.log(`🔍 Supervisor obteniendo documento con ID: ${id}`);
+
+        return this.http.get<any>(`${this.apiUrl}/documento/${id}`, { headers }).pipe(
+            map(response => {
+                console.log('📊 Respuesta obtenerDocumentoPorId (supervisor):', response);
+
+                // Procesar diferentes estructuras de respuesta
+                if (response?.ok === true && response.data) {
+                    return response.data;
+                }
+                if (response?.success === true && response.data) {
+                    return response.data;
+                }
+                if (response?.documento) {
+                    return response.documento;
+                }
+
+                return response;
+            }),
+            catchError(error => {
+                console.error('❌ Error obteniendo documento en supervisor service:', error);
+                return throwError(() => new Error('Error al cargar el documento'));
+            })
+        );
+    }
+
+    /**
+     * ✅ Obtener token de autenticación
+     */
+
+    /**
+     * ✅ Método para obtener URL de archivo con token
+     */
+    getArchivoUrlConToken(id: string, index: number, download = false): string {
+        const token = this.getAuthToken();
+        const baseUrl = `${this.apiUrl}/${id}/archivo/${index}`;
+        const params = new URLSearchParams();
+        if (download) params.append('download', 'true');
+        if (token) params.append('token', token);
+        return `${baseUrl}?${params.toString()}`;
+    }
+
+    /**
+     * ✅ Previsualizar archivo
+     */
+    previsualizarArchivo(id: string, index: number): void {
+        const url = this.getArchivoUrlConToken(id, index, false);
+        window.open(url, '_blank');
+    }
+
+    /**
+     * ✅ Previsualizar documento (alias)
+     */
+    previsualizarDocumento(documentoId: string, index: number): void {
+        this.previsualizarArchivo(documentoId, index);
+    }
+
+    /**
+     * ✅ Método unificado para descargar archivos
+     */
+    descargarDocumento(documentoId: string, index: number, nombreArchivo?: string): void {
+        this.descargarArchivoDirecto(documentoId, index, nombreArchivo);
+    }
+
+    /**
+     * ✅ Método para obtener URL de previsualización
+     */
+    getPreviewUrl(documentoId: string, index: number): string {
+        return this.getArchivoUrlConToken(documentoId, index, false);
+    }
+
+    /**
+     * ✅ Método para obtener URL de descarga
+     */
+    getDownloadUrl(documentoId: string, index: number): string {
+        return this.getArchivoUrlConToken(documentoId, index, true);
+    }
+
+    /**
+     * ✅ Descarga directamente el archivo sin pasar por Blob
+     */
+    descargarArchivoDirecto(id: string, index: number, nombreArchivo?: string): void {
+        const url = this.getArchivoUrlConToken(id, index, true);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = nombreArchivo || `archivo-${index}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    /**
+     * ✅ Método para descargar archivo como Blob
+     */
+    descargarArchivo(documentoId: string, numeroArchivo: number): Observable<Blob> {
+        const headers = this.getAuthHeaders();
+        console.log(`📥 Descargando archivo ${numeroArchivo} del documento ${documentoId}...`);
+
+        return this.http.get(`${this.apiUrl}/descargar/${documentoId}/archivo/${numeroArchivo}`, {
+            headers,
+            responseType: 'blob'
+        }).pipe(
+            catchError(this.handleError)
+        );
+    }
+
+    /**
+     * ✅ Método simplificado para mapear documentos
      */
     private mapearDocumentosDesdeBackend(documentosArray: any[]): Documento[] {
         if (!Array.isArray(documentosArray)) {
@@ -436,230 +633,46 @@ export class SupervisorService {
             }
         }).filter((doc): doc is Documento => doc !== null);
     }
+
     /**
-     * ✅ Método del supervisor: Guardar revisión de un documento
+     * ✅ Métodos adicionales (manteniendo compatibilidad)
      */
-    guardarRevision(documentoId: string, datosRevision: any): Observable<any> {
-        const headers = this.getAuthHeaders();
-
-        const payload = {
-            ...datosRevision,
-            documentoId: documentoId,
-            fechaRevision: new Date().toISOString()
-        };
-
-        return this.http.post(`${this.apiUrl}/documentos/${documentoId}/revision`, payload, { headers })
-            .pipe(
-                map((response: any) => {
-                    console.log('✅ Revisión guardada:', response);
-                    return response;
-                }),
-                catchError((error: any) => {
-                    console.error('❌ Error guardando revisión:', error);
-                    return throwError(() => new Error(error.message || 'Error al guardar la revisión'));
-                })
-            );
-    }
-
-    /**
-  * ✅ Obtener documento por ID para el formulario de revisión
-  */
-    obtenerDocumentoPorId(id: string): Observable<any> {
-        const headers = this.getAuthHeaders();
-        console.log(`🔍 Supervisor obteniendo documento con ID: ${id}`);
-
-        return this.http.get<any>(`${this.apiUrl}/documento/${id}`, { headers }).pipe(
-            map(response => {
-                console.log('📊 Respuesta obtenerDocumentoPorId (supervisor):', response);
-
-                // Procesar diferentes estructuras de respuesta
-                if (response?.ok === true && response.data) {
-                    return response.data;
-                }
-                if (response?.success === true && response.data) {
-                    return response.data;
-                }
-                if (response?.documento) {
-                    return response.documento;
-                }
-
-                return response;
-            }),
-            catchError(error => {
-                console.error('❌ Error obteniendo documento en supervisor service:', error);
-                return throwError(() => new Error('Error al cargar el documento'));
-            })
-        );
-    }
-
     guardarRevisionConDocumentos(documentoId: string, formData: FormData): Observable<any> {
-        return this.http.post(`${this.apiUrl}/documentos/${documentoId}/documentos-corregidos`, formData, {
-            headers: {
-                // No incluir Content-Type, FormData lo maneja automáticamente
-            }
-        });
+        return this.http.post(`${this.apiUrl}/documentos/${documentoId}/documentos-corregidos`, formData);
     }
 
-    // O si prefieres un método más específico:
     subirDocumentosCorregidos(formData: FormData): Observable<any> {
         return this.http.post(`${this.apiUrl}/subir-documentos-corregidos`, formData);
     }
 
-    getArchivoUrlConToken(id: string, index: number, download = false): string {
-        const token = this.getAuthToken();
-        const baseUrl = `${this.apiUrl}/${id}/archivo/${index}`; // Cambiado: QUITAR "/ver/"
-        const params = new URLSearchParams();
-        if (download) params.append('download', 'true');
-        if (token) params.append('token', token);
-        return `${baseUrl}?${params.toString()}`;
-    }
-
-    /**
-     * ✅ Obtener token de autenticación
-     */
-    private getAuthToken(): string {
-        const token = localStorage.getItem('access_token') || localStorage.getItem('token') || '';
-        return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
-    }
-
-    previsualizarArchivo(id: string, index: number): void {
-        const url = this.getArchivoUrlConToken(id, index, false);
-        window.open(url, '_blank');
-    }
-    /**
-     * Abre el archivo en nueva pestaña para previsualización (igual que radicación)
-     */
-    previsualizarDocumento(documentoId: string, index: number): void {
-        this.previsualizarArchivo(documentoId, index);
-    }
-
-    /**
-     * ✅ Método unificado para descargar archivos (compatible con radicación)
-     */
-    descargarDocumento(documentoId: string, index: number, nombreArchivo?: string): void {
-        this.descargarArchivoDirecto(documentoId, index, nombreArchivo);
-    }
-
-    /**
-     * ✅ Método para obtener URL de previsualización
-     */
-    getPreviewUrl(documentoId: string, index: number): string {
-        return this.getArchivoUrlConToken(documentoId, index, false);
-    }
-
-    /**
-     * ✅ Método para obtener URL de descarga
-     */
-    getDownloadUrl(documentoId: string, index: number): string {
-        return this.getArchivoUrlConToken(documentoId, index, true);
-    }
-
-    /**
-     * Descarga directamente el archivo sin pasar por Blob (igual que radicación)
-     */
-    descargarArchivoDirecto(id: string, index: number, nombreArchivo?: string): void {
-        const url = this.getArchivoUrlConToken(id, index, true);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = nombreArchivo || `archivo-${index}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-
-    /**
-     * Método para descargar archivo como Blob (manteniendo el existente pero mejorado)
-     */
-    descargarArchivo(documentoId: string, numeroArchivo: number): Observable<Blob> {
-        const headers = this.getAuthHeaders();
-        console.log(`📥 Descargando archivo ${numeroArchivo} del documento ${documentoId}...`);
-
-        return this.http.get(`${this.apiUrl}/descargar/${documentoId}/archivo/${numeroArchivo}`, {
-            headers,
-            responseType: 'blob'
-        }).pipe(
+    obtenerDocumentosPendientes(): Observable<any> {
+        return this.http.get(`${this.apiUrl}/pendientes`).pipe(
             catchError(this.handleError)
         );
     }
 
-    // ✅ MÉTODO NUEVO: Guardar revisión con archivos
-  guardarRevisionConArchivos(
-    documentoId: string, 
-    datosRevision: any, 
-    archivos: File[]
-  ): Observable<any> {
-    const formData = new FormData();
-    
-    // Agregar datos de la revisión como JSON
-    formData.append('datosRevision', JSON.stringify(datosRevision));
-    
-    // Agregar cada archivo con su índice
-    archivos.forEach((file, index) => {
-      // Solo agregar archivos no nulos
-      if (file) {
-        formData.append(`archivo${index + 1}`, file, file.name);
-        
-        // Agregar información sobre qué tipo de documento es
-        const tipos = ['cuentaCobro', 'seguridadSocial', 'informeActividades'];
-        formData.append(`tipoArchivo${index + 1}`, tipos[index]);
-      }
-    });
-    
-    // Agregar información sobre qué archivos se están enviando
-    const archivosInfo = archivos.map((file, index) => ({
-      indice: index,
-      nombre: file?.name || '',
-      tipo: file?.type || '',
-      tamaño: file?.size || 0,
-      documentoId: documentoId
-    }));
-    
-    formData.append('archivosInfo', JSON.stringify(archivosInfo));
-    
-    return this.http.post(`${this.apiUrl}/revisar/${documentoId}/con-archivos`, formData).pipe(
-      map((response: any) => {
-        console.log('✅ Respuesta de guardar revisión con archivos:', response);
-        return response;
-      }),
-      catchError(this.handleError)
-    );
-  }
+    obtenerDocumentosRevisados(): Observable<any> {
+        return this.http.get(`${this.apiUrl}/revisados`).pipe(
+            catchError(this.handleError)
+        );
+    }
 
+    subirArchivoRevision(documentoId: string, indice: number, archivo: File): Observable<any> {
+        const formData = new FormData();
+        formData.append('archivo', archivo, archivo.name);
+        formData.append('indice', indice.toString());
+        formData.append('documentoId', documentoId);
 
+        return this.http.post(`${this.apiUrl}/subir-archivo`, formData).pipe(
+            map((response: any) => response),
+            catchError(this.handleError)
+        );
+    }
 
-  obtenerDocumentosPendientes(): Observable<any> {
-    return this.http.get(`${this.apiUrl}/pendientes`).pipe(
-      catchError(this.handleError)
-    );
-  }
-
-  obtenerDocumentosRevisados(): Observable<any> {
-    return this.http.get(`${this.apiUrl}/revisados`).pipe(
-      catchError(this.handleError)
-    );
-  }
-
-  // ✅ MÉTODO NUEVO: Subir archivo individual
-  subirArchivoRevision(documentoId: string, indice: number, archivo: File): Observable<any> {
-    const formData = new FormData();
-    formData.append('archivo', archivo, archivo.name);
-    formData.append('indice', indice.toString());
-    formData.append('documentoId', documentoId);
-    
-    return this.http.post(`${this.apiUrl}/subir-archivo`, formData).pipe(
-      map((response: any) => response),
-      catchError(this.handleError)
-    );
-  }
-
-  // ✅ MÉTODO NUEVO: Obtener historial de revisiones con archivos
-  obtenerHistorialConArchivos(documentoId: string): Observable<any> {
-    return this.http.get(`${this.apiUrl}/historial/${documentoId}/archivos`).pipe(
-      map((response: any) => response),
-      catchError(this.handleError)
-    );
-  }
-
-
-
+    obtenerHistorialConArchivos(documentoId: string): Observable<any> {
+        return this.http.get(`${this.apiUrl}/historial/${documentoId}/archivos`).pipe(
+            map((response: any) => response),
+            catchError(this.handleError)
+        );
+    }
 }
