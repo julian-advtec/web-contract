@@ -19,6 +19,11 @@ export class SupervisorFormComponent implements OnInit {
   radicadoData: any = null;
   isLoading = false;
   isProcessing = false;
+  
+  // Modo de trabajo
+  modoEdicion = false;
+  desdeHistorial = false;
+  soloLectura = false;
 
   revisionForm!: FormGroup;
 
@@ -41,8 +46,29 @@ export class SupervisorFormComponent implements OnInit {
     private notificationService: NotificationService
   ) { }
 
-  ngOnInit(): void {
+   ngOnInit(): void {
     this.initializeForm();
+    
+    // Verificar parámetros de ruta
+    this.route.queryParams.subscribe(params => {
+      this.modoEdicion = params['modo'] === 'edicion';
+      this.desdeHistorial = params['desdeHistorial'] === 'true';
+      this.soloLectura = params['soloLectura'] === 'true' || params['modo'] === 'consulta'; // ✅ NUEVO
+      
+      console.log('🔍 Parámetros de ruta:', {
+        modoEdicion: this.modoEdicion,
+        desdeHistorial: this.desdeHistorial,
+        soloLectura: this.soloLectura
+      });
+      
+      if (this.soloLectura) {
+        console.log('📖 MODO SOLO LECTURA ACTIVADO');
+      }
+    });
+    
+    // Verificar si hay datos prellenados del historial
+    this.verificarDatosPrellenados();
+    
     this.route.params.subscribe(params => {
       this.documentoId = params['id'];
       this.cargarDocumento(this.documentoId);
@@ -65,11 +91,95 @@ export class SupervisorFormComponent implements OnInit {
       supervisorAsignado: [{ value: '', disabled: true }],
       fechaAsignacion: [{ value: '', disabled: true }],
 
-      estadoRevision: ['PENDIENTE', Validators.required],
-      observacionSupervisor: ['', [Validators.required, Validators.minLength(10)]],
+      estadoRevision: [{ value: 'PENDIENTE', disabled: false }, Validators.required],
+      observacionSupervisor: [{ value: '', disabled: false }, [Validators.required, Validators.minLength(10)]],
       fechaRevision: [{ value: this.getCurrentDate(), disabled: true }],
       supervisorRevisor: [{ value: this.getCurrentUser(), disabled: true }]
     });
+  }
+
+  verificarDatosPrellenados(): void {
+    const datosHistorialStr = localStorage.getItem('datosHistorialParaRevision');
+    if (datosHistorialStr) {
+      try {
+        const datosHistorial = JSON.parse(datosHistorialStr);
+        console.log('📝 Datos del historial encontrados:', datosHistorial);
+        
+        // Prellenar formulario con datos del historial
+        this.revisionForm.patchValue({
+          numeroRadicado: datosHistorial.numeroRadicado || '',
+          numeroContrato: datosHistorial.numeroContrato || '',
+          nombreContratista: datosHistorial.nombreContratista || '',
+          documentoContratista: datosHistorial.documentoContratista || '',
+          fechaInicio: this.formatDateForInput(datosHistorial.fechaInicio),
+          fechaFin: this.formatDateForInput(datosHistorial.fechaFin),
+          fechaRadicacion: this.formatDateForInput(datosHistorial.fechaRadicacion),
+          
+          estadoRevision: datosHistorial.estadoRevision || 'PENDIENTE',
+          observacionSupervisor: datosHistorial.observacionSupervisor || '',
+          fechaRevision: this.formatDateForInput(datosHistorial.fechaRevision) || this.getCurrentDate(),
+          supervisorRevisor: datosHistorial.supervisorRevisor || this.getCurrentUser()
+        });
+        
+        // Si viene del historial, activar modo solo lectura
+        if (datosHistorial.modoSoloLectura || datosHistorial.desdeHistorial) {
+          this.soloLectura = true;
+          this.desdeHistorial = true;
+          this.configurarModoSoloLectura();
+        }
+        
+        // Limpiar localStorage después de usar
+        localStorage.removeItem('datosHistorialParaRevision');
+        
+      } catch (error) {
+        console.error('❌ Error parseando datos del historial:', error);
+        localStorage.removeItem('datosHistorialParaRevision');
+      }
+    }
+  }
+
+  // ✅ NUEVO MÉTODO: Configurar formulario en modo solo lectura
+  configurarModoSoloLectura(): void {
+    console.log('🔒 Activando modo solo lectura en formulario');
+    
+    // Deshabilitar todos los campos editables
+    this.revisionForm.get('estadoRevision')?.disable();
+    this.revisionForm.get('observacionSupervisor')?.disable();
+    
+    // Ocultar campo de archivo
+    this.mostrarCampoArchivo = false;
+    
+    // Mostrar mensaje informativo
+    this.notificationService.info('Modo consulta', 
+      'Estás viendo una supervisión del historial. Los datos son de solo lectura.');
+  }
+
+  cargarDocumento(id: string): void {
+    this.isLoading = true;
+
+    this.supervisorService.obtenerDocumentoPorId(id)
+      .subscribe({
+        next: (response: any) => {
+          console.log('📊 Respuesta completa del backend:', response);
+
+          const documentoData = response?.data?.documento || response?.documento || response?.data || response;
+
+          console.log('📝 Datos del documento extraídos:', documentoData);
+          this.radicadoData = documentoData;
+          this.poblarFormulario(documentoData);
+          this.cargarDocumentosExistentes(documentoData);
+          this.isLoading = false;
+          
+          // Si estamos en modo solo lectura, configurar formulario
+          if (this.soloLectura) {
+            this.configurarModoSoloLectura();
+          }
+        },
+        error: (error: any) => {
+          console.error('❌ Error cargando documento desde supervisor:', error);
+          this.cargarDocumentoDesdeRadicacion(id);
+        }
+      });
   }
 
   getCurrentDate(): string {
@@ -89,28 +199,7 @@ export class SupervisorFormComponent implements OnInit {
     return 'Supervisor';
   }
 
-  cargarDocumento(id: string): void {
-    this.isLoading = true;
-
-    this.supervisorService.obtenerDocumentoPorId(id)
-      .subscribe({
-        next: (response: any) => {
-          console.log('📊 Respuesta completa del backend:', response);
-
-          const documentoData = response?.data?.documento || response?.documento || response?.data || response;
-
-          console.log('📝 Datos del documento extraídos:', documentoData);
-          this.radicadoData = documentoData;
-          this.poblarFormulario(documentoData);
-          this.cargarDocumentosExistentes(documentoData);
-          this.isLoading = false;
-        },
-        error: (error: any) => {
-          console.error('❌ Error cargando documento desde supervisor:', error);
-          this.cargarDocumentoDesdeRadicacion(id);
-        }
-      });
-  }
+  
 
   cargarDocumentoDesdeRadicacion(id: string): void {
     this.radicacionService.obtenerDocumentoPorId(id)
@@ -335,11 +424,21 @@ export class SupervisorFormComponent implements OnInit {
   }
 
   volverALista(): void {
+  if (this.desdeHistorial) {
+    // Volver al historial si venimos de ahí
+    this.router.navigate(['/supervisor/historial']);
+  } else {
+    // Volver a pendientes si es una revisión normal
     this.router.navigate(['/supervisor/pendientes']);
   }
+}
 
   cancelarRevision(): void {
-    if (confirm('¿Cancelar la revisión? Los cambios no guardados se perderán.')) {
+    const mensaje = this.desdeHistorial 
+      ? '¿Cancelar la edición? Los cambios no guardados se perderán.'
+      : '¿Cancelar la revisión? Los cambios no guardados se perderán.';
+    
+    if (confirm(mensaje)) {
       this.volverALista();
     }
   }
@@ -394,7 +493,11 @@ export class SupervisorFormComponent implements OnInit {
       return;
     }
 
-    const confirmar = confirm('¿Estás seguro de guardar la revisión? Esta acción cambiará el estado del documento.');
+    const mensajeConfirmacion = this.desdeHistorial
+      ? '¿Estás seguro de guardar los cambios? Esta acción actualizará la supervisión anterior.'
+      : '¿Estás seguro de guardar la revisión? Esta acción cambiará el estado del documento.';
+
+    const confirmar = confirm(mensajeConfirmacion);
     if (!confirmar) return;
 
     this.isProcessing = true;
@@ -403,11 +506,11 @@ export class SupervisorFormComponent implements OnInit {
     // ✅ CORREGIDO: Solo enviar campos permitidos
     const datosRevision = {
       estado: estado,
-      observacion: formData.observacionSupervisor
-      
+      observacion: formData.observacionSupervisor,
+      modoEdicion: this.modoEdicion // Indicar que es una edición
     };
 
-    console.log('📤 Enviando revisión CORREGIDA del supervisor:', datosRevision);
+    console.log('📤 Enviando revisión del supervisor:', datosRevision);
 
     const requestObservable = estado === 'APROBADO' && this.archivoAprobacion
       ? this.supervisorService.guardarRevisionConArchivo(this.documentoId, datosRevision, this.archivoAprobacion)
@@ -416,7 +519,12 @@ export class SupervisorFormComponent implements OnInit {
     requestObservable.subscribe({
       next: (resultado: any) => {
         console.log('✅ Revisión guardada exitosamente:', resultado);
-        this.notificationService.success('Éxito', 'Revisión guardada correctamente');
+        
+        const mensajeExito = this.desdeHistorial
+          ? 'Supervisión actualizada correctamente'
+          : 'Revisión guardada correctamente';
+        
+        this.notificationService.success('Éxito', mensajeExito);
         this.isProcessing = false;
 
         setTimeout(() => {
