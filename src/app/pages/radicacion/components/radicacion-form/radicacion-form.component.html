@@ -1,8 +1,10 @@
 <!-- src/app/pages/radicacion/components/radicacion-form/radicacion-form.component.html -->
 <div class="radicacion-form-container">
   <!-- Mensaje de estado -->
-  <div *ngIf="mensaje" class="alert-message" [class.success]="tipoMensaje === 'success'" [class.error]="tipoMensaje === 'error'">
-    <i class="fas" [class.fa-check-circle]="tipoMensaje === 'success'" [class.fa-exclamation-circle]="tipoMensaje === 'error'"></i>
+  <div *ngIf="mensaje" class="alert-message" [class.success]="tipoMensaje === 'success'"
+    [class.error]="tipoMensaje === 'error'">
+    <i class="fas" [class.fa-check-circle]="tipoMensaje === 'success'"
+      [class.fa-exclamation-circle]="tipoMensaje === 'error'"></i>
     {{ mensaje }}
   </div>
 
@@ -14,63 +16,134 @@
           <label for="numeroRadicado" class="form-label">
             <i class="fas fa-hashtag"></i> Número de Radicado *
           </label>
-          <input type="text" 
-                 id="numeroRadicado" 
-                 class="form-control" 
-                 formControlName="numeroRadicado"
-                 placeholder="Ej: R2024-001"
-                 [class.is-invalid]="radicacionForm.get('numeroRadicado')?.invalid && 
+          <input type="text" id="numeroRadicado" class="form-control" formControlName="numeroRadicado"
+            placeholder="Ej: R2024-001" [class.is-invalid]="radicacionForm.get('numeroRadicado')?.invalid && 
                                     radicacionForm.get('numeroRadicado')?.touched">
           <div *ngIf="radicacionForm.get('numeroRadicado')?.invalid && 
-                     radicacionForm.get('numeroRadicado')?.touched" 
-               class="invalid-feedback">
+                     radicacionForm.get('numeroRadicado')?.touched" class="invalid-feedback">
             {{ getNumeroRadicadoError() }}
           </div>
           <small class="form-text text-muted">
             Formato: RAAAA-NNN (Año y número consecutivo)
           </small>
+          <!-- ✅ NUEVO: Mostrar año detectado -->
+          <div *ngIf="getAnoRadicado()" class="text-info small mt-1">
+            <i class="fas fa-calendar-alt"></i> Año detectado: {{ getAnoRadicado() }}
+          </div>
         </div>
 
         <div class="form-group">
           <label for="numeroContrato" class="form-label">
             <i class="fas fa-file-contract"></i> Número de Contrato *
           </label>
-          <input type="text" 
-                 id="numeroContrato" 
-                 class="form-control" 
-                 formControlName="numeroContrato"
-                 placeholder="Ej: CT-2024-001"
-                 [class.is-invalid]="radicacionForm.get('numeroContrato')?.invalid && 
+          <input type="text" id="numeroContrato" class="form-control" formControlName="numeroContrato"
+            placeholder="Ej: CT-2024-001" [class.is-invalid]="radicacionForm.get('numeroContrato')?.invalid && 
                                     radicacionForm.get('numeroContrato')?.touched">
         </div>
       </div>
 
-      <!-- Fila 2: Información del Contratista -->
+      <!-- Fila 2: Información del Contratista con Dropdown -->
       <div class="form-row">
-        <div class="form-group">
+        <!-- Nombre del Contratista con Autocomplete -->
+        <div class="form-group autocomplete-container">
           <label for="nombreContratista" class="form-label">
             <i class="fas fa-user-tie"></i> Nombre del Contratista *
           </label>
-          <input type="text" 
-                 id="nombreContratista" 
-                 class="form-control" 
-                 formControlName="nombreContratista"
-                 placeholder="Nombre completo"
-                 [class.is-invalid]="radicacionForm.get('nombreContratista')?.invalid && 
+          <div class="input-with-dropdown">
+            <input type="text" id="nombreContratista" class="form-control" formControlName="nombreContratista"
+              placeholder="Escriba para buscar o seleccionar" (focus)="onFocusContratista()"
+              autocomplete="off"
+              [class.is-invalid]="radicacionForm.get('nombreContratista')?.invalid && 
                                     radicacionForm.get('nombreContratista')?.touched">
+            
+            <!-- Dropdown de contratistas -->
+            <div *ngIf="mostrarDropdownContratista" class="dropdown-menu show">
+              <div *ngIf="cargandoContratistas" class="dropdown-item text-muted">
+                <i class="fas fa-spinner fa-spin me-2"></i>
+                Cargando...
+              </div>
+              
+              <div *ngIf="!cargandoContratistas && contratistasFiltrados.length === 0" 
+                   class="dropdown-item text-muted">
+                <i class="fas fa-search me-2"></i>
+                No se encontraron resultados
+              </div>
+              
+              <div *ngFor="let contratista of contratistasFiltrados" 
+                   class="dropdown-item" 
+                   (click)="seleccionarContratista(contratista)">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <strong>{{ contratista.nombreCompleto }}</strong>
+                    <div class="small text-muted">
+                      <i class="fas fa-id-card me-1"></i>
+                      {{ contratista.documentoIdentidad }}
+                    </div>
+                  </div>
+                  <i class="fas fa-chevron-right text-muted"></i>
+                </div>
+              </div>
+              
+              <!-- Opción para crear nuevo contratista -->
+              <div *ngIf="puedeCrearNuevoContratista()" 
+                   class="dropdown-item dropdown-create-new"
+                   (click)="crearNuevoContratista()">
+                <i class="fas fa-plus-circle text-success me-2"></i>
+                <strong>Crear nuevo:</strong> 
+                {{ radicacionForm.get('nombreContratista')?.value }} 
+                ({{ radicacionForm.get('documentoContratista')?.value }})
+              </div>
+            </div>
+          </div>
+          <small class="form-text text-muted">
+            Escriba para buscar en la base de datos
+          </small>
         </div>
 
-        <div class="form-group">
+        <!-- Documento del Contratista con Autocomplete -->
+        <div class="form-group autocomplete-container">
           <label for="documentoContratista" class="form-label">
             <i class="fas fa-id-card"></i> Documento del Contratista *
           </label>
-          <input type="text" 
-                 id="documentoContratista" 
-                 class="form-control" 
-                 formControlName="documentoContratista"
-                 placeholder="Número de identificación"
-                 [class.is-invalid]="radicacionForm.get('documentoContratista')?.invalid && 
+          <div class="input-with-dropdown">
+            <input type="text" id="documentoContratista" class="form-control" formControlName="documentoContratista"
+              placeholder="Escriba documento para buscar" (focus)="onFocusDocumento()"
+              autocomplete="off"
+              [class.is-invalid]="radicacionForm.get('documentoContratista')?.invalid && 
                                     radicacionForm.get('documentoContratista')?.touched">
+            
+            <!-- Dropdown de documentos -->
+            <div *ngIf="mostrarDropdownDocumento" class="dropdown-menu show">
+              <div *ngIf="cargandoContratistas" class="dropdown-item text-muted">
+                <i class="fas fa-spinner fa-spin me-2"></i>
+                Cargando...
+              </div>
+              
+              <div *ngIf="!cargandoContratistas && contratistasFiltrados.length === 0" 
+                   class="dropdown-item text-muted">
+                <i class="fas fa-search me-2"></i>
+                No se encontraron resultados
+              </div>
+              
+              <div *ngFor="let contratista of contratistasFiltrados" 
+                   class="dropdown-item" 
+                   (click)="seleccionarContratista(contratista)">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <strong>{{ contratista.documentoIdentidad }}</strong>
+                    <div class="small text-muted">
+                      <i class="fas fa-user me-1"></i>
+                      {{ contratista.nombreCompleto }}
+                    </div>
+                  </div>
+                  <i class="fas fa-chevron-right text-muted"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+          <small class="form-text text-muted">
+            Escriba para buscar en la base de datos
+          </small>
         </div>
       </div>
 
@@ -80,11 +153,7 @@
           <label for="fechaInicio" class="form-label">
             <i class="fas fa-calendar-alt"></i> Fecha de Inicio *
           </label>
-          <input type="date" 
-                 id="fechaInicio" 
-                 class="form-control" 
-                 formControlName="fechaInicio"
-                 [class.is-invalid]="radicacionForm.get('fechaInicio')?.invalid && 
+          <input type="date" id="fechaInicio" class="form-control" formControlName="fechaInicio" [class.is-invalid]="radicacionForm.get('fechaInicio')?.invalid && 
                                     radicacionForm.get('fechaInicio')?.touched">
         </div>
 
@@ -92,45 +161,84 @@
           <label for="fechaFin" class="form-label">
             <i class="fas fa-calendar-check"></i> Fecha de Fin *
           </label>
-          <input type="date" 
-                 id="fechaFin" 
-                 class="form-control" 
-                 formControlName="fechaFin"
-                 [class.is-invalid]="radicacionForm.get('fechaFin')?.invalid && 
+          <input type="date" id="fechaFin" class="form-control" formControlName="fechaFin" [class.is-invalid]="radicacionForm.get('fechaFin')?.invalid && 
                                     radicacionForm.get('fechaFin')?.touched">
         </div>
       </div>
 
-      <!-- ✅ NUEVO: Campo de Observación -->
-      
+      <!-- ✅ Campo Primer Radicado del Año -->
+      <div class="form-row">
+        <div class="form-group full-width">
+          <div class="checkbox-container">
+            <div class="form-check">
+              <!-- ✅ USAR [checked] Y (change) CORRECTAMENTE -->
+              <input type="checkbox" id="primerRadicadoDelAno" class="form-check-input"
+                [checked]="radicacionForm.get('primerRadicadoDelAno')?.value" (change)="onPrimerRadicadoChange($event)">
+              <label class="form-check-label" for="primerRadicadoDelAno">
+                <i class="fas fa-star text-warning me-2"></i>
+                <strong>Marcar como primer radicado del año</strong>
+
+                <span *ngIf="verificandoPrimerRadicado" class="text-muted ms-2">
+                  <i class="fas fa-spinner fa-spin"></i> Verificando...
+                </span>
+
+                <span *ngIf="!verificandoPrimerRadicado && mensajePrimerRadicado" class="ms-2" [ngClass]="{
+                  'text-success': primerRadicadoDisponible,
+                  'text-danger': !primerRadicadoDisponible
+                }">
+                  <i class="fas" [class.fa-check-circle]="primerRadicadoDisponible"
+                    [class.fa-exclamation-circle]="!primerRadicadoDisponible"></i>
+                  {{ primerRadicadoDisponible ? 'Disponible' : 'No disponible' }}
+                </span>
+              </label>
+            </div>
+
+            <small class="form-text text-muted d-block mt-1">
+              <i class="fas fa-info-circle"></i>
+              Marque esta opción si este es el primer documento radicado para el año {{ getAnoRadicado() || 'actual' }}.
+              Solo un documento por año puede ser marcado como "primer radicado".
+            </small>
+
+            <!-- ✅ Mensaje de confirmación -->
+            <div *ngIf="radicacionForm.get('primerRadicadoDelAno')?.value && getAnoRadicado()"
+              class="alert alert-success mt-2 animate__animated animate__fadeIn">
+              <i class="fas fa-check-circle me-2"></i>
+              <strong>Confirmado:</strong> Este documento será registrado como el <strong>primer radicado</strong> del
+              año {{ getAnoRadicado() }}.
+            </div>
+
+            <!-- ✅ Mensaje de advertencia si no está disponible -->
+            <div *ngIf="!primerRadicadoDisponible && !verificandoPrimerRadicado"
+              class="alert alert-warning mt-2 animate__animated animate__fadeIn">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              <strong>Advertencia:</strong> {{ mensajePrimerRadicado }}
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- Sección de Documentos -->
       <div class="documentos-section">
         <h4 class="section-title">
           <i class="fas fa-file-upload"></i> Documentos a Adjuntar (3 obligatorios)
         </h4>
-        
+
         <div class="documentos-grid">
-          <!-- ✅ CAMBIADO: Documento 1 - Cuenta de Cobro -->
+          <!-- Documento 1 - Cuenta de Cobro -->
           <div class="documento-card">
             <div class="documento-header">
               <i class="fas fa-file-invoice-dollar documento-icon"></i>
               <h5>Cuenta de Cobro</h5>
             </div>
-            
+
             <div class="documento-body">
-              <input type="text" 
-                     class="form-control mb-2" 
-                     formControlName="descripcionCuentaCobro"
-                     placeholder="Descripción de la cuenta de cobro">
-              
+              <input type="text" class="form-control mb-2" formControlName="descripcionCuentaCobro"
+                placeholder="Descripción de la cuenta de cobro">
+
               <div class="file-upload-area" [class.has-file]="documentosSeleccionados[0]">
-                <input type="file" 
-                       id="file1" 
-                       class="file-input" 
-                       (change)="onFileSelected($event, 0)"
-                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
-                
+                <input type="file" id="file1" class="file-input" (change)="onFileSelected($event, 0)"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+
                 <label for="file1" class="file-label">
                   <i class="fas fa-cloud-upload-alt"></i>
                   <span *ngIf="!documentosSeleccionados[0]">Seleccionar archivo</span>
@@ -138,40 +246,35 @@
                     {{ getNombreArchivo(0) }}
                   </span>
                 </label>
-                
+
                 <div *ngIf="documentosSeleccionados[0]" class="file-actions">
                   <button type="button" class="btn-remove" (click)="removeFile(0)">
                     <i class="fas fa-times"></i>
                   </button>
                 </div>
               </div>
-              
+
               <small class="form-text text-muted">
                 PDF, Word, JPG, PNG (max 10MB)
               </small>
             </div>
           </div>
 
-          <!-- ✅ CAMBIADO: Documento 2 - Seguridad Social -->
+          <!-- Documento 2 - Seguridad Social -->
           <div class="documento-card">
             <div class="documento-header">
               <i class="fas fa-shield-alt documento-icon"></i>
               <h5>Seguridad Social</h5>
             </div>
-            
+
             <div class="documento-body">
-              <input type="text" 
-                     class="form-control mb-2" 
-                     formControlName="descripcionSeguridadSocial"
-                     placeholder="Descripción de seguridad social">
-              
+              <input type="text" class="form-control mb-2" formControlName="descripcionSeguridadSocial"
+                placeholder="Descripción de seguridad social">
+
               <div class="file-upload-area" [class.has-file]="documentosSeleccionados[1]">
-                <input type="file" 
-                       id="file2" 
-                       class="file-input" 
-                       (change)="onFileSelected($event, 1)"
-                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
-                
+                <input type="file" id="file2" class="file-input" (change)="onFileSelected($event, 1)"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+
                 <label for="file2" class="file-label">
                   <i class="fas fa-cloud-upload-alt"></i>
                   <span *ngIf="!documentosSeleccionados[1]">Seleccionar archivo</span>
@@ -179,40 +282,35 @@
                     {{ getNombreArchivo(1) }}
                   </span>
                 </label>
-                
+
                 <div *ngIf="documentosSeleccionados[1]" class="file-actions">
                   <button type="button" class="btn-remove" (click)="removeFile(1)">
                     <i class="fas fa-times"></i>
                   </button>
                 </div>
               </div>
-              
+
               <small class="form-text text-muted">
                 PDF, Word, JPG, PNG (max 10MB)
               </small>
             </div>
           </div>
 
-          <!-- ✅ CAMBIADO: Documento 3 - Informe de Actividades -->
+          <!-- Documento 3 - Informe de Actividades -->
           <div class="documento-card">
             <div class="documento-header">
               <i class="fas fa-chart-line documento-icon"></i>
               <h5>Informe de Actividades</h5>
             </div>
-            
+
             <div class="documento-body">
-              <input type="text" 
-                     class="form-control mb-2" 
-                     formControlName="descripcionInformeActividades"
-                     placeholder="Descripción del informe de actividades">
-              
+              <input type="text" class="form-control mb-2" formControlName="descripcionInformeActividades"
+                placeholder="Descripción del informe de actividades">
+
               <div class="file-upload-area" [class.has-file]="documentosSeleccionados[2]">
-                <input type="file" 
-                       id="file3" 
-                       class="file-input" 
-                       (change)="onFileSelected($event, 2)"
-                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
-                
+                <input type="file" id="file3" class="file-input" (change)="onFileSelected($event, 2)"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+
                 <label for="file3" class="file-label">
                   <i class="fas fa-cloud-upload-alt"></i>
                   <span *ngIf="!documentosSeleccionados[2]">Seleccionar archivo</span>
@@ -220,14 +318,14 @@
                     {{ getNombreArchivo(2) }}
                   </span>
                 </label>
-                
+
                 <div *ngIf="documentosSeleccionados[2]" class="file-actions">
                   <button type="button" class="btn-remove" (click)="removeFile(2)">
                     <i class="fas fa-times"></i>
                   </button>
                 </div>
               </div>
-              
+
               <small class="form-text text-muted">
                 PDF, Word, JPG, PNG (max 10MB)
               </small>
@@ -236,18 +334,14 @@
         </div>
       </div>
 
+      <!-- Campo de Observación -->
       <div class="form-row">
         <div class="form-group full-width">
           <label for="observacion" class="form-label">
             <i class="fas fa-sticky-note"></i> Observación
           </label>
-          <textarea 
-            id="observacion" 
-            class="form-control" 
-            formControlName="observacion"
-            rows="3"
-            placeholder="Observaciones o comentarios adicionales sobre la radicación..."
-            [class.is-invalid]="radicacionForm.get('observacion')?.invalid && 
+          <textarea id="observacion" class="form-control" formControlName="observacion" rows="3"
+            placeholder="Observaciones o comentarios adicionales sobre la radicación..." [class.is-invalid]="radicacionForm.get('observacion')?.invalid && 
                                radicacionForm.get('observacion')?.touched">
           </textarea>
           <small class="form-text text-muted">
@@ -261,7 +355,7 @@
         <button type="button" class="btn btn-secondary" (click)="onCancel()" [disabled]="isLoading">
           <i class="fas fa-times"></i> Cancelar
         </button>
-        
+
         <button type="submit" class="btn btn-primary" [disabled]="isLoading || radicacionForm.invalid">
           <span *ngIf="!isLoading">
             <i class="fas fa-paper-plane"></i> Radicar Documento

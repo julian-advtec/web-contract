@@ -1,7 +1,10 @@
+// src/app/pages/radicacion/components/radicacion-form/radicacion-form.component.scss
+
 .radicacion-form-container {
   padding: 20px;
 }
 
+// ============ ALERTAS ============
 .alert-message {
   padding: 12px 16px;
   border-radius: 8px;
@@ -11,18 +14,34 @@
   gap: 10px;
   font-weight: 500;
   animation: slideIn 0.3s ease;
-}
 
-.alert-message.success {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10B981;
-  border-left: 4px solid #10B981;
-}
+  &.success {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10B981;
+    border-left: 4px solid #10B981;
+  }
 
-.alert-message.error {
-  background: rgba(239, 68, 68, 0.1);
-  color: #EF4444;
-  border-left: 4px solid #EF4444;
+  &.error {
+    background: rgba(239, 68, 68, 0.1);
+    color: #EF4444;
+    border-left: 4px solid #EF4444;
+  }
+
+  &.warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: #F59E0B;
+    border-left: 4px solid #F59E0B;
+  }
+
+  &.info {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3B82F6;
+    border-left: 4px solid #3B82F6;
+  }
+
+  i {
+    font-size: 18px;
+  }
 }
 
 @keyframes slideIn {
@@ -30,141 +49,849 @@
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-.form-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+// ============ FORMULARIO ============
+.radicacion-form {
+  .form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+
+    &.full-width {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+
+    &.full-width {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .form-label {
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    i {
+      color: #10B981;
+      width: 16px;
+      text-align: center;
+    }
+  }
+
+  .form-control {
+    padding: 12px 16px;
+    border: 1px solid #D1D5DB;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    background: white;
+
+    &:focus {
+      outline: none;
+      border-color: #10B981;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+
+    &.is-invalid {
+      border-color: #EF4444;
+    }
+  }
+
+  textarea.form-control {
+    resize: vertical;
+    min-height: 80px;
+  }
+
+  .invalid-feedback {
+    color: #EF4444;
+    font-size: 12px;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    &:before {
+      content: '⚠️';
+    }
+  }
+
+  .form-text {
+    font-size: 12px;
+    color: #6B7280;
+    margin-top: 4px;
+  }
+
+  // ============ CHECKBOX PERSONALIZADO ============
+  .checkbox-container {
+    padding: 1rem;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    margin: 1rem 0;
+  }
+
+  .form-check {
+    margin-bottom: 0.5rem;
+  }
+
+  .form-check-input {
+    width: 20px;
+    height: 20px;
+    margin-top: 0.25rem;
+    cursor: pointer;
+
+    &:checked {
+      background-color: #0d6efd;
+      border-color: #0d6efd;
+    }
+
+    &:focus {
+      box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+  }
+
+  .form-check-label {
+    cursor: pointer;
+    font-weight: 500;
+    color: #212529;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Estilos para los mensajes */
+  .animate__animated {
+    animation-duration: 0.5s;
+  }
+
+  /* Estilo para cuando el checkbox está deshabilitado */
+  .form-check-input:disabled {
+    background-color: #e9ecef;
+    border-color: #ced4da;
+    cursor: not-allowed;
+
+    &:checked {
+      background-color: #6c757d;
+      border-color: #6c757d;
+    }
+  }
+
+  // ============ SECCIÓN DOCUMENTOS ============
+  .documentos-section {
+    margin-top: 20px;
+
+    .section-title {
+      color: #374151;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 18px;
+
+      i {
+        color: #10B981;
+      }
+    }
+
+    .documentos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .documento-card {
+      background: #F9FAFB;
+      border: 1px solid #E5E7EB;
+      border-radius: 10px;
+      padding: 16px;
+      transition: all 0.3s ease;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+
+      &:hover {
+        border-color: #10B981;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
+      }
+
+      .documento-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+
+        .documento-icon {
+          color: #10B981;
+          font-size: 20px;
+        }
+
+        h5 {
+          margin: 0;
+          color: #374151;
+          font-weight: 600;
+          font-size: 16px;
+        }
+      }
+
+      .documento-body {
+        flex-grow: 1;
+      }
+    }
+
+    .file-upload-area {
+      position: relative;
+      border: 2px dashed #D1D5DB;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-bottom: 8px;
+      background: white;
+      min-height: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      &:hover {
+        border-color: #10B981;
+        background: rgba(16, 185, 129, 0.02);
+      }
+
+      &.has-file {
+        border-color: #10B981;
+        background: rgba(16, 185, 129, 0.05);
+      }
+
+      .file-input {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+        z-index: 2;
+      }
+
+      .file-label {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        color: #6B7280;
+        z-index: 1;
+
+        i {
+          font-size: 24px;
+          color: #9CA3AF;
+        }
+
+        .file-name {
+          font-weight: 500;
+          color: #374151;
+          word-break: break-all;
+          max-width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          padding: 0 8px;
+        }
+      }
+
+      .file-actions {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 3;
+      }
+
+      .btn-remove {
+        background: #EF4444;
+        color: white;
+        border: none;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 12px;
+
+        &:hover {
+          background: #DC2626;
+        }
+      }
+    }
+  }
+
+  // ============ BOTONES DE ACCIÓN ============
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #E5E7EB;
+
+    .btn {
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: none;
+      font-size: 14px;
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      &.btn-primary {
+        background: #10B981;
+        color: white;
+
+        &:hover:not(:disabled) {
+          background: #059669;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+        }
+      }
+
+      &.btn-secondary {
+        background: #6B7280;
+        color: white;
+
+        &:hover:not(:disabled) {
+          background: #4B5563;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(107, 114, 128, 0.2);
+        }
+      }
+
+      i {
+        font-size: 14px;
+      }
+
+      .fa-spinner {
+        animation: spin 1s linear infinite;
+      }
+    }
+  }
 }
 
-.form-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
+// ============ UTILIDADES ============
+.text-info {
+  color: #3B82F6;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-label {
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.form-label i {
+.text-success {
   color: #10B981;
 }
 
-.form-control {
-  padding: 12px 16px;
-  border: 1px solid #D1D5DB;
-  border-radius: 8px;
-  font-size: 14px;
-  transition: all 0.3s ease;
+.text-danger {
+  color: #EF4444;
 }
 
-.form-control:focus {
-  outline: none;
+.text-warning {
+  color: #F59E0B;
+}
+
+.ml-2 {
+  margin-left: 8px;
+}
+
+.mt-1 {
+  margin-top: 4px;
+}
+
+.mt-2 {
+  margin-top: 8px;
+}
+
+.mb-2 {
+  margin-bottom: 8px;
+}
+
+// ============ ANIMACIONES ============
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// ============ RESPONSIVE ============
+@media (max-width: 768px) {
+  .radicacion-form-container {
+    padding: 16px;
+  }
+
+  .radicacion-form {
+    .form-row {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .checkbox-group {
+      margin-top: 12px;
+      padding: 12px;
+    }
+
+    .checkbox-label {
+      font-size: 14px;
+    }
+
+    .documentos-section {
+      .documentos-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+
+      .documento-card {
+        padding: 12px;
+      }
+    }
+
+    .form-actions {
+      flex-direction: column;
+      gap: 10px;
+
+      .btn {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .radicacion-form-container {
+    padding: 12px;
+  }
+
+  .radicacion-form {
+    .form-control {
+      padding: 10px 12px;
+      font-size: 13px;
+    }
+
+    .checkbox-group {
+      padding: 10px;
+    }
+
+    .documentos-section {
+      .file-upload-area {
+        padding: 16px;
+        min-height: 80px;
+      }
+    }
+  }
+}
+
+// ============ ESTADOS DE VALIDACIÓN ============
+.is-valid {
+  border-color: #10B981 !important;
+  background: rgba(16, 185, 129, 0.05) !important;
+}
+
+.is-invalid {
+  border-color: #EF4444 !important;
+  background: rgba(239, 68, 68, 0.05) !important;
+}
+
+// ============ TEXTO AYUDA ============
+.help-text {
+  font-size: 11px;
+  color: #9CA3AF;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  &:before {
+    content: '💡';
+  }
+}
+
+// ============ CARGANDO ============
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  z-index: 10;
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #10B981;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+}
+
+// ============ ESTADOS DE ARCHIVO ============
+.file-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  margin-top: 4px;
+
+  &.uploaded {
+    color: #10B981;
+  }
+
+  &.error {
+    color: #EF4444;
+  }
+
+  i {
+    font-size: 11px;
+  }
+}
+
+// src/app/pages/radicacion/components/radicacion-form/radicacion-form.component.scss
+// Agrega esto al final del archivo, antes de los media queries
+
+// ============ AUTCOMPLETE/DROPDOWN ============
+.autocomplete-container {
+  position: relative;
+}
+
+.autocomplete-wrapper {
+  position: relative;
+}
+
+.autocomplete-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 1000;
+  margin-top: 4px;
+  animation: fadeIn 0.2s ease;
+
+  .dropdown-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #F3F4F6;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:hover {
+      background: #F9FAFB;
+    }
+
+    &.selected {
+      background: #EFF6FF;
+      border-left: 3px solid #3B82F6;
+    }
+
+    .dropdown-item-main {
+      display: flex;
+      align-items: center;
+      margin-bottom: 2px;
+      font-size: 14px;
+
+      i {
+        color: #6B7280;
+        width: 16px;
+      }
+    }
+
+    .dropdown-item-sub {
+      padding-left: 24px;
+      font-size: 12px;
+    }
+  }
+
+  .dropdown-no-results,
+  .dropdown-loading {
+    padding: 16px;
+    text-align: center;
+    color: #6B7280;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    i {
+      margin-right: 8px;
+    }
+  }
+
+  .dropdown-loading {
+    color: #10B981;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Mejora para el input con dropdown
+.form-control:focus+.autocomplete-dropdown {
   border-color: #10B981;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
-.form-control.is-invalid {
-  border-color: #EF4444;
+// Scrollbar personalizado para el dropdown
+.autocomplete-dropdown::-webkit-scrollbar {
+  width: 6px;
 }
 
-.invalid-feedback {
-  color: #EF4444;
-  font-size: 12px;
-  margin-top: 4px;
+.autocomplete-dropdown::-webkit-scrollbar-track {
+  background: #F3F4F6;
+  border-radius: 3px;
 }
 
-.form-text {
-  font-size: 12px;
-  color: #6B7280;
-  margin-top: 4px;
+.autocomplete-dropdown::-webkit-scrollbar-thumb {
+  background: #9CA3AF;
+  border-radius: 3px;
 }
 
-.documentos-section {
-  margin-top: 20px;
+.autocomplete-dropdown::-webkit-scrollbar-thumb:hover {
+  background: #6B7280;
 }
 
-.section-title {
-  color: #374151;
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.documentos-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
-}
-
-.documento-card {
-  background: #F9FAFB;
-  border: 1px solid #E5E7EB;
-  border-radius: 10px;
+// ============ CHECKBOX ESTILO CONSISTENTE ============
+.checkbox-container {
   padding: 16px;
-  transition: all 0.3s ease;
-}
-
-.documento-card:hover {
-  border-color: #10B981;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
-}
-
-.file-upload-area {
-  position: relative;
-  border: 2px dashed #D1D5DB;
   border-radius: 8px;
-  padding: 20px;
-  text-align: center;
-  cursor: pointer;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  margin: 16px 0;
   transition: all 0.3s ease;
+
+  &:hover {
+    border-color: #10B981;
+    background-color: rgba(16, 185, 129, 0.02);
+  }
+}
+
+.form-check {
+  display: flex;
+  align-items: flex-start;
   margin-bottom: 8px;
 }
 
-.file-upload-area:hover {
-  border-color: #10B981;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 30px;
-  padding-top: 20px;
-  border-top: 1px solid #E5E7EB;
-}
-
-.btn {
-  padding: 10px 20px;
-  border-radius: 6px;
+.form-check-input {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  margin-right: 12px;
   cursor: pointer;
+  border: 2px solid #D1D5DB;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  position: relative;
+  appearance: none;
+  -webkit-appearance: none;
+
+  &:checked {
+    background-color: #10B981;
+    border-color: #10B981;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 7px;
+      width: 6px;
+      height: 10px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+    border-color: #10B981;
+  }
+
+  &:disabled {
+    background-color: #F3F4F6;
+    border-color: #D1D5DB;
+    cursor: not-allowed;
+
+    &:checked {
+      background-color: #9CA3AF;
+      border-color: #9CA3AF;
+    }
+  }
 }
 
-.btn-primary {
-  background: #10B981;
-  color: white;
-  border: none;
+.form-check-label {
+  cursor: pointer;
+  font-weight: 500;
+  color: #374151;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  i.fa-star {
+    color: #F59E0B;
+  }
+
+  .badge {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 500;
+
+    &.badge-success {
+      background: rgba(16, 185, 129, 0.1);
+      color: #10B981;
+    }
+
+    &.badge-warning {
+      background: rgba(245, 158, 11, 0.1);
+      color: #F59E0B;
+    }
+
+    &.badge-danger {
+      background: rgba(239, 68, 68, 0.1);
+      color: #EF4444;
+    }
+  }
 }
 
-.btn-secondary {
-  background: #6B7280;
-  color: white;
-  border: none;
+// ============ MENSAJES DEL CHECKBOX ============
+.checkbox-messages {
+  margin-top: 8px;
+
+  .alert {
+    margin-bottom: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: slideInUp 0.3s ease;
+
+    i {
+      font-size: 14px;
+      min-width: 16px;
+    }
+
+    &.alert-success {
+      background: rgba(16, 185, 129, 0.1);
+      color: #10B981;
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    &.alert-warning {
+      background: rgba(245, 158, 11, 0.1);
+      color: #F59E0B;
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    &.alert-info {
+      background: rgba(59, 130, 246, 0.1);
+      color: #3B82F6;
+      border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// ============ RESPONSIVE PARA DROPDOWN ============
+@media (max-width: 768px) {
+  .autocomplete-dropdown {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 50vh;
+    border-radius: 12px 12px 0 0;
+    margin-top: 0;
+    animation: slideUp 0.3s ease;
+  }
+
+  @keyframes slideUp {
+    from {
+      transform: translateY(100%);
+    }
+
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  .checkbox-container {
+    padding: 12px;
+    margin: 12px 0;
+  }
 }

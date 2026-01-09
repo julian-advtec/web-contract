@@ -44,6 +44,7 @@ export interface Documento {
   // ✅ CAMPOS AÑADIDOS
   fechaActualizacion?: Date;
   usuarioAsignadoNombre?: string;
+  primerRadicadoDelAno?: boolean; // ✅ NUEVO CAMPO AGREGADO
   
   // Campos específicos para supervisor
   disponible?: boolean;
@@ -65,21 +66,16 @@ export interface Documento {
 
 // DTO para crear documento
 export interface CreateDocumentoDto {
-  numeroRadicado: string;
-  numeroContrato: string;
-  nombreContratista: string;
-  documentoContratista: string;
-  fechaInicio: Date | string;
-  fechaFin: Date | string;
-
-  // Descripciones
-  descripcionCuentaCobro: string;
-  descripcionSeguridadSocial: string;
-  descripcionInformeActividades: string;
-
-  // Campo observación
-  observacion?: string;
-
-  // Archivos (para formulario)
-  archivos?: File[];
+    numeroRadicado: string;
+    numeroContrato: string;
+    nombreContratista: string;
+    documentoContratista: string;
+    fechaInicio: Date | string;
+    fechaFin: Date | string;
+    descripcionCuentaCobro: string;
+    descripcionSeguridadSocial: string;
+    descripcionInformeActividades: string;
+    observacion?: string;
+    primerRadicadoDelAno: boolean; // ✅ Debe ser boolean
+    archivos?: File[];
 }

@@ -1,10 +1,11 @@
+// src/app/core/services/radicacion.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError, of } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
-import { Documento, CreateDocumentoDto } from '../models/documento.model'; // ✅ Ahora existe
+import { Documento, CreateDocumentoDto } from '../models/documento.model';
 import { NotificationService } from './notification.service';
 
 // Interfaces para las respuestas del backend
@@ -206,9 +207,14 @@ export class RadicacionService {
     /**
      * Crear documento
      */
+
     crearDocumento(createDocumentoDto: CreateDocumentoDto, archivos: File[]): Observable<Documento> {
         console.log('📝 Intentando crear documento:', createDocumentoDto);
         console.log('📁 Archivos a subir:', archivos.map(f => f.name));
+
+        // ✅ IMPORTANTE: Verificar el tipo de primerRadicadoDelAno
+        console.log('🔍 primerRadicadoDelAno:', createDocumentoDto.primerRadicadoDelAno);
+        console.log('🔍 tipo de primerRadicadoDelAno:', typeof createDocumentoDto.primerRadicadoDelAno);
 
         // Validar que haya 3 archivos
         if (archivos.length !== 3) {
@@ -227,11 +233,6 @@ export class RadicacionService {
 
         const formData = new FormData();
 
-        // ✅ DEBUG: Verificar fechas que llegan
-        console.log('📅 DEBUG - Fechas recibidas en el servicio:');
-        console.log('  fechaInicio:', createDocumentoDto.fechaInicio, 'tipo:', typeof createDocumentoDto.fechaInicio);
-        console.log('  fechaFin:', createDocumentoDto.fechaFin, 'tipo:', typeof createDocumentoDto.fechaFin);
-
         // ✅ Asegurar que las fechas sean strings válidos
         const fechaInicioStr = createDocumentoDto.fechaInicio
             ? String(createDocumentoDto.fechaInicio).trim()
@@ -240,10 +241,6 @@ export class RadicacionService {
         const fechaFinStr = createDocumentoDto.fechaFin
             ? String(createDocumentoDto.fechaFin).trim()
             : '';
-
-        console.log('📅 Fechas procesadas para FormData:');
-        console.log('  fechaInicioStr:', fechaInicioStr);
-        console.log('  fechaFinStr:', fechaFinStr);
 
         // ✅ Agregar todos los campos como strings
         formData.append('numeroRadicado', createDocumentoDto.numeroRadicado);
@@ -264,6 +261,13 @@ export class RadicacionService {
         if (createDocumentoDto.observacion) {
             formData.append('observacion', createDocumentoDto.observacion);
         }
+
+        // ✅ CORREGIDO: Asegurar que se envíe como string 'true' o 'false'
+        // FormData solo acepta strings, así que convertimos booleano a string
+        const primerRadicadoValue = createDocumentoDto.primerRadicadoDelAno ? 'true' : 'false';
+        formData.append('primerRadicadoDelAno', primerRadicadoValue);
+
+        console.log('🔍 Enviando primerRadicadoDelAno como:', primerRadicadoValue);
 
         // ✅ Agregar archivos
         archivos.forEach((archivo) => {
@@ -347,14 +351,51 @@ export class RadicacionService {
 
                     if (error.status === 400) {
                         // Mostrar el mensaje de error específico del backend
-                        const errorMsg = typeof backendError === 'string' ? backendError :
-                            backendError?.message || 'Datos inválidos. Verifique los campos.';
+                        let errorMsg = 'Datos inválidos. Verifique los campos.';
+
+                        if (typeof backendError === 'string') {
+                            errorMsg = backendError;
+                        } else if (Array.isArray(backendError)) {
+                            // Si es un array de errores de validación
+                            errorMsg = backendError.join(', ');
+                        } else if (backendError?.message) {
+                            errorMsg = backendError.message;
+                        }
+
                         this.notificationService.error('Error de validación', errorMsg);
                         return throwError(() => new Error(errorMsg));
                     }
                 }
 
                 const errorMsg = error.error?.message || error.message || 'Error desconocido al crear documento';
+                this.notificationService.error('Error', errorMsg);
+                return throwError(() => new Error(errorMsg));
+            })
+        );
+    }
+
+    // ✅ MÉTODO SIMPLIFICADO: Marcar como primer radicado (para uso posterior)
+    marcarComoPrimerRadicado(documentoId: string, esPrimerRadicado: boolean): Observable<any> {
+        const headers = this.getAuthHeaders();
+
+        if (!headers.get('Authorization')) {
+            return throwError(() => new Error('No autenticado'));
+        }
+
+        return this.http.put<any>(`${this.apiUrl}/${documentoId}/marcar-primer-radicado`,
+            { esPrimerRadicado },
+            { headers }
+        ).pipe(
+            map((response: any) => {
+                if (response && response.success) {
+                    this.notificationService.success('Operación exitosa', response.message);
+                    return response.data;
+                }
+                throw new Error(response?.message || 'Error al actualizar');
+            }),
+            catchError(error => {
+                console.error('❌ Error marcando primer radicado:', error);
+                const errorMsg = error.error?.message || error.message || 'Error al actualizar';
                 this.notificationService.error('Error', errorMsg);
                 return throwError(() => new Error(errorMsg));
             })
@@ -729,6 +770,65 @@ export class RadicacionService {
                     }),
                     catchError(() => of([]))
                 );
+            })
+        );
+    }
+
+    /**
+     * ✅ NUEVO: Verificar si existe primer radicado para un año específico
+     */
+    verificarPrimerRadicadoDisponible(ano: string): Observable<{ disponible: boolean, mensaje: string, primerRadicadoExistente?: any }> {
+        const headers = this.getAuthHeaders();
+
+        if (!headers.get('Authorization')) {
+            return of({ disponible: false, mensaje: 'No autenticado' });
+        }
+
+        return this.http.get<any>(`${this.apiUrl}/verificar-primer-radicado/${ano}`, { headers }).pipe(
+            map(response => {
+                if (response.success) {
+                    return {
+                        disponible: response.data.disponible,
+                        mensaje: response.data.mensaje,
+                        primerRadicadoExistente: response.data.primerRadicadoExistente
+                    };
+                }
+                return { disponible: false, mensaje: 'Error verificando disponibilidad' };
+            }),
+            catchError(error => {
+                console.error('❌ Error verificando primer radicado:', error);
+                return of({
+                    disponible: false,
+                    mensaje: error.error?.message || 'Error al verificar disponibilidad'
+                });
+            })
+        );
+    }
+
+    /**
+     * ✅ NUEVO: Obtener estadísticas de primeros radicados por año
+     */
+    obtenerPrimerosRadicadosPorAno(ano?: string): Observable<any> {
+        const headers = this.getAuthHeaders();
+
+        if (!headers.get('Authorization')) {
+            return of({ success: false, data: null, message: 'No autenticado' });
+        }
+
+        const url = ano
+            ? `${this.apiUrl}/estadisticas/primer-radicado-ano?ano=${ano}`
+            : `${this.apiUrl}/estadisticas/primer-radicado-ano`;
+
+        return this.http.get<any>(url, { headers }).pipe(
+            map(response => {
+                if (response.success) {
+                    return response.data;
+                }
+                throw new Error(response.message || 'Error obteniendo estadísticas');
+            }),
+            catchError(error => {
+                console.error('❌ Error obteniendo primeros radicados:', error);
+                return of({ total: 0, porAno: {}, detalles: [] });
             })
         );
     }
