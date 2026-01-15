@@ -1,148 +1,290 @@
-// src/app/core/services/contratistas.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
-import { environment } from '../../../environments/environment';
 import { Contratista } from '../models/contratista.model';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ContratistasService {
   private apiUrl = `${environment.apiUrl}/contratistas`;
-  private contratistasCache: Contratista[] = [];
-  private cacheTimestamp: number = 0;
-  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 
   constructor(private http: HttpClient) {}
 
   private getAuthHeaders(): HttpHeaders {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('token');
     return new HttpHeaders({
-      'Authorization': `Bearer ${token}`,
-      'Accept': 'application/json'
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
     });
   }
 
-  // ✅ Método para obtener todos los contratistas
-  obtenerTodos(): Observable<Contratista[]> {
-    const now = Date.now();
-    // Usar cache si está fresco
-    if (this.contratistasCache.length > 0 && (now - this.cacheTimestamp) < this.CACHE_DURATION) {
-      return of(this.contratistasCache);
+  /**
+   * Método Helper para extraer datos del autocomplete
+   * Maneja diferentes niveles de anidación
+   */
+  private extraerDatosAutocomplete(response: any): any[] {
+    console.log('🔍 Extrayendo datos de autocomplete...');
+    
+    // DEPURACIÓN: Ver estructura completa
+    console.log('📊 Estructura completa de respuesta:', JSON.stringify(response, null, 2));
+    
+    // Nivel 1: response.data.data.data (estructura anidada)
+    if (response?.data?.data?.data && Array.isArray(response.data.data.data)) {
+      console.log('✅ Nivel 3: response.data.data.data');
+      return response.data.data.data;
+    }
+    
+    // Nivel 2: response.data.data
+    if (response?.data?.data && Array.isArray(response.data.data)) {
+      console.log('✅ Nivel 2: response.data.data');
+      return response.data.data;
+    }
+    
+    // Nivel 3: response.data
+    if (response?.data && Array.isArray(response.data)) {
+      console.log('✅ Nivel 1: response.data');
+      return response.data;
+    }
+    
+    // Nivel 4: response directo (array)
+    if (Array.isArray(response)) {
+      console.log('✅ Nivel 0: response (array directo)');
+      return response;
+    }
+    
+    console.warn('⚠️ No se pudo extraer array de la respuesta:', response);
+    return [];
+  }
+
+  /**
+   * Buscar contratistas por documento (CORREGIDO)
+   */
+  buscarPorDocumento(documento: string): Observable<Contratista[]> {
+    const headers = this.getAuthHeaders();
+
+    if (!headers.get('Authorization')) {
+      console.warn('⚠️ No autenticado para buscar por documento');
+      return of([]);
     }
 
-    return this.http.get<Contratista[]>(this.apiUrl, {
-      headers: this.getAuthHeaders()
-    }).pipe(
-      tap(contratistas => {
-        this.contratistasCache = contratistas;
-        this.cacheTimestamp = now;
-        console.log('📋 Contratistas cargados:', contratistas.length);
+    if (!documento || documento.trim().length < 1) {
+      return of([]);
+    }
+
+    console.log(`🔍 FRONTEND: Buscando contratista por documento: "${documento}"`);
+
+    return this.http.get<any>(
+      `${this.apiUrl}/autocomplete/documento?q=${encodeURIComponent(documento.trim())}`, 
+      { headers }
+    ).pipe(
+      map(response => {
+        console.log('🔍 FRONTEND: Respuesta completa de /autocomplete/documento:', response);
+        
+        // ✅✅✅ CORRECCIÓN: Usar el método helper para extraer datos
+        const contratistasData = this.extraerDatosAutocomplete(response);
+        console.log(`✅ ${contratistasData.length} elementos extraídos:`, contratistasData);
+        
+        if (contratistasData.length === 0) {
+          console.log('⚠️ Array vacío después de extracción');
+        }
+
+        // Mapear a Contratista
+        const contratistas = contratistasData.map((item: any) => {
+          console.log('🔍 Item para mapear:', item);
+          
+          // DEPURACIÓN: Ver todos los campos disponibles
+          console.log('🔍 Campos disponibles en item:', Object.keys(item));
+          console.log('🔍 Valores específicos:', {
+            id: item.id,
+            _id: item._id,
+            nombreCompleto: item.nombreCompleto,
+            documento: item.documento,
+            documentoIdentidad: item.documentoIdentidad,
+            value: item.value,
+            label: item.label,
+            numeroContrato: item.numeroContrato,
+            numero_contrato: item.numero_contrato
+          });
+          
+          // Crear objeto Contratista con lógica de respaldo
+          const contratista: Contratista = {
+            id: item.id || item._id || '',
+            nombreCompleto: item.nombreCompleto || item.nombre || item.label || 'Nombre no disponible',
+            documentoIdentidad: item.documentoIdentidad || item.documento || item.value || '',
+            numeroContrato: item.numeroContrato || item.numero_contrato || '',
+            createdAt: item.createdAt ? new Date(item.createdAt) : new Date()
+          };
+          
+          console.log('🔍 Contratista mapeado:', contratista);
+          return contratista;
+        });
+
+        console.log(`📋 ${contratistas.length} contratistas mapeados:`, contratistas);
+        return contratistas;
       }),
       catchError(error => {
-        console.error('❌ Error obteniendo contratistas:', error);
-        // Si hay cache, devolverlo aunque sea viejo
-        if (this.contratistasCache.length > 0) {
-          return of(this.contratistasCache);
+        console.error('❌ Error buscando por documento:', error);
+        
+        // Si es un 401, no mostrar error en consola
+        if (error.status !== 401) {
+          console.error('❌ Detalles del error:', {
+            status: error.status,
+            message: error.message,
+            url: error.url
+          });
         }
+        
         return of([]);
       })
     );
   }
 
-  buscarPorDocumento(documento: string): Observable<Contratista | null> {
-    if (!documento || documento.trim().length < 2) {
-      return of(null);
-    }
-
-    // Buscar primero en cache
-    const encontradoEnCache = this.contratistasCache.find(c => 
-      c.documentoIdentidad === documento
-    );
-    
-    if (encontradoEnCache) {
-      return of(encontradoEnCache);
-    }
-
-    return this.http.get<Contratista>(`${this.apiUrl}/documento/${documento}`, {
-      headers: this.getAuthHeaders()
-    }).pipe(
-      catchError(() => of(null))
-    );
-  }
-
+  /**
+   * Buscar contratistas por nombre
+   */
   buscarPorNombre(nombre: string): Observable<Contratista[]> {
-    if (!nombre || nombre.trim().length < 2) {
+    const headers = this.getAuthHeaders();
+
+    if (!headers.get('Authorization')) {
+      console.warn('⚠️ No autenticado para buscar por nombre');
       return of([]);
     }
 
-    // Buscar primero en cache
-    const termino = nombre.toLowerCase();
-    const encontradosEnCache = this.contratistasCache.filter(c => 
-      c.nombreCompleto.toLowerCase().includes(termino)
-    );
-    
-    if (encontradosEnCache.length > 0) {
-      return of(encontradosEnCache);
+    if (!nombre || nombre.trim().length < 1) {
+      return of([]);
     }
 
-    return this.http.get<Contratista[]>(`${this.apiUrl}/buscar/${nombre}`, {
-      headers: this.getAuthHeaders()
-    }).pipe(
-      catchError(() => of([]))
-    );
-  }
+    console.log(`🔍 FRONTEND: Buscando contratista por nombre: "${nombre}"`);
 
-  crearContratista(contratista: Partial<Contratista>): Observable<Contratista> {
-    return this.http.post<Contratista>(this.apiUrl, contratista, {
-      headers: this.getAuthHeaders()
-    }).pipe(
-      tap(nuevoContratista => {
-        // Agregar al cache
-        this.contratistasCache.push(nuevoContratista);
-        console.log('✅ Contratista creado y agregado al cache');
+    return this.http.get<any>(
+      `${this.apiUrl}/autocomplete/nombre?q=${encodeURIComponent(nombre.trim())}`,
+      { headers }
+    ).pipe(
+      map(response => {
+        console.log('🔍 FRONTEND: Respuesta de /autocomplete/nombre:', response);
+        
+        // Usar el mismo método helper
+        const contratistasData = this.extraerDatosAutocomplete(response);
+        console.log(`✅ ${contratistasData.length} elementos extraídos`);
+        
+        return contratistasData.map((item: any) => ({
+          id: item.id || item._id || '',
+          nombreCompleto: item.nombreCompleto || item.nombre || item.label || 'Nombre no disponible',
+          documentoIdentidad: item.documentoIdentidad || item.documento || item.value || '',
+          numeroContrato: item.numeroContrato || item.numero_contrato || '',
+          createdAt: item.createdAt ? new Date(item.createdAt) : new Date()
+        }));
+      }),
+      catchError(error => {
+        console.error('❌ Error buscando por nombre:', error);
+        return of([]);
       })
     );
   }
 
-  // ✅ Método para buscar por cualquier término (nombre o documento)
-  buscarPorTermino(termino: string): Observable<Contratista[]> {
-    if (!termino || termino.trim().length < 2) {
+  /**
+   * Buscar contratistas por número de contrato
+   */
+  buscarPorNumeroContrato(numeroContrato: string): Observable<Contratista[]> {
+    const headers = this.getAuthHeaders();
+
+    if (!headers.get('Authorization')) {
+      console.warn('⚠️ No autenticado para buscar por contrato');
       return of([]);
     }
 
-    const terminoLower = termino.toLowerCase();
-    
-    // Buscar en cache
-    const encontradosEnCache = this.contratistasCache.filter(c => 
-      c.nombreCompleto.toLowerCase().includes(terminoLower) ||
-      c.documentoIdentidad.includes(termino)
-    );
-    
-    if (encontradosEnCache.length > 0) {
-      return of(encontradosEnCache);
+    if (!numeroContrato || numeroContrato.trim().length < 1) {
+      return of([]);
     }
 
-    // Si no hay en cache, buscar en el backend
-    return this.http.get<Contratista[]>(`${this.apiUrl}/buscar/${termino}`, {
-      headers: this.getAuthHeaders()
-    }).pipe(
-      catchError(() => of([]))
+    console.log(`🔍 FRONTEND: Buscando contratista por contrato: "${numeroContrato}"`);
+
+    return this.http.get<any>(
+      `${this.apiUrl}/autocomplete/contrato?q=${encodeURIComponent(numeroContrato.trim())}`,
+      { headers }
+    ).pipe(
+      map(response => {
+        console.log('🔍 FRONTEND: Respuesta de /autocomplete/contrato:', response);
+        
+        // Usar el mismo método helper
+        const contratistasData = this.extraerDatosAutocomplete(response);
+        console.log(`✅ ${contratistasData.length} elementos extraídos`);
+        
+        return contratistasData.map((item: any) => ({
+          id: item.id || item._id || '',
+          nombreCompleto: item.nombreCompleto || item.nombre || item.label || 'Nombre no disponible',
+          documentoIdentidad: item.documentoIdentidad || item.documento || item.value || '',
+          numeroContrato: item.numeroContrato || item.numero_contrato || '',
+          createdAt: item.createdAt ? new Date(item.createdAt) : new Date()
+        }));
+      }),
+      catchError(error => {
+        console.error('❌ Error buscando por contrato:', error);
+        return of([]);
+      })
     );
   }
 
-  // ✅ Limpiar cache
-  limpiarCache(): void {
-    this.contratistasCache = [];
-    this.cacheTimestamp = 0;
+  /**
+   * Obtener todos los contratistas (para carga inicial)
+   */
+  obtenerTodos(): Observable<Contratista[]> {
+    const headers = this.getAuthHeaders();
+
+    if (!headers.get('Authorization')) {
+      console.warn('⚠️ No autenticado para obtener contratistas');
+      return of([]);
+    }
+
+    return this.http.get<Contratista[]>(this.apiUrl, { headers }).pipe(
+      catchError(error => {
+        console.error('❌ Error obteniendo contratistas:', error);
+        return of([]);
+      })
+    );
   }
 
-  // ✅ Verificar si un documento ya existe
-  verificarDocumentoExistente(documento: string): Observable<boolean> {
-    return this.buscarPorDocumento(documento).pipe(
-      map(contratista => contratista !== null)
+  /**
+   * Crear un nuevo contratista
+   */
+  crearContratista(contratista: Partial<Contratista>): Observable<Contratista> {
+    const headers = this.getAuthHeaders();
+
+    if (!headers.get('Authorization')) {
+      return throwError(() => new Error('No autenticado'));
+    }
+
+    return this.http.post<Contratista>(this.apiUrl, contratista, { headers }).pipe(
+      catchError(error => {
+        console.error('❌ Error creando contratista:', error);
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * Método de prueba para verificar endpoint
+   */
+  probarEndpointDocumento(documento: string): Observable<any> {
+    const headers = this.getAuthHeaders();
+    
+    return this.http.get<any>(
+      `${this.apiUrl}/autocomplete/documento?q=${encodeURIComponent(documento)}`,
+      { headers }
+    ).pipe(
+      tap(response => {
+        console.log('🔍 RESPUESTA CRUDA DEL ENDPOINT:', response);
+        console.log('🔍 Estructura completa:');
+        console.log('1. response:', response);
+        console.log('2. response.ok:', response?.ok);
+        console.log('3. response.data:', response?.data);
+        console.log('4. response.data?.data:', response?.data?.data);
+        console.log('5. response.data?.data?.data:', response?.data?.data?.data);
+        console.log('6. Array.isArray(response.data.data.data):', Array.isArray(response?.data?.data?.data));
+      })
     );
   }
 }

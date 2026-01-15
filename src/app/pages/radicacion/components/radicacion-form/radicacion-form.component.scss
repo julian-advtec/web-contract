@@ -405,283 +405,184 @@
   }
 }
 
-// ============ UTILIDADES ============
-.text-info {
-  color: #3B82F6;
-}
-
-.text-success {
-  color: #10B981;
-}
-
-.text-danger {
-  color: #EF4444;
-}
-
-.text-warning {
-  color: #F59E0B;
-}
-
-.ml-2 {
-  margin-left: 8px;
-}
-
-.mt-1 {
-  margin-top: 4px;
-}
-
-.mt-2 {
-  margin-top: 8px;
-}
-
-.mb-2 {
-  margin-bottom: 8px;
-}
-
-// ============ ANIMACIONES ============
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-// ============ RESPONSIVE ============
-@media (max-width: 768px) {
-  .radicacion-form-container {
-    padding: 16px;
-  }
-
-  .radicacion-form {
-    .form-row {
-      grid-template-columns: 1fr;
-      gap: 16px;
-    }
-
-    .checkbox-group {
-      margin-top: 12px;
-      padding: 12px;
-    }
-
-    .checkbox-label {
-      font-size: 14px;
-    }
-
-    .documentos-section {
-      .documentos-grid {
-        grid-template-columns: 1fr;
-        gap: 16px;
-      }
-
-      .documento-card {
-        padding: 12px;
-      }
-    }
-
-    .form-actions {
-      flex-direction: column;
-      gap: 10px;
-
-      .btn {
-        width: 100%;
-        justify-content: center;
-      }
-    }
-  }
-}
-
-@media (max-width: 480px) {
-  .radicacion-form-container {
-    padding: 12px;
-  }
-
-  .radicacion-form {
-    .form-control {
-      padding: 10px 12px;
-      font-size: 13px;
-    }
-
-    .checkbox-group {
-      padding: 10px;
-    }
-
-    .documentos-section {
-      .file-upload-area {
-        padding: 16px;
-        min-height: 80px;
-      }
-    }
-  }
-}
-
-// ============ ESTADOS DE VALIDACIÓN ============
-.is-valid {
-  border-color: #10B981 !important;
-  background: rgba(16, 185, 129, 0.05) !important;
-}
-
-.is-invalid {
-  border-color: #EF4444 !important;
-  background: rgba(239, 68, 68, 0.05) !important;
-}
-
-// ============ TEXTO AYUDA ============
-.help-text {
-  font-size: 11px;
-  color: #9CA3AF;
-  margin-top: 2px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-
-  &:before {
-    content: '💡';
-  }
-}
-
-// ============ CARGANDO ============
-.loading-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  z-index: 10;
-
-  .spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid #f3f3f3;
-    border-top: 3px solid #10B981;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-}
-
-// ============ ESTADOS DE ARCHIVO ============
-.file-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  margin-top: 4px;
-
-  &.uploaded {
-    color: #10B981;
-  }
-
-  &.error {
-    color: #EF4444;
-  }
-
-  i {
-    font-size: 11px;
-  }
-}
-
-// src/app/pages/radicacion/components/radicacion-form/radicacion-form.component.scss
-// Agrega esto al final del archivo, antes de los media queries
-
 // ============ AUTCOMPLETE/DROPDOWN ============
 .autocomplete-container {
   position: relative;
-}
 
-.autocomplete-wrapper {
-  position: relative;
-}
+  .input-with-dropdown {
+    position: relative;
+  }
 
-.autocomplete-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: white;
-  border: 1px solid #E5E7EB;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  max-height: 300px;
-  overflow-y: auto;
-  z-index: 1000;
-  margin-top: 4px;
-  animation: fadeIn 0.2s ease;
+  .autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    max-height: 300px;
+    overflow-y: auto;
 
-  .dropdown-item {
-    padding: 10px 12px;
-    cursor: pointer;
-    border-bottom: 1px solid #F3F4F6;
-    transition: all 0.2s ease;
-    display: flex;
-    flex-direction: column;
-
-    &:last-child {
-      border-bottom: none;
-    }
-
-    &:hover {
-      background: #F9FAFB;
-    }
-
-    &.selected {
-      background: #EFF6FF;
-      border-left: 3px solid #3B82F6;
-    }
-
-    .dropdown-item-main {
+    .dropdown-header {
+      padding: 10px 15px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #eee;
+      font-weight: 600;
       display: flex;
       align-items: center;
-      margin-bottom: 2px;
-      font-size: 14px;
+      justify-content: space-between;
 
-      i {
-        color: #6B7280;
-        width: 16px;
+      .badge {
+        font-size: 0.75em;
       }
     }
 
-    .dropdown-item-sub {
-      padding-left: 24px;
-      font-size: 12px;
+    .dropdown-item {
+      padding: 10px 15px;
+      cursor: pointer;
+      border-bottom: 1px solid #f5f5f5;
+      transition: background 0.2s;
+
+      &:hover {
+        background: #f0f7ff;
+      }
+
+      &.selected {
+        background: #e3f2fd;
+        border-left: 3px solid #2196f3;
+      }
+
+      &.loading {
+        color: #666;
+        text-align: center;
+        cursor: default;
+      }
+
+      &.no-results {
+        color: #666;
+        text-align: center;
+        cursor: default;
+      }
     }
-  }
 
-  .dropdown-no-results,
-  .dropdown-loading {
-    padding: 16px;
-    text-align: center;
-    color: #6B7280;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    .contratista-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
 
-    i {
-      margin-right: 8px;
+      .contratista-info {
+        flex: 1;
+
+        .contratista-documento {
+          font-weight: 600;
+          color: #333;
+          margin-bottom: 2px;
+        }
+
+        .contratista-nombre {
+          color: #666;
+          font-size: 0.9em;
+          margin-bottom: 2px;
+        }
+
+        .contratista-contrato {
+          color: #888;
+          font-size: 0.85em;
+        }
+      }
+
+      i.fa-chevron-right {
+        color: #999;
+        font-size: 0.8em;
+      }
     }
-  }
 
-  .dropdown-loading {
-    color: #10B981;
+    .create-new {
+      background: #f8fff8;
+      border-top: 1px solid #e0f7e9;
+
+      &:hover {
+        background: #e8f5e9;
+      }
+
+      .create-new-content {
+        display: flex;
+        align-items: center;
+
+        i {
+          font-size: 1.2em;
+        }
+      }
+    }
   }
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-5px);
+// Estilos para el área de archivos
+.file-upload-area {
+  border: 2px dashed #ddd;
+  border-radius: 4px;
+  padding: 15px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.3s;
+  position: relative;
+
+  &:hover {
+    border-color: #2196f3;
   }
 
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  &.has-file {
+    border-color: #4caf50;
+    background: #f8fff8;
+  }
+
+  .file-input {
+    display: none;
+  }
+
+  .file-label {
+    cursor: pointer;
+    display: block;
+
+    i {
+      font-size: 2em;
+      color: #666;
+      margin-bottom: 10px;
+    }
+
+    .file-name {
+      display: block;
+      color: #333;
+      font-weight: 500;
+      word-break: break-all;
+    }
+  }
+
+  .file-actions {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+
+    .btn-remove {
+      background: #ff5252;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8em;
+
+      &:hover {
+        background: #ff1744;
+      }
+    }
   }
 }
 
@@ -866,8 +767,93 @@
   }
 }
 
-// ============ RESPONSIVE PARA DROPDOWN ============
+// ============ UTILIDADES ============
+.text-info {
+  color: #3B82F6;
+}
+
+.text-success {
+  color: #10B981;
+}
+
+.text-danger {
+  color: #EF4444;
+}
+
+.text-warning {
+  color: #F59E0B;
+}
+
+.ml-2 {
+  margin-left: 8px;
+}
+
+.mt-1 {
+  margin-top: 4px;
+}
+
+.mt-2 {
+  margin-top: 8px;
+}
+
+.mb-2 {
+  margin-bottom: 8px;
+}
+
+// ============ ANIMACIONES ============
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// ============ RESPONSIVE ============
 @media (max-width: 768px) {
+  .radicacion-form-container {
+    padding: 16px;
+  }
+
+  .radicacion-form {
+    .form-row {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .checkbox-group {
+      margin-top: 12px;
+      padding: 12px;
+    }
+
+    .checkbox-label {
+      font-size: 14px;
+    }
+
+    .documentos-section {
+      .documentos-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+
+      .documento-card {
+        padding: 12px;
+      }
+    }
+
+    .form-actions {
+      flex-direction: column;
+      gap: 10px;
+
+      .btn {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  }
+
   .autocomplete-dropdown {
     position: fixed;
     top: auto;
@@ -893,5 +879,99 @@
   .checkbox-container {
     padding: 12px;
     margin: 12px 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .radicacion-form-container {
+    padding: 12px;
+  }
+
+  .radicacion-form {
+    .form-control {
+      padding: 10px 12px;
+      font-size: 13px;
+    }
+
+    .checkbox-group {
+      padding: 10px;
+    }
+
+    .documentos-section {
+      .file-upload-area {
+        padding: 16px;
+        min-height: 80px;
+      }
+    }
+  }
+}
+
+// ============ ESTADOS DE VALIDACIÓN ============
+.is-valid {
+  border-color: #10B981 !important;
+  background: rgba(16, 185, 129, 0.05) !important;
+}
+
+.is-invalid {
+  border-color: #EF4444 !important;
+  background: rgba(239, 68, 68, 0.05) !important;
+}
+
+// ============ TEXTO AYUDA ============
+.help-text {
+  font-size: 11px;
+  color: #9CA3AF;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  &:before {
+    content: '💡';
+  }
+}
+
+// ============ CARGANDO ============
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  z-index: 10;
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #10B981;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+}
+
+// ============ ESTADOS DE ARCHIVO ============
+.file-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  margin-top: 4px;
+
+  &.uploaded {
+    color: #10B981;
+  }
+
+  &.error {
+    color: #EF4444;
+  }
+
+  i {
+    font-size: 11px;
   }
 }

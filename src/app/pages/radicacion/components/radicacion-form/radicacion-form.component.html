@@ -1,4 +1,3 @@
-<!-- src/app/pages/radicacion/components/radicacion-form/radicacion-form.component.html -->
 <div class="radicacion-form-container">
   <!-- Mensaje de estado -->
   <div *ngIf="mensaje" class="alert-message" [class.success]="tipoMensaje === 'success'"
@@ -12,6 +11,7 @@
     <div class="form-grid">
       <!-- Fila 1: Número de Radicado y Contrato -->
       <div class="form-row">
+        <!-- Número de Radicado -->
         <div class="form-group">
           <label for="numeroRadicado" class="form-label">
             <i class="fas fa-hashtag"></i> Número de Radicado *
@@ -26,72 +26,147 @@
           <small class="form-text text-muted">
             Formato: RAAAA-NNN (Año y número consecutivo)
           </small>
-          <!-- ✅ NUEVO: Mostrar año detectado -->
+          <!-- ✅ Mostrar año detectado -->
           <div *ngIf="getAnoRadicado()" class="text-info small mt-1">
             <i class="fas fa-calendar-alt"></i> Año detectado: {{ getAnoRadicado() }}
           </div>
         </div>
 
-        <div class="form-group">
+        <!-- ✅ Campo de número de contrato con autocomplete -->
+        <div class="form-group autocomplete-container" #contratoContainer>
           <label for="numeroContrato" class="form-label">
             <i class="fas fa-file-contract"></i> Número de Contrato *
           </label>
-          <input type="text" id="numeroContrato" class="form-control" formControlName="numeroContrato"
-            placeholder="Ej: CT-2024-001" [class.is-invalid]="radicacionForm.get('numeroContrato')?.invalid && 
-                                    radicacionForm.get('numeroContrato')?.touched">
+          <div class="input-with-dropdown">
+            <input type="text" id="numeroContrato" class="form-control" formControlName="numeroContrato"
+              placeholder="Escriba para buscar contratista por número de contrato"
+              (focus)="onFocusContratista('contrato')" (input)="onInputContratista('contrato')" autocomplete="off"
+              [class.is-invalid]="radicacionForm.get('numeroContrato')?.invalid && 
+                                radicacionForm.get('numeroContrato')?.touched">
+
+            <!-- ✅ DROPDOWN DE CONTRATOS CORREGIDO -->
+            <div *ngIf="mostrarDropdownContrato" class="autocomplete-dropdown">
+              <div class="dropdown-header">
+                <i class="fas fa-file-contract me-2"></i>
+                <span>Contratos encontrados</span>
+                <span class="badge bg-secondary ms-2">{{ contratistasFiltrados.length }}</span>
+              </div>
+
+              <div *ngIf="cargandoContratistas" class="dropdown-item loading">
+                <i class="fas fa-spinner fa-spin me-2"></i>
+                Buscando contratistas...
+              </div>
+
+              <div *ngIf="!cargandoContratistas && contratistasFiltrados.length === 0" class="dropdown-item no-results">
+                <i class="fas fa-search me-2"></i>
+                No se encontraron contratos
+              </div>
+
+              <div *ngFor="let contratista of contratistasFiltrados" class="dropdown-item contratista-item"
+                (click)="seleccionarContratista(contratista)" [class.selected]="esContratistaSeleccionado(contratista)">
+                <div class="contratista-info">
+                  <div class="contratista-contrato">
+                    <strong>
+                      <i class="fas fa-file-contract me-1"></i>
+                      {{ contratista.numeroContrato || 'Sin contrato' }}
+                    </strong>
+                  </div>
+                  <div class="contratista-documento">
+                    <i class="fas fa-id-card me-1"></i>
+                    {{ contratista.documentoIdentidad }}
+                  </div>
+                  <div class="contratista-nombre">
+                    <i class="fas fa-user me-1"></i>
+                    {{ contratista.nombreCompleto }}
+                  </div>
+                </div>
+                <i class="fas fa-chevron-right"></i>
+              </div>
+
+              <!-- Opción para crear nuevo contratista -->
+              <div *ngIf="puedeCrearNuevoContratista()" class="dropdown-item create-new"
+                (click)="crearNuevoContratista()">
+                <div class="create-new-content">
+                  <i class="fas fa-plus-circle text-success me-2"></i>
+                  <div>
+                    <strong>Crear nuevo contratista</strong>
+                    <div class="small text-muted">
+                      Contrato: {{ radicacionForm.get('numeroContrato')?.value || 'Nuevo' }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <small class="form-text text-muted">
+            Escriba para buscar contratista por número de contrato
+          </small>
         </div>
       </div>
 
-      <!-- Fila 2: Información del Contratista con Dropdown -->
+      <!-- Fila 2: Información del Contratista con Dropdown SEPARADOS -->
       <div class="form-row">
         <!-- Nombre del Contratista con Autocomplete -->
-        <div class="form-group autocomplete-container">
+        <div class="form-group autocomplete-container" #nombreContainer>
           <label for="nombreContratista" class="form-label">
             <i class="fas fa-user-tie"></i> Nombre del Contratista *
           </label>
           <div class="input-with-dropdown">
             <input type="text" id="nombreContratista" class="form-control" formControlName="nombreContratista"
-              placeholder="Escriba para buscar o seleccionar" (focus)="onFocusContratista()"
-              autocomplete="off"
-              [class.is-invalid]="radicacionForm.get('nombreContratista')?.invalid && 
+              placeholder="Escriba para buscar o seleccionar" (focus)="onFocusContratista('nombre')"
+              (input)="onInputContratista('nombre')" autocomplete="off" [class.is-invalid]="radicacionForm.get('nombreContratista')?.invalid && 
                                     radicacionForm.get('nombreContratista')?.touched">
-            
-            <!-- Dropdown de contratistas -->
-            <div *ngIf="mostrarDropdownContratista" class="dropdown-menu show">
-              <div *ngIf="cargandoContratistas" class="dropdown-item text-muted">
+
+            <!-- Dropdown de contratistas - NOMBRE -->
+            <div *ngIf="mostrarDropdownNombre" class="autocomplete-dropdown">
+              <div class="dropdown-header">
+                <i class="fas fa-users me-2"></i>
+                <span>Contratistas encontrados</span>
+                <span class="badge bg-secondary ms-2">{{ contratistasFiltrados.length }}</span>
+              </div>
+
+              <div *ngIf="cargandoContratistas" class="dropdown-item loading">
                 <i class="fas fa-spinner fa-spin me-2"></i>
-                Cargando...
+                Cargando contratistas...
               </div>
-              
-              <div *ngIf="!cargandoContratistas && contratistasFiltrados.length === 0" 
-                   class="dropdown-item text-muted">
+
+              <div *ngIf="!cargandoContratistas && contratistasFiltrados.length === 0" class="dropdown-item no-results">
                 <i class="fas fa-search me-2"></i>
-                No se encontraron resultados
+                No se encontraron contratistas
               </div>
-              
-              <div *ngFor="let contratista of contratistasFiltrados" 
-                   class="dropdown-item" 
-                   (click)="seleccionarContratista(contratista)">
-                <div class="d-flex justify-content-between align-items-center">
-                  <div>
+
+              <div *ngFor="let contratista of contratistasFiltrados" class="dropdown-item contratista-item"
+                (click)="seleccionarContratista(contratista)" [class.selected]="esContratistaSeleccionado(contratista)">
+                <div class="contratista-info">
+                  <div class="contratista-nombre">
                     <strong>{{ contratista.nombreCompleto }}</strong>
+                  </div>
+                  <div class="contratista-documento">
+                    <i class="fas fa-id-card me-1"></i>
+                    {{ contratista.documentoIdentidad }}
+                  </div>
+                  <!-- ✅ AÑADIR NÚMERO DE CONTRATO -->
+                  <div *ngIf="contratista.numeroContrato" class="contratista-contrato">
+                    <i class="fas fa-file-contract me-1"></i>
+                    Contrato: {{ contratista.numeroContrato }}
+                  </div>
+                </div>
+                <i class="fas fa-chevron-right"></i>
+              </div>
+
+              <!-- Opción para crear nuevo contratista -->
+              <div *ngIf="puedeCrearNuevoContratista()" class="dropdown-item create-new"
+                (click)="crearNuevoContratista()">
+                <div class="create-new-content">
+                  <i class="fas fa-plus-circle text-success me-2"></i>
+                  <div>
+                    <strong>Crear nuevo contratista</strong>
                     <div class="small text-muted">
-                      <i class="fas fa-id-card me-1"></i>
-                      {{ contratista.documentoIdentidad }}
+                      {{ radicacionForm.get('nombreContratista')?.value }}
+                      ({{ radicacionForm.get('documentoContratista')?.value }})
                     </div>
                   </div>
-                  <i class="fas fa-chevron-right text-muted"></i>
                 </div>
-              </div>
-              
-              <!-- Opción para crear nuevo contratista -->
-              <div *ngIf="puedeCrearNuevoContratista()" 
-                   class="dropdown-item dropdown-create-new"
-                   (click)="crearNuevoContratista()">
-                <i class="fas fa-plus-circle text-success me-2"></i>
-                <strong>Crear nuevo:</strong> 
-                {{ radicacionForm.get('nombreContratista')?.value }} 
-                ({{ radicacionForm.get('documentoContratista')?.value }})
               </div>
             </div>
           </div>
@@ -101,42 +176,64 @@
         </div>
 
         <!-- Documento del Contratista con Autocomplete -->
-        <div class="form-group autocomplete-container">
+        <div class="form-group autocomplete-container" #documentoContainer>
           <label for="documentoContratista" class="form-label">
             <i class="fas fa-id-card"></i> Documento del Contratista *
           </label>
           <div class="input-with-dropdown">
             <input type="text" id="documentoContratista" class="form-control" formControlName="documentoContratista"
-              placeholder="Escriba documento para buscar" (focus)="onFocusDocumento()"
-              autocomplete="off"
-              [class.is-invalid]="radicacionForm.get('documentoContratista')?.invalid && 
+              placeholder="Escriba documento para buscar" (focus)="onFocusContratista('documento')"
+              (input)="onInputContratista('documento')" autocomplete="off" [class.is-invalid]="radicacionForm.get('documentoContratista')?.invalid && 
                                     radicacionForm.get('documentoContratista')?.touched">
-            
-            <!-- Dropdown de documentos -->
-            <div *ngIf="mostrarDropdownDocumento" class="dropdown-menu show">
-              <div *ngIf="cargandoContratistas" class="dropdown-item text-muted">
+
+            <!-- Dropdown de documentos - DOCUMENTO -->
+            <div *ngIf="mostrarDropdownDocumento" class="autocomplete-dropdown">
+              <div class="dropdown-header">
+                <i class="fas fa-id-card me-2"></i>
+                <span>Documentos encontrados</span>
+                <span class="badge bg-secondary ms-2">{{ contratistasFiltrados.length }}</span>
+              </div>
+
+              <div *ngIf="cargandoContratistas" class="dropdown-item loading">
                 <i class="fas fa-spinner fa-spin me-2"></i>
-                Cargando...
+                Cargando contratistas...
               </div>
-              
-              <div *ngIf="!cargandoContratistas && contratistasFiltrados.length === 0" 
-                   class="dropdown-item text-muted">
+
+              <div *ngIf="!cargandoContratistas && contratistasFiltrados.length === 0" class="dropdown-item no-results">
                 <i class="fas fa-search me-2"></i>
-                No se encontraron resultados
+                No se encontraron documentos
               </div>
-              
-              <div *ngFor="let contratista of contratistasFiltrados" 
-                   class="dropdown-item" 
-                   (click)="seleccionarContratista(contratista)">
-                <div class="d-flex justify-content-between align-items-center">
-                  <div>
+
+              <div *ngFor="let contratista of contratistasFiltrados" class="dropdown-item contratista-item"
+                (click)="seleccionarContratista(contratista)" [class.selected]="esContratistaSeleccionado(contratista)">
+                <div class="contratista-info">
+                  <div class="contratista-documento">
                     <strong>{{ contratista.documentoIdentidad }}</strong>
+                  </div>
+                  <div class="contratista-nombre">
+                    <i class="fas fa-user me-1"></i>
+                    {{ contratista.nombreCompleto }}
+                  </div>
+                  <!-- ✅ AÑADIR NÚMERO DE CONTRATO -->
+                  <div *ngIf="contratista.numeroContrato" class="contratista-contrato">
+                    <i class="fas fa-file-contract me-1"></i>
+                    Contrato: {{ contratista.numeroContrato }}
+                  </div>
+                </div>
+                <i class="fas fa-chevron-right"></i>
+              </div>
+
+              <!-- Opción para crear nuevo contratista (solo si es relevante) -->
+              <div *ngIf="puedeCrearNuevoContratista()" class="dropdown-item create-new"
+                (click)="crearNuevoContratista()">
+                <div class="create-new-content">
+                  <i class="fas fa-plus-circle text-success me-2"></i>
+                  <div>
+                    <strong>Crear nuevo contratista</strong>
                     <div class="small text-muted">
-                      <i class="fas fa-user me-1"></i>
-                      {{ contratista.nombreCompleto }}
+                      Documento: {{ radicacionForm.get('documentoContratista')?.value }}
                     </div>
                   </div>
-                  <i class="fas fa-chevron-right text-muted"></i>
                 </div>
               </div>
             </div>
@@ -155,6 +252,10 @@
           </label>
           <input type="date" id="fechaInicio" class="form-control" formControlName="fechaInicio" [class.is-invalid]="radicacionForm.get('fechaInicio')?.invalid && 
                                     radicacionForm.get('fechaInicio')?.touched">
+          <div *ngIf="radicacionForm.get('fechaInicio')?.invalid && 
+                     radicacionForm.get('fechaInicio')?.touched" class="invalid-feedback">
+            La fecha de inicio es requerida
+          </div>
         </div>
 
         <div class="form-group">
@@ -163,6 +264,10 @@
           </label>
           <input type="date" id="fechaFin" class="form-control" formControlName="fechaFin" [class.is-invalid]="radicacionForm.get('fechaFin')?.invalid && 
                                     radicacionForm.get('fechaFin')?.touched">
+          <div *ngIf="radicacionForm.get('fechaFin')?.invalid && 
+                     radicacionForm.get('fechaFin')?.touched" class="invalid-feedback">
+            La fecha de fin es requerida
+          </div>
         </div>
       </div>
 
@@ -171,7 +276,7 @@
         <div class="form-group full-width">
           <div class="checkbox-container">
             <div class="form-check">
-              <!-- ✅ USAR [checked] Y (change) CORRECTAMENTE -->
+              <!-- ✅ CORREGIDO: Usar [checked] y (change) correctamente -->
               <input type="checkbox" id="primerRadicadoDelAno" class="form-check-input"
                 [checked]="radicacionForm.get('primerRadicadoDelAno')?.value" (change)="onPrimerRadicadoChange($event)">
               <label class="form-check-label" for="primerRadicadoDelAno">
@@ -188,7 +293,7 @@
                 }">
                   <i class="fas" [class.fa-check-circle]="primerRadicadoDisponible"
                     [class.fa-exclamation-circle]="!primerRadicadoDisponible"></i>
-                  {{ primerRadicadoDisponible ? 'Disponible' : 'No disponible' }}
+                  {{ mensajePrimerRadicado }}
                 </span>
               </label>
             </div>
@@ -200,16 +305,15 @@
             </small>
 
             <!-- ✅ Mensaje de confirmación -->
-            <div *ngIf="radicacionForm.get('primerRadicadoDelAno')?.value && getAnoRadicado()"
-              class="alert alert-success mt-2 animate__animated animate__fadeIn">
+            <div *ngIf="radicacionForm.get('primerRadicadoDelAno')?.value && getAnoRadicado() && primerRadicadoDisponible"
+              class="alert alert-success mt-2">
               <i class="fas fa-check-circle me-2"></i>
               <strong>Confirmado:</strong> Este documento será registrado como el <strong>primer radicado</strong> del
               año {{ getAnoRadicado() }}.
             </div>
 
             <!-- ✅ Mensaje de advertencia si no está disponible -->
-            <div *ngIf="!primerRadicadoDisponible && !verificandoPrimerRadicado"
-              class="alert alert-warning mt-2 animate__animated animate__fadeIn">
+            <div *ngIf="!primerRadicadoDisponible && !verificandoPrimerRadicado" class="alert alert-warning mt-2">
               <i class="fas fa-exclamation-triangle me-2"></i>
               <strong>Advertencia:</strong> {{ mensajePrimerRadicado }}
             </div>
