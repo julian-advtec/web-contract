@@ -1,4 +1,3 @@
-// src/app/core/models/documento.model.ts
 export type SupervisorEstado = 'PENDIENTE' | 'APROBADO' | 'OBSERVADO' | 'RECHAZADO';
 
 export interface Supervisor {
@@ -44,7 +43,12 @@ export interface Documento {
   // ✅ CAMPOS AÑADIDOS
   fechaActualizacion?: Date;
   usuarioAsignadoNombre?: string;
-  primerRadicadoDelAno?: boolean; // ✅ NUEVO CAMPO AGREGADO
+  primerRadicadoDelAno?: boolean;
+  
+  // ✅ NUEVOS CAMPOS
+  esUltimoRadicado?: boolean; // ✅ NUEVO: Campo para identificar si es el último radicado del contratista
+  tipoContrato?: string;
+  valorContrato?: number;
   
   // Campos específicos para supervisor
   disponible?: boolean;
@@ -62,6 +66,14 @@ export interface Documento {
     usuarioAsignado?: string;
     supervisorActual?: string;
   };
+
+  // ✅ NUEVOS CAMPOS PARA PAZ Y SALVO Y SUPERVISOR
+  supervisorAsignado?: string;
+  fechaAsignacion?: Date;
+  supervisorEstado?: string;
+  requierePazSalvo?: boolean;
+  pazSalvo?: string;
+  fechaPazSalvo?: Date; // ✅ NUEVO: Fecha de emisión del paz y salvo
 }
 
 // DTO para crear documento
@@ -76,6 +88,16 @@ export interface CreateDocumentoDto {
     descripcionSeguridadSocial: string;
     descripcionInformeActividades: string;
     observacion?: string;
-    primerRadicadoDelAno: boolean; // ✅ Debe ser boolean
+    primerRadicadoDelAno: boolean;
+    esUltimoRadicado?: boolean; // ✅ NUEVO: Indicador si es el último radicado
     archivos?: File[];
+}
+
+// DTO para revisión del supervisor
+export interface RevisionDocumentoDto {
+  estado: SupervisorEstado;
+  observacion: string;
+  correcciones?: string;
+  requierePazSalvo?: boolean;
+  esUltimoRadicado?: boolean; // ✅ NUEVO: Confirmación del supervisor
 }

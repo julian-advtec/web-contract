@@ -23,9 +23,52 @@
         <span class="badge bg-secondary">
           <i class="fas fa-user-tie me-1"></i>{{ revisionForm.get('nombreContratista')?.value || 'N/A' }}
         </span>
+        
+        <!-- ✅ Badge para documentos que requieren paz y salvo -->
+        <span *ngIf="requierePazSalvo && revisionForm.get('esUltimoRadicado')?.value" class="badge bg-warning">
+          <i class="fas fa-file-contract me-1"></i>Requiere Paz y Salvo
+        </span>
+        
         <span *ngIf="soloLectura" class="badge bg-info">
           <i class="fas fa-eye me-1"></i>Solo lectura
         </span>
+      </div>
+    </div>
+
+    <!-- ✅ NUEVA SECCIÓN: INFORMACIÓN DEL CONTRATISTA Y ÚLTIMO RADICADO -->
+    <!-- IMPORTANTE: Esta sección SOLO aparece cuando el estado es APROBADO -->
+    <div *ngIf="mostrarInfoUltimoRadicado && revisionForm.get('estadoRevision')?.value === 'APROBADO'" class="alert alert-info mb-3">
+      <div class="d-flex align-items-center">
+        <i class="fas fa-info-circle fa-2x me-3"></i>
+        <div>
+          <h5 class="alert-heading mb-2">⚠️ CONFIRMACIÓN IMPORTANTE</h5>
+          <p class="mb-3">
+            Estás aprobando un documento del contratista 
+            <strong>{{ revisionForm.get('nombreContratista')?.value }}</strong>. 
+            <strong>Por favor verifica si este es el último radicado del contratista.</strong>
+          </p>
+          
+          <!-- ✅ CHECKBOX PARA CONFIRMAR SI ES EL ÚLTIMO RADICADO -->
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" formControlName="esUltimoRadicado" 
+                   id="esUltimoRadicado" [disabled]="soloLectura">
+            <label class="form-check-label fw-bold" for="esUltimoRadicado">
+              ✅ Confirmo que este es el ÚLTIMO RADICADO del contratista
+            </label>
+          </div>
+          
+          <!-- ✅ CHECKBOX PARA PAZ Y SALVO - SOLO VISIBLE SI ES ÚLTIMO RADICADO -->
+          <div *ngIf="revisionForm.get('esUltimoRadicado')?.value" class="form-check mt-3">
+            <input class="form-check-input" type="checkbox" formControlName="requierePazSalvo" 
+                   id="requierePazSalvo" (change)="onPazSalvoChange()" [disabled]="soloLectura">
+            <label class="form-check-label fw-bold text-warning" for="requierePazSalvo">
+              📄 Este último radicado REQUIERE PAZ Y SALVO
+            </label>
+            <small class="text-muted d-block mt-1">
+              Si marca esta opción, deberá adjuntar el archivo de paz y salvo en la sección correspondiente.
+            </small>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -113,6 +156,63 @@
             <i class="fas fa-calendar-check"></i> Fecha de Asignación
           </label>
           <input type="date" class="form-control" formControlName="fechaAsignacion" readonly>
+        </div>
+      </div>
+
+      <!-- ✅ SECCIÓN: PAZ Y SALVO - SOLO VISIBLE CUANDO ES APROBADO, ÚLTIMO RADICADO Y REQUIERE PAZ Y SALVO -->
+      <div class="paz-salvo-section" 
+           *ngIf="revisionForm.get('estadoRevision')?.value === 'APROBADO' && 
+                  revisionForm.get('esUltimoRadicado')?.value && 
+                  revisionForm.get('requierePazSalvo')?.value">
+        <h4 class="section-title">
+          <i class="fas fa-file-contract text-warning"></i> Paz y Salvo (Obligatorio)
+        </h4>
+        
+        <div class="form-row">
+          <div class="form-group full-width">
+            <label class="form-label">
+              <i class="fas fa-file-contract"></i> Documento de Paz y Salvo *
+            </label>
+            
+            <!-- Mostrar archivo existente si existe -->
+            <div *ngIf="nombrePazSalvoExistente && soloLectura" class="existing-file mb-3 p-3 bg-success bg-opacity-10 rounded">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-file-contract text-success fa-2x me-3"></i>
+                <div class="flex-grow-1">
+                  <strong>Archivo actual:</strong> {{ nombrePazSalvoExistente }}
+                  <div *ngIf="fechaPazSalvoExistente" class="small text-muted">
+                    Emitido el: {{ fechaPazSalvoExistente | date:'dd/MM/yyyy' }}
+                  </div>
+                </div>
+                <div class="btn-group">
+                  <button type="button" class="btn btn-sm btn-outline-success" 
+                          (click)="previsualizarPazSalvo(nombrePazSalvoExistente)">
+                    <i class="fas fa-eye"></i> Ver
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-primary" 
+                          (click)="descargarPazSalvo(nombrePazSalvoExistente)">
+                    <i class="fas fa-download"></i> Descargar
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Subir nuevo archivo (solo si no es solo lectura) -->
+            <div *ngIf="!soloLectura">
+              <div class="mb-3">
+                <input type="file" class="form-control" (change)="onArchivoPazSalvoSelected($event)"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                <div *ngIf="!archivoPazSalvo && !nombrePazSalvoExistente" 
+                     class="text-danger small mt-1">
+                  ⚠️ Se requiere un archivo de paz y salvo para el último radicado
+                </div>
+              </div>
+              
+              <small class="text-muted">
+                Obligatorio para documentos que requieren paz y salvo. Formatos: PDF, Word, JPG, PNG (max 10MB)
+              </small>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -270,7 +370,7 @@
         </div>
       </div>
 
-      <!-- ✅ MODIFICADO: SECCIÓN DE REVISIÓN DEL SUPERVISOR (EDITABLE o SOLO LECTURA) -->
+      <!-- SECCIÓN DE REVISIÓN DEL SUPERVISOR -->
       <div class="revision-section">
         <h4 class="section-title">
           <i class="fas fa-clipboard-check text-warning"></i> Revisión del Supervisor
@@ -349,6 +449,19 @@
                 La observación debe tener al menos 10 caracteres
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Campo para correcciones (opcional) -->
+        <div class="form-row">
+          <div class="form-group full-width">
+            <label class="form-label">
+              <i class="fas fa-edit"></i> Correcciones Sugeridas (Opcional)
+            </label>
+            <textarea class="form-control" formControlName="correcciones" rows="3"
+              placeholder="Si el documento requiere correcciones, describe detalladamente qué debe corregirse..."
+              [readonly]="soloLectura">
+            </textarea>
           </div>
         </div>
 

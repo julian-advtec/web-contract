@@ -167,89 +167,75 @@ export class SupervisorService {
 
                 throw new Error('Respuesta inválida del servidor');
             }),
-            catchError((error: HttpErrorResponse) => {
-                console.error('❌ Error tomando documento:', error);
-
-                let errorMessage = 'Error desconocido';
-
-                if (error.error instanceof ErrorEvent) {
-                    errorMessage = `Error del cliente: ${error.error.message}`;
-                } else {
-                    switch (error.status) {
-                        case 400:
-                            errorMessage = error.error?.message || 'Solicitud incorrecta';
-                            break;
-                        case 403:
-                            errorMessage = 'No tienes permisos para esta acción';
-                            break;
-                        case 404:
-                            errorMessage = 'Documento no encontrado';
-                            break;
-                        case 409:
-                            errorMessage = 'Documento ya está siendo revisado por otro supervisor';
-                            break;
-                        case 500:
-                            errorMessage = 'Error interno del servidor';
-                            break;
-                        default:
-                            errorMessage = `Error ${error.status}: ${error.error?.message || error.message}`;
-                    }
-                }
-
-                return throwError(() => new Error(errorMessage));
-            })
+            catchError(this.handleError)
         );
     }
 
     /**
-     * ✅ Método del supervisor: Guardar revisión de un documento
-     */
-
-
-    /**
-     * ✅ Método del supervisor: Guardar revisión con archivo (si es APROBADO)
+     * ✅ Guardar revisión con PAZ Y SALVO y ÚLTIMO RADICADO
      */
     guardarRevisionConArchivo(
-        documentoId: string,
-        datosRevision: any,
-        archivo: File | null
-    ): Observable<any> {
-        const formData = new FormData();
+    documentoId: string,
+    datosRevision: any,
+    archivoAprobacion?: File | null,
+    archivoPazSalvo?: File | null
+): Observable<any> {
+    const formData = new FormData();
 
-        // ✅ SOLO campos permitidos por el DTO del backend
-        formData.append('estado', datosRevision.estado);
-        formData.append('observacion', datosRevision.observacion || '');
-
-        // ❌ NO incluir 'recomendacion' - no existe en el DTO
-
-        console.log('📤 Enviando datos (FormData):', {
-            estado: datosRevision.estado,
-            observacion: datosRevision.observacion,
-            tieneArchivo: !!archivo
-        });
-
-        // Agregar archivo solo si existe y el estado es APROBADO
-        if (archivo && datosRevision.estado === 'APROBADO') {
-            formData.append('archivo', archivo, archivo.name);
-        }
-
-        const headers = new HttpHeaders({
-            'Authorization': this.getAuthToken()
-            // No incluir Content-Type, FormData lo maneja automáticamente
-        });
-
-        return this.http.post<any>(`${this.apiUrl}/revisar/${documentoId}`, formData, { headers })
-            .pipe(
-                map(response => {
-                    console.log('✅ Revisión con archivo guardada:', response);
-                    return response;
-                }),
-                catchError(this.handleError)
-            );
+    // ✅ Campos permitidos por el DTO del backend
+    formData.append('estado', datosRevision.estado);
+    formData.append('observacion', datosRevision.observacion || '');
+    
+    if (datosRevision.correcciones) {
+        formData.append('correcciones', datosRevision.correcciones);
     }
 
+    // ✅ NUEVO: Checkbox para paz y salvo
+    if (datosRevision.requierePazSalvo) {
+        formData.append('requierePazSalvo', 'true');
+    }
+    
+    // ✅ NUEVO: Campo para confirmar si es el último radicado
+    if (datosRevision.esUltimoRadicado !== undefined) {
+        formData.append('esUltimoRadicado', datosRevision.esUltimoRadicado ? 'true' : 'false');
+    }
+
+    console.log('📤 Enviando datos (FormData):', {
+        estado: datosRevision.estado,
+        observacion: datosRevision.observacion,
+        requierePazSalvo: datosRevision.requierePazSalvo,
+        esUltimoRadicado: datosRevision.esUltimoRadicado,
+        tieneArchivoAprobacion: !!archivoAprobacion,
+        tieneArchivoPazSalvo: !!archivoPazSalvo
+    });
+
+    // Agregar archivo de aprobación solo si existe y el estado es APROBADO
+    if (archivoAprobacion && datosRevision.estado === 'APROBADO') {
+        formData.append('archivo', archivoAprobacion, archivoAprobacion.name);
+    }
+
+    // ✅ Agregar archivo de paz y salvo si existe
+    if (archivoPazSalvo && datosRevision.estado === 'APROBADO' && datosRevision.requierePazSalvo) {
+        formData.append('pazSalvo', archivoPazSalvo, archivoPazSalvo.name);
+    }
+
+    const token = this.getAuthToken();
+    const headers = new HttpHeaders({
+        'Authorization': token
+    });
+
+    return this.http.post<any>(`${this.apiUrl}/revisar/${documentoId}`, formData, { headers })
+        .pipe(
+            map(response => {
+                console.log('✅ Revisión con archivo guardada:', response);
+                return response;
+            }),
+            catchError(this.handleError)
+        );
+}
+
     /**
-     * ✅ Método del supervisor: Guardar revisión sin archivo
+     * ✅ Guardar revisión sin archivos
      */
     guardarRevision(documentoId: string, datosRevision: any): Observable<any> {
         const headers = this.getAuthHeaders();
@@ -257,7 +243,9 @@ export class SupervisorService {
         const payload = {
             estado: datosRevision.estado,
             observacion: datosRevision.observacion,
-            
+            correcciones: datosRevision.correcciones || null,
+            requierePazSalvo: datosRevision.requierePazSalvo || false,
+            esUltimoRadicado: datosRevision.esUltimoRadicado || false // ✅ NUEVO
         };
 
         console.log(`📤 Enviando revisión para documento ${documentoId}:`, payload);
@@ -275,10 +263,7 @@ export class SupervisorService {
                     }
                     return response;
                 }),
-                catchError((error: any) => {
-                    console.error('❌ Error guardando revisión:', error);
-                    return throwError(() => new Error(error.message || 'Error al guardar la revisión'));
-                })
+                catchError(this.handleError)
             );
     }
 
@@ -291,85 +276,80 @@ export class SupervisorService {
     }
 
     /**
-     * ✅ Aprobar documento (método alternativo)
+     * ✅ Descargar archivo de paz y salvo
      */
-    aprobarDocumento(id: string, observaciones?: string): Observable<any> {
-        const body = {
-            estado: 'APROBADO',
-            observacion: observaciones || ''
-        };
-
+    descargarPazSalvo(nombreArchivo: string): Observable<Blob> {
         const headers = this.getAuthHeaders();
-        console.log(`✅ Aprobando documento ${id}...`);
+        console.log(`📥 Descargando paz y salvo: ${nombreArchivo}...`);
 
-        return this.http.post<any>(`${this.apiUrl}/revisar/${id}`, body, { headers }).pipe(
-            map(response => {
-                console.log('📊 Respuesta aprobarDocumento:', response);
-
-                if (response?.ok === true && response.data) {
-                    return response.data;
-                }
-                if (response?.success === true) {
-                    return response.data || response;
-                }
-                throw new Error('Respuesta inválida del servidor');
-            }),
+        return this.http.get(`${this.apiUrl}/descargar-paz-salvo/${nombreArchivo}`, {
+            headers,
+            responseType: 'blob'
+        }).pipe(
             catchError(this.handleError)
         );
     }
 
     /**
-     * ✅ Rechazar documento (método alternativo)
+     * ✅ Previsualizar paz y salvo
      */
-    rechazarDocumento(id: string, motivo: string): Observable<any> {
-        const body = {
-            estado: 'RECHAZADO',
-            observacion: motivo
-        };
-
-        const headers = this.getAuthHeaders();
-        console.log(`❌ Rechazando documento ${id}...`);
-
-        return this.http.post<any>(`${this.apiUrl}/revisar/${id}`, body, { headers }).pipe(
-            map(response => {
-                console.log('📊 Respuesta rechazarDocumento:', response);
-
-                if (response?.ok === true && response.data) {
-                    return response.data;
-                }
-                if (response?.success === true) {
-                    return response.data || response;
-                }
-                throw new Error('Respuesta inválida del servidor');
-            }),
-            catchError(this.handleError)
-        );
+    previsualizarPazSalvo(nombreArchivo: string): void {
+        const token = this.getAuthToken();
+        const url = `${this.apiUrl}/ver-paz-salvo/${nombreArchivo}?token=${encodeURIComponent(token)}`;
+        window.open(url, '_blank');
     }
 
     /**
-     * ✅ Observar documento (método alternativo)
+     * ✅ Verificar si es el último radicado del contratista
      */
-    observarDocumento(id: string, observaciones: string): Observable<any> {
-        const body = {
-            estado: 'OBSERVADO',
-            observacion: observaciones
-        };
-
+    verificarUltimoRadicado(documentoId: string, contratistaId: string): Observable<boolean> {
         const headers = this.getAuthHeaders();
-        console.log(`🔍 Observando documento ${id}...`);
+        console.log(`🔍 Verificando si es el último radicado del contratista ${contratistaId}...`);
 
-        return this.http.post<any>(`${this.apiUrl}/revisar/${id}`, body, { headers }).pipe(
-            map(response => {
-                console.log('📊 Respuesta observarDocumento:', response);
+        return this.http.get<any>(`${this.apiUrl}/verificar-ultimo-radicado/${contratistaId}/${documentoId}`, { headers })
+            .pipe(
+                map(response => {
+                    console.log('📊 Respuesta verificación último radicado:', response);
+                    return response?.data?.esUltimoRadicado || false;
+                }),
+                catchError(error => {
+                    console.error('❌ Error verificando último radicado:', error);
+                    return of(false);
+                })
+            );
+    }
 
-                if (response?.ok === true && response.data) {
-                    return response.data;
-                }
-                if (response?.success === true) {
-                    return response.data || response;
-                }
-                throw new Error('Respuesta inválida del servidor');
-            }),
+    /**
+     * ✅ Obtener información del contratista
+     */
+    obtenerInfoContratista(documentoId: string): Observable<any> {
+        const headers = this.getAuthHeaders();
+        console.log(`👤 Obteniendo información del contratista para documento ${documentoId}...`);
+
+        return this.http.get<any>(`${this.apiUrl}/contratista-info/${documentoId}`, { headers })
+            .pipe(
+                map(response => {
+                    console.log('📊 Información del contratista:', response);
+                    return response?.data || {};
+                }),
+                catchError(error => {
+                    console.error('❌ Error obteniendo información del contratista:', error);
+                    return of({});
+                })
+            );
+    }
+
+    /**
+     * ✅ Descargar archivo como Blob
+     */
+    descargarArchivo(documentoId: string, numeroArchivo: number): Observable<Blob> {
+        const headers = this.getAuthHeaders();
+        console.log(`📥 Descargando archivo ${numeroArchivo} del documento ${documentoId}...`);
+
+        return this.http.get(`${this.apiUrl}/descargar/${documentoId}/archivo/${numeroArchivo}`, {
+            headers,
+            responseType: 'blob'
+        }).pipe(
             catchError(this.handleError)
         );
     }
@@ -463,7 +443,7 @@ export class SupervisorService {
     }
 
     /**
-     * ✅ Obtener documento por ID para el formulario de revisión
+     * ✅ Obtener documento por ID
      */
     obtenerDocumentoPorId(id: string): Observable<any> {
         const headers = this.getAuthHeaders();
@@ -494,15 +474,11 @@ export class SupervisorService {
     }
 
     /**
-     * ✅ Obtener token de autenticación
-     */
-
-    /**
-     * ✅ Método para obtener URL de archivo con token
+     * ✅ Método para obtener URL de archivo
      */
     getArchivoUrlConToken(id: string, index: number, download = false): string {
         const token = this.getAuthToken();
-        const baseUrl = `${this.apiUrl}/${id}/archivo/${index}`;
+        const baseUrl = `${this.apiUrl}/descargar/${id}/archivo/${index}`;
         const params = new URLSearchParams();
         if (download) params.append('download', 'true');
         if (token) params.append('token', token);
@@ -522,13 +498,6 @@ export class SupervisorService {
      */
     previsualizarDocumento(documentoId: string, index: number): void {
         this.previsualizarArchivo(documentoId, index);
-    }
-
-    /**
-     * ✅ Método unificado para descargar archivos
-     */
-    descargarDocumento(documentoId: string, index: number, nombreArchivo?: string): void {
-        this.descargarArchivoDirecto(documentoId, index, nombreArchivo);
     }
 
     /**
@@ -556,21 +525,6 @@ export class SupervisorService {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-    }
-
-    /**
-     * ✅ Método para descargar archivo como Blob
-     */
-    descargarArchivo(documentoId: string, numeroArchivo: number): Observable<Blob> {
-        const headers = this.getAuthHeaders();
-        console.log(`📥 Descargando archivo ${numeroArchivo} del documento ${documentoId}...`);
-
-        return this.http.get(`${this.apiUrl}/descargar/${documentoId}/archivo/${numeroArchivo}`, {
-            headers,
-            responseType: 'blob'
-        }).pipe(
-            catchError(this.handleError)
-        );
     }
 
     /**
@@ -617,6 +571,18 @@ export class SupervisorService {
                     ultimoUsuario: doc.ultimoUsuario || '',
                     fechaActualizacion: doc.fechaActualizacion ? new Date(doc.fechaActualizacion) : new Date(),
                     usuarioAsignadoNombre: doc.usuarioAsignadoNombre || doc.asignacion?.usuarioAsignado,
+
+                    // ✅ NUEVO: Campos para supervisor
+                    supervisorAsignado: doc.supervisorAsignado || doc.asignacion?.supervisorActual || undefined,
+                    fechaAsignacion: doc.fechaAsignacion ? new Date(doc.fechaAsignacion) : undefined,
+                    supervisorEstado: doc.supervisorEstado || doc.asignacion?.estado || undefined,
+                    requierePazSalvo: doc.requierePazSalvo || false,
+                    pazSalvo: doc.pazSalvo || undefined,
+                    fechaPazSalvo: doc.fechaPazSalvo ? new Date(doc.fechaPazSalvo) : undefined,
+                    esUltimoRadicado: doc.esUltimoRadicado || false, // ✅ NUEVO
+                    tipoContrato: doc.tipoContrato || 'SERVICIOS',
+                    valorContrato: doc.valorContrato || 0,
+
                     disponible: doc.disponible || true,
                     asignacion: doc.asignacion || {
                         enRevision: doc.asignacion?.enRevision || false,
@@ -672,6 +638,84 @@ export class SupervisorService {
     obtenerHistorialConArchivos(documentoId: string): Observable<any> {
         return this.http.get(`${this.apiUrl}/historial/${documentoId}/archivos`).pipe(
             map((response: any) => response),
+            catchError(this.handleError)
+        );
+    }
+
+    /**
+     * ✅ Métodos alternativos (mantener compatibilidad)
+     */
+    aprobarDocumento(id: string, observaciones?: string): Observable<any> {
+        const body = {
+            estado: 'APROBADO',
+            observacion: observaciones || ''
+        };
+
+        const headers = this.getAuthHeaders();
+        console.log(`✅ Aprobando documento ${id}...`);
+
+        return this.http.post<any>(`${this.apiUrl}/revisar/${id}`, body, { headers }).pipe(
+            map(response => {
+                console.log('📊 Respuesta aprobarDocumento:', response);
+
+                if (response?.ok === true && response.data) {
+                    return response.data;
+                }
+                if (response?.success === true) {
+                    return response.data || response;
+                }
+                throw new Error('Respuesta inválida del servidor');
+            }),
+            catchError(this.handleError)
+        );
+    }
+
+    rechazarDocumento(id: string, motivo: string): Observable<any> {
+        const body = {
+            estado: 'RECHAZADO',
+            observacion: motivo
+        };
+
+        const headers = this.getAuthHeaders();
+        console.log(`❌ Rechazando documento ${id}...`);
+
+        return this.http.post<any>(`${this.apiUrl}/revisar/${id}`, body, { headers }).pipe(
+            map(response => {
+                console.log('📊 Respuesta rechazarDocumento:', response);
+
+                if (response?.ok === true && response.data) {
+                    return response.data;
+                }
+                if (response?.success === true) {
+                    return response.data || response;
+                }
+                throw new Error('Respuesta inválida del servidor');
+            }),
+            catchError(this.handleError)
+        );
+    }
+
+    observarDocumento(id: string, observaciones: string): Observable<any> {
+        const body = {
+            estado: 'OBSERVADO',
+            observacion: observaciones
+        };
+
+        const headers = this.getAuthHeaders();
+        console.log(`🔍 Observando documento ${id}...`);
+
+        return this.http.post<any>(`${this.apiUrl}/revisar/${id}`, body, { headers }).pipe(
+            map(response => {
+                console.log('📊 Respuesta observarDocumento:', response);
+
+                if (response?.ok === true && response.data) {
+                        return response.data;
+                }
+                if (response?.success === true) {
+                    return response.data || response;
+                }
+                throw new Error('Respuesta inválida del servidor');
+            }),
             catchError(this.handleError)
         );
     }

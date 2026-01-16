@@ -95,6 +95,10 @@
                     <span *ngIf="esDocumentoReciente(doc)" class="reciente-badge">
                       <i class="fas fa-star me-1"></i>NUEVO
                     </span>
+                    <!-- ✅ NUEVO: Indicador de paz y salvo -->
+                    <span *ngIf="doc.requierePazSalvo" class="paz-salvo-badge ms-2">
+                      <i class="fas fa-file-contract me-1"></i>Paz y Salvo
+                    </span>
                   </h5>
                   <p class="documento-fecha mb-1">
                     <i class="far fa-calendar me-1"></i>
@@ -185,10 +189,30 @@
               <div class="documento-acciones">
                 <div class="acciones-buttons">
                   <div class="d-flex flex-column gap-1">
+                    
+                    <!-- ✅ NUEVO: Información de asignación si existe -->
+                    <div *ngIf="getSupervisorAsignado(doc) && estaEnRevision(doc)" 
+                         class="asignacion-info mb-2 p-2 bg-warning bg-opacity-10 rounded">
+                      <small class="d-block">
+                        <i class="fas fa-user-shield text-warning me-1"></i>
+                        <strong>Asignado a:</strong> {{getSupervisorAsignado(doc)}}
+                      </small>
+                      <small *ngIf="doc.fechaAsignacion" class="d-block">
+                        <i class="far fa-calendar text-warning me-1"></i>
+                        <strong>Desde:</strong> {{formatDateShort(doc.fechaAsignacion)}}
+                      </small>
+                      <small class="d-block">
+                        <i class="fas fa-clock text-warning me-1"></i>
+                        <strong>Estado:</strong> {{getSupervisorEstado(doc)}}
+                      </small>
+                    </div>
+
                     <!-- Tomar para revisión -->
                     <button class="btn btn-primary btn-sm" (click)="tomarParaRevision(doc)"
-                            title="Tomar documento para revisión" [disabled]="isProcessing || doc.estado !== 'RADICADO'">
-                      <i class="fas fa-hand-paper me-1"></i> Tomar
+                            title="Tomar documento para revisión" 
+                            [disabled]="isProcessing || !puedeTomarDocumento(doc)">
+                      <i class="fas fa-hand-paper me-1"></i> 
+                      {{ getTextoBoton(doc) }}
                     </button>
 
                     <!-- Botones de vista rápida -->

@@ -17,14 +17,14 @@ import { Documento } from '../../../../core/models/documento.model';
   imports: [CommonModule, RouterModule, FormsModule]
 })
 export class SupervisorPendingListComponent implements OnInit, OnDestroy {
-// Lista de documentos RADICADOS
+  // Lista de documentos RADICADOS
   documentos: Documento[] = [];
   filteredDocumentos: Documento[] = [];
   paginatedDocumentos: Documento[] = [];
 
   // Estados de carga
   isLoading = false;
-  isProcessing = false;  // ✅ Solo estas dos variables de estado
+  isProcessing = false;
 
   // Mensajes
   errorMessage = '';
@@ -128,9 +128,40 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
       });
   }
 
-  /**
-   * ✅ Forzar asignación de documentos RADICADOS
-   */
+  // ✅ NUEVOS MÉTODOS HELPER
+  getSupervisorEstado(doc: Documento): string {
+    return doc.supervisorEstado || doc.asignacion?.estado || 'Pendiente';
+  }
+
+  getSupervisorAsignado(doc: Documento): string {
+    return doc.supervisorAsignado || doc.asignacion?.supervisorActual || '';
+  }
+
+  estaEnRevision(doc: Documento): boolean {
+    return doc.supervisorEstado === 'EN_REVISION' || doc.asignacion?.enRevision === true;
+  }
+
+  puedeTomarDocumento(doc: Documento): boolean {
+    const esRadicado = doc.estado === 'RADICADO';
+    const estaEnRevision = this.estaEnRevision(doc);
+    const soyElAsignado = doc.supervisorAsignado === this.usuarioActual || 
+                         doc.asignacion?.supervisorActual === this.usuarioActual;
+    
+    if (!esRadicado) return false;
+    if (!estaEnRevision) return true;
+    return estaEnRevision && soyElAsignado;
+  }
+
+  getTextoBoton(doc: Documento): string {
+    if (this.estaEnRevision(doc) && 
+        (doc.supervisorAsignado === this.usuarioActual || 
+         doc.asignacion?.supervisorActual === this.usuarioActual)) {
+      return 'Continuar';
+    }
+    return 'Tomar';
+  }
+
+  // Resto de los métodos existentes...
   forzarAsignacion(): void {
     console.log('🚀 Supervisor: Forzando asignación de documentos RADICADOS...');
     this.isProcessing = true;
@@ -160,165 +191,59 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
       });
   }
 
-  /**
- * ✅ CORREGIDO: Tomar documento para revisión y redirigir a formulario
- */
-tomarParaRevision(doc: Documento): void {
-  console.log(`🤝 Supervisor: Tomando documento ${doc.numeroRadicado} para revisión...`);
-  
-  // Verificar estado actual
-  if (doc.estado !== 'RADICADO') {
-    this.notificationService.warning('Documento no disponible', 
-      `Este documento ya no está disponible. Estado actual: ${doc.estado}`);
-    return;
-  }
-
-  this.isProcessing = true;
-
-  const confirmar = confirm(`¿Tomar el documento ${doc.numeroRadicado} para revisión?\n\nEsto cambiará el estado a "EN REVISIÓN" y otros supervisores no podrán acceder a él.`);
-
-  if (!confirmar) {
-    this.isProcessing = false;
-    return;
-  }
-
-  this.supervisorService.tomarDocumentoParaRevision(doc.id)
-    .pipe(takeUntil(this.destroy$))
-    .subscribe({
-      next: (resultado: any) => {
-        console.log('✅ Respuesta de tomar documento:', resultado);
-
-        // Actualizar el estado del documento localmente
-        const index = this.documentos.findIndex(d => d.id === doc.id);
-        if (index !== -1) {
-          this.documentos[index].estado = 'EN_REVISION_SUPERVISOR';
-          this.documentos[index].ultimoUsuario = this.usuarioActual;
-          this.documentos[index].fechaActualizacion = new Date();
-        }
-
-        this.notificationService.success('Éxito', 'Documento tomado para revisión. Estado actualizado.');
-        this.isProcessing = false;
-        
-        // Navegar directamente al formulario de revisión
-        this.router.navigate(['/supervisor/revisar', doc.id]);
-        
-        // Recargar lista después de navegar
-        setTimeout(() => {
-          this.refreshData();
-        }, 1000);
-      },
-      error: (error: any) => {
-        console.error('❌ Error tomando documento:', error);
-        this.notificationService.error('Error', error.message || 'No se pudo tomar el documento');
-        this.isProcessing = false;
-      }
-    });
-}
-
-  /**
-   * Previsualiza un documento específico en nueva pestaña
-   */
-  previsualizarDocumentoEspecifico(doc: Documento, index: number): void {
-    console.log(`👁️ Previsualizando documento ${doc.numeroRadicado}, archivo ${index}`);
+  tomarParaRevision(doc: Documento): void {
+    console.log(`🤝 Supervisor: Tomando documento ${doc.numeroRadicado} para revisión...`);
     
-    if (index < 1 || index > 3) {
-      this.notificationService.warning('Advertencia', 'Índice de documento no válido');
-      return;
-    }
-
-    // Verificar si el documento existe
-    let existeDocumento = false;
-    
-    switch (index) {
-      case 1:
-        existeDocumento = !!doc.cuentaCobro;
-        break;
-      case 2:
-        existeDocumento = !!doc.seguridadSocial;
-        break;
-      case 3:
-        existeDocumento = !!doc.informeActividades;
-        break;
-    }
-
-    if (!existeDocumento) {
+    // Verificar estado actual
+    if (doc.estado !== 'RADICADO') {
       this.notificationService.warning('Documento no disponible', 
-        `El documento ${index} no está disponible`);
-      return;
-    }
-
-    // Usar el método del servicio de supervisor
-    this.supervisorService.previsualizarArchivo(doc.id, index);
-  }
-
-  /**
-   * Descarga un documento específico
-   */
-  descargarDocumentoEspecifico(doc: Documento, index: number): void {
-    console.log(`📥 Descargando documento ${doc.numeroRadicado}, archivo ${index}`);
-    
-    if (index < 1 || index > 3) {
-      this.notificationService.warning('Advertencia', 'Índice de documento no válido');
-      return;
-    }
-
-    // Verificar si el documento existe
-    let existeDocumento = false;
-    let nombreDocumento = '';
-    
-    switch (index) {
-      case 1:
-        existeDocumento = !!doc.cuentaCobro;
-        nombreDocumento = doc.cuentaCobro || 'cuenta_cobro.pdf';
-        break;
-      case 2:
-        existeDocumento = !!doc.seguridadSocial;
-        nombreDocumento = doc.seguridadSocial || 'seguridad_social.pdf';
-        break;
-      case 3:
-        existeDocumento = !!doc.informeActividades;
-        nombreDocumento = doc.informeActividades || 'informe_actividades.pdf';
-        break;
-    }
-
-    if (!existeDocumento) {
-      this.notificationService.warning('Documento no disponible', 
-        `El documento ${index} no está disponible para descarga`);
+        `Este documento ya no está disponible. Estado actual: ${doc.estado}`);
       return;
     }
 
     this.isProcessing = true;
-    
-    this.supervisorService.descargarArchivo(doc.id, index)
+
+    const confirmar = confirm(`¿Tomar el documento ${doc.numeroRadicado} para revisión?\n\nEsto cambiará el estado a "EN REVISIÓN" y otros supervisores no podrán acceder a él.`);
+
+    if (!confirmar) {
+      this.isProcessing = false;
+      return;
+    }
+
+    this.supervisorService.tomarDocumentoParaRevision(doc.id)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (blob: Blob) => {
-          // Crear URL del blob y descargar
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = nombreDocumento;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          window.URL.revokeObjectURL(url);
-          
+        next: (resultado: any) => {
+          console.log('✅ Respuesta de tomar documento:', resultado);
+
+          // Actualizar el estado del documento localmente
+          const index = this.documentos.findIndex(d => d.id === doc.id);
+          if (index !== -1) {
+            this.documentos[index].estado = 'EN_REVISION_SUPERVISOR';
+            this.documentos[index].ultimoUsuario = this.usuarioActual;
+            this.documentos[index].fechaActualizacion = new Date();
+          }
+
+          this.notificationService.success('Éxito', 'Documento tomado para revisión. Estado actualizado.');
           this.isProcessing = false;
-          this.notificationService.success('Descarga completada', 
-            `Documento "${nombreDocumento}" descargado correctamente`);
+          
+          // Navegar directamente al formulario de revisión
+          this.router.navigate(['/supervisor/revisar', doc.id]);
+          
+          // Recargar lista después de navegar
+          setTimeout(() => {
+            this.refreshData();
+          }, 1000);
         },
         error: (error: any) => {
-          console.error('❌ Error descargando documento específico:', error);
-          this.notificationService.error('Error', 
-            `No se pudo descargar el documento: ${error.message || 'Error desconocido'}`);
+          console.error('❌ Error tomando documento:', error);
+          this.notificationService.error('Error', error.message || 'No se pudo tomar el documento');
           this.isProcessing = false;
         }
       });
   }
 
-  /**
-   * ✅ Métodos de utilidad
-   */
+  // Resto de los métodos existentes (formatDate, getDuracionContrato, etc.)...
   formatDate(fecha: Date | string): string {
     if (!fecha) return 'N/A';
     try {
@@ -442,9 +367,6 @@ tomarParaRevision(doc: Documento): void {
     return count;
   }
 
-  /**
-   * ✅ Búsqueda y filtrado
-   */
   onSearch(): void {
     if (!this.searchTerm.trim()) {
       this.filteredDocumentos = [...this.documentos];
@@ -463,17 +385,11 @@ tomarParaRevision(doc: Documento): void {
     this.updatePagination();
   }
 
-  /**
-   * ✅ Recargar datos
-   */
   refreshData(): void {
     console.log('🔄 Supervisor: Recargando datos...');
     this.cargarDocumentosRadicados();
   }
 
-  /**
-   * ✅ Métodos de paginación
-   */
   updatePagination(): void {
     this.totalPages = Math.ceil(this.filteredDocumentos.length / this.pageSize);
 
@@ -514,5 +430,101 @@ tomarParaRevision(doc: Documento): void {
 
   dismissInfo(): void {
     this.infoMessage = '';
+  }
+
+  // Métodos para archivos (mantener compatibilidad)
+  previsualizarDocumentoEspecifico(doc: Documento, index: number): void {
+    console.log(`👁️ Previsualizando documento ${doc.numeroRadicado}, archivo ${index}`);
+    
+    if (index < 1 || index > 3) {
+      this.notificationService.warning('Advertencia', 'Índice de documento no válido');
+      return;
+    }
+
+    // Verificar si el documento existe
+    let existeDocumento = false;
+    
+    switch (index) {
+      case 1:
+        existeDocumento = !!doc.cuentaCobro;
+        break;
+      case 2:
+        existeDocumento = !!doc.seguridadSocial;
+        break;
+      case 3:
+        existeDocumento = !!doc.informeActividades;
+        break;
+    }
+
+    if (!existeDocumento) {
+      this.notificationService.warning('Documento no disponible', 
+        `El documento ${index} no está disponible`);
+      return;
+    }
+
+    // Usar el método del servicio de supervisor
+    this.supervisorService.previsualizarArchivo(doc.id, index);
+  }
+
+  descargarDocumentoEspecifico(doc: Documento, index: number): void {
+    console.log(`📥 Descargando documento ${doc.numeroRadicado}, archivo ${index}`);
+    
+    if (index < 1 || index > 3) {
+      this.notificationService.warning('Advertencia', 'Índice de documento no válido');
+      return;
+    }
+
+    // Verificar si el documento existe
+    let existeDocumento = false;
+    let nombreDocumento = '';
+    
+    switch (index) {
+      case 1:
+        existeDocumento = !!doc.cuentaCobro;
+        nombreDocumento = doc.cuentaCobro || 'cuenta_cobro.pdf';
+        break;
+      case 2:
+        existeDocumento = !!doc.seguridadSocial;
+        nombreDocumento = doc.seguridadSocial || 'seguridad_social.pdf';
+        break;
+      case 3:
+        existeDocumento = !!doc.informeActividades;
+        nombreDocumento = doc.informeActividades || 'informe_actividades.pdf';
+        break;
+    }
+
+    if (!existeDocumento) {
+      this.notificationService.warning('Documento no disponible', 
+        `El documento ${index} no está disponible para descarga`);
+      return;
+    }
+
+    this.isProcessing = true;
+    
+    this.supervisorService.descargarArchivo(doc.id, index)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (blob: Blob) => {
+          // Crear URL del blob y descargar
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = nombreDocumento;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+          
+          this.isProcessing = false;
+          this.notificationService.success('Descarga completada', 
+            `Documento "${nombreDocumento}" descargado correctamente`);
+        },
+        error: (error: any) => {
+          console.error('❌ Error descargando documento específico:', error);
+          this.notificationService.error('Error', 
+            `No se pudo descargar el documento: ${error.message || 'Error desconocido'}`);
+          this.isProcessing = false;
+        }
+      });
   }
 }

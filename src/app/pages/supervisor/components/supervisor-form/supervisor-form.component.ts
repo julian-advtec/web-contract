@@ -6,6 +6,7 @@ import { RadicacionService } from '../../../../core/services/radicacion.service'
 import { SupervisorService } from '../../../../core/services/supervisor.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { Observable, forkJoin, of } from 'rxjs';
+import { map, switchMap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-supervisor-form',
@@ -29,7 +30,14 @@ export class SupervisorFormComponent implements OnInit {
 
   maxFileSize = 10 * 1024 * 1024;
   mostrarCampoArchivo = false;
+  mostrarInfoUltimoRadicado = false; // ✅ Controla visibilidad de la sección
   archivoAprobacion: File | null = null;
+  
+  // ✅ Campos para paz y salvo
+  requierePazSalvo = false;
+  archivoPazSalvo: File | null = null;
+  nombrePazSalvoExistente: string = '';
+  fechaPazSalvoExistente: Date | null = null;
 
   documentosExistentes = [
     { nombre: '', disponible: false },
@@ -46,37 +54,47 @@ export class SupervisorFormComponent implements OnInit {
     private notificationService: NotificationService
   ) { }
 
-   ngOnInit(): void {
+  ngOnInit(): void {
     this.initializeForm();
     
-    // Verificar parámetros de ruta
     this.route.queryParams.subscribe(params => {
       this.modoEdicion = params['modo'] === 'edicion';
       this.desdeHistorial = params['desdeHistorial'] === 'true';
-      this.soloLectura = params['soloLectura'] === 'true' || params['modo'] === 'consulta'; // ✅ NUEVO
+      this.soloLectura = params['soloLectura'] === 'true' || params['modo'] === 'consulta';
       
       console.log('🔍 Parámetros de ruta:', {
         modoEdicion: this.modoEdicion,
         desdeHistorial: this.desdeHistorial,
         soloLectura: this.soloLectura
       });
-      
-      if (this.soloLectura) {
-        console.log('📖 MODO SOLO LECTURA ACTIVADO');
-      }
     });
     
-    // Verificar si hay datos prellenados del historial
     this.verificarDatosPrellenados();
     
     this.route.params.subscribe(params => {
       this.documentoId = params['id'];
       this.cargarDocumento(this.documentoId);
     });
+
+    // ✅ Suscribirse a cambios en el estado para mostrar/ocultar la sección
+    this.revisionForm.get('estadoRevision')?.valueChanges.subscribe(estado => {
+      this.onEstadoChange(estado);
+    });
+
+    // ✅ Suscribirse a cambios en el checkbox de último radicado
+    this.revisionForm.get('esUltimoRadicado')?.valueChanges.subscribe(esUltimo => {
+      this.onUltimoRadicadoChange(esUltimo);
+    });
+
+    // ✅ Suscribirse a cambios en el checkbox de requiere paz y salvo
+    this.revisionForm.get('requierePazSalvo')?.valueChanges.subscribe(requiere => {
+      this.requierePazSalvo = requiere;
+    });
   }
 
   initializeForm(): void {
     this.revisionForm = this.fb.group({
+      // Información básica
       numeroRadicado: [{ value: '', disabled: true }, Validators.required],
       numeroContrato: [{ value: '', disabled: true }, Validators.required],
       nombreContratista: [{ value: '', disabled: true }, Validators.required],
@@ -85,17 +103,29 @@ export class SupervisorFormComponent implements OnInit {
       fechaFin: [{ value: '', disabled: true }, Validators.required],
       observacionOriginal: [{ value: '', disabled: true }],
 
+      // Información de radicador
       radicadorNombre: [{ value: '', disabled: true }],
       radicadorUsuario: [{ value: '', disabled: true }],
       fechaRadicacion: [{ value: '', disabled: true }],
+      
+      // Información de supervisor asignado
       supervisorAsignado: [{ value: '', disabled: true }],
       fechaAsignacion: [{ value: '', disabled: true }],
+      
+      // ✅ Campos para último radicado (confirmación) y paz y salvo
+      esUltimoRadicado: [{ value: false, disabled: false }],
+      requierePazSalvo: [{ value: false, disabled: false }],
 
-      estadoRevision: [{ value: 'PENDIENTE', disabled: false }, Validators.required],
+      // Información de revisión
+      estadoRevision: [{ value: '', disabled: false }, Validators.required],
       observacionSupervisor: [{ value: '', disabled: false }, [Validators.required, Validators.minLength(10)]],
+      correcciones: [{ value: '', disabled: false }],
       fechaRevision: [{ value: this.getCurrentDate(), disabled: true }],
       supervisorRevisor: [{ value: this.getCurrentUser(), disabled: true }]
     });
+
+    // ✅ Inicialmente ocultamos la sección de último radicado
+    this.mostrarInfoUltimoRadicado = false;
   }
 
   verificarDatosPrellenados(): void {
@@ -115,11 +145,27 @@ export class SupervisorFormComponent implements OnInit {
           fechaFin: this.formatDateForInput(datosHistorial.fechaFin),
           fechaRadicacion: this.formatDateForInput(datosHistorial.fechaRadicacion),
           
-          estadoRevision: datosHistorial.estadoRevision || 'PENDIENTE',
+          estadoRevision: datosHistorial.estadoRevision || '',
           observacionSupervisor: datosHistorial.observacionSupervisor || '',
+          correcciones: datosHistorial.correcciones || '',
+          requierePazSalvo: datosHistorial.requierePazSalvo || false,
+          esUltimoRadicado: datosHistorial.esUltimoRadicado || false,
           fechaRevision: this.formatDateForInput(datosHistorial.fechaRevision) || this.getCurrentDate(),
           supervisorRevisor: datosHistorial.supervisorRevisor || this.getCurrentUser()
         });
+        
+        // Cargar información de paz y salvo si existe
+        if (datosHistorial.pazSalvo) {
+          this.nombrePazSalvoExistente = datosHistorial.pazSalvo;
+        }
+        
+        if (datosHistorial.fechaPazSalvo) {
+          this.fechaPazSalvoExistente = new Date(datosHistorial.fechaPazSalvo);
+        }
+        
+        if (datosHistorial.requierePazSalvo) {
+          this.requierePazSalvo = true;
+        }
         
         // Si viene del historial, activar modo solo lectura
         if (datosHistorial.modoSoloLectura || datosHistorial.desdeHistorial) {
@@ -138,16 +184,19 @@ export class SupervisorFormComponent implements OnInit {
     }
   }
 
-  // ✅ NUEVO MÉTODO: Configurar formulario en modo solo lectura
   configurarModoSoloLectura(): void {
     console.log('🔒 Activando modo solo lectura en formulario');
     
     // Deshabilitar todos los campos editables
     this.revisionForm.get('estadoRevision')?.disable();
     this.revisionForm.get('observacionSupervisor')?.disable();
+    this.revisionForm.get('correcciones')?.disable();
+    this.revisionForm.get('requierePazSalvo')?.disable();
+    this.revisionForm.get('esUltimoRadicado')?.disable();
     
     // Ocultar campo de archivo
     this.mostrarCampoArchivo = false;
+    this.mostrarInfoUltimoRadicado = false;
     
     // Mostrar mensaje informativo
     this.notificationService.info('Modo consulta', 
@@ -158,8 +207,8 @@ export class SupervisorFormComponent implements OnInit {
     this.isLoading = true;
 
     this.supervisorService.obtenerDocumentoPorId(id)
-      .subscribe({
-        next: (response: any) => {
+      .pipe(
+        switchMap((response: any) => {
           console.log('📊 Respuesta completa del backend:', response);
 
           const documentoData = response?.data?.documento || response?.documento || response?.data || response;
@@ -168,9 +217,15 @@ export class SupervisorFormComponent implements OnInit {
           this.radicadoData = documentoData;
           this.poblarFormulario(documentoData);
           this.cargarDocumentosExistentes(documentoData);
+          this.cargarInformacionSupervisor(documentoData);
+          
+          return of(documentoData);
+        })
+      )
+      .subscribe({
+        next: () => {
           this.isLoading = false;
           
-          // Si estamos en modo solo lectura, configurar formulario
           if (this.soloLectura) {
             this.configurarModoSoloLectura();
           }
@@ -199,8 +254,6 @@ export class SupervisorFormComponent implements OnInit {
     return 'Supervisor';
   }
 
-  
-
   cargarDocumentoDesdeRadicacion(id: string): void {
     this.radicacionService.obtenerDocumentoPorId(id)
       .subscribe({
@@ -210,6 +263,7 @@ export class SupervisorFormComponent implements OnInit {
           this.radicadoData = documentoData;
           this.poblarFormulario(documentoData);
           this.cargarDocumentosExistentes(documentoData);
+          this.cargarInformacionSupervisor(documentoData);
           this.isLoading = false;
         },
         error: (error: any) => {
@@ -238,18 +292,60 @@ export class SupervisorFormComponent implements OnInit {
       radicadorNombre: docData.radicador || docData.nombreRadicador || 'N/A',
       radicadorUsuario: docData.radicadorUsuario || docData.usuarioRadicador || 'N/A',
       fechaRadicacion: this.formatDateForInput(docData.fechaRadicacion || docData.createdAt),
-      supervisorAsignado: docData.supervisorAsignado ||
-        docData.usuarioAsignadoNombre ||
-        docData.supervisor?.fullName ||
-        'N/A',
-      fechaAsignacion: this.formatDateForInput(docData.fechaAsignacion || docData.updatedAt),
 
       fechaRevision: this.getCurrentDate(),
       supervisorRevisor: this.getCurrentUser()
     });
+  }
 
-    if (docData.historialEstados) {
-      console.log('📜 Historial encontrado:', docData.historialEstados);
+  cargarInformacionSupervisor(documento: any): void {
+    const docData = documento.documento || documento;
+    
+    // Información de asignación
+    if (docData.supervisor) {
+      this.revisionForm.patchValue({
+        supervisorAsignado: docData.supervisor.fullName || docData.supervisor.username || 'N/A',
+        fechaAsignacion: this.formatDateForInput(docData.fechaAsignacion || docData.fechaInicioRevision)
+      });
+    } else {
+      // Intentar obtener de asignaciones existentes
+      this.revisionForm.patchValue({
+        supervisorAsignado: docData.usuarioAsignadoNombre || 
+                          docData.supervisorAsignado || 
+                          'No asignado',
+        fechaAsignacion: this.formatDateForInput(docData.fechaAsignacion || docData.updatedAt)
+      });
+    }
+    
+    // Verificar si ya existe paz y salvo
+    if (docData.pazSalvo) {
+      this.nombrePazSalvoExistente = docData.pazSalvo;
+    }
+    
+    if (docData.fechaPazSalvo) {
+      this.fechaPazSalvoExistente = new Date(docData.fechaPazSalvo);
+    }
+    
+    // ✅ Solo cargamos si ya existía en modo lectura
+    if (docData.requierePazSalvo && this.soloLectura) {
+      this.requierePazSalvo = true;
+      this.revisionForm.patchValue({
+        requierePazSalvo: true
+      });
+    }
+    
+    // ✅ Solo cargamos si ya existía en modo lectura
+    if (docData.esUltimoRadicado && this.soloLectura) {
+      this.revisionForm.patchValue({
+        esUltimoRadicado: true
+      });
+    }
+    
+    // Cargar correcciones existentes si las hay
+    if (docData.correcciones) {
+      this.revisionForm.patchValue({
+        correcciones: docData.correcciones
+      });
     }
   }
 
@@ -293,6 +389,129 @@ export class SupervisorFormComponent implements OnInit {
 
   contarDocumentosDisponibles(): number {
     return this.documentosExistentes.filter(doc => doc.disponible).length;
+  }
+
+  onPazSalvoChange(): void {
+    this.requierePazSalvo = this.revisionForm.get('requierePazSalvo')?.value;
+  }
+
+  onUltimoRadicadoChange(esUltimo: boolean): void {
+    console.log('🔄 Cambio en checkbox esUltimoRadicado:', esUltimo);
+    
+    // ✅ Cuando se marca como último radicado, sugerir paz y salvo
+    if (esUltimo && !this.soloLectura) {
+      const estado = this.revisionForm.get('estadoRevision')?.value;
+      if (estado === 'APROBADO') {
+        setTimeout(() => {
+          const confirmar = confirm('¿Este último radicado requiere paz y salvo?\n\nSi es el último documento del contratista, normalmente se requiere paz y salvo.');
+          if (confirmar) {
+            this.revisionForm.patchValue({
+              requierePazSalvo: true
+            });
+            this.requierePazSalvo = true;
+          }
+        }, 300);
+      }
+    } else if (!esUltimo) {
+      // Si NO es último radicado, desmarcar paz y salvo
+      this.revisionForm.patchValue({
+        requierePazSalvo: false
+      });
+      this.requierePazSalvo = false;
+    }
+  }
+
+  onArchivoPazSalvoSelected(event: any): void {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (file.size > this.maxFileSize) {
+      this.notificationService.error('Error', 'El archivo excede el tamaño máximo de 10MB');
+      event.target.value = '';
+      return;
+    }
+
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'image/jpeg',
+      'image/png'
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      this.notificationService.error('Error', 'Tipo de archivo no permitido');
+      event.target.value = '';
+      return;
+    }
+
+    this.archivoPazSalvo = file;
+    this.notificationService.success('Archivo cargado', 'Archivo de paz y salvo cargado correctamente');
+  }
+
+  previsualizarPazSalvo(nombreArchivo: string): void {
+    this.supervisorService.previsualizarPazSalvo(nombreArchivo);
+  }
+
+  descargarPazSalvo(nombreArchivo: string): void {
+    this.isProcessing = true;
+    
+    this.supervisorService.descargarPazSalvo(nombreArchivo)
+      .subscribe({
+        next: (blob: Blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = nombreArchivo;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+          
+          this.isProcessing = false;
+          this.notificationService.success('Descarga completada', 
+            `Paz y salvo "${nombreArchivo}" descargado correctamente`);
+        },
+        error: (error: any) => {
+          console.error('❌ Error descargando paz y salvo:', error);
+          this.notificationService.error('Error', 
+            `No se pudo descargar el paz y salvo: ${error.message || 'Error desconocido'}`);
+          this.isProcessing = false;
+        }
+      });
+  }
+
+  // ✅ MODIFICADO: Control de visibilidad de la sección de último radicado
+  onEstadoChange(estado: string): void {
+    console.log('🔄 Cambio de estado:', estado);
+    
+    this.mostrarCampoArchivo = estado === 'APROBADO';
+    
+    // ✅ SOLUCIÓN PRINCIPAL: Mostrar sección solo cuando el estado sea APROBADO
+    this.mostrarInfoUltimoRadicado = estado === 'APROBADO';
+    
+    if (estado !== 'APROBADO') {
+      this.archivoAprobacion = null;
+      this.archivoPazSalvo = null;
+      
+      // Si cambia a un estado no APROBADO, ocultar la sección
+      this.mostrarInfoUltimoRadicado = false;
+      
+      // También resetear los checkboxes si no es APROBADO
+      if (estado !== 'APROBADO') {
+        this.revisionForm.patchValue({
+          esUltimoRadicado: false,
+          requierePazSalvo: false
+        });
+        this.requierePazSalvo = false;
+      }
+    } else {
+      // Si es APROBADO, mostrar notificación informativa
+      setTimeout(() => {
+        this.notificationService.info('Confirmación requerida', 
+          'Por favor verifique si este es el último radicado del contratista.');
+      }, 500);
+    }
   }
 
   abrirTodosDocumentos(): void {
@@ -424,14 +643,14 @@ export class SupervisorFormComponent implements OnInit {
   }
 
   volverALista(): void {
-  if (this.desdeHistorial) {
-    // Volver al historial si venimos de ahí
-    this.router.navigate(['/supervisor/historial']);
-  } else {
-    // Volver a pendientes si es una revisión normal
-    this.router.navigate(['/supervisor/pendientes']);
+    if (this.desdeHistorial) {
+      // Volver al historial si venimos de ahí
+      this.router.navigate(['/supervisor/historial']);
+    } else {
+      // Volver a pendientes si es una revisión normal
+      this.router.navigate(['/supervisor/pendientes']);
+    }
   }
-}
 
   cancelarRevision(): void {
     const mensaje = this.desdeHistorial 
@@ -440,13 +659,6 @@ export class SupervisorFormComponent implements OnInit {
     
     if (confirm(mensaje)) {
       this.volverALista();
-    }
-  }
-
-  onEstadoChange(estado: string): void {
-    this.mostrarCampoArchivo = estado === 'APROBADO';
-    if (estado !== 'APROBADO') {
-      this.archivoAprobacion = null;
     }
   }
 
@@ -486,11 +698,32 @@ export class SupervisorFormComponent implements OnInit {
     }
 
     const estado = this.revisionForm.get('estadoRevision')?.value;
+    const esUltimoRadicado = this.revisionForm.get('esUltimoRadicado')?.value;
+    const requierePazSalvo = this.revisionForm.get('requierePazSalvo')?.value;
 
-    if (estado === 'APROBADO' && !this.archivoAprobacion) {
-      this.notificationService.error('Error',
-        'Debe adjuntar un archivo de aprobación cuando el estado es APROBADO');
-      return;
+    console.log('📋 Validación:', {
+      estado,
+      esUltimoRadicado,
+      requierePazSalvo,
+      archivoAprobacion: !!this.archivoAprobacion,
+      archivoPazSalvo: !!this.archivoPazSalvo,
+      nombrePazSalvoExistente: this.nombrePazSalvoExistente
+    });
+
+    // Validaciones para estado APROBADO
+    if (estado === 'APROBADO') {
+      if (!this.archivoAprobacion) {
+        this.notificationService.error('Error',
+          'Debe adjuntar un archivo de aprobación cuando el estado es APROBADO');
+        return;
+      }
+      
+      // ✅ Validación para paz y salvo solo si es el último radicado y requiere paz y salvo
+      if (esUltimoRadicado && requierePazSalvo && !this.archivoPazSalvo && !this.nombrePazSalvoExistente) {
+        this.notificationService.error('Error',
+          'Debe adjuntar un archivo de paz y salvo ya que marcó que este documento lo requiere (es el último radicado)');
+        return;
+      }
     }
 
     const mensajeConfirmacion = this.desdeHistorial
@@ -503,18 +736,36 @@ export class SupervisorFormComponent implements OnInit {
     this.isProcessing = true;
     const formData = this.revisionForm.getRawValue();
 
-    // ✅ CORREGIDO: Solo enviar campos permitidos
+    // Preparar datos para enviar
     const datosRevision = {
       estado: estado,
       observacion: formData.observacionSupervisor,
-      modoEdicion: this.modoEdicion // Indicar que es una edición
+      correcciones: formData.correcciones || '',
+      requierePazSalvo: esUltimoRadicado ? requierePazSalvo : false, // Solo si es último radicado
+      esUltimoRadicado: esUltimoRadicado, // ✅ Confirmación del supervisor
+      modoEdicion: this.modoEdicion
     };
 
     console.log('📤 Enviando revisión del supervisor:', datosRevision);
 
-    const requestObservable = estado === 'APROBADO' && this.archivoAprobacion
-      ? this.supervisorService.guardarRevisionConArchivo(this.documentoId, datosRevision, this.archivoAprobacion)
-      : this.supervisorService.guardarRevision(this.documentoId, datosRevision);
+    // Determinar qué método usar según los archivos
+    let requestObservable: Observable<any>;
+    
+    if (estado === 'APROBADO' && (this.archivoAprobacion || this.archivoPazSalvo)) {
+      // Usar método con archivos
+      requestObservable = this.supervisorService.guardarRevisionConArchivo(
+        this.documentoId, 
+        datosRevision, 
+        this.archivoAprobacion, 
+        esUltimoRadicado && requierePazSalvo ? this.archivoPazSalvo : null
+      );
+    } else {
+      // Usar método sin archivos
+      requestObservable = this.supervisorService.guardarRevision(
+        this.documentoId, 
+        datosRevision
+      );
+    }
 
     requestObservable.subscribe({
       next: (resultado: any) => {
