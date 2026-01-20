@@ -527,15 +527,30 @@
         <div class="form-row mt-4">
           <div class="form-group full-width">
             <label class="form-label"><i class="fas fa-comment"></i> Observación del Supervisor</label>
-            <textarea class="form-control" formControlName="observacionSupervisor" rows="4" readonly></textarea>
+            <textarea class="form-control" formControlName="observacionSupervisor" rows="4" readonly
+              placeholder="{{ !revisionForm.get('observacionSupervisor')?.value ? 'No hay observaciones registradas' : '' }}">
+    </textarea>
+            <small *ngIf="revisionForm.get('observacionSupervisor')?.value" class="text-muted">
+              Observación registrada por {{ supervisorInfo.supervisorRevisorNombre || 'Supervisor' }}
+            </small>
           </div>
         </div>
 
         <!-- Correcciones -->
         <div class="form-row">
           <div class="form-group full-width">
-            <label class="form-label"><i class="fas fa-edit"></i> Correcciones Sugeridas</label>
-            <textarea class="form-control" formControlName="correcciones" rows="3" readonly></textarea>
+            <label class="form-label">
+              <i class="fas fa-edit"></i> Correcciones Sugeridas
+              <span *ngIf="revisionForm.get('correcciones')?.value" class="badge bg-info ms-2">
+                {{ contarLineasCorrecciones() }} punto(s)
+              </span>
+            </label>
+            <textarea class="form-control" formControlName="correcciones" rows="3" readonly
+              placeholder="{{ !revisionForm.get('correcciones')?.value ? 'No se registraron correcciones' : '' }}">
+    </textarea>
+            <small *ngIf="revisionForm.get('correcciones')?.value" class="text-muted">
+              {{ contarLineasCorrecciones() }} punto(s) de corrección registrado(s)
+            </small>
           </div>
         </div>
 

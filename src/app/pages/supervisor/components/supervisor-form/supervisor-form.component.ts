@@ -289,6 +289,15 @@ export class SupervisorFormComponent implements OnInit {
       this.fechaPazSalvoExistente = new Date(supervisorData.fechaActualizacion);
     }
 
+    // ✅ CORRECCIÓN: Obtener observación y correcciones directamente desde los campos separados
+    const observacionSupervisor = supervisorData?.observacion || '';
+    const correccionesSugeridas = supervisorData?.correcciones || '';
+
+    console.log('📝 Campos separados encontrados:', {
+      observacion: observacionSupervisor,
+      correcciones: correccionesSugeridas
+    });
+
     this.supervisorInfo = {
       ...this.supervisorInfo,
       tieneArchivoAprobacion: !!nombreArchivoAprobacion,
@@ -298,12 +307,15 @@ export class SupervisorFormComponent implements OnInit {
       esUltimoRadicado: supervisorData?.esUltimoRadicado || !!nombrePazSalvo,
       supervisorRevisor: supervisorData?.usuarioNombre || this.getCurrentUser(),
       fechaRevision: supervisorData?.fechaAprobacion || supervisorData?.fechaActualizacion,
-      observacionSupervisor: supervisorData?.observacion || ''
+      observacionSupervisor: observacionSupervisor,
+      correccionesSugeridas: correccionesSugeridas
     };
 
+    // ✅ ACTUALIZAR EL FORMULARIO CON LAS OBSERVACIONES Y CORRECCIONES
     this.revisionForm.patchValue({
       estadoRevision: supervisorData?.estado || '',
-      observacionSupervisor: supervisorData?.observacion || '',
+      observacionSupervisor: observacionSupervisor || '',
+      correcciones: correccionesSugeridas || '',  // ✅ AQUÍ ESTÁ LA CORRECCIÓN
       esUltimoRadicado: this.supervisorInfo.esUltimoRadicado
     });
 
@@ -311,8 +323,77 @@ export class SupervisorFormComponent implements OnInit {
       this.mostrarCampoArchivo = true;
     }
 
-    console.log('✅ Información del supervisor actualizada:', this.supervisorInfo);
+    console.log('✅ Información del supervisor actualizada:', {
+      observacionSupervisor: this.supervisorInfo.observacionSupervisor,
+      correccionesSugeridas: this.supervisorInfo.correccionesSugeridas,
+      estadoRevision: supervisorData?.estado
+    });
+
     this.cdr.detectChanges();
+  }
+
+  /**
+ * ✅ Método para separar observaciones de correcciones
+ */
+  private separarObservacionesYCorrecciones(observacionCompleta: string): { observacion: string, correcciones: string } {
+    if (!observacionCompleta) {
+      return { observacion: '', correcciones: '' };
+    }
+
+    console.log('🔍 Analizando observación completa:', observacionCompleta);
+
+    // Patrones comunes para separar (solo los más importantes)
+    if (observacionCompleta.includes('Correcciones:') || observacionCompleta.includes('CORRECCIONES:')) {
+      // Si tiene formato estructurado con "Correcciones:"
+      const partes = observacionCompleta.split(/Correcciones:|CORRECCIONES:/i);
+      const observacion = partes[0].trim();
+      const correcciones = 'Correcciones:' + (partes[1] ? partes[1].trim() : '');
+
+      console.log('✅ Separado usando patrón Correcciones:');
+      return { observacion, correcciones };
+    }
+
+    if (observacionCompleta.includes('Sugerencias:') || observacionCompleta.includes('SUGERENCIAS:')) {
+      // Si tiene formato con "Sugerencias:"
+      const partes = observacionCompleta.split(/Sugerencias:|SUGERENCIAS:/i);
+      const observacion = partes[0].trim();
+      const correcciones = 'Sugerencias:' + (partes[1] ? partes[1].trim() : '');
+
+      console.log('✅ Separado usando patrón Sugerencias:');
+      return { observacion, correcciones };
+    }
+
+    // Si no encuentra patrón, buscar por formato de lista
+    const lineas = observacionCompleta.split('\n');
+    const observacionLineas: string[] = [];
+    const correccionesLineas: string[] = [];
+    let enCorrecciones = false;
+
+    for (const linea of lineas) {
+      const trimmedLinea = linea.trim();
+
+      if (trimmedLinea.startsWith('-') || trimmedLinea.startsWith('*') ||
+        trimmedLinea.startsWith('•') || /^\d+\./.test(trimmedLinea)) {
+        enCorrecciones = true;
+        correccionesLineas.push(linea);
+      } else if (!enCorrecciones) {
+        observacionLineas.push(linea);
+      } else {
+        correccionesLineas.push(linea);
+      }
+    }
+
+    const observacion = observacionLineas.join('\n').trim();
+    const correcciones = correccionesLineas.join('\n').trim();
+
+    if (correcciones) {
+      console.log('✅ Separado por formato de lista');
+      return { observacion, correcciones };
+    }
+
+    // Si no se puede separar, todo es observación
+    console.log('⚠️ No se pudo separar, usando todo como observación');
+    return { observacion: observacionCompleta, correcciones: '' };
   }
 
   private cargarArchivosDesdeDocumento(documento: any): void {
@@ -353,6 +434,28 @@ export class SupervisorFormComponent implements OnInit {
     }
   }
 
+  contarLineasCorrecciones(): number {
+    const correcciones = this.revisionForm.get('correcciones')?.value || '';
+    if (!correcciones) return 0;
+
+    // Contar líneas que contengan puntos, guiones o números
+    const lineas = correcciones.split('\n');
+    let count = 0;
+
+    for (const linea of lineas) {
+      const trimmedLinea = linea.trim();
+      if (trimmedLinea.length > 0 &&
+        (trimmedLinea.includes('-') ||
+          trimmedLinea.includes('*') ||
+          trimmedLinea.includes('•') ||
+          /^\d+\./.test(trimmedLinea))) {
+        count++;
+      }
+    }
+
+    return count;
+  }
+
   private poblarFormulario(documento: any): void {
     console.log('📝 Poblando formulario con datos:', documento);
 
@@ -378,23 +481,18 @@ export class SupervisorFormComponent implements OnInit {
       fechaAsignacion: this.formatDateForInput(docData.fechaAsignacion || new Date()),
 
       supervisorRevisor: supervisorActual,
-      fechaRevision: this.getCurrentDate()
+      fechaRevision: this.getCurrentDate(),
+
+      // ✅ Estos campos se llenarán después en cargarInformacionSupervisorDesdeDocumento
+      estadoRevision: '', // Se llenará después
+      observacionSupervisor: '', // Se llenará después  
+      correcciones: '' // Se llenará después
     });
 
+    // ✅ Guardar historial para uso posterior
     if (docData.historialEstados && Array.isArray(docData.historialEstados)) {
       this.historialEstados = docData.historialEstados;
-
-      const revisionSupervisor = this.historialEstados.find((h: any) =>
-        h.estado && (h.estado.includes('APROBADO') ||
-          h.estado.includes('OBSERVADO') ||
-          h.estado.includes('RECHAZADO'))
-      );
-
-      if (revisionSupervisor) {
-        this.revisionForm.patchValue({
-          observacionSupervisor: revisionSupervisor.observacion || ''
-        });
-      }
+      console.log(`📋 Historial de estados guardado: ${this.historialEstados.length} registros`);
     }
   }
 
@@ -990,4 +1088,6 @@ export class SupervisorFormComponent implements OnInit {
     this.notificationService.info('Archivo eliminado',
       'Archivo de aprobación eliminado de la selección');
   }
+
+
 }
