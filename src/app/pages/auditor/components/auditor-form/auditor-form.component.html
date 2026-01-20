@@ -1,0 +1,510 @@
+<div class="auditor-form-container" [class.sidebar-collapsed]="sidebarCollapsed">
+  <div class="auditor-form-inner">
+    
+    <!-- Mensajes -->
+    <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
+      <i class="fas fa-exclamation-triangle me-2"></i> {{ errorMessage }}
+      <button type="button" class="btn-close" (click)="dismissError()"></button>
+    </div>
+
+    <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show" role="alert">
+      <i class="fas fa-check-circle me-2"></i> {{ successMessage }}
+      <button type="button" class="btn-close" (click)="dismissSuccess()"></button>
+    </div>
+
+    <div *ngIf="infoMessage" class="alert alert-info alert-dismissible fade show" role="alert">
+      <i class="fas fa-info-circle me-2"></i> {{ infoMessage }}
+      <button type="button" class="btn-close" (click)="dismissInfo()"></button>
+    </div>
+
+    <!-- Loading -->
+    <div *ngIf="isLoading" class="text-center py-5">
+      <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+      <p class="mt-3 text-muted">Cargando documento...</p>
+    </div>
+
+    <!-- Contenido principal -->
+    <div *ngIf="!isLoading && documento" class="main-content">
+      
+      <!-- Header con información del documento -->
+      <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h1 class="page-title">
+              <i class="fas fa-file-invoice-dollar me-2"></i>
+              Revisión de Auditoría
+            </h1>
+            <p class="page-subtitle mb-0">
+              <span class="badge bg-primary me-2">{{ documento.numeroRadicado }}</span>
+              <span class="text-muted">{{ documento.nombreContratista }}</span>
+            </p>
+          </div>
+          
+          <div class="d-flex gap-2">
+            <!-- Botón liberar (solo si está en revisión) -->
+            <button *ngIf="estaEnRevision() && puedeLiberar()" 
+                    class="btn btn-outline-warning"
+                    (click)="liberarDocumento()"
+                    [disabled]="isProcessing">
+              <i class="fas fa-unlock me-1"></i> Liberar
+            </button>
+            
+            <!-- Indicador primer radicado -->
+            <span *ngIf="documento.primerRadicadoDelAno" class="primer-radicado-badge">
+              <i class="fas fa-crown me-1"></i> Primer Radicado
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs de navegación -->
+      <div class="tabs-navigation mb-4">
+        <ul class="nav nav-tabs">
+          <li class="nav-item">
+            <a class="nav-link" [class.active]="activeTab === 'informacion'" 
+               (click)="setActiveTab('informacion')">
+              <i class="fas fa-info-circle me-1"></i> Información
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" [class.active]="activeTab === 'documentos'" 
+               (click)="setActiveTab('documentos')">
+              <i class="fas fa-folder me-1"></i> Documentos
+              <span class="badge bg-secondary ms-1">{{ archivosRadicador.length }}</span>
+            </a>
+          </li>
+          <li *ngIf="puedeSubirArchivos()" class="nav-item">
+            <a class="nav-link" [class.active]="activeTab === 'auditoria'" 
+               (click)="setActiveTab('auditoria')">
+              <i class="fas fa-file-upload me-1"></i> Archivos Auditoría
+              <span class="badge bg-secondary ms-1">6</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" [class.active]="activeTab === 'historial'" 
+               (click)="setActiveTab('historial')">
+              <i class="fas fa-history me-1"></i> Historial
+              <span class="badge bg-secondary ms-1">{{ historial.length }}</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" [class.active]="activeTab === 'revision'" 
+               (click)="setActiveTab('revision')">
+              <i class="fas fa-clipboard-check me-1"></i> Revisión
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Tab: Información del documento -->
+      <div *ngIf="activeTab === 'informacion'" class="tab-content">
+        <div class="card main-card">
+          <div class="card-header bg-primary text-white">
+            <i class="fas fa-info-circle me-2"></i> Información del Documento
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <!-- Información básica -->
+              <div class="col-md-6">
+                <h5 class="mb-3"><i class="fas fa-file-alt me-2"></i>Datos del Radicado</h5>
+                <table class="table table-sm">
+                  <tbody>
+                    <tr>
+                      <th class="text-muted">Número Radicado:</th>
+                      <td><strong>{{ documento.numeroRadicado }}</strong></td>
+                    </tr>
+                    <tr>
+                      <th class="text-muted">Contrato:</th>
+                      <td><span class="badge bg-primary">{{ documento.numeroContrato }}</span></td>
+                    </tr>
+                    <tr>
+                      <th class="text-muted">Fecha Radicación:</th>
+                      <td>{{ formatDate(documento.fechaRadicacion) }}</td>
+                    </tr>
+                    <tr>
+                      <th class="text-muted">Radicador:</th>
+                      <td>{{ documento.radicador || 'No especificado' }}</td>
+                    </tr>
+                    <tr>
+                      <th class="text-muted">Estado Actual:</th>
+                      <td>
+                        <span class="badge" [ngClass]="getEstadoClass(documento.estado || '')">
+                          {{ getEstadoTexto(documento.estado || '') }}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Información del contratista -->
+              <div class="col-md-6">
+                <h5 class="mb-3"><i class="fas fa-user-tie me-2"></i>Datos del Contratista</h5>
+                <table class="table table-sm">
+                  <tbody>
+                    <tr>
+                      <th class="text-muted">Nombre:</th>
+                      <td><strong>{{ documento.nombreContratista }}</strong></td>
+                    </tr>
+                    <tr>
+                      <th class="text-muted">Documento:</th>
+                      <td>{{ documento.documentoContratista }}</td>
+                    </tr>
+                    <tr>
+                      <th class="text-muted">Periodo:</th>
+                      <td>
+                        {{ formatDateShort(documento.fechaInicio) }} 
+                        <i class="fas fa-arrow-right mx-2"></i>
+                        {{ formatDateShort(documento.fechaFin) }}
+                      </td>
+                    </tr>
+                    <tr>
+                      <th class="text-muted">Supervisor:</th>
+                      <td>{{ documento.supervisor || 'No asignado' }}</td>
+                    </tr>
+                    <tr>
+                      <th class="text-muted">Observación:</th>
+                      <td class="fst-italic">{{ documento.observacion || 'Sin observaciones' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Información adicional -->
+              <div class="col-12 mt-3">
+                <h5 class="mb-3"><i class="fas fa-clipboard-list me-2"></i>Información Adicional</h5>
+                <div class="row">
+                  <div class="col-md-4">
+                    <div class="info-box bg-light p-3 rounded">
+                      <h6 class="text-muted mb-1"><i class="fas fa-calendar-check me-1"></i> Última Actualización</h6>
+                      <p class="mb-0">{{ formatDate(documento.fechaActualizacion) }}</p>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="info-box bg-light p-3 rounded">
+                      <h6 class="text-muted mb-1"><i class="fas fa-user me-1"></i> Último Usuario</h6>
+                      <p class="mb-0">{{ documento.ultimoUsuario || 'No registrado' }}</p>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="info-box bg-light p-3 rounded">
+                      <h6 class="text-muted mb-1"><i class="fas fa-sticky-note me-1"></i> Comentarios</h6>
+                      <p class="mb-0">{{ documento.comentarios || 'Sin comentarios' }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Documentos del radicador -->
+      <div *ngIf="activeTab === 'documentos'" class="tab-content">
+        <div class="card main-card">
+          <div class="card-header bg-success text-white">
+            <i class="fas fa-folder me-2"></i> Documentos Adjuntos por el Radicador
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-4 mb-3" *ngFor="let archivo of archivosRadicador">
+                <div class="document-card">
+                  <div class="document-icon">
+                    <i class="fas fa-{{archivo.icon}} fa-2x text-success"></i>
+                  </div>
+                  <div class="document-info">
+                    <h6 class="mb-1">{{ archivo.nombre }}</h6>
+                    <p class="text-muted mb-1">
+                      {{ isArchivoDisponible(documento?.[archivo.tipo]) ? 'Disponible' : 'No disponible' }}
+                    </p>
+                    <small class="text-muted">
+                      {{ getArchivoNombre(documento?.[archivo.tipo]) }}
+                    </small>
+                  </div>
+                  <div class="document-actions">
+                    <div class="btn-group" role="group">
+                      <button class="btn btn-sm btn-outline-info" 
+                              [disabled]="!isArchivoDisponible(documento?.[archivo.tipo])"
+                              (click)="verArchivoRadicador(archivo.numero)">
+                        <i class="fas fa-eye"></i>
+                      </button>
+                      <button class="btn btn-sm btn-outline-success" 
+                              [disabled]="!isArchivoDisponible(documento?.[archivo.tipo]) || isProcessing"
+                              (click)="descargarArchivoRadicador(archivo.numero)">
+                        <i class="fas fa-download"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Nota informativa -->
+            <div class="alert alert-info mt-3">
+              <i class="fas fa-info-circle me-2"></i>
+              Estos documentos fueron subidos por el radicador. Son los documentos base para la auditoría.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Archivos de auditoría (solo primer radicado) -->
+      <div *ngIf="activeTab === 'auditoria' && puedeSubirArchivos()" class="tab-content">
+        <div class="card main-card">
+          <div class="card-header bg-warning text-dark">
+            <i class="fas fa-file-upload me-2"></i> Archivos de Auditoría (Requeridos para Primer Radicado)
+          </div>
+          <div class="card-body">
+            
+            <!-- Formulario de observaciones -->
+            <div class="mb-4">
+              <label class="form-label">Observaciones sobre los documentos (opcional)</label>
+              <textarea class="form-control" rows="3" 
+                        formControlName="observacionesDocumentos"
+                        placeholder="Agregue observaciones sobre los documentos subidos..."></textarea>
+            </div>
+
+            <!-- Lista de archivos requeridos -->
+            <div class="row">
+              <div class="col-md-6 mb-3" *ngFor="let archivo of archivosAuditoria">
+                <div class="card h-100 border" [class.border-success]="archivosCargados[archivo.tipo]">
+                  <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                      <div>
+                        <h6 class="card-title mb-1">
+                          <i class="fas fa-{{archivo.icon}} me-2 text-primary"></i>
+                          {{ archivo.nombre }}
+                        </h6>
+                        <p class="card-text text-muted small mb-2">{{ archivo.descripcion }}</p>
+                      </div>
+                      <span *ngIf="archivosCargados[archivo.tipo]" class="badge bg-success">
+                        <i class="fas fa-check me-1"></i> Subido
+                      </span>
+                      <span *ngIf="!archivosCargados[archivo.tipo]" class="badge bg-warning text-dark">
+                        <i class="fas fa-exclamation me-1"></i> Pendiente
+                      </span>
+                    </div>
+                    
+                    <!-- Estado del archivo -->
+                    <div *ngIf="archivosSeleccionados[archivo.tipo]" class="alert alert-success py-2 mb-2">
+                      <i class="fas fa-file me-1"></i>
+                      {{ archivosSeleccionados[archivo.tipo].name }}
+                      <small class="text-muted ms-2">
+                        ({{ (archivosSeleccionados[archivo.tipo].size / 1024 / 1024).toFixed(2) }} MB)
+                      </small>
+                      <button class="btn btn-sm btn-outline-danger ms-2" 
+                              (click)="eliminarArchivo(archivo.tipo)">
+                        <i class="fas fa-times"></i>
+                      </button>
+                    </div>
+
+                    <!-- Botones de acción -->
+                    <div class="d-flex gap-2">
+                      <div class="flex-grow-1">
+                        <input type="file" class="form-control form-control-sm" 
+                               [accept]="'.pdf,.doc,.docx,.jpg,.jpeg,.png'"
+                               (change)="onFileSelected($event, archivo.tipo)"
+                               [disabled]="archivosCargados[archivo.tipo] || isSubmitting">
+                      </div>
+                      <button *ngIf="archivosCargados[archivo.tipo]" 
+                              class="btn btn-sm btn-outline-success"
+                              (click)="descargarArchivoAuditoria(archivo.tipo)"
+                              [disabled]="isProcessing">
+                        <i class="fas fa-download"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Botón para subir todos -->
+            <div class="mt-4">
+              <button class="btn btn-warning w-100" 
+                      (click)="subirArchivosAuditoria()"
+                      [disabled]="isSubmitting || Object.keys(archivosSeleccionados).length !== 6">
+                <i class="fas fa-upload me-2"></i>
+                {{ isSubmitting ? 'Subiendo archivos...' : 'Subir todos los archivos' }}
+              </button>
+              
+              <div class="form-text text-center mt-2">
+                <i class="fas fa-info-circle me-1"></i>
+                Todos los archivos son requeridos para el primer radicado del año. Tamaño máximo por archivo: 15MB
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Historial -->
+      <div *ngIf="activeTab === 'historial'" class="tab-content">
+        <div class="card main-card">
+          <div class="card-header bg-info text-white">
+            <i class="fas fa-history me-2"></i> Historial de Estados
+          </div>
+          <div class="card-body">
+            <div class="timeline">
+              <div *ngFor="let item of historial; let i = index" class="timeline-item">
+                <div class="timeline-marker" 
+                     [ngClass]="getEstadoClass(item.estado)"></div>
+                <div class="timeline-content">
+                  <div class="timeline-header">
+                    <h6 class="mb-1">{{ getEstadoTexto(item.estado) }}</h6>
+                    <small class="text-muted">{{ formatDate(item.fecha) }}</small>
+                  </div>
+                  <div class="timeline-body">
+                    <p class="mb-1"><strong>Usuario:</strong> {{ item.usuarioNombre || 'Sistema' }}</p>
+                    <p *ngIf="item.observacion" class="mb-0">
+                      <strong>Observación:</strong> {{ item.observacion }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Estado vacío -->
+              <div *ngIf="historial.length === 0" class="text-center py-5">
+                <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No hay historial disponible</h5>
+                <p class="text-muted">El historial de estados aparecerá aquí.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Revisión -->
+      <div *ngIf="activeTab === 'revision'" class="tab-content">
+        <div class="card main-card">
+          <div class="card-header bg-primary text-white">
+            <i class="fas fa-clipboard-check me-2"></i> Revisión de Auditoría
+          </div>
+          <div class="card-body">
+            
+            <!-- Resumen de documentos -->
+            <div class="alert alert-light mb-4">
+              <div class="row">
+                <div class="col-md-6">
+                  <h6 class="mb-2"><i class="fas fa-file-alt me-2"></i>Documentos del Radicador</h6>
+                  <div class="d-flex flex-wrap gap-2">
+                    <span *ngFor="let archivo of archivosRadicador" 
+                          class="badge" [ngClass]="isArchivoDisponible(documento?.[archivo.tipo]) ? 'bg-success' : 'bg-secondary'">
+                      <i class="fas fa-{{archivo.icon}} me-1"></i> {{ archivo.nombre }}
+                    </span>
+                  </div>
+                </div>
+                <div class="col-md-6" *ngIf="puedeSubirArchivos()">
+                  <h6 class="mb-2"><i class="fas fa-file-upload me-2"></i>Documentos de Auditoría</h6>
+                  <div class="d-flex flex-wrap gap-2">
+                    <span *ngFor="let archivo of archivosAuditoria" 
+                          class="badge" [ngClass]="archivosCargados[archivo.tipo] ? 'bg-success' : 'bg-warning text-dark'">
+                      <i class="fas fa-{{archivo.icon}} me-1"></i> {{ archivo.nombre }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Formulario de revisión -->
+            <form [formGroup]="revisarForm" (ngSubmit)="onSubmitRevisar()">
+              
+              <!-- Opciones de decisión -->
+              <div class="decision-options mb-4">
+                <h5 class="mb-3"><i class="fas fa-tasks me-2"></i>Decisión de Auditoría</h5>
+                <div class="row">
+                  <div class="col-md-3 mb-3" *ngFor="let estado of estadosAuditor">
+                    <div class="form-check h-100">
+                      <input class="form-check-input" type="radio" 
+                             [id]="'estado_' + estado.value"
+                             formControlName="estado"
+                             [value]="estado.value">
+                      <label class="form-check-label" [for]="'estado_' + estado.value">
+                        <i class="fas fa-{{estado.icon}} me-2 text-{{estado.color}}"></i>
+                        <strong>{{ estado.label }}</strong>
+                        <p class="text-muted small mt-1 mb-0">{{ estado.description }}</p>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Observaciones -->
+              <div class="mb-4">
+                <label for="observaciones" class="form-label">
+                  <i class="fas fa-comment me-1"></i> Observaciones *</label>
+                <textarea id="observaciones" class="form-control" rows="4"
+                          formControlName="observaciones"
+                          placeholder="Describa detalladamente las observaciones sobre este documento..."
+                          [class.is-invalid]="revisarForm.get('observaciones')?.invalid && revisarForm.get('observaciones')?.touched"></textarea>
+                <div *ngIf="revisarForm.get('observaciones')?.invalid && revisarForm.get('observaciones')?.touched" 
+                     class="invalid-feedback">
+                  <div *ngIf="revisarForm.get('observaciones')?.errors?.['required']">
+                    Las observaciones son requeridas
+                  </div>
+                  <div *ngIf="revisarForm.get('observaciones')?.errors?.['minlength']">
+                    Mínimo 10 caracteres
+                  </div>
+                </div>
+                <div class="form-text">
+                  Incluya todos los detalles relevantes para justificar su decisión
+                </div>
+              </div>
+
+              <!-- Correcciones (solo para OBSERVADO) -->
+              <div class="mb-4" *ngIf="revisarForm.get('estado')?.value === 'OBSERVADO'">
+                <label for="correcciones" class="form-label">
+                  <i class="fas fa-edit me-1"></i> Correcciones Solicitadas</label>
+                <textarea id="correcciones" class="form-control" rows="3"
+                          formControlName="correcciones"
+                          placeholder="Describa las correcciones específicas que deben realizarse..."></textarea>
+                <div class="form-text">
+                  Especifique claramente qué debe corregirse y cómo
+                </div>
+              </div>
+
+              <!-- Advertencias -->
+              <div class="alert alert-warning mb-4" *ngIf="puedeSubirArchivos() && !puedeRevisar()">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Atención:</strong> Debe subir todos los archivos de auditoría antes de poder revisar este documento.
+              </div>
+
+              <!-- Botones de acción -->
+              <div class="d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-secondary"
+                        (click)="setActiveTab('informacion')">
+                  <i class="fas fa-arrow-left me-1"></i> Volver
+                </button>
+                
+                <div class="d-flex gap-2">
+                  <button type="button" class="btn btn-outline-warning"
+                          (click)="liberarDocumento()"
+                          *ngIf="estaEnRevision() && puedeLiberar()"
+                          [disabled]="isProcessing">
+                    <i class="fas fa-unlock me-1"></i> Liberar Documento
+                  </button>
+                  
+                  <button type="submit" class="btn btn-primary"
+                          [disabled]="!revisarForm.valid || isProcessing || !puedeRevisar()">
+                    <i class="fas fa-check-circle me-1"></i>
+                    {{ isProcessing ? 'Procesando...' : 'Confirmar Revisión' }}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Documento no encontrado -->
+    <div *ngIf="!isLoading && !documento" class="text-center py-5">
+      <i class="fas fa-file-exclamation fa-4x text-muted mb-3"></i>
+      <h4 class="text-muted">Documento no encontrado</h4>
+      <p class="text-muted mb-4">El documento solicitado no existe o no tienes permisos para acceder a él.</p>
+      <button class="btn btn-primary" routerLink="/auditor/pendientes">
+        <i class="fas fa-arrow-left me-1"></i> Volver a Pendientes
+      </button>
+    </div>
+
+  </div>
+</div>

@@ -1,0 +1,406 @@
+<div class="auditor-stats-container" [class.sidebar-collapsed]="sidebarCollapsed">
+  <div class="auditor-stats-inner">
+
+    <!-- Header -->
+    <div class="page-header mb-4">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <h1 class="page-title">
+            <i class="fas fa-chart-bar me-2"></i>
+            Estadísticas de Auditoría
+          </h1>
+          <p class="page-subtitle">
+            Análisis detallado de tu desempeño como auditor
+          </p>
+        </div>
+        
+        <!-- Selector de período -->
+        <div class="periodo-selector">
+          <div class="dropdown">
+            <button class="btn btn-outline-primary dropdown-toggle" type="button" 
+                    data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="fas fa-{{getPeriodoIcon()}} me-2"></i>
+              {{ getPeriodoLabel() }}
+            </button>
+            <ul class="dropdown-menu">
+              <li *ngFor="let periodo of periodos">
+                <a class="dropdown-item" (click)="cambiarPeriodo(periodo.value)">
+                  <i class="fas fa-{{periodo.icon}} me-2"></i>
+                  {{ periodo.label }}
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mensajes -->
+    <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
+      <i class="fas fa-exclamation-triangle me-2"></i> {{ errorMessage }}
+      <button type="button" class="btn-close" (click)="dismissError()"></button>
+    </div>
+
+    <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show" role="alert">
+      <i class="fas fa-check-circle me-2"></i> {{ successMessage }}
+      <button type="button" class="btn-close" (click)="dismissSuccess()"></button>
+    </div>
+
+    <!-- Loading -->
+    <div *ngIf="isLoading" class="text-center py-5">
+      <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+      <p class="mt-3 text-muted">Cargando estadísticas...</p>
+    </div>
+
+    <!-- Contenido principal -->
+    <div *ngIf="!isLoading && estadisticas" class="main-content">
+      
+      <!-- KPI Cards -->
+      <div class="row mb-4">
+        <!-- Documentos Disponibles -->
+        <div class="col-md-3 col-sm-6 mb-3">
+          <div class="kpi-card total-documentos">
+            <div class="kpi-icon">
+              <i class="fas fa-file-invoice-dollar"></i>
+            </div>
+            <div class="kpi-content">
+              <h3>{{ formatNumber(estadisticas.totalDocumentosDisponibles) }}</h3>
+              <p>Documentos Disponibles</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Eficiencia -->
+        <div class="col-md-3 col-sm-6 mb-3">
+          <div class="kpi-card eficiencia" [class]="'bg-' + getEficienciaColor()">
+            <div class="kpi-icon">
+              <i class="fas fa-{{getEficienciaIcon()}}"></i>
+            </div>
+            <div class="kpi-content">
+              <h3>{{ estadisticas.eficiencia || 0 }}%</h3>
+              <p>Eficiencia</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tiempo Promedio -->
+        <div class="col-md-3 col-sm-6 mb-3">
+          <div class="kpi-card tiempo-promedio">
+            <div class="kpi-icon">
+              <i class="fas fa-clock"></i>
+            </div>
+            <div class="kpi-content">
+              <h3>{{ estadisticas.tiempoPromedioHoras || 0 }}h</h3>
+              <p>Tiempo Promedio</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Primer Radicados -->
+        <div class="col-md-3 col-sm-6 mb-3">
+          <div class="kpi-card primer-radicados">
+            <div class="kpi-icon">
+              <i class="fas fa-crown"></i>
+            </div>
+            <div class="kpi-content">
+              <h3>{{ formatNumber(estadisticas.misDocumentos?.primerRadicados || 0) }}</h3>
+              <p>Primer Radicados</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gráficos principales -->
+      <div class="row mb-4">
+        <!-- Distribución de estados -->
+        <div class="col-lg-6 mb-4">
+          <div class="card chart-card">
+            <div class="card-header">
+              <h5 class="mb-0">
+                <i class="fas fa-chart-pie me-2"></i>
+                Distribución de Estados
+              </h5>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="chartEstado"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Eficiencia -->
+        <div class="col-lg-6 mb-4">
+          <div class="card chart-card">
+            <div class="card-header">
+              <h5 class="mb-0">
+                <i class="fas fa-tachometer-alt me-2"></i>
+                Eficiencia del Auditor
+              </h5>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="chartEficiencia"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gráficos secundarios -->
+      <div class="row mb-4">
+        <!-- Tiempos de revisión -->
+        <div class="col-lg-6 mb-4">
+          <div class="card chart-card">
+            <div class="card-header">
+              <h5 class="mb-0">
+                <i class="fas fa-chart-line me-2"></i>
+                Tiempos de Revisión
+              </h5>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="chartTiempos"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Primer radicado vs otros -->
+        <div class="col-lg-6 mb-4">
+          <div class="card chart-card">
+            <div class="card-header">
+              <h5 class="mb-0">
+                <i class="fas fa-chart-pie me-2"></i>
+                Primer Radicado vs Otros
+              </h5>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="chartRadicados"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla detallada de estadísticas -->
+      <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">
+            <i class="fas fa-table me-2"></i>
+            Detalle de Estadísticas
+          </h5>
+          <div class="btn-group">
+            <button class="btn btn-sm btn-outline-primary" (click)="exportarPDF()" [disabled]="isProcessing">
+              <i class="fas fa-file-pdf me-1"></i> PDF
+            </button>
+            <button class="btn btn-sm btn-outline-success" (click)="exportarExcel()" [disabled]="isProcessing">
+              <i class="fas fa-file-excel me-1"></i> Excel
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" (click)="refreshData()" [disabled]="isProcessing">
+              <i class="fas fa-sync-alt"></i>
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Indicador</th>
+                  <th class="text-end">Valor</th>
+                  <th class="text-end">Porcentaje</th>
+                  <th>Descripción</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Documentos procesados -->
+                <tr>
+                  <td>
+                    <i class="fas fa-file-alt me-2 text-primary"></i>
+                    <strong>Documentos Procesados</strong>
+                  </td>
+                  <td class="text-end">
+                    <span class="badge bg-primary">{{ formatNumber(estadisticas.misDocumentos?.total || 0) }}</span>
+                  </td>
+                  <td class="text-end">100%</td>
+                  <td>Total de documentos que has revisado</td>
+                </tr>
+
+                <!-- En revisión -->
+                <tr>
+                  <td>
+                    <i class="fas fa-hourglass-half me-2 text-warning"></i>
+                    En Revisión
+                  </td>
+                  <td class="text-end">
+                    <span class="badge bg-warning">{{ formatNumber(estadisticas.misDocumentos?.enRevision || 0) }}</span>
+                  </td>
+                  <td class="text-end">
+                    {{ calcularPorcentaje(estadisticas.misDocumentos?.enRevision || 0, estadisticas.misDocumentos?.total || 1) }}
+                  </td>
+                  <td>Documentos que estás revisando actualmente</td>
+                </tr>
+
+                <!-- Aprobados -->
+                <tr>
+                  <td>
+                    <i class="fas fa-check-circle me-2 text-success"></i>
+                    Aprobados
+                  </td>
+                  <td class="text-end">
+                    <span class="badge bg-success">{{ formatNumber(estadisticas.misDocumentos?.aprobados || 0) }}</span>
+                  </td>
+                  <td class="text-end">
+                    {{ calcularPorcentaje(estadisticas.misDocumentos?.aprobados || 0, estadisticas.misDocumentos?.total || 1) }}
+                  </td>
+                  <td>Documentos que has aprobado</td>
+                </tr>
+
+                <!-- Observados -->
+                <tr>
+                  <td>
+                    <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
+                    Observados
+                  </td>
+                  <td class="text-end">
+                    <span class="badge bg-warning text-dark">{{ formatNumber(estadisticas.misDocumentos?.observados || 0) }}</span>
+                  </td>
+                  <td class="text-end">
+                    {{ calcularPorcentaje(estadisticas.misDocumentos?.observados || 0, estadisticas.misDocumentos?.total || 1) }}
+                  </td>
+                  <td>Documentos que has observado para correcciones</td>
+                </tr>
+
+                <!-- Rechazados -->
+                <tr>
+                  <td>
+                    <i class="fas fa-times-circle me-2 text-danger"></i>
+                    Rechazados
+                  </td>
+                  <td class="text-end">
+                    <span class="badge bg-danger">{{ formatNumber(estadisticas.misDocumentos?.rechazados || 0) }}</span>
+                  </td>
+                  <td class="text-end">
+                    {{ calcularPorcentaje(estadisticas.misDocumentos?.rechazados || 0, estadisticas.misDocumentos?.total || 1) }}
+                  </td>
+                  <td>Documentos que has rechazado</td>
+                </tr>
+
+                <!-- Completados -->
+                <tr>
+                  <td>
+                    <i class="fas fa-flag-checkered me-2 text-info"></i>
+                    Completados
+                  </td>
+                  <td class="text-end">
+                    <span class="badge bg-info">{{ formatNumber(estadisticas.misDocumentos?.completados || 0) }}</span>
+                  </td>
+                  <td class="text-end">
+                    {{ calcularPorcentaje(estadisticas.misDocumentos?.completados || 0, estadisticas.misDocumentos?.total || 1) }}
+                  </td>
+                  <td>Documentos que has completado</td>
+                </tr>
+
+                <!-- Primer radicados -->
+                <tr>
+                  <td>
+                    <i class="fas fa-crown me-2 text-warning"></i>
+                    Primer Radicados
+                  </td>
+                  <td class="text-end">
+                    <span class="badge primer-radicado-badge">{{ formatNumber(estadisticas.misDocumentos?.primerRadicados || 0) }}</span>
+                  </td>
+                  <td class="text-end">
+                    {{ calcularPorcentaje(estadisticas.misDocumentos?.primerRadicados || 0, estadisticas.misDocumentos?.total || 1) }}
+                  </td>
+                  <td>Primeros radicados del año (requieren archivos adicionales)</td>
+                </tr>
+
+                <!-- Recientes -->
+                <tr>
+                  <td>
+                    <i class="fas fa-calendar-day me-2 text-info"></i>
+                    Recientes (7 días)
+                  </td>
+                  <td class="text-end">
+                    <span class="badge bg-info">{{ formatNumber(estadisticas.recientes || 0) }}</span>
+                  </td>
+                  <td class="text-end">N/A</td>
+                  <td>Documentos procesados en los últimos 7 días</td>
+                </tr>
+
+                <!-- Tiempo promedio -->
+                <tr>
+                  <td>
+                    <i class="fas fa-clock me-2 text-primary"></i>
+                    Tiempo Promedio
+                  </td>
+                  <td class="text-end">
+                    <span class="badge bg-primary">{{ estadisticas.tiempoPromedioHoras || 0 }} horas</span>
+                  </td>
+                  <td class="text-end">N/A</td>
+                  <td>Tiempo promedio para revisar un documento</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resumen de métricas -->
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <div class="card metric-card">
+            <div class="card-body text-center">
+              <i class="fas fa-chart-line fa-3x text-primary mb-3"></i>
+              <h4 class="mb-2">Tendencia</h4>
+              <p class="text-muted mb-0">
+                <i class="fas fa-arrow-up text-success me-1"></i>
+                Tu eficiencia ha mejorado un 15% este mes
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-4 mb-3">
+          <div class="card metric-card">
+            <div class="card-body text-center">
+              <i class="fas fa-trophy fa-3x text-warning mb-3"></i>
+              <h4 class="mb-2">Desempeño</h4>
+              <p class="text-muted mb-0">
+                Estás en el top 3 de auditores este mes
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-4 mb-3">
+          <div class="card metric-card">
+            <div class="card-body text-center">
+              <i class="fas fa-bullseye fa-3x text-success mb-3"></i>
+              <h4 class="mb-2">Objetivo</h4>
+              <p class="text-muted mb-0">
+                <i class="fas fa-check-circle text-success me-1"></i>
+                Has superado tu objetivo de eficiencia del 75%
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Sin datos -->
+    <div *ngIf="!isLoading && !estadisticas" class="text-center py-5">
+      <i class="fas fa-chart-bar fa-4x text-muted mb-3"></i>
+      <h4 class="text-muted">No hay estadísticas disponibles</h4>
+      <p class="text-muted mb-4">Las estadísticas se mostrarán aquí después de que realices algunas auditorías.</p>
+      <button class="btn btn-primary" routerLink="/auditor/pendientes">
+        <i class="fas fa-file-invoice-dollar me-1"></i> Ir a Pendientes
+      </button>
+    </div>
+
+  </div>
+</div>

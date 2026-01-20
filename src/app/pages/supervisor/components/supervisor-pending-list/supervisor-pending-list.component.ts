@@ -144,18 +144,18 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
   puedeTomarDocumento(doc: Documento): boolean {
     const esRadicado = doc.estado === 'RADICADO';
     const estaEnRevision = this.estaEnRevision(doc);
-    const soyElAsignado = doc.supervisorAsignado === this.usuarioActual || 
-                         doc.asignacion?.supervisorActual === this.usuarioActual;
-    
+    const soyElAsignado = doc.supervisorAsignado === this.usuarioActual ||
+      doc.asignacion?.supervisorActual === this.usuarioActual;
+
     if (!esRadicado) return false;
     if (!estaEnRevision) return true;
     return estaEnRevision && soyElAsignado;
   }
 
   getTextoBoton(doc: Documento): string {
-    if (this.estaEnRevision(doc) && 
-        (doc.supervisorAsignado === this.usuarioActual || 
-         doc.asignacion?.supervisorActual === this.usuarioActual)) {
+    if (this.estaEnRevision(doc) &&
+      (doc.supervisorAsignado === this.usuarioActual ||
+        doc.asignacion?.supervisorActual === this.usuarioActual)) {
       return 'Continuar';
     }
     return 'Tomar';
@@ -193,10 +193,10 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
 
   tomarParaRevision(doc: Documento): void {
     console.log(`🤝 Supervisor: Tomando documento ${doc.numeroRadicado} para revisión...`);
-    
+
     // Verificar estado actual
     if (doc.estado !== 'RADICADO') {
-      this.notificationService.warning('Documento no disponible', 
+      this.notificationService.warning('Documento no disponible',
         `Este documento ya no está disponible. Estado actual: ${doc.estado}`);
       return;
     }
@@ -216,24 +216,44 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
         next: (resultado: any) => {
           console.log('✅ Respuesta de tomar documento:', resultado);
 
-          // Actualizar el estado del documento localmente
+          // ✅ ACTUALIZACIÓN: Asignar información de supervisor y fecha
           const index = this.documentos.findIndex(d => d.id === doc.id);
           if (index !== -1) {
+            // Actualizar estado
             this.documentos[index].estado = 'EN_REVISION_SUPERVISOR';
+
+            // ✅ NUEVO: Actualizar información de asignación
+            this.documentos[index].supervisorAsignado = this.usuarioActual;
+            this.documentos[index].fechaAsignacion = new Date();
+            this.documentos[index].supervisorEstado = 'EN_REVISION';
             this.documentos[index].ultimoUsuario = this.usuarioActual;
             this.documentos[index].fechaActualizacion = new Date();
+
+            // Actualizar asignación si existe
+            if (this.documentos[index].asignacion) {
+              this.documentos[index].asignacion = {
+                ...this.documentos[index].asignacion,
+                enRevision: true,
+                supervisorActual: this.usuarioActual,
+                usuarioAsignado: this.usuarioActual
+              };
+            }
+
+            console.log('✅ Documento actualizado localmente con asignación:', this.documentos[index]);
           }
 
           this.notificationService.success('Éxito', 'Documento tomado para revisión. Estado actualizado.');
           this.isProcessing = false;
-          
-          // Navegar directamente al formulario de revisión
-          this.router.navigate(['/supervisor/revisar', doc.id]);
-          
-          // Recargar lista después de navegar
+
+          // ✅ NUEVO: Actualizar la lista filtrada y paginada
+          this.filteredDocumentos = [...this.documentos];
+          this.updatePagination();
+
+          // Esperar un momento para mostrar la actualización antes de navegar
           setTimeout(() => {
-            this.refreshData();
-          }, 1000);
+            // Navegar al formulario de revisión
+            this.router.navigate(['/supervisor/revisar', doc.id]);
+          }, 500);
         },
         error: (error: any) => {
           console.error('❌ Error tomando documento:', error);
@@ -435,7 +455,7 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
   // Métodos para archivos (mantener compatibilidad)
   previsualizarDocumentoEspecifico(doc: Documento, index: number): void {
     console.log(`👁️ Previsualizando documento ${doc.numeroRadicado}, archivo ${index}`);
-    
+
     if (index < 1 || index > 3) {
       this.notificationService.warning('Advertencia', 'Índice de documento no válido');
       return;
@@ -443,7 +463,7 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
 
     // Verificar si el documento existe
     let existeDocumento = false;
-    
+
     switch (index) {
       case 1:
         existeDocumento = !!doc.cuentaCobro;
@@ -457,7 +477,7 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
     }
 
     if (!existeDocumento) {
-      this.notificationService.warning('Documento no disponible', 
+      this.notificationService.warning('Documento no disponible',
         `El documento ${index} no está disponible`);
       return;
     }
@@ -468,7 +488,7 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
 
   descargarDocumentoEspecifico(doc: Documento, index: number): void {
     console.log(`📥 Descargando documento ${doc.numeroRadicado}, archivo ${index}`);
-    
+
     if (index < 1 || index > 3) {
       this.notificationService.warning('Advertencia', 'Índice de documento no válido');
       return;
@@ -477,7 +497,7 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
     // Verificar si el documento existe
     let existeDocumento = false;
     let nombreDocumento = '';
-    
+
     switch (index) {
       case 1:
         existeDocumento = !!doc.cuentaCobro;
@@ -494,13 +514,13 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
     }
 
     if (!existeDocumento) {
-      this.notificationService.warning('Documento no disponible', 
+      this.notificationService.warning('Documento no disponible',
         `El documento ${index} no está disponible para descarga`);
       return;
     }
 
     this.isProcessing = true;
-    
+
     this.supervisorService.descargarArchivo(doc.id, index)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
@@ -514,14 +534,14 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
           a.click();
           document.body.removeChild(a);
           window.URL.revokeObjectURL(url);
-          
+
           this.isProcessing = false;
-          this.notificationService.success('Descarga completada', 
+          this.notificationService.success('Descarga completada',
             `Documento "${nombreDocumento}" descargado correctamente`);
         },
         error: (error: any) => {
           console.error('❌ Error descargando documento específico:', error);
-          this.notificationService.error('Error', 
+          this.notificationService.error('Error',
             `No se pudo descargar el documento: ${error.message || 'Error desconocido'}`);
           this.isProcessing = false;
         }

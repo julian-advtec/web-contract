@@ -175,64 +175,76 @@ export class SupervisorService {
      * ✅ Guardar revisión con PAZ Y SALVO y ÚLTIMO RADICADO
      */
     guardarRevisionConArchivo(
-    documentoId: string,
-    datosRevision: any,
-    archivoAprobacion?: File | null,
-    archivoPazSalvo?: File | null
-): Observable<any> {
-    const formData = new FormData();
+        documentoId: string,
+        datosRevision: any,
+        archivoAprobacion?: File | null,
+        archivoPazSalvo?: File | null
+    ): Observable<any> {
+        const formData = new FormData();
 
-    // ✅ Campos permitidos por el DTO del backend
-    formData.append('estado', datosRevision.estado);
-    formData.append('observacion', datosRevision.observacion || '');
-    
-    if (datosRevision.correcciones) {
-        formData.append('correcciones', datosRevision.correcciones);
-    }
+        console.log('📤 Preparando FormData para enviar:', {
+            estado: datosRevision.estado,
+            requierePazSalvo: datosRevision.requierePazSalvo,
+            esUltimoRadicado: datosRevision.esUltimoRadicado,
+            tieneArchivoAprobacion: !!archivoAprobacion,
+            tieneArchivoPazSalvo: !!archivoPazSalvo
+        });
 
-    // ✅ NUEVO: Checkbox para paz y salvo
-    if (datosRevision.requierePazSalvo) {
-        formData.append('requierePazSalvo', 'true');
-    }
-    
-    // ✅ NUEVO: Campo para confirmar si es el último radicado
-    if (datosRevision.esUltimoRadicado !== undefined) {
+        formData.append('estado', datosRevision.estado);
+        formData.append('observacion', datosRevision.observacion || '');
+
+        if (datosRevision.correcciones) {
+            formData.append('correcciones', datosRevision.correcciones);
+        }
+
+        formData.append('requierePazSalvo', datosRevision.requierePazSalvo ? 'true' : 'false');
         formData.append('esUltimoRadicado', datosRevision.esUltimoRadicado ? 'true' : 'false');
+
+        if (archivoAprobacion) {
+            formData.append('archivoAprobacion', archivoAprobacion, archivoAprobacion.name);
+            console.log('📎 Archivo aprobación agregado:', archivoAprobacion.name);
+        }
+
+        if (archivoPazSalvo) {
+            formData.append('pazSalvo', archivoPazSalvo, archivoPazSalvo.name);
+            console.log('📎 Archivo paz y salvo agregado:', archivoPazSalvo.name);
+        }
+
+        console.log('🔍 Campos en FormData:');
+        formData.forEach((value, key) => {
+            if (value instanceof File) {
+                console.log(`  - ${key}: ${value.name} (${value.size} bytes, ${value.type})`);
+            } else {
+                console.log(`  - ${key}: ${value} (tipo: ${typeof value})`);
+            }
+        });
+
+        const token = this.getAuthToken();
+        const headers = new HttpHeaders({
+            'Authorization': token
+        });
+
+        console.log('🚀 Enviando revisión con archivos...');
+
+        return this.http.post<any>(`${this.apiUrl}/revisar/${documentoId}`, formData, { headers })
+            .pipe(
+                map(response => {
+                    console.log('✅ Revisión con archivo guardada exitosamente:', response);
+                    return response;
+                }),
+                catchError(error => {
+                    console.error('❌ Error en guardarRevisionConArchivo:', error);
+                    console.error('❌ Error detallado:', {
+                        status: error.status,
+                        statusText: error.statusText,
+                        error: error.error,
+                        url: error.url,
+                        detalles: error.error?.detalles
+                    });
+                    return throwError(() => new Error(`Error ${error.status}: ${error.error?.message || error.message}`));
+                })
+            );
     }
-
-    console.log('📤 Enviando datos (FormData):', {
-        estado: datosRevision.estado,
-        observacion: datosRevision.observacion,
-        requierePazSalvo: datosRevision.requierePazSalvo,
-        esUltimoRadicado: datosRevision.esUltimoRadicado,
-        tieneArchivoAprobacion: !!archivoAprobacion,
-        tieneArchivoPazSalvo: !!archivoPazSalvo
-    });
-
-    // Agregar archivo de aprobación solo si existe y el estado es APROBADO
-    if (archivoAprobacion && datosRevision.estado === 'APROBADO') {
-        formData.append('archivo', archivoAprobacion, archivoAprobacion.name);
-    }
-
-    // ✅ Agregar archivo de paz y salvo si existe
-    if (archivoPazSalvo && datosRevision.estado === 'APROBADO' && datosRevision.requierePazSalvo) {
-        formData.append('pazSalvo', archivoPazSalvo, archivoPazSalvo.name);
-    }
-
-    const token = this.getAuthToken();
-    const headers = new HttpHeaders({
-        'Authorization': token
-    });
-
-    return this.http.post<any>(`${this.apiUrl}/revisar/${documentoId}`, formData, { headers })
-        .pipe(
-            map(response => {
-                console.log('✅ Revisión con archivo guardada:', response);
-                return response;
-            }),
-            catchError(this.handleError)
-        );
-}
 
     /**
      * ✅ Guardar revisión sin archivos
@@ -245,7 +257,7 @@ export class SupervisorService {
             observacion: datosRevision.observacion,
             correcciones: datosRevision.correcciones || null,
             requierePazSalvo: datosRevision.requierePazSalvo || false,
-            esUltimoRadicado: datosRevision.esUltimoRadicado || false // ✅ NUEVO
+            esUltimoRadicado: datosRevision.esUltimoRadicado || false
         };
 
         console.log(`📤 Enviando revisión para documento ${documentoId}:`, payload);
@@ -291,12 +303,28 @@ export class SupervisorService {
     }
 
     /**
-     * ✅ Previsualizar paz y salvo
+     * ✅ Previsualizar paz y salvo (usando Blob para autenticación header)
      */
     previsualizarPazSalvo(nombreArchivo: string): void {
-        const token = this.getAuthToken();
-        const url = `${this.apiUrl}/ver-paz-salvo/${nombreArchivo}?token=${encodeURIComponent(token)}`;
-        window.open(url, '_blank');
+        if (!nombreArchivo) return;
+
+        console.log(`👁️ Intentando PREVISUALIZAR paz y salvo: ${nombreArchivo}`);
+
+        this.http.get(`${this.apiUrl}/ver-paz-salvo/${encodeURIComponent(nombreArchivo)}`, {
+            headers: this.getAuthHeaders(),
+            responseType: 'blob'
+        }).subscribe({
+            next: (blob: Blob) => {
+                const url = window.URL.createObjectURL(blob);
+                const nuevaVentana = window.open(url, '_blank');
+                if (nuevaVentana) nuevaVentana.focus();
+                setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+                console.log('✅ Paz y salvo abierto en pestaña');
+            },
+            error: (err) => {
+                console.error('Error previsualizando paz y salvo:', err);
+            }
+        });
     }
 
     /**
@@ -453,7 +481,6 @@ export class SupervisorService {
             map(response => {
                 console.log('📊 Respuesta obtenerDocumentoPorId (supervisor):', response);
 
-                // Procesar diferentes estructuras de respuesta
                 if (response?.ok === true && response.data) {
                     return response.data;
                 }
@@ -474,10 +501,10 @@ export class SupervisorService {
     }
 
     /**
-     * ✅ Método para obtener URL de archivo
+     * ✅ Método para obtener URL de archivo (mantener para compatibilidad, pero preferir blob)
      */
     getArchivoUrlConToken(id: string, index: number, download = false): string {
-        const token = this.getAuthToken();
+        const token = this.getAuthToken().replace('Bearer ', ''); // Remover 'Bearer ' para query
         const baseUrl = `${this.apiUrl}/descargar/${id}/archivo/${index}`;
         const params = new URLSearchParams();
         if (download) params.append('download', 'true');
@@ -486,11 +513,20 @@ export class SupervisorService {
     }
 
     /**
-     * ✅ Previsualizar archivo
+     * ✅ Previsualizar archivo usando Blob con headers
      */
     previsualizarArchivo(id: string, index: number): void {
-        const url = this.getArchivoUrlConToken(id, index, false);
-        window.open(url, '_blank');
+        console.log(`👁️ Previsualizando archivo ${index} del documento ${id}...`);
+        this.descargarArchivo(id, index).subscribe({
+            next: (blob) => {
+                const url = window.URL.createObjectURL(blob);
+                window.open(url, '_blank');
+                console.log('✅ Archivo abierto en nueva pestaña');
+            },
+            error: (error) => {
+                console.error('❌ Error previsualizando archivo:', error);
+            }
+        });
     }
 
     /**
@@ -501,30 +537,39 @@ export class SupervisorService {
     }
 
     /**
-     * ✅ Método para obtener URL de previsualización
+     * ✅ Método para obtener URL de previsualización (mantener compatibilidad)
      */
     getPreviewUrl(documentoId: string, index: number): string {
         return this.getArchivoUrlConToken(documentoId, index, false);
     }
 
     /**
-     * ✅ Método para obtener URL de descarga
+     * ✅ Método para obtener URL de descarga (mantener compatibilidad)
      */
     getDownloadUrl(documentoId: string, index: number): string {
         return this.getArchivoUrlConToken(documentoId, index, true);
     }
 
     /**
-     * ✅ Descarga directamente el archivo sin pasar por Blob
+     * ✅ Descarga directamente el archivo usando Blob
      */
     descargarArchivoDirecto(id: string, index: number, nombreArchivo?: string): void {
-        const url = this.getArchivoUrlConToken(id, index, true);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = nombreArchivo || `archivo-${index}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        this.descargarArchivo(id, index).subscribe({
+            next: (blob) => {
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = nombreArchivo || `archivo-${index}`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+                console.log('✅ Archivo descargado directamente');
+            },
+            error: (error) => {
+                console.error('❌ Error descargando archivo directo:', error);
+            }
+        });
     }
 
     /**
@@ -572,14 +617,13 @@ export class SupervisorService {
                     fechaActualizacion: doc.fechaActualizacion ? new Date(doc.fechaActualizacion) : new Date(),
                     usuarioAsignadoNombre: doc.usuarioAsignadoNombre || doc.asignacion?.usuarioAsignado,
 
-                    // ✅ NUEVO: Campos para supervisor
                     supervisorAsignado: doc.supervisorAsignado || doc.asignacion?.supervisorActual || undefined,
                     fechaAsignacion: doc.fechaAsignacion ? new Date(doc.fechaAsignacion) : undefined,
                     supervisorEstado: doc.supervisorEstado || doc.asignacion?.estado || undefined,
                     requierePazSalvo: doc.requierePazSalvo || false,
                     pazSalvo: doc.pazSalvo || undefined,
                     fechaPazSalvo: doc.fechaPazSalvo ? new Date(doc.fechaPazSalvo) : undefined,
-                    esUltimoRadicado: doc.esUltimoRadicado || false, // ✅ NUEVO
+                    esUltimoRadicado: doc.esUltimoRadicado || false,
                     tipoContrato: doc.tipoContrato || 'SERVICIOS',
                     valorContrato: doc.valorContrato || 0,
 
@@ -625,7 +669,7 @@ export class SupervisorService {
 
     subirArchivoRevision(documentoId: string, indice: number, archivo: File): Observable<any> {
         const formData = new FormData();
-        formData.append('archivo', archivo, archivo.name);
+        formData.append('archivoAprobacion', archivo, archivo.name);
         formData.append('indice', indice.toString());
         formData.append('documentoId', documentoId);
 
@@ -642,9 +686,6 @@ export class SupervisorService {
         );
     }
 
-    /**
-     * ✅ Métodos alternativos (mantener compatibilidad)
-     */
     aprobarDocumento(id: string, observaciones?: string): Observable<any> {
         const body = {
             estado: 'APROBADO',
@@ -709,7 +750,7 @@ export class SupervisorService {
                 console.log('📊 Respuesta observarDocumento:', response);
 
                 if (response?.ok === true && response.data) {
-                        return response.data;
+                    return response.data;
                 }
                 if (response?.success === true) {
                     return response.data || response;
@@ -719,4 +760,147 @@ export class SupervisorService {
             catchError(this.handleError)
         );
     }
+
+    /**
+     * ✅ Descargar archivo de aprobación
+     */
+    descargarArchivoAprobacion(nombreArchivo: string): Observable<Blob> {
+        const headers = this.getAuthHeaders();
+        console.log(`📥 Descargando archivo de aprobación: ${nombreArchivo}...`);
+
+        return this.http.get(`${this.apiUrl}/descargar-archivo/${nombreArchivo}`, {
+            headers,
+            responseType: 'blob'
+        }).pipe(
+            catchError(this.handleError)
+        );
+    }
+
+    /**
+     * ✅ Ver archivo de aprobación usando Blob
+     */
+    verArchivoAprobacion(nombreArchivo: string): void {
+        if (!nombreArchivo) return;
+
+        console.log(`👁️ Intentando PREVISUALIZAR aprobación: ${nombreArchivo}`);
+
+        this.http.get(`${this.apiUrl}/ver-archivo-supervisor/${encodeURIComponent(nombreArchivo)}`, {
+            headers: this.getAuthHeaders(),
+            responseType: 'blob'
+        }).subscribe({
+            next: (blob: Blob) => {
+                const url = window.URL.createObjectURL(blob);
+                const nuevaVentana = window.open(url, '_blank');
+                if (nuevaVentana) nuevaVentana.focus();
+                setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+                console.log('✅ Aprobación abierto en pestaña');
+            },
+            error: (err) => {
+                console.error('Error previsualizando aprobación:', err);
+            }
+        });
+    }
+
+    liberarDocumento(documentoId: string): Observable<any> {
+        const headers = this.getAuthHeaders();
+        console.log(`🔄 Liberando documento ${documentoId}...`);
+
+        return this.http.post<any>(`${this.apiUrl}/liberar-documento/${documentoId}`, {}, { headers }).pipe(
+            map(response => {
+                console.log('📊 Respuesta liberar documento:', response);
+
+                if (response?.success === true) {
+                    return response;
+                }
+
+                if (response) {
+                    return response;
+                }
+
+                throw new Error('Respuesta inválida del servidor');
+            }),
+            catchError(this.handleError)
+        );
+    }
+
+
+    devolverDocumento(documentoId: string, motivo: string, instrucciones: string): Observable<any> {
+        const headers = this.getAuthHeaders();
+        const body = { motivo, instrucciones };
+
+        console.log(`↩️ Devolviendo documento ${documentoId}...`);
+
+        return this.http.post<any>(`${this.apiUrl}/devolver/${documentoId}`, body, { headers }).pipe(
+            map(response => {
+                console.log('📊 Respuesta devolver documento:', response);
+
+                if (response?.success === true) {
+                    return response;
+                }
+
+                if (response) {
+                    return response;
+                }
+
+                throw new Error('Respuesta inválida del servidor');
+            }),
+            catchError(this.handleError)
+        );
+    }
+
+    obtenerMisRevisiones(): Observable<Documento[]> {
+        const headers = this.getAuthHeaders();
+        console.log('📋 Solicitando mis revisiones...');
+
+        return this.http.get<any>(`${this.apiUrl}/mis-revisiones`, { headers }).pipe(
+            map(response => {
+                console.log('📊 Respuesta mis revisiones:', response);
+
+                let documentos: Documento[] = [];
+
+                if (response?.data && Array.isArray(response.data)) {
+                    documentos = this.mapearDocumentosDesdeBackend(response.data);
+                }
+
+                return documentos;
+            }),
+            catchError(error => {
+                console.error('❌ Error obteniendo mis revisiones:', error);
+                return of([]);
+            })
+        );
+    }
+
+    descargarTodosArchivosSimple(documentoId: string): Observable<void> {
+        console.log(`📥 Preparando descarga múltiple para documento ${documentoId}...`);
+
+        return new Observable<void>(observer => {
+            observer.next();
+            observer.complete();
+        });
+    }
+
+    getUrlArchivoSupervisor(nombreArchivo: string | null): string {
+        if (!nombreArchivo || nombreArchivo.trim() === '') {
+            console.warn('[getUrlArchivoSupervisor] Nombre de archivo vacío o nulo');
+            return '#';
+        }
+
+        const token = localStorage.getItem('access_token') || localStorage.getItem('token') || '';
+        const rawToken = token.startsWith('Bearer ') ? token.slice(7) : token;
+        const apiBase = environment.apiUrl;
+
+        let url = `${apiBase}/supervisor/ver-archivo-supervisor/${encodeURIComponent(nombreArchivo)}`;
+
+        if (rawToken) {
+            url += `?token=${encodeURIComponent(rawToken)}`;
+        } else {
+            console.warn('[getUrlArchivoSupervisor] No se encontró token de autenticación');
+        }
+
+        console.log('[URL generada para archivo supervisor]:', url);
+        return url;
+    }
+
+
 }

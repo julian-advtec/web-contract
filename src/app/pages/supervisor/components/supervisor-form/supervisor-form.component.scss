@@ -1,19 +1,18 @@
 /* supervisor-form.component.scss */
 
-// Variables
+// ===== VARIABLES GLOBALES =====
 $primary-color: #10B981;
 $secondary-color: #6B7280;
 $danger-color: #EF4444;
 $warning-color: #F59E0B;
 $info-color: #3B82F6;
 $success-color: #10B981;
-
 $border-color: #E5E7EB;
 $bg-light: #F9FAFB;
 $text-color: #374151;
 $text-muted: #6B7280;
 
-// Mixins
+// ===== MIXINS =====
 @mixin flex-center {
   display: flex;
   align-items: center;
@@ -28,7 +27,7 @@ $text-muted: #6B7280;
   transition: $property $duration $easing;
 }
 
-// Animaciones
+// ===== ANIMACIONES =====
 @keyframes slideIn {
   from {
     opacity: 0;
@@ -41,40 +40,50 @@ $text-muted: #6B7280;
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes fadeIn {
-  from { 
-    opacity: 0; 
-    transform: translateY(-10px) scale(0.95); 
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
   }
-  to { 
-    opacity: 1; 
-    transform: translateY(0) scale(1); 
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
 @keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
-  70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(37, 99, 235, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+  }
 }
 
-// Contenedor principal
+// ===== ESTILOS GENERALES =====
 .supervisor-revision-container {
   padding: 20px;
   max-width: 1400px;
   margin: 0 auto;
   min-height: 100vh;
-  
+
   @media (max-width: 768px) {
     padding: 10px;
   }
 }
 
-// Mensajes de alerta
+// ===== MENSAJES DE ALERTA =====
 .alert-message {
   padding: 12px 16px;
   border-radius: 8px;
@@ -84,37 +93,37 @@ $text-muted: #6B7280;
   gap: 10px;
   font-weight: 500;
   animation: slideIn 0.3s ease;
-  
+
   &.info {
     background: rgba(59, 130, 246, 0.1);
     color: $info-color;
     border-left: 4px solid $info-color;
   }
-  
+
   &.success {
     background: rgba(16, 185, 129, 0.1);
     color: $success-color;
     border-left: 4px solid $success-color;
   }
-  
+
   &.warning {
     background: rgba(245, 158, 11, 0.1);
     color: $warning-color;
     border-left: 4px solid $warning-color;
   }
-  
+
   &.error {
     background: rgba(239, 68, 68, 0.1);
     color: $danger-color;
     border-left: 4px solid $danger-color;
   }
-  
+
   i {
     font-size: 1.2rem;
   }
 }
 
-// Encabezado
+// ===== ENCABEZADO =====
 .revision-header {
   background: linear-gradient(135deg, $info-color 0%, #1D4ED8 100%);
   color: white;
@@ -122,7 +131,7 @@ $text-muted: #6B7280;
   border-radius: 12px;
   margin-bottom: 30px;
   @include card-shadow;
-  
+
   h2 {
     margin: 0 0 15px 0;
     font-size: 1.8rem;
@@ -130,12 +139,12 @@ $text-muted: #6B7280;
     display: flex;
     align-items: center;
   }
-  
+
   .header-info {
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
-    
+
     .badge {
       padding: 8px 16px;
       border-radius: 20px;
@@ -144,63 +153,53 @@ $text-muted: #6B7280;
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      
+
       &.bg-primary {
         background: rgba(255, 255, 255, 0.2);
         backdrop-filter: blur(10px);
       }
-      
+
       &.bg-secondary {
         background: rgba(255, 255, 255, 0.15);
         backdrop-filter: blur(10px);
       }
-      
+
       &.bg-warning {
         background: linear-gradient(135deg, #ffb300 0%, #f57c00 100%) !important;
         color: white !important;
         border: 1px solid #ef6c00;
-        
-        i {
-          color: white !important;
-          margin-right: 5px;
-        }
       }
-      
+
       &.bg-info {
         background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%) !important;
         color: white !important;
         border: 1px solid #0284c7;
-        
-        i {
-          color: white !important;
-          margin-right: 5px;
-        }
       }
     }
   }
 }
 
-// Formulario
+// ===== FORMULARIO =====
 .supervisor-revision-form {
   .form-grid {
     display: flex;
     flex-direction: column;
     gap: 25px;
   }
-  
+
   .form-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 20px;
-    
+
     &.full-width {
       grid-template-columns: 1fr;
     }
   }
-  
+
   .form-group {
     margin-bottom: 0;
-    
+
     .form-label {
       display: flex;
       align-items: center;
@@ -208,13 +207,13 @@ $text-muted: #6B7280;
       font-weight: 600;
       margin-bottom: 8px;
       color: $text-color;
-      
+
       i {
         color: $primary-color;
         width: 20px;
       }
     }
-    
+
     .form-control,
     .form-select {
       padding: 12px 16px;
@@ -223,13 +222,13 @@ $text-muted: #6B7280;
       font-size: 14px;
       @include transition;
       background: white;
-      
+
       &:focus {
         outline: none;
         border-color: $primary-color;
         box-shadow: 0 0 0 3px rgba($primary-color, 0.1);
       }
-      
+
       &[readonly],
       &:disabled {
         background-color: $bg-light;
@@ -238,27 +237,12 @@ $text-muted: #6B7280;
         opacity: 0.8;
       }
     }
-    
-    .form-select.is-invalid,
-    .form-control.is-invalid {
-      border-color: $danger-color;
-      
-      &:focus {
-        box-shadow: 0 0 0 3px rgba($danger-color, 0.1);
-      }
-    }
-    
-    .invalid-feedback {
-      color: $danger-color;
-      font-size: 12px;
-      margin-top: 4px;
-    }
-    
+
     textarea {
       resize: vertical;
       min-height: 80px;
     }
-    
+
     small.text-muted {
       color: $text-muted;
       font-size: 12px;
@@ -268,61 +252,10 @@ $text-muted: #6B7280;
   }
 }
 
-// Sección de botones masivas
-.acciones-masivas {
-  .btn-group {
-    display: flex;
-    gap: 10px;
-    
-    @media (max-width: 768px) {
-      flex-direction: column;
-    }
-    
-    .btn {
-      flex: 1;
-      padding: 12px 20px;
-      border-radius: 8px;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      @include transition;
-      
-      &:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-      
-      &.btn-primary {
-        background: $primary-color;
-        border: 1px solid $primary-color;
-        color: white;
-        
-        &:hover:not(:disabled) {
-          background: darken($primary-color, 10%);
-          border-color: darken($primary-color, 10%);
-        }
-      }
-      
-      &.btn-success {
-        background: $success-color;
-        border: 1px solid $success-color;
-        color: white;
-        
-        &:hover:not(:disabled) {
-          background: darken($success-color, 10%);
-          border-color: darken($success-color, 10%);
-        }
-      }
-    }
-  }
-}
-
-// Sección de documentos
+// ===== SECCIÓN DE DOCUMENTOS RADICADOS =====
 .documentos-section {
   margin-top: 30px;
-  
+
   .section-title {
     font-size: 1.3rem;
     font-weight: 600;
@@ -333,22 +266,22 @@ $text-muted: #6B7280;
     display: flex;
     align-items: center;
     gap: 10px;
-    
+
     i {
       color: $primary-color;
     }
   }
-  
+
   .documentos-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     gap: 20px;
-    
+
     @media (max-width: 768px) {
       grid-template-columns: 1fr;
     }
   }
-  
+
   .documento-card {
     background: white;
     border: 1px solid $border-color;
@@ -356,12 +289,12 @@ $text-muted: #6B7280;
     overflow: hidden;
     @include card-shadow;
     @include transition;
-    
+
     &:hover {
       transform: translateY(-2px);
       box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
     }
-    
+
     .documento-header {
       background: $bg-light;
       padding: 18px;
@@ -369,15 +302,23 @@ $text-muted: #6B7280;
       align-items: center;
       gap: 12px;
       border-bottom: 1px solid $border-color;
-      
+
       .documento-icon {
         font-size: 1.8rem;
-        
-        &.text-primary { color: $primary-color; }
-        &.text-success { color: $success-color; }
-        &.text-info { color: $info-color; }
+
+        &.text-primary {
+          color: $primary-color;
+        }
+
+        &.text-success {
+          color: $success-color;
+        }
+
+        &.text-info {
+          color: $info-color;
+        }
       }
-      
+
       h5 {
         margin: 0;
         flex-grow: 1;
@@ -385,19 +326,19 @@ $text-muted: #6B7280;
         font-weight: 600;
         color: $text-color;
       }
-      
+
       .badge {
         padding: 4px 10px;
         font-size: 0.75rem;
         font-weight: 500;
         border-radius: 12px;
-        
+
         &.bg-success {
           background: rgba($success-color, 0.1);
           color: $success-color;
           border: 1px solid rgba($success-color, 0.2);
         }
-        
+
         &.bg-secondary {
           background: rgba($secondary-color, 0.1);
           color: $secondary-color;
@@ -405,10 +346,10 @@ $text-muted: #6B7280;
         }
       }
     }
-    
+
     .documento-body {
       padding: 20px;
-      
+
       .file-info {
         color: $text-muted;
         font-size: 0.85rem;
@@ -416,19 +357,19 @@ $text-muted: #6B7280;
         display: flex;
         align-items: center;
         gap: 8px;
-        
+
         i {
           color: $primary-color;
         }
       }
-      
+
       .documento-actions {
         margin-top: 15px;
-        
+
         .btn-group {
           display: flex;
           gap: 8px;
-          
+
           .btn {
             flex: 1;
             padding: 8px 12px;
@@ -439,27 +380,27 @@ $text-muted: #6B7280;
             justify-content: center;
             gap: 6px;
             @include transition;
-            
+
             &.btn-outline-primary {
               color: $primary-color;
               border: 1px solid $primary-color;
-              
+
               &:hover:not(:disabled) {
                 background: $primary-color;
                 color: white;
               }
             }
-            
+
             &.btn-outline-success {
               color: $success-color;
               border: 1px solid $success-color;
-              
+
               &:hover:not(:disabled) {
                 background: $success-color;
                 color: white;
               }
             }
-            
+
             &:disabled {
               opacity: 0.5;
               cursor: not-allowed;
@@ -471,7 +412,55 @@ $text-muted: #6B7280;
   }
 }
 
-// Sección de revisión
+// ===== BOTONES DE ACCIÓN MASIVA (IGUAL QUE RADICACIÓN) =====
+.btn-accion-masiva {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+
+  .btn {
+    flex: 1;
+    padding: 12px;
+    font-weight: 500;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    @include transition;
+
+    &.btn-primary {
+      background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+      border: none;
+      color: white;
+
+      &:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(59, 130, 246, 0.3);
+      }
+    }
+
+    &.btn-success {
+      background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+      border: none;
+      color: white;
+
+      &:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(16, 185, 129, 0.3);
+      }
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+  }
+}
+
+// ===== SECCIÓN DE REVISIÓN DEL SUPERVISOR =====
 .revision-section {
   background: linear-gradient(135deg, rgba($warning-color, 0.05) 0%, rgba($warning-color, 0.02) 100%);
   border: 1px solid rgba($warning-color, 0.2);
@@ -479,7 +468,7 @@ $text-muted: #6B7280;
   padding: 25px;
   margin-top: 30px;
   @include card-shadow;
-  
+
   .section-title {
     font-size: 1.3rem;
     font-weight: 600;
@@ -490,213 +479,100 @@ $text-muted: #6B7280;
     display: flex;
     align-items: center;
     gap: 10px;
-    
+
     i {
       color: $warning-color;
     }
   }
 }
 
-// ===== ALERTA INFORMATIVA PARA ÚLTIMO RADICADO =====
-.alert-info {
-  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-  border: 2px solid #64b5f6;
-  border-radius: 12px;
+// ===== CHECKBOXES - ESTILOS MEJORADOS =====
+.checkbox-section {
   padding: 20px;
-  margin-bottom: 25px;
-  animation: fadeIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  display: block !important; // ✅ FORZAR VISIBILIDAD
-  
-  .d-flex {
-    align-items: flex-start;
-    
-    i {
-      color: #1976d2;
-      font-size: 2rem;
-      margin-top: 5px;
-      animation: pulse 2s infinite;
-    }
-    
-    div {
-      flex: 1;
-      
-      h5 {
-        color: #0d47a1;
-        font-weight: 700;
-        margin-bottom: 10px;
-        font-size: 1.2rem;
-        display: flex;
-        align-items: center;
-        
-        &::before {
-          content: "⚠️ ";
-          margin-right: 8px;
-          font-size: 1.1rem;
-        }
-      }
-      
-      p {
-        color: #1565c0;
-        margin-bottom: 20px;
-        line-height: 1.5;
-        font-size: 0.95rem;
-        
-        strong {
-          color: #0d47a1;
-          font-weight: 600;
-          background: rgba(13, 71, 161, 0.1);
-          padding: 2px 6px;
-          border-radius: 4px;
-        }
-      }
-    }
-  }
-}
+  border: 2px solid #e3f2fd;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f8fbff 0%, #e8f4fd 100%);
+  margin-top: 20px;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.08);
+  animation: fadeIn 0.5s ease;
 
-/* ===== CHECKBOXES DENTRO DE LA ALERTA ===== */
-.alert-info .form-check {
-  margin-bottom: 15px;
-  padding: 15px;
-  background: white;
-  border-radius: 8px;
-  border: 1px solid #bbdefb;
-  transition: all 0.3s ease;
-  animation: slideIn 0.4s ease forwards;
-  opacity: 0;
-  transform: translateY(10px);
-  display: block !important; // ✅ FORZAR VISIBILIDAD
-  
-  &:nth-child(1) {
-    animation-delay: 0.1s;
-  }
-  
-  &:nth-child(2) {
-    animation-delay: 0.2s;
-  }
-  
   &:hover {
-    background: #f5f9ff;
     border-color: #64b5f6;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(100, 181, 246, 0.2);
+    background: linear-gradient(135deg, #f0f7ff 0%, #e0efff 100%);
   }
-  
-  .form-check-input {
-    width: 20px;
-    height: 20px;
-    border: 2px solid #1976d2;
-    cursor: pointer;
-    position: relative;
-    margin-right: 12px;
-    transition: all 0.2s ease;
-    
-    &:checked {
-      background-color: #1976d2;
-      border-color: #1976d2;
-      animation: pulse 0.5s ease;
-      
-      &::after {
-        content: '';
-        position: absolute;
-        left: 6px;
-        top: 2px;
-        width: 5px;
-        height: 10px;
-        border: solid white;
-        border-width: 0 2px 2px 0;
-        transform: rotate(45deg);
+
+  .form-check {
+    margin-bottom: 15px;
+
+    &:first-child {
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #bbdefb;
+    }
+
+    .form-check-input {
+      width: 22px;
+      height: 22px;
+      border: 2px solid #1976d2;
+      cursor: pointer;
+      position: relative;
+      margin-right: 12px;
+      transition: all 0.2s ease;
+
+      &:checked {
+        background-color: #1976d2;
+        border-color: #1976d2;
+        animation: pulse 0.5s ease;
+
+        &::after {
+          content: '';
+          position: absolute;
+          left: 7px;
+          top: 3px;
+          width: 5px;
+          height: 10px;
+          border: solid white;
+          border-width: 0 2px 2px 0;
+          transform: rotate(45deg);
+        }
+      }
+
+      &:focus {
+        box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.25);
+        border-color: #1976d2;
+      }
+
+      &:disabled {
+        background-color: #e0e0e0;
+        border-color: #9e9e9e;
+        cursor: not-allowed;
       }
     }
-    
-    &:focus {
-      box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.25);
-      border-color: #1976d2;
-    }
-    
-    &:disabled {
-      background-color: #e0e0e0;
-      border-color: #9e9e9e;
-      cursor: not-allowed;
-    }
-  }
-  
-  .form-check-label {
-    color: #0d47a1;
-    font-weight: 500;
-    font-size: 0.95rem;
-    cursor: pointer;
-    user-select: none;
-    display: flex;
-    align-items: center;
-    transition: color 0.2s ease;
-    
-    &:hover {
-      color: #1565c0;
-    }
-    
-    strong {
+
+    .form-check-label {
       color: #0d47a1;
       font-weight: 600;
-    }
-  }
-  
-  /* Checkbox específico para "requiere paz y salvo" */
-  &:last-child {
-    background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
-    border: 1px solid #ffd54f;
-    animation-delay: 0.3s;
-    
-    &:hover {
-      background: linear-gradient(135deg, #fff3e0 0%, #ffe082 100%);
-      border-color: #ffb300;
-      box-shadow: 0 4px 8px rgba(255, 179, 0, 0.2);
-    }
-    
-    .form-check-input {
-      border-color: #f57c00;
-      
-      &:checked {
-        background-color: #f57c00;
-        border-color: #f57c00;
-      }
-      
-      &:focus {
-        box-shadow: 0 0 0 0.2rem rgba(245, 124, 0, 0.25);
-      }
-    }
-    
-    .form-check-label {
-      color: #5d4037;
-      
-      strong {
-        color: #e65100;
-      }
-      
+      font-size: 1.05rem;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      transition: color 0.2s ease;
+
       &:hover {
-        color: #f57c00;
+        color: #1565c0;
+      }
+
+      i {
+        margin-right: 10px;
+        font-size: 1.2rem;
+        color: #1976d2;
       }
     }
   }
 }
 
-/* ===== BADGES EN EL HEADER ===== */
-.badge {
-  &.bg-warning {
-    background: linear-gradient(135deg, #ffb300 0%, #f57c00 100%) !important;
-    color: white !important;
-    border: 1px solid #ef6c00;
-    padding: 8px 12px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    
-    i {
-      color: white !important;
-      margin-right: 5px;
-    }
-  }
-}
-
-/* ===== SECCIÓN PAZ Y SALVO ===== */
+// ===== SECCIÓN PAZ Y SALVO (MISMO ESTILO QUE RADICACIÓN) =====
 .paz-salvo-section {
   margin: 30px 0;
   padding: 25px;
@@ -705,7 +581,7 @@ $text-muted: #6B7280;
   border: 2px solid #ffd54f;
   box-shadow: 0 4px 12px rgba(255, 213, 79, 0.15);
   animation: fadeIn 0.5s ease;
-  display: block !important; // ✅ FORZAR VISIBILIDAD
+  display: block !important;
 
   .section-title {
     color: #f57c00;
@@ -717,7 +593,7 @@ $text-muted: #6B7280;
     display: flex;
     align-items: center;
     gap: 10px;
-    
+
     i {
       color: #f57c00;
       font-size: 1.2rem;
@@ -731,16 +607,16 @@ $text-muted: #6B7280;
     padding: 20px;
     margin-bottom: 20px;
     animation: slideIn 0.4s ease;
-    
+
     .d-flex {
       align-items: center;
       gap: 15px;
-      
+
       i {
         color: #2e7d32;
         font-size: 2rem;
       }
-      
+
       .flex-grow-1 {
         strong {
           color: #1b5e20;
@@ -749,17 +625,17 @@ $text-muted: #6B7280;
           margin-bottom: 5px;
           font-size: 1rem;
         }
-        
+
         small {
           color: #388e3c;
           font-size: 0.9rem;
         }
       }
-      
+
       .btn-group {
         display: flex;
         gap: 8px;
-        
+
         .btn {
           padding: 8px 15px;
           border-radius: 8px;
@@ -768,11 +644,11 @@ $text-muted: #6B7280;
           align-items: center;
           gap: 6px;
           transition: all 0.3s ease;
-          
+
           &.btn-outline-success {
             color: #2e7d32;
             border: 2px solid #66bb6a;
-            
+
             &:hover {
               background: #66bb6a;
               color: white;
@@ -780,11 +656,11 @@ $text-muted: #6B7280;
               box-shadow: 0 4px 8px rgba(102, 187, 106, 0.3);
             }
           }
-          
+
           &.btn-outline-primary {
             color: #1976d2;
             border: 2px solid #64b5f6;
-            
+
             &:hover {
               background: #64b5f6;
               color: white;
@@ -796,93 +672,24 @@ $text-muted: #6B7280;
       }
     }
   }
+}
 
-  /* Campo de archivo */
-  .mb-3 {
-    .form-control[type="file"] {
-      padding: 12px;
-      border: 2px dashed #64b5f6;
-      border-radius: 10px;
-      background: #f5f9ff;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      
+// ===== ARCHIVOS CARGADOS DEL SUPERVISOR =====
+.existing-file {
+  .d-flex {
+    .btn-outline-danger {
+      border-color: #d32f2f;
+      color: #d32f2f;
+
       &:hover {
-        border-color: #1976d2;
-        background: #e3f2fd;
-      }
-      
-      &:focus {
-        border-color: #1976d2;
-        box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.25);
-        background: white;
+        background: #d32f2f;
+        color: white;
       }
     }
-    
-    .text-danger {
-      color: #d32f2f !important;
-      font-size: 0.9rem;
-      margin-top: 8px;
-      display: block;
-      font-weight: 500;
-      animation: slideIn 0.3s ease;
-    }
-  }
-
-  small.text-muted {
-    display: block;
-    margin-top: 12px;
-    color: #616161 !important;
-    font-size: 0.9rem;
-    line-height: 1.4;
   }
 }
 
-/* ===== ESTILOS PARA ARCHIVOS ===== */
-.file-upload-area {
-  position: relative;
-  border: 2px dashed #d1d5db;
-  border-radius: 8px;
-  padding: 20px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-bottom: 8px;
-
-  &:hover {
-    border-color: #10b981;
-    background: rgba(16, 185, 129, 0.05);
-  }
-
-  &.has-file {
-    border-color: #10b981;
-    background: rgba(16, 185, 129, 0.08);
-  }
-}
-
-.file-label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  font-weight: 500;
-  color: #374151;
-  cursor: pointer;
-
-  i {
-    font-size: 24px;
-    color: #10b981;
-  }
-}
-
-.file-name {
-  font-size: 13px;
-  color: #10b981;
-  font-weight: 600;
-  word-break: break-word;
-}
-
-/* Botones de acción */
+// ===== BOTONES DE ACCIÓN =====
 .form-actions {
   display: flex;
   justify-content: flex-end;
@@ -890,11 +697,11 @@ $text-muted: #6B7280;
   margin-top: 40px;
   padding-top: 25px;
   border-top: 1px solid $border-color;
-  
+
   @media (max-width: 768px) {
     flex-direction: column;
   }
-  
+
   .btn {
     padding: 12px 24px;
     border-radius: 8px;
@@ -907,186 +714,41 @@ $text-muted: #6B7280;
     cursor: pointer;
     @include transition;
     min-width: 150px;
-    
+
     &:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
-    
+
     &.btn-secondary {
       background: $secondary-color;
       border: 1px solid $secondary-color;
       color: white;
-      
+
       &:hover:not(:disabled) {
         background: darken($secondary-color, 10%);
         border-color: darken($secondary-color, 10%);
       }
     }
-    
+
     &.btn-primary {
       background: $primary-color;
       border: 1px solid $primary-color;
       color: white;
-      
+
       &:hover:not(:disabled) {
         background: darken($primary-color, 10%);
         border-color: darken($primary-color, 10%);
       }
     }
-    
+
     i.fa-spinner {
       animation: spin 1s linear infinite;
     }
   }
 }
 
-/* ===== EFECTOS ESPECIALES PARA CHECKBOX ÚLTIMO RADICADO ===== */
-.ultimo-radicado-highlight {
-  position: relative;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: -5px;
-    left: -5px;
-    right: -5px;
-    bottom: -5px;
-    border: 2px solid #3b82f6;
-    border-radius: 10px;
-    animation: pulse 2s infinite;
-    pointer-events: none;
-  }
-}
-
-/* ===== ESTADOS DE TRANSICIÓN ===== */
-.aprobado-state {
-  .alert-info {
-    border-color: #10b981;
-    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-    
-    .d-flex i {
-      color: #10b981;
-      animation: none;
-    }
-    
-    h5 {
-      color: #065f46;
-    }
-    
-    p {
-      color: #047857;
-    }
-  }
-}
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 768px) {
-  .form-row {
-    grid-template-columns: 1fr !important;
-  }
-  
-  .documentos-grid {
-    grid-template-columns: 1fr !important;
-  }
-  
-  .revision-header {
-    padding: 20px;
-    
-    h2 {
-      font-size: 1.5rem;
-    }
-    
-    .header-info {
-      gap: 8px;
-      
-      .badge {
-        font-size: 0.75rem;
-        padding: 6px 10px;
-      }
-    }
-  }
-  
-  .form-actions {
-    .btn {
-      min-width: 100%;
-    }
-  }
-  
-  .alert-info {
-    padding: 15px;
-    
-    .d-flex {
-      flex-direction: column;
-      align-items: flex-start;
-      
-      i {
-        margin-bottom: 10px;
-        font-size: 1.5rem;
-      }
-      
-      .form-check {
-        padding: 10px;
-        
-        .form-check-label {
-          font-size: 0.9rem;
-        }
-      }
-    }
-  }
-  
-  .paz-salvo-section {
-    padding: 15px;
-    
-    .existing-file {
-      .d-flex {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-        
-        .btn-group {
-          width: 100%;
-          justify-content: center;
-        }
-      }
-    }
-  }
-}
-
-/* ===== UTILIDADES ===== */
-.text-muted {
-  color: $text-muted !important;
-}
-
-.mt-2 { margin-top: 0.5rem !important; }
-.mt-3 { margin-top: 1rem !important; }
-.d-block { display: block !important; }
-.w-100 { width: 100% !important; }
-.me-2 { margin-right: 0.5rem !important; }
-.me-1 { margin-right: 0.25rem !important; }
-.ms-1 { margin-left: 0.25rem !important; }
-.flex-fill { flex: 1 1 auto !important; }
-
-/* ===== ESTILOS PARA DESACTIVACIÓN ===== */
-.disabled-section {
-  opacity: 0.6;
-  pointer-events: none;
-  position: relative;
-  
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(255, 255, 255, 0.5);
-    border-radius: inherit;
-    pointer-events: none;
-  }
-}
-
-/* ===== ESTILOS PARA MODALIDAD DE SOLO LECTURA ===== */
+// ===== MODO SOLO LECTURA =====
 .solo-lectura {
   .form-control[readonly],
   .form-select[disabled],
@@ -1095,51 +757,114 @@ $text-muted: #6B7280;
     border-color: #e9ecef;
     color: #6c757d;
     cursor: not-allowed;
-    
+
     &:focus {
       box-shadow: none;
       border-color: #e9ecef;
     }
   }
-  
+
   .btn:not(.btn-secondary) {
     display: none;
   }
-}
 
-/* ===== EFECTO DE RESALTADO PARA CAMBIOS IMPORTANTES ===== */
-.highlight-change {
-  animation: highlightPulse 1.5s ease-in-out;
-}
-
-@keyframes highlightPulse {
-  0% { background-color: transparent; }
-  20% { background-color: rgba(59, 130, 246, 0.2); }
-  100% { background-color: transparent; }
-}
-
-/* ===== ESTILOS PARA VALIDACIÓN ===== */
-.validation-message {
-  font-size: 0.85rem;
-  margin-top: 4px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  animation: slideIn 0.3s ease;
-  
-  &.text-danger {
-    color: #dc2626;
-    
-    i {
-      color: #dc2626;
-    }
-  }
-  
-  &.text-success {
-    color: #059669;
-    
-    i {
-      color: #059669;
-    }
+  .existing-file .btn-group .btn {
+    display: inline-flex !important;
   }
 }
+
+// ===== RESPONSIVE =====
+@media (max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .documentos-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .revision-header {
+    padding: 20px;
+
+    h2 {
+      font-size: 1.5rem;
+    }
+
+    .header-info {
+      gap: 8px;
+
+      .badge {
+        font-size: 0.75rem;
+        padding: 6px 10px;
+      }
+    }
+  }
+
+  .form-actions {
+    .btn {
+      min-width: 100%;
+    }
+  }
+
+  .checkbox-section {
+    padding: 15px;
+
+    .form-check {
+      .form-check-label {
+        font-size: 0.95rem;
+
+        i {
+          font-size: 1rem;
+          margin-right: 8px;
+        }
+      }
+    }
+  }
+
+  .paz-salvo-section {
+    padding: 15px;
+
+    .existing-file {
+      .d-flex {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+
+        .btn-group {
+          width: 100%;
+          justify-content: center;
+        }
+      }
+    }
+  }
+
+  .revision-section {
+    padding: 15px;
+  }
+
+  .btn-accion-masiva {
+    flex-direction: column;
+    
+    .btn {
+      width: 100%;
+    }
+  }
+}
+
+// ===== UTILIDADES =====
+.text-muted {
+  color: $text-muted !important;
+}
+
+.mt-2 { margin-top: 0.5rem !important; }
+.mt-3 { margin-top: 1rem !important; }
+.mb-3 { margin-bottom: 1rem !important; }
+.mb-4 { margin-bottom: 1.5rem !important; }
+.d-block { display: block !important; }
+.w-100 { width: 100% !important; }
+.me-2 { margin-right: 0.5rem !important; }
+.me-1 { margin-right: 0.25rem !important; }
+.ms-2 { margin-left: 0.5rem !important; }
+.ms-1 { margin-left: 0.25rem !important; }
+.flex-fill { flex: 1 1 auto !important; }
+.ps-4 { padding-left: 1.5rem !important; }

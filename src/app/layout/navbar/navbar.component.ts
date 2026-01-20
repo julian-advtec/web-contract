@@ -1,4 +1,4 @@
-// src/app/layout/navbar/navbar.component.ts
+// src/app/layout/navbar/navbar.component.ts (actualización)
 import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, NavigationEnd } from '@angular/router';
@@ -24,10 +24,8 @@ export class NavbarComponent implements OnInit {
   constructor(private router: Router) {}
 
   ngOnInit() {
-    // Inicializar con la ruta actual
     this.updateTitle();
     
-    // Escuchar cambios de ruta
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationEnd) {
         this.updateTitle();
@@ -42,35 +40,37 @@ export class NavbarComponent implements OnInit {
 
   isUserManagementPage(): boolean {
     const cleanUrl = this.currentUrl || this.router.url.split('?')[0];
-    
-    const isExactRoute = cleanUrl === '/gestion-usuarios' || 
-                         cleanUrl === '/gestion-usuarios/nuevo';
-    
-    const isEditRoute = cleanUrl.startsWith('/gestion-usuarios/editar/');
-    
-    return isExactRoute || isEditRoute;
+    return cleanUrl === '/gestion-usuarios' || 
+           cleanUrl === '/gestion-usuarios/nuevo' ||
+           cleanUrl.startsWith('/gestion-usuarios/editar/');
   }
 
   isRadicacionPage(): boolean {
     const cleanUrl = this.currentUrl || this.router.url.split('?')[0];
-    
-    const isExactRoute = cleanUrl === '/radicacion';
-    const isNewRoute = cleanUrl === '/radicacion/nuevo';
-    const isEditRoute = cleanUrl.startsWith('/radicacion/editar/');
-    
-    return isExactRoute || isNewRoute || isEditRoute;
+    return cleanUrl === '/radicacion' ||
+           cleanUrl === '/radicacion/nuevo' ||
+           cleanUrl.startsWith('/radicacion/editar/');
   }
 
   isSupervisorPage(): boolean {
     const cleanUrl = this.currentUrl || this.router.url.split('?')[0];
-    
-    const isSupervisorRoutes = cleanUrl === '/supervisor' || 
-                              cleanUrl === '/supervisor/pendientes' ||
-                              cleanUrl === '/supervisor/historial' ||
-                              cleanUrl === '/supervisor/estadisticas' ||
-                              cleanUrl.startsWith('/supervisor/revisar/');
-    
-    return isSupervisorRoutes;
+    return cleanUrl === '/supervisor' || 
+           cleanUrl === '/supervisor/pendientes' ||
+           cleanUrl === '/supervisor/historial' ||
+           cleanUrl === '/supervisor/estadisticas' ||
+           cleanUrl.startsWith('/supervisor/revisar/');
+  }
+
+  // NUEVO: Método para verificar si es página de auditor
+  isAuditorPage(): boolean {
+    const cleanUrl = this.currentUrl || this.router.url.split('?')[0];
+    return cleanUrl === '/auditor' || 
+           cleanUrl === '/auditor/disponibles' ||
+           cleanUrl === '/auditor/en-revision' ||
+           cleanUrl === '/auditor/historial' ||
+           cleanUrl === '/auditor/estadisticas' ||
+           cleanUrl.startsWith('/auditor/revisar/') ||
+           cleanUrl.startsWith('/auditor/documentos/');
   }
 
   private updateTitle() {
@@ -129,14 +129,31 @@ export class NavbarComponent implements OnInit {
         title: 'Estadísticas de Supervisión', 
         subtitle: 'Estadísticas de actividad' 
       },
+      // =========== AUDITOR ===========
+      '/auditor': { 
+        title: 'Auditor de Cuentas', 
+        subtitle: 'Auditoría de documentos contables' 
+      },
+      '/auditor/disponibles': { 
+        title: 'Documentos Disponibles', 
+        subtitle: 'Documentos para auditoría' 
+      },
+      '/auditor/en-revision': { 
+        title: 'En Revisión', 
+        subtitle: 'Documentos en auditoría' 
+      },
+      '/auditor/historial': { 
+        title: 'Historial de Auditoría', 
+        subtitle: 'Historial de auditorías realizadas' 
+      },
+      '/auditor/estadisticas': { 
+        title: 'Estadísticas de Auditoría', 
+        subtitle: 'Estadísticas de actividad' 
+      },
       // =================================
       '/reportes': { 
         title: 'Reportes', 
         subtitle: 'Reportes y estadísticas del sistema' 
-      },
-      '/auditoria': { 
-        title: 'Auditoría de Cuentas', 
-        subtitle: 'Auditoría de documentos contables' 
       },
       '/contabilidad': { 
         title: 'Contabilidad', 
@@ -184,6 +201,18 @@ export class NavbarComponent implements OnInit {
       return;
     }
     
+    if (cleanUrl.startsWith('/auditor/revisar/')) {
+      this.currentPageTitle = 'Revisar Documento';
+      this.currentPageSubtitle = 'Auditoría de documento';
+      return;
+    }
+    
+    if (cleanUrl.startsWith('/auditor/documentos/')) {
+      this.currentPageTitle = 'Detalle de Documento';
+      this.currentPageSubtitle = 'Auditoría de cuentas';
+      return;
+    }
+    
     const segments = cleanUrl.split('/').filter(seg => seg.trim() !== '');
     if (segments.length > 0) {
       const lastSegment = segments[segments.length - 1];
@@ -197,8 +226,8 @@ export class NavbarComponent implements OnInit {
       } else if (cleanUrl.startsWith('/supervisor')) {
         this.currentPageTitle = 'Supervisión';
         this.currentPageSubtitle = 'Revisión y aprobación de documentos';
-      } else if (cleanUrl.startsWith('/auditoria')) {
-        this.currentPageTitle = 'Auditoría de Cuentas';
+      } else if (cleanUrl.startsWith('/auditor')) {
+        this.currentPageTitle = 'Auditor de Cuentas';
         this.currentPageSubtitle = 'Auditoría de documentos contables';
       } else if (cleanUrl.startsWith('/contabilidad')) {
         this.currentPageTitle = 'Contabilidad';

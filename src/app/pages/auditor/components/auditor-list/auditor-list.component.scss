@@ -1,0 +1,153 @@
+// src/app/pages/auditor/components/auditor-list/auditor-list.component.scss
+@use '../../../../../shared/data-table-styles.scss' as table;
+
+.auditor-list-container {
+  .filters-section {
+    margin-bottom: 2rem;
+    
+    .search-container {
+      margin-bottom: 1.5rem;
+      
+      .input-group {
+        max-width: 600px;
+        margin: 0 auto;
+        
+        .input-group-text {
+          background-color: #0f766e;
+          color: white;
+          border: none;
+        }
+        
+        .form-control {
+          border-color: #0f766e;
+          text-align: center;
+          
+          &:focus {
+            box-shadow: 0 0 0 0.25rem rgba(15, 118, 110, 0.25);
+          }
+        }
+      }
+    }
+    
+    .advanced-filters {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-bottom: 1rem;
+      
+      button {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+    }
+  }
+  
+  .loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    color: #0f766e;
+    
+    .spinner-border {
+      width: 3rem;
+      height: 3rem;
+    }
+  }
+  
+  .empty-container {
+    text-align: center;
+    padding: 3rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    
+    .empty-icon {
+      font-size: 4rem;
+      color: #94a3b8;
+      margin-bottom: 1rem;
+    }
+    
+    h3 {
+      color: #475569;
+      margin-bottom: 0.5rem;
+    }
+    
+    p {
+      color: #64748b;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+  }
+}
+
+// Sobreescribir estilos de la tabla para el auditor
+.table-card {
+  border-color: rgba(15, 118, 110, 0.2);
+  
+  .table-header {
+    color: #0f766e;
+    border-bottom-color: rgba(15, 118, 110, 0.3);
+  }
+  
+  .table-item {
+    background: rgba(15, 118, 110, 0.05) !important;
+    border-color: rgba(15, 118, 110, 0.2);
+    
+    &:hover {
+      background: rgba(15, 118, 110, 0.1) !important;
+      border-color: #0f766e;
+    }
+  }
+}
+
+.btn-view, .btn-edit {
+  border-color: #0f766e;
+  color: #0f766e;
+  
+  &:hover {
+    background-color: #0f766e;
+    color: white;
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    
+    &:hover {
+      background-color: white;
+      color: #0f766e;
+    }
+  }
+}
+
+.badge-success {
+  background-color: rgba(15, 118, 110, 0.1) !important;
+  color: #0f766e !important;
+  border-color: #0f766e !important;
+}
+
+.badge-info {
+  background-color: rgba(59, 130, 246, 0.1) !important;
+  color: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+}
+
+.table-footer {
+  .page-btn, .page-number {
+    border-color: #0f766e;
+    color: #0f766e;
+    
+    &:hover:not(:disabled) {
+      background: #0f766e;
+      color: white;
+    }
+    
+    &.active {
+      background: #0f766e;
+      color: white;
+    }
+  }
+}

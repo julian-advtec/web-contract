@@ -1,0 +1,222 @@
+<!-- src/app/pages/auditor/components/auditor-list/auditor-list.component.html -->
+<div class="auditor-list-container">
+  <!-- Header y Filtros -->
+  <div class="filters-section">
+    <div class="search-container">
+      <div class="input-group">
+        <span class="input-group-text">
+          <i class="fas fa-search"></i>
+        </span>
+        <input
+          type="text"
+          class="form-control"
+          placeholder="Buscar por radicado, contrato o contratista..."
+          [(ngModel)]="searchTerm"
+          (input)="aplicarFiltros()"
+        />
+      </div>
+    </div>
+
+    <div class="advanced-filters">
+      <button class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#filtersCollapse">
+        <i class="fas fa-filter"></i> Filtros Avanzados
+      </button>
+      
+      <button class="btn btn-primary" (click)="buscarConFiltros()">
+        <i class="fas fa-search"></i> Buscar
+      </button>
+      
+      <button class="btn btn-outline-danger" (click)="limpiarFiltros()">
+        <i class="fas fa-times"></i> Limpiar
+      </button>
+    </div>
+
+    <div class="collapse mt-3" id="filtersCollapse">
+      <div class="card card-body">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">N° Radicado</label>
+            <input
+              type="text"
+              class="form-control"
+              [(ngModel)]="filtros.numeroRadicado"
+              placeholder="Ej: RAD-2024-001"
+            />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">N° Contrato</label>
+            <input
+              type="text"
+              class="form-control"
+              [(ngModel)]="filtros.numeroContrato"
+              placeholder="Ej: CONTRATO-001"
+            />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Documento Contratista</label>
+            <input
+              type="text"
+              class="form-control"
+              [(ngModel)]="filtros.documentoContratista"
+              placeholder="Cédula o NIT"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Estado de carga -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+    <p class="mt-3">Cargando documentos disponibles...</p>
+  </div>
+
+  <!-- Mensaje sin datos -->
+  <div *ngIf="!loading && documentosFiltrados.length === 0" class="empty-container">
+    <div class="empty-icon">
+      <i class="fas fa-folder-open"></i>
+    </div>
+    <h3>No hay documentos disponibles</h3>
+    <p>No se encontraron documentos en estado APROBADO_SUPERVISOR para auditoría.</p>
+  </div>
+
+  <!-- Lista de documentos -->
+  <div *ngIf="!loading && documentosFiltrados.length > 0" class="table-card">
+    <div class="table-container">
+      <!-- Encabezado -->
+      <div class="table-header">
+        <div class="header-item">N° Radicado</div>
+        <div class="header-item">Contrato</div>
+        <div class="header-item">Contratista</div>
+        <div class="header-item">Fecha Radicación</div>
+        <div class="header-item">Supervisor</div>
+        <div class="header-item">Estado</div>
+        <div class="header-item">Primer Radicado</div>
+        <div class="header-item">Acciones</div>
+      </div>
+
+      <!-- Lista de documentos -->
+      <div class="table-list">
+        <div *ngFor="let documento of documentosPaginados" class="table-item">
+          <!-- N° Radicado -->
+          <div class="table-col-1">
+            <span class="table-text font-monospace">{{ documento.numeroRadicado }}</span>
+          </div>
+
+          <!-- Contrato -->
+          <div class="table-col-2">
+            <span class="table-text">{{ documento.numeroContrato }}</span>
+          </div>
+
+          <!-- Contratista -->
+          <div class="table-col-3">
+            <div class="table-main-info">
+              <span class="table-text fw-semibold">{{ documento.nombreContratista }}</span>
+              <small class="text-muted">{{ documento.documentoContratista }}</small>
+            </div>
+          </div>
+
+          <!-- Fecha -->
+          <div class="table-col-4">
+            <span class="table-date">
+              {{ documento.fechaRadicacion | date:'dd/MM/yyyy' }}
+            </span>
+          </div>
+
+          <!-- Supervisor -->
+          <div class="table-col-5">
+            <span class="table-text">{{ documento.supervisor || 'No asignado' }}</span>
+          </div>
+
+          <!-- Estado -->
+          <div class="table-col-6">
+            <span [class]="getEstadoBadgeClass(documento.estado)" class="table-badge">
+              {{ getEstadoText(documento.estado) }}
+            </span>
+          </div>
+
+          <!-- Primer Radicado -->
+          <div class="table-col-7">
+            <span *ngIf="documento.primerRadicadoDelAno" class="badge bg-info">
+              <i class="fas fa-star me-1"></i> Primer Radicado
+            </span>
+            <span *ngIf="!documento.primerRadicadoDelAno" class="text-muted">
+              No
+            </span>
+          </div>
+
+          <!-- Acciones -->
+          <div class="table-col-8 table-actions">
+            <div class="actions-buttons">
+              <!-- Ver Detalle -->
+              <button
+                class="action-btn btn-view"
+                (click)="verDetalle(documento)"
+                title="Ver detalle"
+              >
+                <i class="fas fa-eye"></i>
+              </button>
+
+              <!-- Tomar Documento -->
+              <button
+                class="action-btn btn-edit"
+                (click)="tomarDocumento(documento)"
+                [disabled]="documento.asignacion?.enRevision"
+                title="Tomar para auditoría"
+              >
+                <i class="fas fa-hand-paper"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Paginación -->
+    <div class="table-footer" *ngIf="totalPages > 1">
+      <div class="footer-content-row">
+        <div class="footer-empty"></div>
+        
+        <div class="footer-pagination">
+          <div class="pagination-with-icons">
+            <button
+              class="page-btn"
+              (click)="cambiarPagina(currentPage - 1)"
+              [disabled]="currentPage === 1"
+            >
+              <i class="fas fa-chevron-left"></i>
+            </button>
+
+            <div class="page-numbers">
+              <span
+                *ngFor="let page of [].constructor(totalPages); let i = index"
+                class="page-number"
+                [class.active]="currentPage === i + 1"
+                (click)="cambiarPagina(i + 1)"
+              >
+                {{ i + 1 }}
+              </span>
+            </div>
+
+            <button
+              class="page-btn"
+              (click)="cambiarPagina(currentPage + 1)"
+              [disabled]="currentPage === totalPages"
+            >
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="footer-actions">
+          <span class="text-muted">
+            Mostrando {{ documentosPaginados.length }} de {{ documentosFiltrados.length }} documentos
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
