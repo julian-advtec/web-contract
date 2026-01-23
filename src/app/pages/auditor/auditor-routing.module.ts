@@ -1,12 +1,14 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
-import { AuditorComponent } from './auditor.component';
-import { AuditorPendingListComponent } from './components/auditor-pending-list/auditor-pending-list.component';
+import { AuditorComponent } from './auditor.component'; // componente padre/layout
+import { AuditorListComponent } from './components/auditor-list/auditor-list.component';
 import { AuditorFormComponent } from './components/auditor-form/auditor-form.component';
 import { AuditorHistoryComponent } from './components/auditor-history/auditor-history.component';
 import { AuditorStatsComponent } from './components/auditor-stats/auditor-stats.component';
+import { ListaRechazadosComponent } from './components/lista-rechazados/lista-rechazados.component';
 import { RoleGuard } from '../../core/guards/role.guard';
 import { UserRole } from '../../core/models/user.types';
+import { AuditorPendingListComponent} from './components/auditor-pending-list/auditor-pending-list.component'
 
 const routes: Routes = [
   {
@@ -17,28 +19,38 @@ const routes: Routes = [
     children: [
       {
         path: '',
-        redirectTo: 'pendientes',
+        redirectTo: 'mis-documentos',
         pathMatch: 'full'
       },
       {
-        path: 'pendientes',
-        component: AuditorPendingListComponent
-      },
-      {
         path: 'mis-documentos',
-        component: AuditorFormComponent
+        component: AuditorListComponent,
+        title: 'Mis Auditorías - Documentos en Revisión'
       },
       {
         path: 'revisar/:id',
-        component: AuditorFormComponent
+        component: AuditorFormComponent,
+        title: 'Revisar Documento'
+      },
+      {
+        path: 'pendientes',
+        component: AuditorPendingListComponent, // si existe este componente
+        title: 'Documentos Pendientes para Auditoría'
       },
       {
         path: 'historial',
-        component: AuditorHistoryComponent
+        component: AuditorHistoryComponent,
+        title: 'Historial de Auditorías'
       },
       {
         path: 'estadisticas',
-        component: AuditorStatsComponent
+        component: AuditorStatsComponent,
+        title: 'Estadísticas de Auditor'
+      },
+      {
+        path: 'lista-rechazados',
+        component: ListaRechazadosComponent,
+        title: 'Lista de Rechazados'
       }
     ]
   }
@@ -49,6 +61,3 @@ const routes: Routes = [
   exports: [RouterModule]
 })
 export class AuditorRoutingModule { }
-
-// Exportar las rutas para usarlas en app.routes.ts
-export const auditorRoutes = routes;

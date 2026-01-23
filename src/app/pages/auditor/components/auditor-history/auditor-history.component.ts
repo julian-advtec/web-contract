@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -10,72 +10,83 @@ import { NotificationService } from '../../../../core/services/notification.serv
 
 @Component({
   selector: 'app-auditor-history',
-  templateUrl: './auditor-history.component.html',
-  styleUrls: ['./auditor-history.component.scss'],
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule]
+  imports: [CommonModule, RouterModule, FormsModule],
+  templateUrl: './auditor-history.component.html',
+  styleUrls: ['./auditor-history.component.scss']
 })
 export class AuditorHistoryComponent implements OnInit, OnDestroy {
-  // Historial de auditorías
   historial: any[] = [];
-  historialFiltrado: any[] = [];
-  historialPaginado: any[] = [];
+  filteredHistorial: any[] = [];
+  paginatedHistorial: any[] = [];
 
-  // Estados de carga
-  isLoading = false;
+  loading = false;
   isProcessing = false;
-
-  // Mensajes
-  errorMessage = '';
+  error = '';
   successMessage = '';
   infoMessage = '';
 
-  // Búsqueda y filtros
   searchTerm = '';
-  filtroEstado = 'TODOS';
-  filtroFechaDesde: string = '';
-  filtroFechaHasta: string = '';
-
-  // Paginación
   currentPage = 1;
   pageSize = 10;
   totalPages = 0;
   pages: number[] = [];
 
-  // Estados disponibles
-  estados = [
-    { value: 'TODOS', label: 'Todos los estados', icon: 'list', color: 'secondary' },
-    { value: 'APROBADO', label: 'Aprobados', icon: 'check_circle', color: 'success' },
-    { value: 'OBSERVADO', label: 'Observados', icon: 'warning', color: 'warning' },
-    { value: 'RECHAZADO', label: 'Rechazados', icon: 'cancel', color: 'danger' },
-    { value: 'COMPLETADO', label: 'Completados', icon: 'done_all', color: 'primary' },
-    { value: 'EN_REVISION', label: 'En Revisión', icon: 'hourglass_empty', color: 'info' }
-  ];
-
-  // Estadísticas
-  estadisticas = {
-    total: 0,
-    aprobados: 0,
-    observados: 0,
-    rechazados: 0,
-    completados: 0,
-    enRevision: 0,
-    primerRadicados: 0
-  };
-
-  // Sidebar
+  usuarioActual = '';
   sidebarCollapsed = false;
 
   private destroy$ = new Subject<void>();
 
   constructor(
     private auditorService: AuditorService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private router: Router
   ) { }
 
   ngOnInit(): void {
-    console.log('🚀 Auditor: Inicializando historial de auditorías...');
-    this.cargarHistorial();
+    this.cargarUsuarioActual();
+    this.loadHistorial();
+  }
+
+  cargarUsuarioActual(): void {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      this.usuarioActual = user.fullName || user.username || 'Auditor';
+    }
+  }
+
+  revisarNuevamente(item: any): void {
+    let documentoId = item.documento?.id || item.id || item.documentoId;
+    if (!documentoId) {
+      this.notificationService.error('Error', 'ID no disponible');
+      return;
+    }
+
+    const estado = (item.estado || '').toUpperCase();
+    const auditorAsignado = this.getAuditorAsignado(item);
+    const soyElAuditor = auditorAsignado.toLowerCase().trim() === this.usuarioActual.toLowerCase().trim();
+
+    const queryParams: any = { desdeHistorial: 'true' };
+
+    const estadosFinales = ['APROBADO_AUDITOR', 'COMPLETADO_AUDITOR', 'RECHAZADO_AUDITOR', 'OBSERVADO_AUDITOR'];
+
+    if (estadosFinales.some(e => estado.includes(e))) {
+      queryParams.soloLectura = 'true';
+      queryParams.modo = 'consulta';
+    } else if (estado.includes('EN_REVISION_AUDITOR') && soyElAuditor) {
+      queryParams.soloLectura = 'false';
+      queryParams.modo = 'edicion';
+    } else {
+      queryParams.soloLectura = 'true';
+      queryParams.modo = 'consulta';
+    }
+
+    this.router.navigate(['/auditor/revisar', documentoId], { queryParams });
+  }
+
+  getAuditorAsignado(item: any): string {
+    return item.auditorAsignado || item.documento?.auditorAsignado || '';
   }
 
   ngOnDestroy(): void {
@@ -83,116 +94,71 @@ export class AuditorHistoryComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  cargarHistorial(): void {
-    this.isLoading = true;
-    this.errorMessage = '';
-    this.successMessage = '';
+ 
 
-    console.log('📋 Cargando historial de auditorías...');
-
-    this.auditorService.getHistorial()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (historialArray: any[]) => {
-          console.log('✅ Historial recibido:', historialArray);
-
-          this.historial = historialArray;
-          this.historialFiltrado = [...this.historial];
-          
-          this.calcularEstadisticas();
-          this.updatePagination();
-
-          console.log(`✅ ${this.historial.length} auditorías cargadas`);
-          this.isLoading = false;
-
-          if (this.historial.length === 0) {
-            this.infoMessage = 'No hay historial de auditorías disponible';
-          } else {
-            this.successMessage = `Se encontraron ${this.historial.length} auditorías en el historial`;
-            setTimeout(() => {
-              this.successMessage = '';
-            }, 3000);
-          }
-        },
-        error: (error) => {
-          console.error('❌ Error cargando historial:', error);
-          this.errorMessage = 'Error al cargar el historial: ' + (error.message || 'Error desconocido');
-          this.isLoading = false;
-          this.notificationService.error('Error', this.errorMessage);
-        }
-      });
+  esMiDocumento(item: any): boolean {
+    const auditorAsignado = this.getAuditorAsignado(item);
+    return this.compararNombres(auditorAsignado, this.usuarioActual);
   }
 
-  calcularEstadisticas(): void {
-    this.estadisticas.total = this.historial.length;
-    this.estadisticas.aprobados = this.historial.filter(item => item.estado === 'APROBADO').length;
-    this.estadisticas.observados = this.historial.filter(item => item.estado === 'OBSERVADO').length;
-    this.estadisticas.rechazados = this.historial.filter(item => item.estado === 'RECHAZADO').length;
-    this.estadisticas.completados = this.historial.filter(item => item.estado === 'COMPLETADO').length;
-    this.estadisticas.enRevision = this.historial.filter(item => item.estado === 'EN_REVISION').length;
-    this.estadisticas.primerRadicados = this.historial.filter(item => 
-      item.documento?.primerRadicadoDelAno === true
-    ).length;
+  compararNombres(nombre1: string, nombre2: string): boolean {
+    if (!nombre1 || !nombre2) return false;
+    const normalizar = (nombre: string) => nombre.toLowerCase().trim().replace(/\s+/g, ' ');
+    const n1 = normalizar(nombre1);
+    const n2 = normalizar(nombre2);
+    return n1 === n2 || n1.includes(n2) || n2.includes(n1);
   }
 
-  aplicarFiltros(): void {
-    let resultados = [...this.historial];
+ 
 
-    // Filtro por estado
-    if (this.filtroEstado !== 'TODOS') {
-      resultados = resultados.filter(item => item.estado === this.filtroEstado);
-    }
-
-    // Filtro por búsqueda
-    if (this.searchTerm.trim()) {
-      const term = this.searchTerm.toLowerCase();
-      resultados = resultados.filter(item => {
-        return (
-          item.documento?.numeroRadicado?.toLowerCase().includes(term) ||
-          item.documento?.nombreContratista?.toLowerCase().includes(term) ||
-          item.documento?.numeroContrato?.toLowerCase().includes(term) ||
-          item.observaciones?.toLowerCase().includes(term)
-        );
-      });
-    }
-
-    // Filtro por fecha
-    if (this.filtroFechaDesde) {
-      const fechaDesde = new Date(this.filtroFechaDesde);
-      resultados = resultados.filter(item => {
-        const fechaItem = new Date(item.fechaActualizacion || item.fechaCreacion);
-        return fechaItem >= fechaDesde;
-      });
-    }
-
-    if (this.filtroFechaHasta) {
-      const fechaHasta = new Date(this.filtroFechaHasta);
-      fechaHasta.setHours(23, 59, 59, 999); // Incluir todo el día
-      resultados = resultados.filter(item => {
-        const fechaItem = new Date(item.fechaActualizacion || item.fechaCreacion);
-        return fechaItem <= fechaHasta;
-      });
-    }
-
-    this.historialFiltrado = resultados;
-    this.currentPage = 1;
-    this.updatePagination();
+  esDocumentoReciente(item: any): boolean {
+    const fecha = item.fechaActualizacion || item.updatedAt || item.fechaAprobacion || item.fechaCreacion;
+    if (!fecha) return false;
+    const dias = Math.floor((new Date().getTime() - new Date(fecha).getTime()) / (1000 * 60 * 60 * 24));
+    return dias <= 7;
   }
 
-  limpiarFiltros(): void {
-    this.searchTerm = '';
-    this.filtroEstado = 'TODOS';
-    this.filtroFechaDesde = '';
-    this.filtroFechaHasta = '';
-    this.aplicarFiltros();
+  tieneDocumentos(item: any): boolean {
+    const doc = item.documento || item;
+    return !!(doc.cuentaCobro || doc.seguridadSocial || doc.informeActividades);
   }
 
-  // Métodos auxiliares
+  getDuracionRevision(item: any): string {
+    const inicio = item.fechaInicioRevision || item.fechaCreacion || item.createdAt;
+    const fin = item.fechaActualizacion || item.updatedAt || new Date();
+    if (!inicio) return 'N/A';
+    const diffMs = new Date(fin).getTime() - new Date(inicio).getTime();
+    const dias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    return dias === 0 ? 'Hoy' : dias === 1 ? '1 día' : `${dias} días`;
+  }
+
+  getEstadoBadgeClass(estado: string): string {
+    if (!estado) return 'badge bg-light text-dark';
+    const e = estado.toUpperCase();
+    if (e.includes('APROBADO_AUDITOR') || e.includes('COMPLETADO_AUDITOR')) return 'badge bg-success';
+    if (e.includes('OBSERVADO_AUDITOR')) return 'badge bg-warning text-dark';
+    if (e.includes('RECHAZADO_AUDITOR')) return 'badge bg-danger';
+    if (e.includes('EN_REVISION_AUDITOR')) return 'badge bg-info';
+    if (e.includes('APROBADO_SUPERVISOR')) return 'badge bg-primary';
+    return 'badge bg-secondary';
+  }
+
+  getEstadoTexto(estado: string): string {
+    if (!estado) return 'Desconocido';
+    const e = estado.toUpperCase();
+    if (e.includes('APROBADO_AUDITOR')) return 'Aprobado Auditor';
+    if (e.includes('COMPLETADO_AUDITOR')) return 'Completado';
+    if (e.includes('OBSERVADO_AUDITOR')) return 'Observado';
+    if (e.includes('RECHAZADO_AUDITOR')) return 'Rechazado';
+    if (e.includes('EN_REVISION_AUDITOR')) return 'En Revisión';
+    if (e.includes('APROBADO_SUPERVISOR')) return 'Aprobado Supervisor';
+    return estado;
+  }
+
   formatDate(fecha: Date | string): string {
     if (!fecha) return 'N/A';
     try {
-      const date = new Date(fecha);
-      return date.toLocaleDateString('es-ES', {
+      return new Date(fecha).toLocaleDateString('es-ES', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
@@ -204,11 +170,23 @@ export class AuditorHistoryComponent implements OnInit, OnDestroy {
     }
   }
 
+  formatDateOnly(fecha: Date | string): string {
+    if (!fecha) return 'N/A';
+    try {
+      return new Date(fecha).toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+    } catch {
+      return 'Fecha inválida';
+    }
+  }
+
   formatDateShort(fecha: Date | string): string {
     if (!fecha) return 'N/A';
     try {
-      const date = new Date(fecha);
-      return date.toLocaleDateString('es-ES', {
+      return new Date(fecha).toLocaleDateString('es-ES', {
         month: 'short',
         day: 'numeric'
       });
@@ -217,76 +195,51 @@ export class AuditorHistoryComponent implements OnInit, OnDestroy {
     }
   }
 
-  getEstadoLabel(estado: string): string {
-    const estadoObj = this.estados.find(e => e.value === estado);
-    return estadoObj ? estadoObj.label : estado;
+  getDocumentCount(item: any): number {
+    const doc = item.documento || item;
+    let count = 0;
+    if (doc.cuentaCobro) count++;
+    if (doc.seguridadSocial) count++;
+    if (doc.informeActividades) count++;
+    return count;
   }
 
-  getEstadoIcon(estado: string): string {
-    const estadoObj = this.estados.find(e => e.value === estado);
-    return estadoObj ? estadoObj.icon : 'help';
-  }
-
-  getEstadoColor(estado: string): string {
-    if (!estado) return 'secondary';
-
-    switch (estado) {
-      case 'APROBADO':
-        return 'success';
-      case 'OBSERVADO':
-        return 'warning';
-      case 'RECHAZADO':
-        return 'danger';
-      case 'COMPLETADO':
-        return 'primary';
-      case 'EN_REVISION':
-        return 'info';
-      default:
-        return 'secondary';
+  onSearch(): void {
+    if (!this.searchTerm.trim()) {
+      this.filteredHistorial = [...this.historial];
+    } else {
+      const term = this.searchTerm.toLowerCase();
+      this.filteredHistorial = this.historial.filter(item => {
+        const doc = item.documento || item;
+        return (
+          (doc.numeroRadicado?.toLowerCase().includes(term)) ||
+          (doc.nombreContratista?.toLowerCase().includes(term)) ||
+          (doc.numeroContrato?.toLowerCase().includes(term)) ||
+          (item.estado?.toLowerCase().includes(term)) ||
+          (item.observaciones?.toLowerCase().includes(term)) ||
+          (this.getAuditorAsignado(item)?.toLowerCase().includes(term))
+        );
+      });
     }
+    this.currentPage = 1;
+    this.updatePagination();
   }
 
-  getEstadoClass(estado: string): string {
-    const color = this.getEstadoColor(estado);
-    return `bg-${color} text-white`;
-  }
-
-  esPrimerRadicado(item: any): boolean {
-    return item.documento?.primerRadicadoDelAno === true;
-  }
-
-  tieneArchivosAuditoria(item: any): boolean {
-    return item.tieneTodosDocumentos === true || item.documentosSubidos?.length > 0;
-  }
-
-  getObservacionesCortas(observaciones: string): string {
-    if (!observaciones) return 'Sin observaciones';
-    if (observaciones.length <= 100) return observaciones;
-    return observaciones.substring(0, 100) + '...';
-  }
-
-  // Paginación
   updatePagination(): void {
-    this.totalPages = Math.ceil(this.historialFiltrado.length / this.pageSize);
-
-    // Calcular páginas a mostrar
+    this.totalPages = Math.ceil(this.filteredHistorial.length / this.pageSize);
     this.pages = [];
     const maxPagesToShow = 5;
     let startPage = Math.max(1, this.currentPage - Math.floor(maxPagesToShow / 2));
     let endPage = Math.min(this.totalPages, startPage + maxPagesToShow - 1);
-
     if (endPage - startPage + 1 < maxPagesToShow) {
       startPage = Math.max(1, endPage - maxPagesToShow + 1);
     }
-
     for (let i = startPage; i <= endPage; i++) {
       this.pages.push(i);
     }
-
-    // Actualizar historial paginado
     const startIndex = (this.currentPage - 1) * this.pageSize;
-    const endIndex = Math.min(startIndex + this.pageSize, this.historialFiltrado.length);
-    this.historialPaginado = this.historialFiltrado.slice(startIndex, endIndex);
+    const endIndex = Math.min(startIndex + this.pageSize, this.filteredHistorial.length);
+    this.paginatedHistorial = this.filteredHistorial.slice(startIndex, endIndex);
   }
 
   changePage(page: number): void {
@@ -296,24 +249,8 @@ export class AuditorHistoryComponent implements OnInit, OnDestroy {
     }
   }
 
-  refreshData(): void {
-    console.log('🔄 Auditor: Recargando historial...');
-    this.cargarHistorial();
-  }
-
-  exportarExcel(): void {
-    console.log('📊 Exportando historial a Excel...');
-    this.isProcessing = true;
-
-    // Implementar exportación a Excel
-    setTimeout(() => {
-      this.notificationService.success('Exportación', 'Historial exportado correctamente');
-      this.isProcessing = false;
-    }, 1000);
-  }
-
   dismissError(): void {
-    this.errorMessage = '';
+    this.error = '';
   }
 
   dismissSuccess(): void {
@@ -322,5 +259,51 @@ export class AuditorHistoryComponent implements OnInit, OnDestroy {
 
   dismissInfo(): void {
     this.infoMessage = '';
+  }
+
+  refreshData(): void {
+    this.loadHistorial();
+  }
+
+  loadHistorial(): void {
+    this.loading = true;
+    this.error = '';
+    this.successMessage = '';
+    this.infoMessage = '';
+
+    console.log('[FRONT - HISTORIAL] Solicitando historial al backend...');
+
+    this.auditorService.obtenerHistorial()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response: any) => {
+          console.log('[FRONT - HISTORIAL] Respuesta completa del backend:', response);
+
+          this.historial = response.data || [];
+          console.log('[FRONT - HISTORIAL] Registros recibidos:', this.historial.length);
+
+          if (this.historial.length > 0) {
+            console.log('[FRONT - HISTORIAL] Primer registro recibido:', this.historial[0]);
+          }
+
+          this.filteredHistorial = [...this.historial];
+          this.updatePagination();
+
+          if (this.filteredHistorial.length > 0) {
+            const recientes = this.filteredHistorial.filter(item => this.esDocumentoReciente(item));
+            this.successMessage = `Se encontraron ${this.filteredHistorial.length} auditorías (${recientes.length} recientes)`;
+          } else {
+            this.infoMessage = 'No hay auditorías en el historial';
+          }
+
+          this.loading = false;
+        },
+        error: (err: any) => {
+          console.error('[FRONT - HISTORIAL] Error en la petición:', err);
+          this.error = 'Error de conexión con el servidor: ' + (err.message || 'Desconocido');
+          this.loading = false;
+          this.notificationService.error('Error', this.error);
+        }
+      });
   }
 }

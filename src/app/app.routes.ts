@@ -1,6 +1,8 @@
+import { AuditorRoutingModule } from './pages/auditor/auditor-routing.module';
 import { Routes } from '@angular/router';
 import { AuthGuard } from './core/guards/auth-guard';
 import { RoleGuard } from './core/guards/role.guard';
+import { UserRole } from './core/models/user.types';
 
 export const routes: Routes = [
   {
@@ -24,18 +26,14 @@ export const routes: Routes = [
     canActivate: [AuthGuard, RoleGuard],
     data: { roles: ['admin', 'radicador'] },
     children: [
-      {
-        path: '',
-        redirectTo: 'lista',
-        pathMatch: 'full'
-      },
+      { path: '', redirectTo: 'lista', pathMatch: 'full' },
       {
         path: 'lista',
         loadComponent: () => import('./pages/radicacion/components/radicacion-list/radicacion-list.component')
           .then(m => m.RadicacionListComponent)
       },
       {
-        path: 'nuevo',  // ✅ RUTA CORREGIDA: Este es el componente de formulario
+        path: 'nuevo',
         loadComponent: () => import('./pages/radicacion/components/radicacion-form/radicacion-form.component')
           .then(m => m.RadicacionFormComponent)
       },
@@ -57,6 +55,16 @@ export const routes: Routes = [
     canActivate: [AuthGuard, RoleGuard],
     data: { roles: ['supervisor', 'admin'] }
   },
+
+  // ── MÓDULO DE AUDITOR ───────────────────────────────────────────────
+  {
+    path: 'auditor',
+    loadChildren: () => import('./pages/auditor/auditor-routing.module').then(m => m.AuditorRoutingModule),
+    canActivate: [AuthGuard, RoleGuard],
+    data: { roles: ['auditor de Cuentas', 'admin'] }
+  },
+  // ─────────────────────────────────────────────────────────────────────
+
   {
     path: '',
     redirectTo: '/dashboard',

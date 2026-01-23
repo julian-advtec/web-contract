@@ -7,6 +7,7 @@ import { AuditorPendingListComponent } from './components/auditor-pending-list/a
 import { AuditorFormComponent } from './components/auditor-form/auditor-form.component';
 import { AuditorHistoryComponent } from './components/auditor-history/auditor-history.component';
 import { AuditorStatsComponent } from './components/auditor-stats/auditor-stats.component';
+import { ListaRechazadosComponent } from './components/lista-rechazados/lista-rechazados.component';
 
 @NgModule({
   declarations: [
@@ -14,15 +15,13 @@ import { AuditorStatsComponent } from './components/auditor-stats/auditor-stats.
     AuditorPendingListComponent,
     AuditorFormComponent,
     AuditorHistoryComponent,
-    AuditorStatsComponent
+    AuditorStatsComponent,
+    ListaRechazadosComponent
   ],
   imports: [
     CommonModule,
     ReactiveFormsModule,
     AuditorRoutingModule
-  ],
-  exports: [
-    AuditorComponent
   ]
 })
 export class AuditorModule { }

@@ -2,7 +2,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
-import { SupervisorService } from '../../../../core/services/supervisor.service';
+import { SupervisorService } from '../../../../core/services/supervisor/supervisor.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { Supervisor } from '../../../../core/models/supervisor.types';
 import { format } from 'date-fns';

@@ -39,65 +39,62 @@ export interface Documento {
   updatedAt: Date;
   ultimoAcceso: Date;
   ultimoUsuario: string;
-  
-  // ✅ CAMPOS AÑADIDOS
   fechaActualizacion?: Date;
   usuarioAsignadoNombre?: string;
   primerRadicadoDelAno?: boolean;
-  
-  // ✅ NUEVOS CAMPOS
-  esUltimoRadicado?: boolean; // ✅ NUEVO: Campo para identificar si es el último radicado del contratista
+  esUltimoRadicado?: boolean;
   tipoContrato?: string;
   valorContrato?: number;
-  
-  // Campos específicos para supervisor
-  disponible?: boolean;
-  asignacion?: {
-    id?: string;
-    estado?: string;
-    fechaInicioRevision?: Date;
-    supervisor?: {
-      id: string;
-      nombre: string;
-      username: string;
-    };
-    enRevision?: boolean;
-    puedoTomar?: boolean;
-    usuarioAsignado?: string;
-    supervisorActual?: string;
-  };
-
-  // ✅ NUEVOS CAMPOS PARA PAZ Y SALVO Y SUPERVISOR
   supervisorAsignado?: string;
-  fechaAsignacion?: Date;
-  supervisorEstado?: string;
+  fechaAprobacionSupervisor?: Date | string;
+  observacionSupervisor?: string;
   requierePazSalvo?: boolean;
-  pazSalvo?: string;
-  fechaPazSalvo?: Date; // ✅ NUEVO: Fecha de emisión del paz y salvo
+  auditorAsignado?: string;
+  fechaAsignacionAuditor?: Date;
+  estadoAuditor?: string;
+  historialEstados?: any[];
+  asignacion?: {
+    estado?: string;
+    supervisorActual?: string;
+    enRevision?: boolean;
+    auditorActual?: string;
+    [key: string]: any;
+  };
+  [key: string]: any;
+
+  // ────────────────────────────────────────────────────────────────
+  // PROPIEDADES AGREGADAS SOLO PARA EL MÓDULO DE AUDITOR
+  // (enriquecidas en AuditorService y usadas en auditor-pending-list)
+  // ────────────────────────────────────────────────────────────────
+  puedeTomar?: boolean;
+  enRevision?: boolean;
+  esPrimerRadicado?: boolean;           // ← mapeado desde primerRadicadoDelAno
+  estadoBadge?: {
+    texto: string;
+    clase: string;
+  };
 }
 
-// DTO para crear documento
 export interface CreateDocumentoDto {
-    numeroRadicado: string;
-    numeroContrato: string;
-    nombreContratista: string;
-    documentoContratista: string;
-    fechaInicio: Date | string;
-    fechaFin: Date | string;
-    descripcionCuentaCobro: string;
-    descripcionSeguridadSocial: string;
-    descripcionInformeActividades: string;
-    observacion?: string;
-    primerRadicadoDelAno: boolean;
-    esUltimoRadicado?: boolean; // ✅ NUEVO: Indicador si es el último radicado
-    archivos?: File[];
+  numeroRadicado: string;
+  numeroContrato: string;
+  nombreContratista: string;
+  documentoContratista: string;
+  fechaInicio: Date | string;
+  fechaFin: Date | string;
+  descripcionCuentaCobro: string;
+  descripcionSeguridadSocial: string;
+  descripcionInformeActividades: string;
+  observacion?: string;
+  primerRadicadoDelAno: boolean;
+  esUltimoRadicado?: boolean;
+  archivos?: File[];
 }
 
-// DTO para revisión del supervisor
 export interface RevisionDocumentoDto {
   estado: SupervisorEstado;
   observacion: string;
   correcciones?: string;
   requierePazSalvo?: boolean;
-  esUltimoRadicado?: boolean; // ✅ NUEVO: Confirmación del supervisor
+  esUltimoRadicado?: boolean;
 }

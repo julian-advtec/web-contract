@@ -89,14 +89,15 @@
                 <div class="documento-details">
                   <h5 class="documento-numero mb-1">
                     <i class="fas fa-hashtag me-1"></i>{{ getNumeroRadicado(item) }}
-
+                    <span *ngIf="esDocumentoReciente(item)" class="reciente-badge ms-2">
+                      <i class="fas fa-star me-1"></i>NUEVO
+                    </span>
                   </h5>
                   <p class="documento-fecha mb-1">
                     <i class="far fa-calendar me-1"></i>
                     {{ formatDateOnly(item.fechaRadicacion || item.fechaActualizacion || item.updatedAt) }}
                   </p>
                   <small class="text-muted">
-
                     {{ getSupervisorRevisor(item) || 'Supervisor' }}
                   </small>
                 </div>
@@ -145,19 +146,53 @@
                     <i class="far fa-calendar-alt me-1"></i>
                     {{ formatDateOnly(item.fechaActualizacion || item.updatedAt) }}
                   </span>
+                  
                 </div>
               </div>
-
 
               <!-- Columna 5: Acciones -->
               <div class="documento-acciones">
                 <div class="acciones-buttons">
                   <div class="d-flex flex-column gap-1">
-                    <!-- Botón de revisar nuevamente -->
-                    <button class="btn btn-primary btn-sm" (click)="revisarNuevamente(item)"
-                      title="Revisar documento nuevamente" [disabled]="isProcessing">
-                      <i class="fas fa-redo me-1"></i> Revisar
-                    </button>
+                    
+                    <!-- Botón de revisar/consultar condicional -->
+                    <ng-container *ngIf="item.estado === 'APROBADO' || item.estado === 'RECHAZADO'">
+                      <button class="btn btn-secondary btn-sm" (click)="revisarNuevamente(item)"
+                        title="Consultar documento (solo lectura)" [disabled]="isProcessing">
+                        <i class="fas fa-eye me-1"></i> Consultar
+                      </button>
+                    </ng-container>
+                    
+                    <ng-container *ngIf="item.estado !== 'APROBADO' && item.estado !== 'RECHAZADO'">
+                      <button class="btn btn-primary btn-sm" (click)="revisarNuevamente(item)"
+                        title="Revisar documento (modo edición)" [disabled]="isProcessing">
+                        <i class="fas fa-edit me-1"></i> Revisar
+                      </button>
+                    </ng-container>
+
+                    <!-- Indicador visual del modo -->
+                    <div *ngIf="item.estado === 'APROBADO' || item.estado === 'RECHAZADO'" 
+                         class="badge bg-info mt-1">
+                      <i class="fas fa-lock me-1"></i> Solo lectura
+                    </div>
+                    <div *ngIf="item.estado !== 'APROBADO' && item.estado !== 'RECHAZADO'" 
+                         class="badge bg-warning mt-1">
+                      <i class="fas fa-edit me-1"></i> Modo edición
+                    </div>
+
+
+
+                    <!-- Información adicional -->
+                    <div class="mt-1">
+                      <small class="text-muted d-block">
+                        <i class="fas fa-clock me-1"></i>
+                        Duración: {{ getDuracionRevision(item) }}
+                      </small>
+                      <small class="text-muted d-block">
+                        <i class="fas fa-file me-1"></i>
+                        Documentos: {{ getDocumentCount(item) }}/3
+                      </small>
+                    </div>
                   </div>
                 </div>
               </div>

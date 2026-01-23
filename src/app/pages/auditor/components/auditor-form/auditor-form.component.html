@@ -1,510 +1,402 @@
-<div class="auditor-form-container" [class.sidebar-collapsed]="sidebarCollapsed">
-  <div class="auditor-form-inner">
-    
-    <!-- Mensajes -->
-    <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
-      <i class="fas fa-exclamation-triangle me-2"></i> {{ errorMessage }}
-      <button type="button" class="btn-close" (click)="dismissError()"></button>
-    </div>
+<div class="auditor-detail-page container-fluid py-4">
 
-    <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show" role="alert">
-      <i class="fas fa-check-circle me-2"></i> {{ successMessage }}
-      <button type="button" class="btn-close" (click)="dismissSuccess()"></button>
+  <!-- Sección 1: Vista "supervisor" reutilizada (Siempre en modo solo lectura) -->
+  <section class="supervisor-view mb-5">
+    <div class="card shadow">
+      <div class="card-header bg-info text-white">
+        <h4 class="mb-0">
+          <i class="fas fa-file-alt me-2"></i>
+          Información General del Documento
+        </h4>
+      </div>
+      <div class="card-body p-0">
+        <app-supervisor-form [documentoId]="documentoId!" [modo]="'auditoria'" [soloLectura]="true"
+          (volver)="volverALista()">
+        </app-supervisor-form>
+      </div>
     </div>
+  </section>
 
-    <div *ngIf="infoMessage" class="alert alert-info alert-dismissible fade show" role="alert">
-      <i class="fas fa-info-circle me-2"></i> {{ infoMessage }}
-      <button type="button" class="btn-close" (click)="dismissInfo()"></button>
-    </div>
+  <!-- Sección 2: Contenido específico del auditor -->
+  <section class="auditor-specific">
+    <div class="container-fluid py-4">
 
-    <!-- Loading -->
-    <div *ngIf="isLoading" class="text-center py-5">
-      <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
-      <p class="mt-3 text-muted">Cargando documento...</p>
-    </div>
+      <!-- Cabecera -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="mb-0">
+          <i class="fas fa-gavel me-2 text-warning"></i> Revisión de Auditoría
+        </h3>
+        <button class="btn btn-warning btn-sm" (click)="verificarEstado()">
+          <i class="fas fa-bug me-1"></i> Depurar Estado
+        </button>
+      </div>
 
-    <!-- Contenido principal -->
-    <div *ngIf="!isLoading && documento" class="main-content">
-      
-      <!-- Header con información del documento -->
-      <div class="page-header mb-4">
-        <div class="d-flex justify-content-between align-items-start">
-          <div>
-            <h1 class="page-title">
-              <i class="fas fa-file-invoice-dollar me-2"></i>
-              Revisión de Auditoría
-            </h1>
-            <p class="page-subtitle mb-0">
-              <span class="badge bg-primary me-2">{{ documento.numeroRadicado }}</span>
-              <span class="text-muted">{{ documento.nombreContratista }}</span>
-            </p>
-          </div>
-          
-          <div class="d-flex gap-2">
-            <!-- Botón liberar (solo si está en revisión) -->
-            <button *ngIf="estaEnRevision() && puedeLiberar()" 
-                    class="btn btn-outline-warning"
-                    (click)="liberarDocumento()"
-                    [disabled]="isProcessing">
-              <i class="fas fa-unlock me-1"></i> Liberar
-            </button>
-            
-            <!-- Indicador primer radicado -->
-            <span *ngIf="documento.primerRadicadoDelAno" class="primer-radicado-badge">
-              <i class="fas fa-crown me-1"></i> Primer Radicado
+      <!-- Loading -->
+      <div *ngIf="isLoading" class="text-center my-5">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Cargando...</span>
+        </div>
+        <p class="mt-2">Cargando documento...</p>
+      </div>
+
+      <!-- DEPURACIÓN: Mostrar valores actuales -->
+      <div class="alert alert-warning mb-3" *ngIf="false"> <!-- Cambia a *ngIf="true" temporalmente para depurar -->
+        <h6>🔍 Depuración de Valores</h6>
+        <pre>
+Estado documento: {{ estadoDocumento }}
+Numero radicado: {{ numeroRadicado }}
+Nombre contratista: {{ nombreContratista }}
+Primer radicado: {{ primerRadicadoDelAno }}
+¿Documento en revisión?: {{ documentoEnRevision }}
+¿Puede realizar revisión?: {{ puedeRealizarRevision() }}
+Estado del badge: {{ getEstadoBadgeClass(estadoDocumento) }}
+        </pre>
+      </div>
+
+      <ng-container *ngIf="!isLoading && documentoData">
+
+        <div class="card shadow-lg mb-4">
+          <div class="card-header bg-gradient-warning text-dark d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+              <i class="fas fa-file-alt me-2"></i>
+              {{ numeroRadicado }} — {{ nombreContratista }}
+            </h5>
+            <span class="badge fs-6" [ngClass]="getEstadoBadgeClass(estadoDocumento)">
+              {{ estadoDocumento || 'SIN ESTADO' | uppercase }}
             </span>
           </div>
-        </div>
-      </div>
 
-      <!-- Tabs de navegación -->
-      <div class="tabs-navigation mb-4">
-        <ul class="nav nav-tabs">
-          <li class="nav-item">
-            <a class="nav-link" [class.active]="activeTab === 'informacion'" 
-               (click)="setActiveTab('informacion')">
-              <i class="fas fa-info-circle me-1"></i> Información
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" [class.active]="activeTab === 'documentos'" 
-               (click)="setActiveTab('documentos')">
-              <i class="fas fa-folder me-1"></i> Documentos
-              <span class="badge bg-secondary ms-1">{{ archivosRadicador.length }}</span>
-            </a>
-          </li>
-          <li *ngIf="puedeSubirArchivos()" class="nav-item">
-            <a class="nav-link" [class.active]="activeTab === 'auditoria'" 
-               (click)="setActiveTab('auditoria')">
-              <i class="fas fa-file-upload me-1"></i> Archivos Auditoría
-              <span class="badge bg-secondary ms-1">6</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" [class.active]="activeTab === 'historial'" 
-               (click)="setActiveTab('historial')">
-              <i class="fas fa-history me-1"></i> Historial
-              <span class="badge bg-secondary ms-1">{{ historial.length }}</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" [class.active]="activeTab === 'revision'" 
-               (click)="setActiveTab('revision')">
-              <i class="fas fa-clipboard-check me-1"></i> Revisión
-            </a>
-          </li>
-        </ul>
-      </div>
-
-      <!-- Tab: Información del documento -->
-      <div *ngIf="activeTab === 'informacion'" class="tab-content">
-        <div class="card main-card">
-          <div class="card-header bg-primary text-white">
-            <i class="fas fa-info-circle me-2"></i> Información del Documento
-          </div>
           <div class="card-body">
-            <div class="row">
-              <!-- Información básica -->
-              <div class="col-md-6">
-                <h5 class="mb-3"><i class="fas fa-file-alt me-2"></i>Datos del Radicado</h5>
-                <table class="table table-sm">
-                  <tbody>
-                    <tr>
-                      <th class="text-muted">Número Radicado:</th>
-                      <td><strong>{{ documento.numeroRadicado }}</strong></td>
-                    </tr>
-                    <tr>
-                      <th class="text-muted">Contrato:</th>
-                      <td><span class="badge bg-primary">{{ documento.numeroContrato }}</span></td>
-                    </tr>
-                    <tr>
-                      <th class="text-muted">Fecha Radicación:</th>
-                      <td>{{ formatDate(documento.fechaRadicacion) }}</td>
-                    </tr>
-                    <tr>
-                      <th class="text-muted">Radicador:</th>
-                      <td>{{ documento.radicador || 'No especificado' }}</td>
-                    </tr>
-                    <tr>
-                      <th class="text-muted">Estado Actual:</th>
-                      <td>
-                        <span class="badge" [ngClass]="getEstadoClass(documento.estado || '')">
-                          {{ getEstadoTexto(documento.estado || '') }}
-                        </span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
 
-              <!-- Información del contratista -->
-              <div class="col-md-6">
-                <h5 class="mb-3"><i class="fas fa-user-tie me-2"></i>Datos del Contratista</h5>
-                <table class="table table-sm">
-                  <tbody>
-                    <tr>
-                      <th class="text-muted">Nombre:</th>
-                      <td><strong>{{ documento.nombreContratista }}</strong></td>
-                    </tr>
-                    <tr>
-                      <th class="text-muted">Documento:</th>
-                      <td>{{ documento.documentoContratista }}</td>
-                    </tr>
-                    <tr>
-                      <th class="text-muted">Periodo:</th>
-                      <td>
-                        {{ formatDateShort(documento.fechaInicio) }} 
-                        <i class="fas fa-arrow-right mx-2"></i>
-                        {{ formatDateShort(documento.fechaFin) }}
-                      </td>
-                    </tr>
-                    <tr>
-                      <th class="text-muted">Supervisor:</th>
-                      <td>{{ documento.supervisor || 'No asignado' }}</td>
-                    </tr>
-                    <tr>
-                      <th class="text-muted">Observación:</th>
-                      <td class="fst-italic">{{ documento.observacion || 'Sin observaciones' }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+            <!-- Documentos de Auditoría -->
+            <section class="mb-5">
+              <div class="card border-warning">
+                <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                  <h5 class="mb-0">
+                    <i class="fas fa-shield-alt me-2"></i>
+                    Documentos de Auditoría
+                  </h5>
+                  <span class="badge bg-dark fs-5">{{ contarArchivosAuditorSubidos() }} / 6</span>
+                </div>
 
-              <!-- Información adicional -->
-              <div class="col-12 mt-3">
-                <h5 class="mb-3"><i class="fas fa-clipboard-list me-2"></i>Información Adicional</h5>
-                <div class="row">
-                  <div class="col-md-4">
-                    <div class="info-box bg-light p-3 rounded">
-                      <h6 class="text-muted mb-1"><i class="fas fa-calendar-check me-1"></i> Última Actualización</h6>
-                      <p class="mb-0">{{ formatDate(documento.fechaActualizacion) }}</p>
+                <div class="card-body">
+
+                  <!-- Mensaje contextual -->
+                  <div class="alert mb-4" [ngClass]="{
+                    'alert-warning': estadoDocumento === 'EN_REVISION_AUDITOR' && primerRadicadoDelAno && !archivosCompletos,
+                    'alert-success': estadoDocumento === 'EN_REVISION_AUDITOR' && archivosCompletos,
+                    'alert-info': estadoDocumento === 'EN_REVISION_AUDITOR' && !primerRadicadoDelAno,
+                    'alert-secondary': estadoDocumento !== 'EN_REVISION_AUDITOR'
+                  }">
+                    <ng-container *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR'">
+                      <ng-container *ngIf="primerRadicadoDelAno && !archivosCompletos">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>PRIMER RADICADO DEL AÑO:</strong> Debes subir los 6 documentos antes de registrar
+                        decisión.
+                        <strong>Faltan:</strong> {{ 6 - contarArchivosAuditorSubidos() }} documento(s)
+                      </ng-container>
+                      <ng-container *ngIf="primerRadicadoDelAno && archivosCompletos">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>PRIMER RADICADO:</strong> Todos los documentos están subidos. Puedes registrar decisión.
+                      </ng-container>
+                      <ng-container *ngIf="!primerRadicadoDelAno">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>NO ES PRIMER RADICADO:</strong> Los documentos se cargan del servidor. Puedes registrar
+                        decisión.
+                      </ng-container>
+                    </ng-container>
+                    <ng-container *ngIf="estadoDocumento !== 'EN_REVISION_AUDITOR'">
+                      <i class="fas fa-lock me-2"></i>
+                      Documento en estado: <strong>{{ estadoDocumento | uppercase }}</strong>
+                    </ng-container>
+                  </div>
+
+                  <!-- Grid de 6 documentos -->
+                  <div class="row g-4">
+                    <div class="col-md-6 col-lg-4" *ngFor="let item of listaDocumentosAuditoria">
+                      <div class="card h-100 shadow-sm" [ngClass]="{
+                        'border-success': archivosAuditorFormulario[item.key].subido,
+                        'border-primary': estadoDocumento === 'EN_REVISION_AUDITOR' && !archivosAuditorFormulario[item.key].subido,
+                        'border-secondary': estadoDocumento !== 'EN_REVISION_AUDITOR'
+                      }">
+                        <div class="card-body d-flex flex-column p-4">
+
+                          <div class="d-flex align-items-center mb-3">
+                            <i [class]="item.icon" class="fa-3x me-3"></i>
+                            <div class="flex-grow-1">
+                              <h5 class="mb-1">{{ item.nombre }}</h5>
+                              <small
+                                [ngClass]="archivosAuditorFormulario[item.key].subido ? 'text-success' : 'text-muted'">
+                                {{ archivosAuditorFormulario[item.key].subido ? 'Disponible' : 'No disponible' }}
+                              </small>
+                            </div>
+                            <span *ngIf="archivosAuditorFormulario[item.key].subido"
+                              class="badge bg-success rounded-pill px-3 py-2">✓</span>
+                          </div>
+
+                          <small class="text-muted mb-3 text-truncate"
+                            *ngIf="archivosAuditorFormulario[item.key].nombreArchivo">
+                            <i class="fas fa-file me-1"></i> {{ archivosAuditorFormulario[item.key].nombreArchivo }}
+                          </small>
+
+                          <!-- Input para subir archivo - SOLO para primer radicado en revisión -->
+                          <ng-container *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR'">
+                            <ng-container *ngIf="primerRadicadoDelAno; else noSubidaPermitida">
+                              <div class="input-group input-group-sm mb-3">
+                                <input type="file" class="form-control"
+                                  (change)="onArchivoSeleccionado($event, item.key)"
+                                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" [id]="'file-'+item.key"
+                                  [disabled]="isProcessing">
+                                <label class="input-group-text btn btn-outline-primary" [for]="'file-'+item.key">
+                                  <i class="fas fa-upload me-1"></i> Subir
+                                </label>
+                              </div>
+                            </ng-container>
+
+                            <ng-template #noSubidaPermitida>
+                              <div class="alert alert-info alert-sm text-center mb-3 py-2">
+                                <small>
+                                  <i class="fas fa-database me-1"></i>
+                                  {{ archivosAuditorFormulario[item.key].subido ?
+                                  'Documento cargado del servidor' :
+                                  'Documento no requerido para este radicado' }}
+                                </small>
+                              </div>
+                            </ng-template>
+                          </ng-container>
+
+                          <!-- Mensaje si no está en revisión -->
+                          <ng-container *ngIf="estadoDocumento !== 'EN_REVISION_AUDITOR'">
+                            <div class="alert alert-secondary alert-sm text-center mb-3 py-2">
+                              <small>
+                                <i class="fas fa-lock me-1"></i>
+                                Solo disponible en estado EN_REVISION_AUDITOR
+                              </small>
+                            </div>
+                          </ng-container>
+
+                          <div class="mt-auto d-flex gap-2">
+                            <button class="btn btn-outline-primary btn-sm flex-fill"
+                              (click)="verArchivoAuditor(item.key)"
+                              [disabled]="!archivosAuditorFormulario[item.key].subido || isProcessing">
+                              <i class="fas fa-eye me-1"></i> Ver
+                            </button>
+                            <button class="btn btn-outline-success btn-sm flex-fill"
+                              (click)="descargarArchivoAuditor(item.key)"
+                              [disabled]="!archivosAuditorFormulario[item.key].subido || isProcessing">
+                              <i class="fas fa-download me-1"></i> Descargar
+                            </button>
+                          </div>
+
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div class="col-md-4">
-                    <div class="info-box bg-light p-3 rounded">
-                      <h6 class="text-muted mb-1"><i class="fas fa-user me-1"></i> Último Usuario</h6>
-                      <p class="mb-0">{{ documento.ultimoUsuario || 'No registrado' }}</p>
+
+                  <!-- Progreso solo para primer radicado -->
+                  <div *ngIf="primerRadicadoDelAno && estadoDocumento === 'EN_REVISION_AUDITOR'" class="progress mt-4"
+                    style="height: 32px;">
+                    <div class="progress-bar bg-success fs-5 d-flex align-items-center justify-content-center"
+                      role="progressbar" [style.width.%]="(contarArchivosAuditorSubidos() / 6) * 100">
+                      {{ contarArchivosAuditorSubidos() }} de 6 subidos
                     </div>
                   </div>
-                  <div class="col-md-4">
-                    <div class="info-box bg-light p-3 rounded">
-                      <h6 class="text-muted mb-1"><i class="fas fa-sticky-note me-1"></i> Comentarios</h6>
-                      <p class="mb-0">{{ documento.comentarios || 'Sin comentarios' }}</p>
+
+                  <!-- Botón para subir archivos (solo primer radicado) -->
+                  <div *ngIf="primerRadicadoDelAno && estadoDocumento === 'EN_REVISION_AUDITOR'"
+                    class="d-flex flex-wrap gap-3 justify-content-between mt-4 mb-4">
+
+                    <div class="d-flex gap-3">
+                      <button class="btn btn-outline-primary" (click)="verTodosArchivosAuditor()"
+                        [disabled]="!hayArchivosAuditorSubidos() || isProcessing">
+                        <i class="fas fa-eye me-1"></i> Ver todos ({{ contarArchivosAuditorSubidos() }})
+                      </button>
+                      <button class="btn btn-outline-success" (click)="descargarTodosArchivosAuditor()"
+                        [disabled]="!hayArchivosAuditorSubidos() || isProcessing">
+                        <i class="fas fa-download me-1"></i> Descargar todos
+                      </button>
                     </div>
+
+                    <button class="btn btn-primary" (click)="subirArchivosAuditor()"
+                      [disabled]="!hayArchivosSeleccionados() || isProcessing || !puedeSubirArchivos()">
+                      <i class="fas fa-cloud-upload-alt me-1"></i> Subir Archivos Seleccionados
+                    </button>
                   </div>
+
+                  <!-- Botones solo para ver/descargar (no primer radicado) -->
+                  <div *ngIf="!primerRadicadoDelAno && estadoDocumento === 'EN_REVISION_AUDITOR'"
+                    class="d-flex flex-wrap gap-3 justify-content-end mt-4 mb-4">
+                    <button class="btn btn-outline-primary" (click)="verTodosArchivosAuditor()"
+                      [disabled]="!hayArchivosAuditorSubidos() || isProcessing">
+                      <i class="fas fa-eye me-1"></i> Ver todos ({{ contarArchivosAuditorSubidos() }})
+                    </button>
+                    <button class="btn btn-outline-success" (click)="descargarTodosArchivosAuditor()"
+                      [disabled]="!hayArchivosAuditorSubidos() || isProcessing">
+                      <i class="fas fa-download me-1"></i> Descargar todos
+                    </button>
+                  </div>
+
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
+            </section>
 
-      <!-- Tab: Documentos del radicador -->
-      <div *ngIf="activeTab === 'documentos'" class="tab-content">
-        <div class="card main-card">
-          <div class="card-header bg-success text-white">
-            <i class="fas fa-folder me-2"></i> Documentos Adjuntos por el Radicador
-          </div>
-          <div class="card-body">
-            <div class="row">
-              <div class="col-md-4 mb-3" *ngFor="let archivo of archivosRadicador">
-                <div class="document-card">
-                  <div class="document-icon">
-                    <i class="fas fa-{{archivo.icon}} fa-2x text-success"></i>
-                  </div>
-                  <div class="document-info">
-                    <h6 class="mb-1">{{ archivo.nombre }}</h6>
-                    <p class="text-muted mb-1">
-                      {{ isArchivoDisponible(documento?.[archivo.tipo]) ? 'Disponible' : 'No disponible' }}
-                    </p>
-                    <small class="text-muted">
-                      {{ getArchivoNombre(documento?.[archivo.tipo]) }}
+            <!-- SECCIÓN DE DECISIÓN FINAL -->
+            <section class="mt-5">
+              <div class="card border-primary shadow-lg">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                  <h5 class="mb-0">
+                    <i class="fas fa-balance-scale me-2"></i> Decisión Final de Auditoría
+                  </h5>
+                  <span class="badge bg-light text-primary fs-6">
+                    {{ estadoDocumento || 'SIN ESTADO' | uppercase }}
+                  </span>
+                </div>
+
+                <div class="card-body">
+
+                  <!-- Estado de revisión (información) -->
+                  <div *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR'" class="alert alert-info mb-4">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Documento en revisión de auditoría</strong><br>
+                    <small>
+                      Estado: <strong>{{ estadoDocumento }}</strong> |
+                      Primer radicado: <strong>{{ primerRadicadoDelAno ? 'Sí' : 'No' }}</strong> |
+                      Archivos: <strong>{{ contarArchivosAuditorSubidos() }}/6</strong>
                     </small>
                   </div>
-                  <div class="document-actions">
-                    <div class="btn-group" role="group">
-                      <button class="btn btn-sm btn-outline-info" 
-                              [disabled]="!isArchivoDisponible(documento?.[archivo.tipo])"
-                              (click)="verArchivoRadicador(archivo.numero)">
-                        <i class="fas fa-eye"></i>
-                      </button>
-                      <button class="btn btn-sm btn-outline-success" 
-                              [disabled]="!isArchivoDisponible(documento?.[archivo.tipo]) || isProcessing"
-                              (click)="descargarArchivoRadicador(archivo.numero)">
-                        <i class="fas fa-download"></i>
-                      </button>
-                    </div>
+
+                  <!-- Alerta si es primer radicado y faltan documentos -->
+                  <div *ngIf="primerRadicadoDelAno && !archivosCompletos && estadoDocumento === 'EN_REVISION_AUDITOR'"
+                    class="alert alert-danger mb-4">
+                    <i class="fas fa-lock me-2"></i>
+                    <strong>Decisión bloqueada:</strong> Debes subir los 6 documentos obligatorios primero.<br>
+                    <strong>Faltan:</strong> {{ 6 - contarArchivosAuditorSubidos() }} documento(s)
                   </div>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Nota informativa -->
-            <div class="alert alert-info mt-3">
-              <i class="fas fa-info-circle me-2"></i>
-              Estos documentos fueron subidos por el radicador. Son los documentos base para la auditoría.
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <!-- Tab: Archivos de auditoría (solo primer radicado) -->
-      <div *ngIf="activeTab === 'auditoria' && puedeSubirArchivos()" class="tab-content">
-        <div class="card main-card">
-          <div class="card-header bg-warning text-dark">
-            <i class="fas fa-file-upload me-2"></i> Archivos de Auditoría (Requeridos para Primer Radicado)
-          </div>
-          <div class="card-body">
-            
-            <!-- Formulario de observaciones -->
-            <div class="mb-4">
-              <label class="form-label">Observaciones sobre los documentos (opcional)</label>
-              <textarea class="form-control" rows="3" 
-                        formControlName="observacionesDocumentos"
-                        placeholder="Agregue observaciones sobre los documentos subidos..."></textarea>
-            </div>
+                  <!-- Alerta si no está en revisión -->
+                  <div *ngIf="estadoDocumento !== 'EN_REVISION_AUDITOR'" class="alert alert-warning mb-4">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Documento no disponible para revisión</strong><br>
+                    Estado actual: <strong>{{ estadoDocumento | uppercase }}</strong><br>
+                    <small>Solo se puede revisar en estado EN_REVISION_AUDITOR</small>
+                  </div>
 
-            <!-- Lista de archivos requeridos -->
-            <div class="row">
-              <div class="col-md-6 mb-3" *ngFor="let archivo of archivosAuditoria">
-                <div class="card h-100 border" [class.border-success]="archivosCargados[archivo.tipo]">
-                  <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                      <div>
-                        <h6 class="card-title mb-1">
-                          <i class="fas fa-{{archivo.icon}} me-2 text-primary"></i>
-                          {{ archivo.nombre }}
-                        </h6>
-                        <p class="card-text text-muted small mb-2">{{ archivo.descripcion }}</p>
-                      </div>
-                      <span *ngIf="archivosCargados[archivo.tipo]" class="badge bg-success">
-                        <i class="fas fa-check me-1"></i> Subido
-                      </span>
-                      <span *ngIf="!archivosCargados[archivo.tipo]" class="badge bg-warning text-dark">
-                        <i class="fas fa-exclamation me-1"></i> Pendiente
-                      </span>
-                    </div>
-                    
-                    <!-- Estado del archivo -->
-                    <div *ngIf="archivosSeleccionados[archivo.tipo]" class="alert alert-success py-2 mb-2">
-                      <i class="fas fa-file me-1"></i>
-                      {{ archivosSeleccionados[archivo.tipo].name }}
-                      <small class="text-muted ms-2">
-                        ({{ (archivosSeleccionados[archivo.tipo].size / 1024 / 1024).toFixed(2) }} MB)
+                  <!-- Observaciones de revisión -->
+                  <div class="mb-5" *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR'">
+                    <label class="form-label fw-bold required">
+                      <i class="fas fa-sticky-note me-2"></i> Observaciones de revisión *
+                    </label>
+                    <textarea class="form-control" rows="5" [(ngModel)]="observacionesRevision"
+                      [disabled]="!puedeRealizarRevision() || isProcessing"
+                      placeholder="Ingrese observaciones detalladas... (obligatorio)"></textarea>
+                    <small class="text-muted">
+                      Este campo es obligatorio para registrar una decisión
+                    </small>
+                  </div>
+
+                  <!-- Dropdown de decisiones -->
+                  <div class="mb-4" *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR'">
+                    <label class="form-label fw-bold">
+                      <i class="fas fa-gavel me-2"></i> Decisión de auditoría
+                    </label>
+                    <select class="form-select form-select-lg" [(ngModel)]="decisionSeleccionada"
+                      [disabled]="!puedeRealizarRevision() || isProcessing">
+                      <option value="" disabled>Seleccione una decisión</option>
+                      <option value="APROBADO">✓ Aprobar</option>
+                      <option value="OBSERVADO">✎ Observar</option>
+                      <option value="RECHAZADO">✗ Rechazar</option>
+                      <option value="COMPLETADO">✓ Completar Revisión</option>
+                    </select>
+                    <small class="text-muted">
+                      Seleccione la acción a tomar sobre este documento
+                    </small>
+                  </div>
+
+                  <!-- Botón para registrar la decisión -->
+                  <div class="text-center" *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR'">
+                    <button class="btn btn-primary btn-lg px-5" (click)="registrarDecision()"
+                      [disabled]="!puedeRealizarRevision() || isProcessing || !decisionSeleccionada || !observacionesRevision.trim()">
+                      <i class="fas fa-check-double me-2"></i> Registrar Decisión
+                    </button>
+
+                    <!-- Mensaje de ayuda -->
+                    <div class="mt-3">
+                      <small class="text-muted" *ngIf="!puedeRealizarRevision()">
+                        <i class="fas fa-info-circle me-1"></i>
+                        {{ primerRadicadoDelAno && !archivosCompletos ?
+                        'Debes subir todos los documentos primero (' + (6 - contarArchivosAuditorSubidos()) + '
+                        faltantes)' :
+                        'Complete todos los campos requeridos' }}
                       </small>
-                      <button class="btn btn-sm btn-outline-danger ms-2" 
-                              (click)="eliminarArchivo(archivo.tipo)">
-                        <i class="fas fa-times"></i>
-                      </button>
-                    </div>
-
-                    <!-- Botones de acción -->
-                    <div class="d-flex gap-2">
-                      <div class="flex-grow-1">
-                        <input type="file" class="form-control form-control-sm" 
-                               [accept]="'.pdf,.doc,.docx,.jpg,.jpeg,.png'"
-                               (change)="onFileSelected($event, archivo.tipo)"
-                               [disabled]="archivosCargados[archivo.tipo] || isSubmitting">
-                      </div>
-                      <button *ngIf="archivosCargados[archivo.tipo]" 
-                              class="btn btn-sm btn-outline-success"
-                              (click)="descargarArchivoAuditoria(archivo.tipo)"
-                              [disabled]="isProcessing">
-                        <i class="fas fa-download"></i>
-                      </button>
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
 
-            <!-- Botón para subir todos -->
-            <div class="mt-4">
-              <button class="btn btn-warning w-100" 
-                      (click)="subirArchivosAuditoria()"
-                      [disabled]="isSubmitting || Object.keys(archivosSeleccionados).length !== 6">
-                <i class="fas fa-upload me-2"></i>
-                {{ isSubmitting ? 'Subiendo archivos...' : 'Subir todos los archivos' }}
-              </button>
-              
-              <div class="form-text text-center mt-2">
-                <i class="fas fa-info-circle me-1"></i>
-                Todos los archivos son requeridos para el primer radicado del año. Tamaño máximo por archivo: 15MB
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab: Historial -->
-      <div *ngIf="activeTab === 'historial'" class="tab-content">
-        <div class="card main-card">
-          <div class="card-header bg-info text-white">
-            <i class="fas fa-history me-2"></i> Historial de Estados
-          </div>
-          <div class="card-body">
-            <div class="timeline">
-              <div *ngFor="let item of historial; let i = index" class="timeline-item">
-                <div class="timeline-marker" 
-                     [ngClass]="getEstadoClass(item.estado)"></div>
-                <div class="timeline-content">
-                  <div class="timeline-header">
-                    <h6 class="mb-1">{{ getEstadoTexto(item.estado) }}</h6>
-                    <small class="text-muted">{{ formatDate(item.fecha) }}</small>
+                  <!-- Modo solo lectura si ya está decidido -->
+                  <div class="alert alert-info text-center mt-4"
+                    *ngIf="['APROBADO_AUDITOR','COMPLETADO_AUDITOR','RECHAZADO_AUDITOR','OBSERVADO_AUDITOR'].includes(estadoDocumento)">
+                    <i class="fas fa-info-circle fa-2x me-2"></i>
+                    <h5>Decisión ya registrada</h5>
+                    <p>Estado actual: <strong>{{ estadoDocumento | uppercase }}</strong></p>
+                    <small>No se permiten más cambios en la revisión.</small>
                   </div>
-                  <div class="timeline-body">
-                    <p class="mb-1"><strong>Usuario:</strong> {{ item.usuarioNombre || 'Sistema' }}</p>
-                    <p *ngIf="item.observacion" class="mb-0">
-                      <strong>Observación:</strong> {{ item.observacion }}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              <!-- Estado vacío -->
-              <div *ngIf="historial.length === 0" class="text-center py-5">
-                <i class="fas fa-history fa-3x text-muted mb-3"></i>
-                <h5 class="text-muted">No hay historial disponible</h5>
-                <p class="text-muted">El historial de estados aparecerá aquí.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <!-- Tab: Revisión -->
-      <div *ngIf="activeTab === 'revision'" class="tab-content">
-        <div class="card main-card">
-          <div class="card-header bg-primary text-white">
-            <i class="fas fa-clipboard-check me-2"></i> Revisión de Auditoría
-          </div>
-          <div class="card-body">
-            
-            <!-- Resumen de documentos -->
-            <div class="alert alert-light mb-4">
-              <div class="row">
-                <div class="col-md-6">
-                  <h6 class="mb-2"><i class="fas fa-file-alt me-2"></i>Documentos del Radicador</h6>
-                  <div class="d-flex flex-wrap gap-2">
-                    <span *ngFor="let archivo of archivosRadicador" 
-                          class="badge" [ngClass]="isArchivoDisponible(documento?.[archivo.tipo]) ? 'bg-success' : 'bg-secondary'">
-                      <i class="fas fa-{{archivo.icon}} me-1"></i> {{ archivo.nombre }}
-                    </span>
-                  </div>
-                </div>
-                <div class="col-md-6" *ngIf="puedeSubirArchivos()">
-                  <h6 class="mb-2"><i class="fas fa-file-upload me-2"></i>Documentos de Auditoría</h6>
-                  <div class="d-flex flex-wrap gap-2">
-                    <span *ngFor="let archivo of archivosAuditoria" 
-                          class="badge" [ngClass]="archivosCargados[archivo.tipo] ? 'bg-success' : 'bg-warning text-dark'">
-                      <i class="fas fa-{{archivo.icon}} me-1"></i> {{ archivo.nombre }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Formulario de revisión -->
-            <form [formGroup]="revisarForm" (ngSubmit)="onSubmitRevisar()">
-              
-              <!-- Opciones de decisión -->
-              <div class="decision-options mb-4">
-                <h5 class="mb-3"><i class="fas fa-tasks me-2"></i>Decisión de Auditoría</h5>
-                <div class="row">
-                  <div class="col-md-3 mb-3" *ngFor="let estado of estadosAuditor">
-                    <div class="form-check h-100">
-                      <input class="form-check-input" type="radio" 
-                             [id]="'estado_' + estado.value"
-                             formControlName="estado"
-                             [value]="estado.value">
-                      <label class="form-check-label" [for]="'estado_' + estado.value">
-                        <i class="fas fa-{{estado.icon}} me-2 text-{{estado.color}}"></i>
-                        <strong>{{ estado.label }}</strong>
-                        <p class="text-muted small mt-1 mb-0">{{ estado.description }}</p>
-                      </label>
-                    </div>
-                  </div>
                 </div>
               </div>
 
-              <!-- Observaciones -->
-              <div class="mb-4">
-                <label for="observaciones" class="form-label">
-                  <i class="fas fa-comment me-1"></i> Observaciones *</label>
-                <textarea id="observaciones" class="form-control" rows="4"
-                          formControlName="observaciones"
-                          placeholder="Describa detalladamente las observaciones sobre este documento..."
-                          [class.is-invalid]="revisarForm.get('observaciones')?.invalid && revisarForm.get('observaciones')?.touched"></textarea>
-                <div *ngIf="revisarForm.get('observaciones')?.invalid && revisarForm.get('observaciones')?.touched" 
-                     class="invalid-feedback">
-                  <div *ngIf="revisarForm.get('observaciones')?.errors?.['required']">
-                    Las observaciones son requeridas
-                  </div>
-                  <div *ngIf="revisarForm.get('observaciones')?.errors?.['minlength']">
-                    Mínimo 10 caracteres
-                  </div>
-                </div>
-                <div class="form-text">
-                  Incluya todos los detalles relevantes para justificar su decisión
-                </div>
-              </div>
-
-              <!-- Correcciones (solo para OBSERVADO) -->
-              <div class="mb-4" *ngIf="revisarForm.get('estado')?.value === 'OBSERVADO'">
-                <label for="correcciones" class="form-label">
-                  <i class="fas fa-edit me-1"></i> Correcciones Solicitadas</label>
-                <textarea id="correcciones" class="form-control" rows="3"
-                          formControlName="correcciones"
-                          placeholder="Describa las correcciones específicas que deben realizarse..."></textarea>
-                <div class="form-text">
-                  Especifique claramente qué debe corregirse y cómo
-                </div>
-              </div>
-
-              <!-- Advertencias -->
-              <div class="alert alert-warning mb-4" *ngIf="puedeSubirArchivos() && !puedeRevisar()">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong>Atención:</strong> Debe subir todos los archivos de auditoría antes de poder revisar este documento.
-              </div>
-
-              <!-- Botones de acción -->
-              <div class="d-flex justify-content-between">
-                <button type="button" class="btn btn-outline-secondary"
-                        (click)="setActiveTab('informacion')">
-                  <i class="fas fa-arrow-left me-1"></i> Volver
+              <!-- Botón liberar documento (solo si está en revisión) -->
+              <div class="text-center mt-4" *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR'">
+                <button class="btn btn-outline-secondary btn-lg px-5" (click)="liberarDocumento()"
+                  [disabled]="isProcessing">
+                  <i class="fas fa-unlock me-2"></i> Liberar Documento
                 </button>
-                
-                <div class="d-flex gap-2">
-                  <button type="button" class="btn btn-outline-warning"
-                          (click)="liberarDocumento()"
-                          *ngIf="estaEnRevision() && puedeLiberar()"
-                          [disabled]="isProcessing">
-                    <i class="fas fa-unlock me-1"></i> Liberar Documento
-                  </button>
-                  
-                  <button type="submit" class="btn btn-primary"
-                          [disabled]="!revisarForm.valid || isProcessing || !puedeRevisar()">
-                    <i class="fas fa-check-circle me-1"></i>
-                    {{ isProcessing ? 'Procesando...' : 'Confirmar Revisión' }}
-                  </button>
-                </div>
+                <p class="text-muted mt-2">
+                  <small>Liberar el documento lo devuelve a la lista de disponibles para otros auditores</small>
+                </p>
               </div>
-            </form>
+            </section>
+
           </div>
         </div>
-      </div>
 
+      </ng-container>
     </div>
+  </section>
 
-    <!-- Documento no encontrado -->
-    <div *ngIf="!isLoading && !documento" class="text-center py-5">
-      <i class="fas fa-file-exclamation fa-4x text-muted mb-3"></i>
-      <h4 class="text-muted">Documento no encontrado</h4>
-      <p class="text-muted mb-4">El documento solicitado no existe o no tienes permisos para acceder a él.</p>
-      <button class="btn btn-primary" routerLink="/auditor/pendientes">
-        <i class="fas fa-arrow-left me-1"></i> Volver a Pendientes
+  <!-- Volver -->
+  <div class="text-center mt-4">
+    <button class="btn btn-secondary btn-lg" (click)="volverALista()" [disabled]="isProcessing">
+      <i class="fas fa-arrow-left me-2"></i> Volver a Mis Auditorías
+    </button>
+  </div>
+
+  <!-- Si el documento NO está en revisión pero está disponible -->
+  <div *ngIf="estadoDocumento === 'APROBADO_SUPERVISOR'" class="card border-warning mt-4">
+    <div class="card-header bg-warning text-dark">
+      <h5 class="mb-0">
+        <i class="fas fa-hand-paper me-2"></i> Tomar Documento para Revisión
+      </h5>
+    </div>
+    <div class="card-body text-center">
+      <p>Este documento está disponible para revisión de auditoría.</p>
+      <p>Debes tomarlo para revisión antes de poder trabajar en él.</p>
+
+      <button class="btn btn-primary btn-lg" (click)="tomarParaRevision()" [disabled]="isProcessing">
+        <i class="fas fa-hand-paper me-2"></i> Tomar para Revisión
       </button>
     </div>
+  </div>
 
+  <!-- Si el estado está vacío o es inválido -->
+  <div *ngIf="!estadoDocumento || estadoDocumento === ''" class="alert alert-danger mt-4">
+    <h5><i class="fas fa-exclamation-triangle me-2"></i> Error al cargar documento</h5>
+    <p>No se pudo cargar la información del documento. Posibles causas:</p>
+    <ul>
+      <li>El documento no existe</li>
+      <li>No tienes permisos para verlo</li>
+      <li>Error de conexión con el servidor</li>
+    </ul>
+    <button class="btn btn-outline-danger" (click)="cargarDocumentoParaAuditor(documentoId)">
+      <i class="fas fa-redo me-2"></i> Reintentar
+    </button>
   </div>
 </div>

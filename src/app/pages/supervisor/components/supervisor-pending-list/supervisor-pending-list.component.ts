@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
-import { SupervisorService } from '../../../../core/services/supervisor.service';
+import { SupervisorService } from '../../../../core/services/supervisor/supervisor.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { Documento } from '../../../../core/models/documento.model';
 
@@ -130,38 +130,40 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
 
   // ✅ NUEVOS MÉTODOS HELPER
   getSupervisorEstado(doc: Documento): string {
-    return doc.supervisorEstado || doc.asignacion?.estado || 'Pendiente';
+    return doc['supervisorEstado'] || doc['asignacion']?.['estado'] || 'Pendiente';
   }
 
   getSupervisorAsignado(doc: Documento): string {
-    return doc.supervisorAsignado || doc.asignacion?.supervisorActual || '';
+    return doc['supervisorAsignado'] || doc['asignacion']?.['supervisorActual'] || '';
   }
 
   estaEnRevision(doc: Documento): boolean {
-    return doc.supervisorEstado === 'EN_REVISION' || doc.asignacion?.enRevision === true;
+    return doc['supervisorEstado'] === 'EN_REVISION' || doc['asignacion']?.['enRevision'] === true;
   }
 
-  puedeTomarDocumento(doc: Documento): boolean {
-    const esRadicado = doc.estado === 'RADICADO';
-    const estaEnRevision = this.estaEnRevision(doc);
-    const soyElAsignado = doc.supervisorAsignado === this.usuarioActual ||
-      doc.asignacion?.supervisorActual === this.usuarioActual;
+puedeTomarDocumento(doc: Documento): boolean {
+  const esRadicado = doc.estado === 'RADICADO';
+  const estaEnRevision = this.estaEnRevision(doc);
+  const soyElAsignado = doc['supervisorAsignado'] === this.usuarioActual ||
+    doc['asignacion']?.['supervisorActual'] === this.usuarioActual;  // ← CORRECCIÓN AQUÍ
 
-    if (!esRadicado) return false;
-    if (!estaEnRevision) return true;
-    return estaEnRevision && soyElAsignado;
-  }
+  if (!esRadicado) return false;
+  if (!estaEnRevision) return true;
+  return estaEnRevision && soyElAsignado;
+}
+
+
 
   getTextoBoton(doc: Documento): string {
     if (this.estaEnRevision(doc) &&
       (doc.supervisorAsignado === this.usuarioActual ||
-        doc.asignacion?.supervisorActual === this.usuarioActual)) {
+        doc['asignacion']?.['supervisorActual'] === this.usuarioActual)) {
       return 'Continuar';
     }
     return 'Tomar';
   }
 
-  // Resto de los métodos existentes...
+
   forzarAsignacion(): void {
     console.log('🚀 Supervisor: Forzando asignación de documentos RADICADOS...');
     this.isProcessing = true;
@@ -195,10 +197,26 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
     console.log(`🤝 Supervisor: Tomando documento ${doc.numeroRadicado} para revisión...`);
 
     // Verificar estado actual
-    if (doc.estado !== 'RADICADO') {
-      this.notificationService.warning('Documento no disponible',
-        `Este documento ya no está disponible. Estado actual: ${doc.estado}`);
-      return;
+    const estado = doc.estado?.toUpperCase() || '';
+    const estaEnRevision = estado.includes('EN_REVISION') ||
+      estado.includes('EN REVISIÓN') ||
+      estado.includes('EN_REVISION_SUPERVISOR');
+
+    if (estaEnRevision) {
+      // Si ya está en revisión, verificar si soy yo
+      const supervisorAsignado = doc.supervisorAsignado || doc['asignacion']?.['supervisorActual'] || '';
+      const usuarioActual = this.usuarioActual;
+
+      if (supervisorAsignado === usuarioActual) {
+        // Ya soy el revisor, continuar
+        this.continuarRevision(doc);
+        return;
+      } else {
+        // Está siendo revisado por otro supervisor
+        this.notificationService.warning('Documento en revisión',
+          `Este documento ya está siendo revisado por ${supervisorAsignado}`);
+        return;
+      }
     }
 
     this.isProcessing = true;
@@ -219,25 +237,22 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
           // ✅ ACTUALIZACIÓN: Asignar información de supervisor y fecha
           const index = this.documentos.findIndex(d => d.id === doc.id);
           if (index !== -1) {
-            // Actualizar estado
-            this.documentos[index].estado = 'EN_REVISION_SUPERVISOR';
+            this.documentos[index]['estado'] = 'EN_REVISION_SUPERVISOR';
+            this.documentos[index]['supervisorAsignado'] = this.usuarioActual;
+            this.documentos[index]['fechaAsignacion'] = new Date();
+            this.documentos[index]['supervisorEstado'] = 'EN_REVISION';
+            this.documentos[index]['ultimoUsuario'] = this.usuarioActual;
+            this.documentos[index]['fechaActualizacion'] = new Date();
 
-            // ✅ NUEVO: Actualizar información de asignación
-            this.documentos[index].supervisorAsignado = this.usuarioActual;
-            this.documentos[index].fechaAsignacion = new Date();
-            this.documentos[index].supervisorEstado = 'EN_REVISION';
-            this.documentos[index].ultimoUsuario = this.usuarioActual;
-            this.documentos[index].fechaActualizacion = new Date();
-
-            // Actualizar asignación si existe
-            if (this.documentos[index].asignacion) {
-              this.documentos[index].asignacion = {
-                ...this.documentos[index].asignacion,
+            if (this.documentos[index]['asignacion']) {
+              this.documentos[index]['asignacion'] = {
+                ...this.documentos[index]['asignacion'],
                 enRevision: true,
                 supervisorActual: this.usuarioActual,
                 usuarioAsignado: this.usuarioActual
               };
             }
+
 
             console.log('✅ Documento actualizado localmente con asignación:', this.documentos[index]);
           }
@@ -261,6 +276,16 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
           this.isProcessing = false;
         }
       });
+  }
+
+  /**
+   * ✅ Continuar con una revisión ya iniciada
+   */
+  continuarRevision(doc: Documento): void {
+    console.log(`▶️ Continuando revisión del documento ${doc.numeroRadicado}...`);
+
+    // Navegar directamente al formulario
+    this.router.navigate(['/supervisor/revisar', doc.id]);
   }
 
   // Resto de los métodos existentes (formatDate, getDuracionContrato, etc.)...

@@ -50,9 +50,12 @@
             <div class="mt-4">
               <p class="text-start"><strong>¿Por qué no hay documentos?</strong></p>
               <ul class="list-unstyled text-start">
-                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Verifica que hay documentos en estado "RADICADO"</li>
-                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Usa el botón "Asignar RADICADOS" para forzar asignación</li>
-                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Verifica que estás autenticado como supervisor</li>
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Verifica que hay documentos en estado
+                  "RADICADO"</li>
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Usa el botón "Asignar RADICADOS" para
+                  forzar asignación</li>
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Verifica que estás autenticado como
+                  supervisor</li>
               </ul>
             </div>
 
@@ -84,9 +87,8 @@
           <!-- Lista de radicados -->
           <div class="documentos-list">
             <div *ngFor="let doc of paginatedDocumentos" class="documento-card"
-              [class.reciente]="esDocumentoReciente(doc)"
-              [title]="getTooltipInfo(doc)">
-              
+              [class.reciente]="esDocumentoReciente(doc)" [title]="getTooltipInfo(doc)">
+
               <!-- Radicado -->
               <div class="documento-info">
                 <div class="documento-details">
@@ -96,7 +98,7 @@
                       <i class="fas fa-star me-1"></i>NUEVO
                     </span>
                     <!-- ✅ NUEVO: Indicador de paz y salvo -->
-                    <span *ngIf="doc.requierePazSalvo" class="paz-salvo-badge ms-2">
+                    <span *ngIf="doc['requierePazSalvo']" class="paz-salvo-badge ms-2">
                       <i class="fas fa-file-contract me-1"></i>Paz y Salvo
                     </span>
                   </h5>
@@ -169,16 +171,16 @@
                     {{ getDocumentCount(doc) }} documentos
                   </div>
                   <div class="archivos-preview">
-                    <span *ngIf="doc.cuentaCobro" class="archivo-type badge bg-primary me-1 mb-1" 
-                          (click)="previsualizarDocumentoEspecifico(doc, 1)" style="cursor: pointer;">
+                    <span *ngIf="doc.cuentaCobro" class="archivo-type badge bg-primary me-1 mb-1"
+                      (click)="previsualizarDocumentoEspecifico(doc, 1)" style="cursor: pointer;">
                       <i class="fas fa-file-invoice me-1"></i>Cuenta
                     </span>
                     <span *ngIf="doc.seguridadSocial" class="archivo-type badge bg-success me-1 mb-1"
-                          (click)="previsualizarDocumentoEspecifico(doc, 2)" style="cursor: pointer;">
+                      (click)="previsualizarDocumentoEspecifico(doc, 2)" style="cursor: pointer;">
                       <i class="fas fa-shield-alt me-1"></i>SS
                     </span>
                     <span *ngIf="doc.informeActividades" class="archivo-type badge bg-info"
-                          (click)="previsualizarDocumentoEspecifico(doc, 3)" style="cursor: pointer;">
+                      (click)="previsualizarDocumentoEspecifico(doc, 3)" style="cursor: pointer;">
                       <i class="fas fa-chart-line me-1"></i>Informe
                     </span>
                   </div>
@@ -189,17 +191,17 @@
               <div class="documento-acciones">
                 <div class="acciones-buttons">
                   <div class="d-flex flex-column gap-1">
-                    
+
                     <!-- ✅ NUEVO: Información de asignación si existe -->
-                    <div *ngIf="getSupervisorAsignado(doc) && estaEnRevision(doc)" 
-                         class="asignacion-info mb-2 p-2 bg-warning bg-opacity-10 rounded">
+                    <div *ngIf="getSupervisorAsignado(doc) && estaEnRevision(doc)"
+                      class="asignacion-info mb-2 p-2 bg-warning bg-opacity-10 rounded">
                       <small class="d-block">
                         <i class="fas fa-user-shield text-warning me-1"></i>
                         <strong>Asignado a:</strong> {{getSupervisorAsignado(doc)}}
                       </small>
-                      <small *ngIf="doc.fechaAsignacion" class="d-block">
+                      <small *ngIf="doc['fechaAsignacion']" class="d-block">
                         <i class="far fa-calendar text-warning me-1"></i>
-                        <strong>Desde:</strong> {{formatDateShort(doc.fechaAsignacion)}}
+                        <strong>Desde:</strong> {{formatDateShort(doc['fechaAsignacion'])}}
                       </small>
                       <small class="d-block">
                         <i class="fas fa-clock text-warning me-1"></i>
@@ -209,52 +211,45 @@
 
                     <!-- Tomar para revisión -->
                     <button class="btn btn-primary btn-sm" (click)="tomarParaRevision(doc)"
-                            title="Tomar documento para revisión" 
-                            [disabled]="isProcessing || !puedeTomarDocumento(doc)">
-                      <i class="fas fa-hand-paper me-1"></i> 
+                      title="Tomar documento para revisión" [disabled]="isProcessing || !puedeTomarDocumento(doc)">
+                      <i class="fas fa-hand-paper me-1"></i>
                       {{ getTextoBoton(doc) }}
                     </button>
 
                     <!-- Botones de vista rápida -->
                     <div class="d-flex gap-1" *ngIf="getDocumentCount(doc) > 0">
-                      <button class="btn btn-outline-info btn-sm flex-fill" 
-                              (click)="previsualizarDocumentoEspecifico(doc, 1)"
-                              [disabled]="!doc.cuentaCobro"
-                              title="Ver Cuenta de Cobro">
+                      <button class="btn btn-outline-info btn-sm flex-fill"
+                        (click)="previsualizarDocumentoEspecifico(doc, 1)" [disabled]="!doc.cuentaCobro"
+                        title="Ver Cuenta de Cobro">
                         <i class="fas fa-eye"></i>
                       </button>
-                      <button class="btn btn-outline-info btn-sm flex-fill" 
-                              (click)="previsualizarDocumentoEspecifico(doc, 2)"
-                              [disabled]="!doc.seguridadSocial"
-                              title="Ver Seguridad Social">
+                      <button class="btn btn-outline-info btn-sm flex-fill"
+                        (click)="previsualizarDocumentoEspecifico(doc, 2)" [disabled]="!doc.seguridadSocial"
+                        title="Ver Seguridad Social">
                         <i class="fas fa-eye"></i>
                       </button>
-                      <button class="btn btn-outline-info btn-sm flex-fill" 
-                              (click)="previsualizarDocumentoEspecifico(doc, 3)"
-                              [disabled]="!doc.informeActividades"
-                              title="Ver Informe de Actividades">
+                      <button class="btn btn-outline-info btn-sm flex-fill"
+                        (click)="previsualizarDocumentoEspecifico(doc, 3)" [disabled]="!doc.informeActividades"
+                        title="Ver Informe de Actividades">
                         <i class="fas fa-eye"></i>
                       </button>
                     </div>
 
                     <!-- Botones de descarga rápida -->
                     <div class="d-flex gap-1" *ngIf="getDocumentCount(doc) > 0">
-                      <button class="btn btn-outline-success btn-sm flex-fill" 
-                              (click)="descargarDocumentoEspecifico(doc, 1)"
-                              [disabled]="!doc.cuentaCobro || isProcessing"
-                              title="Descargar Cuenta de Cobro">
+                      <button class="btn btn-outline-success btn-sm flex-fill"
+                        (click)="descargarDocumentoEspecifico(doc, 1)" [disabled]="!doc.cuentaCobro || isProcessing"
+                        title="Descargar Cuenta de Cobro">
                         <i class="fas fa-download"></i>
                       </button>
-                      <button class="btn btn-outline-success btn-sm flex-fill" 
-                              (click)="descargarDocumentoEspecifico(doc, 2)"
-                              [disabled]="!doc.seguridadSocial || isProcessing"
-                              title="Descargar Seguridad Social">
+                      <button class="btn btn-outline-success btn-sm flex-fill"
+                        (click)="descargarDocumentoEspecifico(doc, 2)" [disabled]="!doc.seguridadSocial || isProcessing"
+                        title="Descargar Seguridad Social">
                         <i class="fas fa-download"></i>
                       </button>
-                      <button class="btn btn-outline-success btn-sm flex-fill" 
-                              (click)="descargarDocumentoEspecifico(doc, 3)"
-                              [disabled]="!doc.informeActividades || isProcessing"
-                              title="Descargar Informe de Actividades">
+                      <button class="btn btn-outline-success btn-sm flex-fill"
+                        (click)="descargarDocumentoEspecifico(doc, 3)"
+                        [disabled]="!doc.informeActividades || isProcessing" title="Descargar Informe de Actividades">
                         <i class="fas fa-download"></i>
                       </button>
                     </div>
@@ -277,10 +272,8 @@
               </button>
 
               <div class="page-numbers">
-                <button *ngFor="let page of pages" class="btn btn-sm" 
-                  [class.btn-primary]="page === currentPage"
-                  [class.btn-outline-primary]="page !== currentPage" 
-                  (click)="changePage(page)">
+                <button *ngFor="let page of pages" class="btn btn-sm" [class.btn-primary]="page === currentPage"
+                  [class.btn-outline-primary]="page !== currentPage" (click)="changePage(page)">
                   {{ page }}
                 </button>
               </div>

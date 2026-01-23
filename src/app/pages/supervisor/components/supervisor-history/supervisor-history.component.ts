@@ -4,7 +4,7 @@ import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { SupervisorService } from '../../../../core/services/supervisor.service';
+import { SupervisorService } from '../../../../core/services/supervisor/supervisor.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 
 @Component({
@@ -57,29 +57,6 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  // AÑADE ESTE MÉTODO PARA VERIFICAR SI EL DOCUMENTO ES RECIENTE
-  esDocumentoReciente(item: any): boolean {
-    const fechaActualizacion = item.fechaActualizacion || item.updatedAt;
-    if (!fechaActualizacion) return false;
-
-    try {
-      const fechaDoc = new Date(fechaActualizacion);
-      const ahora = new Date();
-      const diferenciaDias = Math.floor((ahora.getTime() - fechaDoc.getTime()) / (1000 * 60 * 60 * 24));
-
-      // Considerar reciente si tiene menos de 7 días
-      return diferenciaDias <= 7;
-    } catch {
-      return false;
-    }
-  }
-
-  // AÑADE ESTE MÉTODO PARA VERIFICAR SI TIENE DOCUMENTOS
-  tieneDocumentos(item: any): boolean {
-    const docData = item.documento || item;
-    return !!(docData.cuentaCobro || docData.seguridadSocial || docData.informeActividades);
-  }
-
   cargarUsuarioActual(): void {
     const userStr = localStorage.getItem('user');
     if (userStr) {
@@ -110,14 +87,16 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
             this.historial = response.data || [];
             console.log('✅ Historial cargado con', this.historial.length, 'registros');
 
-            // DEBUG: Mostrar estructura del primer elemento
-            if (this.historial.length > 0) {
-              console.log('🔍 Estructura del primer elemento:', this.historial[0]);
-              console.log('📝 Datos disponibles en primer elemento:');
-              console.log('- Documento:', this.historial[0].documento);
-              console.log('- Estado:', this.historial[0].estado);
-              console.log('- Supervisor:', this.historial[0].supervisorRevisor);
-            }
+            // DEBUG: Mostrar estructura de los primeros elementos
+            this.historial.slice(0, 3).forEach((item, index) => {
+              console.log(`🔍 Elemento ${index + 1}:`, {
+                estado: item.estado,
+                supervisorRevisor: item.supervisorRevisor,
+                supervisorAsignado: item.documento?.supervisorAsignado,
+                asignacion: item.documento?.asignacion,
+                tieneSupervisor: !!this.getSupervisorAsignado(item)
+              });
+            });
 
             this.filteredHistorial = [...this.historial];
             this.updatePagination();
@@ -143,8 +122,63 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
       });
   }
 
-  // Método para ver documentos del historial
-  verDocumentosHistorial(item: any, index: number): void {
+  // ✅ NUEVO: Obtener supervisor asignado del documento
+  getSupervisorAsignado(item: any): string {
+    // Prioridad 1: Supervisor asignado del documento
+    if (item.documento?.supervisorAsignado) {
+      return item.documento.supervisorAsignado;
+    }
+    
+    // Prioridad 2: Supervisor actual de la asignación
+    if (item.documento?.asignacion?.supervisorActual) {
+      return item.documento.asignacion.supervisorActual;
+    }
+    
+    // Prioridad 3: Usuario asignado del documento
+    if (item.documento?.usuarioAsignadoNombre) {
+      return item.documento.usuarioAsignadoNombre;
+    }
+    
+    // Prioridad 4: Supervisor revisor del historial
+    if (item.supervisorRevisor) {
+      return item.supervisorRevisor;
+    }
+    
+    // Prioridad 5: Usuario actual como fallback
+    return this.usuarioActual;
+  }
+
+  // ✅ NUEVO MÉTODO: Verificar si soy el supervisor asignado
+  esMiDocumento(item: any): boolean {
+    const supervisorAsignado = this.getSupervisorAsignado(item);
+    return this.compararNombres(supervisorAsignado, this.usuarioActual);
+  }
+
+  // ✅ NUEVO MÉTODO: Comparar nombres de forma flexible
+  compararNombres(nombre1: string, nombre2: string): boolean {
+    if (!nombre1 || !nombre2) return false;
+    
+    const normalizar = (nombre: string) => {
+      return nombre.toLowerCase()
+        .trim()
+        .replace(/\s+/g, ' ') // Eliminar múltiples espacios
+        .replace(/[áä]/g, 'a').replace(/[éë]/g, 'e').replace(/[íï]/g, 'i')
+        .replace(/[óö]/g, 'o').replace(/[úü]/g, 'u');
+    };
+    
+    const nombre1Normalizado = normalizar(nombre1);
+    const nombre2Normalizado = normalizar(nombre2);
+    
+    // Verificar coincidencia exacta o parcial
+    return nombre1Normalizado === nombre2Normalizado || 
+           nombre1Normalizado.includes(nombre2Normalizado) ||
+           nombre2Normalizado.includes(nombre1Normalizado);
+  }
+
+  // ✅ NUEVO MÉTODO MEJORADO: Revisar documento desde historial
+  revisarNuevamente(item: any): void {
+    console.log('🔄 Revisar documento desde historial:', item);
+
     // Extraer el ID del documento
     let documentoId = '';
 
@@ -158,194 +192,151 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
 
     if (!documentoId) {
       console.error('❌ No hay ID de documento disponible');
-      this.notificationService.warning('Documento no disponible', 'No se puede abrir el documento: ID no disponible');
+      this.notificationService.error('Error', 'No se puede revisar el documento: ID no disponible');
       return;
     }
 
-    console.log(`👁️ Ver documento ${index} del historial:`, item);
+    // Obtener información del documento
+    const estado = item.estado?.toUpperCase() || '';
+    const supervisorAsignado = this.getSupervisorAsignado(item);
+    const soyElSupervisor = this.esMiDocumento(item);
+    
+    // ✅ DETERMINAR PARÁMETROS DE NAVEGACIÓN
+    const queryParams = this.determinarModoNavegacion(estado, supervisorAsignado, soyElSupervisor);
+    
+    console.log('🚀 Navegando a formulario con:', {
+      documentoId,
+      estado,
+      supervisorAsignado,
+      soyElSupervisor,
+      usuarioActual: this.usuarioActual,
+      queryParams
+    });
 
-    // Verificar si el documento existe usando el método tieneDocumentos
-    if (!this.tieneDocumentos(item)) {
-      console.warn(`⚠️ Documento ${index} no disponible`);
-      this.notificationService.warning('Documento no disponible', `El documento no está disponible para visualización`);
+    // Navegar al formulario de revisión
+    this.router.navigate(['/supervisor/revisar', documentoId], { queryParams });
+  }
+
+  /**
+   * ✅ LÓGICA PRINCIPAL CORREGIDA: Determinar modo de navegación
+   */
+  private determinarModoNavegacion(estado: string, supervisorAsignado: string, soyElSupervisor: boolean): any {
+    const queryParams: any = {
+      desdeHistorial: 'true'
+    };
+
+    console.log('🔍 Determinando modo de navegación:', {
+      estado,
+      supervisorAsignado,
+      soyElSupervisor
+    });
+
+    // Estados que son SIEMPRE solo lectura
+    const estadosSoloLecturaFinal = ['APROBADO', 'RECHAZADO'];
+    
+    // Estados que pueden ser editables
+    const estadosPotencialmenteEditables = [
+      'RADICADO', 
+      'EN_REVISION', 
+      'EN_REVISION_SUPERVISOR', 
+      'OBSERVADO',
+      'PENDIENTE',
+      'PENDIENTE_CORRECCIONES'
+    ];
+
+    const esEstadoFinal = estadosSoloLecturaFinal.some(e => estado.includes(e));
+    const esEstadoPotencialEditable = estadosPotencialmenteEditables.some(e => estado.includes(e));
+
+    // ✅ REGLA 1: Estados APROBADO y RECHAZADO → SIEMPRE solo lectura
+    if (esEstadoFinal) {
+      queryParams.soloLectura = 'true';
+      queryParams.modo = 'consulta';
+      console.log('✅ Modo: SOLO LECTURA (estado final APROBADO/RECHAZADO)');
+    }
+    // ✅ REGLA 2: Estados editables + soy el supervisor → EDICIÓN
+    else if (esEstadoPotencialEditable && soyElSupervisor) {
+      queryParams.modo = 'edicion';
+      queryParams.soloLectura = 'false';
+      console.log('✅ Modo: EDICIÓN (estado editable, soy el supervisor)');
+    }
+    // ✅ REGLA 3: Estados editables pero NO soy el supervisor → SOLO LECTURA
+    else if (esEstadoPotencialEditable && !soyElSupervisor) {
+      queryParams.soloLectura = 'true';
+      queryParams.modo = 'consulta';
+      console.log('✅ Modo: SOLO LECTURA (estado editable, NO soy el supervisor)');
+    }
+    // ✅ REGLA 4: Por defecto → EDICIÓN (para evitar problemas)
+    else {
+      queryParams.modo = 'edicion';
+      queryParams.soloLectura = 'false';
+      console.log('⚠️ Modo: EDICIÓN (por defecto, estado no identificado)');
+    }
+
+    return queryParams;
+  }
+
+  // ✅ MÉTODO ALTERNATIVO SIMPLIFICADO (si el anterior sigue fallando)
+  revisarNuevamenteSimplificado(item: any): void {
+    console.log('🔄 [SIMPLIFICADO] Revisar documento desde historial:', item);
+
+    // Extraer el ID del documento
+    let documentoId = '';
+
+    if (item.documento?.id) {
+      documentoId = item.documento.id;
+    } else if (item.id) {
+      documentoId = item.id;
+    } else if (item.documentoId) {
+      documentoId = item.documentoId;
+    }
+
+    if (!documentoId) {
+      console.error('❌ No hay ID de documento disponible');
+      this.notificationService.error('Error', 'No se puede revisar el documento: ID no disponible');
       return;
     }
 
-    // Verificar documento específico
-    const docData = item.documento || item;
-    let existeDocumento = false;
+    // LÓGICA SIMPLIFICADA: Solo lectura para APROBADO/RECHAZADO, edición para todo lo demás
+    const estado = item.estado?.toUpperCase() || '';
+    const esEstadoFinal = estado.includes('APROBADO') || estado.includes('RECHAZADO');
+    
+    const queryParams: any = {
+      desdeHistorial: 'true'
+    };
 
-    switch (index) {
-      case 1:
-        existeDocumento = !!(docData.cuentaCobro);
-        break;
-      case 2:
-        existeDocumento = !!(docData.seguridadSocial);
-        break;
-      case 3:
-        existeDocumento = !!(docData.informeActividades);
-        break;
-      default:
-        console.error('❌ Índice de documento no válido');
-        return;
+    if (esEstadoFinal) {
+      queryParams.soloLectura = 'true';
+      queryParams.modo = 'consulta';
+      console.log('✅ [SIMPLIFICADO] Modo: SOLO LECTURA (APROBADO/RECHAZADO)');
+    } else {
+      queryParams.modo = 'edicion';
+      queryParams.soloLectura = 'false';
+      console.log('✅ [SIMPLIFICADO] Modo: EDICIÓN (cualquier otro estado)');
     }
 
-    if (!existeDocumento) {
-      console.warn(`⚠️ Documento ${index} no disponible`);
-      this.notificationService.warning('Documento no disponible', `El documento específico no está disponible`);
-      return;
-    }
+    this.router.navigate(['/supervisor/revisar', documentoId], { queryParams });
+  }
 
-    // Llamar directamente al método del servicio
+  // Métodos auxiliares (mantener los existentes)
+  esDocumentoReciente(item: any): boolean {
+    const fechaActualizacion = item.fechaActualizacion || item.updatedAt;
+    if (!fechaActualizacion) return false;
+
     try {
-      this.supervisorService.previsualizarArchivo(documentoId, index);
-      console.log(`✅ Documento ${index} abierto`);
-      this.notificationService.info('Documento abierto', `El documento se ha abierto en una nueva pestaña`);
-    } catch (error: any) {
-      console.error(`❌ Error al abrir documento ${index}:`, error);
-      this.notificationService.error('Error', `No se pudo abrir el documento: ${error.message || 'Error desconocido'}`);
+      const fechaDoc = new Date(fechaActualizacion);
+      const ahora = new Date();
+      const diferenciaDias = Math.floor((ahora.getTime() - fechaDoc.getTime()) / (1000 * 60 * 60 * 24));
+      return diferenciaDias <= 7;
+    } catch {
+      return false;
     }
   }
 
-  // Método para descargar documentos del historial
-  descargarDocumentoHistorial(item: any, index: number): void {
-    // Extraer el ID del documento
-    let documentoId = '';
-
-    if (item.documento?.id) {
-      documentoId = item.documento.id;
-    } else if (item.id) {
-      documentoId = item.id;
-    } else if (item.documentoId) {
-      documentoId = item.documentoId;
-    }
-
-    if (!documentoId) {
-      console.error('❌ No hay ID de documento disponible');
-      this.notificationService.error('Error', 'No se puede descargar el documento: ID no disponible');
-      return;
-    }
-
-    console.log(`📥 Descargando documento ${index} del historial:`, item);
-
-    // Verificar si hay documentos disponibles
-    if (!this.tieneDocumentos(item)) {
-      console.warn(`⚠️ Documento ${index} no disponible para descarga`);
-      this.notificationService.warning('Documento no disponible', `El documento no está disponible para descarga`);
-      return;
-    }
-
-    let nombreDocumento = '';
-    let existeDocumento = false;
-
+  tieneDocumentos(item: any): boolean {
     const docData = item.documento || item;
-
-    switch (index) {
-      case 1:
-        nombreDocumento = docData.cuentaCobro || 'cuenta_cobro.pdf';
-        existeDocumento = !!docData.cuentaCobro;
-        break;
-      case 2:
-        nombreDocumento = docData.seguridadSocial || 'seguridad_social.pdf';
-        existeDocumento = !!docData.seguridadSocial;
-        break;
-      case 3:
-        nombreDocumento = docData.informeActividades || 'informe_actividades.pdf';
-        existeDocumento = !!docData.informeActividades;
-        break;
-      default:
-        console.error('❌ Índice de documento no válido');
-        return;
-    }
-
-    if (!existeDocumento) {
-      console.warn(`⚠️ Documento ${index} no disponible para descarga`);
-      this.notificationService.warning('Documento no disponible', `El documento específico no está disponible para descarga`);
-      return;
-    }
-
-    this.isProcessing = true;
-
-    this.supervisorService.descargarArchivo(documentoId, index)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (blob: Blob) => {
-          // Crear URL del blob y descargar
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = nombreDocumento.split(/[\\/]/).pop() || nombreDocumento;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          window.URL.revokeObjectURL(url);
-
-          this.isProcessing = false;
-          console.log(`✅ Documento ${index} descargado`);
-          this.notificationService.success('Descarga exitosa', `Documento descargado correctamente`);
-        },
-        error: (error: any) => {
-          console.error(`❌ Error descargando documento ${index}:`, error);
-          this.isProcessing = false;
-          this.notificationService.error('Error', `No se pudo descargar el documento: ${error.message || 'Error desconocido'}`);
-        }
-      });
+    return !!(docData.cuentaCobro || docData.seguridadSocial || docData.informeActividades);
   }
 
-  // NUEVO MÉTODO: Revisar documento nuevamente
- revisarNuevamente(item: any): void {
-  console.log('🔄 Revisar documento nuevamente:', item);
-
-  // Extraer el ID del documento
-  let documentoId = '';
-
-  if (item.documento?.id) {
-    documentoId = item.documento.id;
-  } else if (item.id) {
-    documentoId = item.id;
-  } else if (item.documentoId) {
-    documentoId = item.documentoId;
-  }
-
-  if (!documentoId) {
-    console.error('❌ No hay ID de documento disponible');
-    this.notificationService.error('Error', 'No se puede revisar el documento: ID no disponible');
-    return;
-  }
-
-  // Guardar datos del historial para prellenar el formulario
-  const datosHistorial = {
-    id: item.id,
-    documentoId: documentoId,
-    numeroRadicado: this.getNumeroRadicado(item),
-    numeroContrato: this.getNumeroContrato(item),
-    nombreContratista: this.getNombreContratista(item),
-    documentoContratista: this.getDocumentoContratista(item),
-    estadoRevision: item.estado || 'PENDIENTE',
-    observacionSupervisor: item.observacion || '',
-    fechaRevision: item.fechaActualizacion || new Date(),
-    supervisorRevisor: this.getSupervisorRevisor(item),
-    fechaInicio: item.documento?.fechaInicio || item.fechaInicio,
-    fechaFin: item.documento?.fechaFin || item.fechaFin,
-    fechaRadicacion: item.documento?.fechaRadicacion || item.fechaRadicacion,
-    desdeHistorial: true,
-    modoSoloLectura: true // ✅ Indicar que es solo lectura
-  };
-
-  // Guardar en localStorage para que el formulario los use
-  localStorage.setItem('datosHistorialParaRevision', JSON.stringify(datosHistorial));
-
-  // ✅ CORRECCIÓN: Usar la ruta correcta 'revisar/:id' en lugar de 'ver-revision/:id'
-  this.router.navigate(['/supervisor/revisar', documentoId], {
-    queryParams: {
-      modo: 'consulta',
-      desdeHistorial: 'true',
-      soloLectura: 'true'
-    }
-  });
-}
-
-  // NUEVO MÉTODO: Calcular duración de revisión
   getDuracionRevision(item: any): string {
     const fechaInicio = item.fechaInicio || item.documento?.fechaInicio || item.createdAt;
     const fechaFin = item.fechaActualizacion || item.updatedAt || new Date();
@@ -412,8 +403,6 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
     return estado;
   }
 
-  // ✅ MÉTODOS DE FORMATO DE FECHAS ACTUALIZADOS
-
   formatDate(fecha: Date | string): string {
     if (!fecha) return 'N/A';
     try {
@@ -434,7 +423,6 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
     if (!fecha) return 'N/A';
     try {
       const date = new Date(fecha);
-      // Formato: "12 ene 2024"
       return date.toLocaleDateString('es-ES', {
         year: 'numeric',
         month: 'short',
@@ -449,7 +437,6 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
     if (!fecha) return 'N/A';
     try {
       const date = new Date(fecha);
-      // Formato: "12/01/2024"
       return date.toLocaleDateString('es-ES', {
         year: 'numeric',
         month: '2-digit',
@@ -460,12 +447,10 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Método adicional para formato con mes completo
   formatDateWithFullMonth(fecha: Date | string): string {
     if (!fecha) return 'N/A';
     try {
       const date = new Date(fecha);
-      // Formato: "12 de enero de 2024"
       return date.toLocaleDateString('es-ES', {
         year: 'numeric',
         month: 'long',
@@ -584,5 +569,146 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
 
   refreshData(): void {
     this.loadHistorial();
+  }
+
+  // Métodos para documentos del historial
+  verDocumentosHistorial(item: any, index: number): void {
+    let documentoId = '';
+
+    if (item.documento?.id) {
+      documentoId = item.documento.id;
+    } else if (item.id) {
+      documentoId = item.id;
+    } else if (item.documentoId) {
+      documentoId = item.documentoId;
+    }
+
+    if (!documentoId) {
+      console.error('❌ No hay ID de documento disponible');
+      this.notificationService.warning('Documento no disponible', 'No se puede abrir el documento: ID no disponible');
+      return;
+    }
+
+    console.log(`👁️ Ver documento ${index} del historial:`, item);
+
+    if (!this.tieneDocumentos(item)) {
+      console.warn(`⚠️ Documento ${index} no disponible`);
+      this.notificationService.warning('Documento no disponible', `El documento no está disponible para visualización`);
+      return;
+    }
+
+    const docData = item.documento || item;
+    let existeDocumento = false;
+
+    switch (index) {
+      case 1:
+        existeDocumento = !!(docData.cuentaCobro);
+        break;
+      case 2:
+        existeDocumento = !!(docData.seguridadSocial);
+        break;
+      case 3:
+        existeDocumento = !!(docData.informeActividades);
+        break;
+      default:
+        console.error('❌ Índice de documento no válido');
+        return;
+    }
+
+    if (!existeDocumento) {
+      console.warn(`⚠️ Documento ${index} no disponible`);
+      this.notificationService.warning('Documento no disponible', `El documento específico no está disponible`);
+      return;
+    }
+
+    try {
+      this.supervisorService.previsualizarArchivo(documentoId, index);
+      console.log(`✅ Documento ${index} abierto`);
+      this.notificationService.info('Documento abierto', `El documento se ha abierto en una nueva pestaña`);
+    } catch (error: any) {
+      console.error(`❌ Error al abrir documento ${index}:`, error);
+      this.notificationService.error('Error', `No se pudo abrir el documento: ${error.message || 'Error desconocido'}`);
+    }
+  }
+
+  descargarDocumentoHistorial(item: any, index: number): void {
+    let documentoId = '';
+
+    if (item.documento?.id) {
+      documentoId = item.documento.id;
+    } else if (item.id) {
+      documentoId = item.id;
+    } else if (item.documentoId) {
+      documentoId = item.documentoId;
+    }
+
+    if (!documentoId) {
+      console.error('❌ No hay ID de documento disponible');
+      this.notificationService.error('Error', 'No se puede descargar el documento: ID no disponible');
+      return;
+    }
+
+    console.log(`📥 Descargando documento ${index} del historial:`, item);
+
+    if (!this.tieneDocumentos(item)) {
+      console.warn(`⚠️ Documento ${index} no disponible para descarga`);
+      this.notificationService.warning('Documento no disponible', `El documento no está disponible para descarga`);
+      return;
+    }
+
+    let nombreDocumento = '';
+    let existeDocumento = false;
+
+    const docData = item.documento || item;
+
+    switch (index) {
+      case 1:
+        nombreDocumento = docData.cuentaCobro || 'cuenta_cobro.pdf';
+        existeDocumento = !!docData.cuentaCobro;
+        break;
+      case 2:
+        nombreDocumento = docData.seguridadSocial || 'seguridad_social.pdf';
+        existeDocumento = !!docData.seguridadSocial;
+        break;
+      case 3:
+        nombreDocumento = docData.informeActividades || 'informe_actividades.pdf';
+        existeDocumento = !!docData.informeActividades;
+        break;
+      default:
+        console.error('❌ Índice de documento no válido');
+        return;
+    }
+
+    if (!existeDocumento) {
+      console.warn(`⚠️ Documento ${index} no disponible para descarga`);
+      this.notificationService.warning('Documento no disponible', `El documento específico no está disponible para descarga`);
+      return;
+    }
+
+    this.isProcessing = true;
+
+    this.supervisorService.descargarArchivo(documentoId, index)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (blob: Blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = nombreDocumento.split(/[\\/]/).pop() || nombreDocumento;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+
+          this.isProcessing = false;
+          console.log(`✅ Documento ${index} descargado`);
+          this.notificationService.success('Descarga exitosa', `Documento descargado correctamente`);
+        },
+        error: (error: any) => {
+          console.error(`❌ Error descargando documento ${index}:`, error);
+          this.isProcessing = false;
+          this.notificationService.error('Error', `No se pudo descargar el documento: ${error.message || 'Error desconocido'}`);
+        }
+      });
   }
 }

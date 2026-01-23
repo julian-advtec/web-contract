@@ -1,7 +1,7 @@
 // src/app/pages/supervisor/components/supervisor-stats/supervisor-stats.component.ts
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { SupervisorService } from '../../../../core/services/supervisor.service';
+import { SupervisorService } from '../../../../core/services/supervisor/supervisor.service';
 
 @Component({
   selector: 'app-supervisor-stats',

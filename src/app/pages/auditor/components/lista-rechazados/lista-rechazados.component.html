@@ -1,0 +1,71 @@
+<div class="container-fluid py-4">
+  <div class="row">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header pb-0">
+          <h5>Lista de Documentos Rechazados</h5>
+          <p class="text-sm">Documentos rechazados por contabilidad</p>
+        </div>
+
+        <div class="card-body px-0 pt-0 pb-2">
+          <div *ngIf="isLoading" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-3">Cargando documentos rechazados...</p>
+          </div>
+
+          <div *ngIf="error" class="alert alert-danger m-3">
+            {{ error }}
+          </div>
+
+          <div *ngIf="!isLoading && !error && documentos.length === 0" class="text-center py-5">
+            <i class="material-icons text-warning">info</i>
+            <p class="mt-3">No hay documentos rechazados por contabilidad en este momento</p>
+          </div>
+
+          <div class="table-responsive" *ngIf="!isLoading && documentos.length > 0">
+            <table class="table align-items-center mb-0">
+              <thead>
+                <tr>
+                  <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Radicado</th>
+                  <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Tipo</th>
+                  <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Fecha Rechazo</th>
+                  <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Motivo</th>
+                  <th class="text-secondary opacity-7"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let doc of documentos">
+                  <td>
+                    <div class="d-flex px-2">
+                      <div class="my-auto">
+                        <h6 class="mb-0 text-sm">{{ doc['radicado'] || 'Sin radicado' }}</h6>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <p class="text-xs font-weight-bold mb-0">{{ doc['tipoDocumento'] }}</p>
+                  </td>
+                  <td>
+                    <p class="text-xs font-weight-bold mb-0">{{ doc['fechaRechazo'] | date:'dd/MM/yyyy HH:mm' }}</p>
+                  </td>
+                  <td>
+                    <span class="badge badge-sm bg-gradient-danger">
+                      {{ doc['motivoRechazoContabilidad'] || 'Motivo no especificado' }}
+                    </span>
+                  </td>
+                  <td class="align-middle text-center">
+                    <button class="btn btn-link text-dark px-3 mb-0" 
+                            (click)="verDetalle(doc.id)">
+                      <i class="material-icons text-sm me-2">visibility</i>
+                      Ver detalle
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

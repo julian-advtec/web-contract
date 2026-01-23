@@ -1,13 +1,15 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, OnDestroy, Input, Output } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import { Observable, of } from 'rxjs';
-import { map, catchError } from 'rxjs/operators';
+import { Observable, of, Subject } from 'rxjs';
+import { map, catchError, takeUntil } from 'rxjs/operators';
+import { EventEmitter } from '@angular/core';
 
-import { RadicacionService } from '../../../../core/services/radicacion.service';
-import { SupervisorService } from '../../../../core/services/supervisor.service';
+import { SupervisorService } from '../../../../core/services/supervisor/supervisor.service';
 import { NotificationService } from '../../../../core/services/notification.service';
+import { AuditorService } from '../../../../core/services/auditor.service'; // ← AÑADIR
+
 
 @Component({
   selector: 'app-supervisor-form',
@@ -16,18 +18,28 @@ import { NotificationService } from '../../../../core/services/notification.serv
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule]
 })
-export class SupervisorFormComponent implements OnInit {
+export class SupervisorFormComponent implements OnInit, OnDestroy {
+
+  @Input() documentoId!: string;           // Recibe el ID desde afuera
+  @Input() modo: 'supervisor' | 'auditoria' = 'supervisor';
+  @Input() soloLectura: boolean = false;
+
+  // ← Output opcional para que el hijo avise al padre (ej: botón volver)
+  @Output() volver = new EventEmitter<void>();
   // Variables principales
-  documentoId: string = '';
+
   radicadoData: any = null;
   isLoading = false;
   isProcessing = false;
   isDownloadingAll = false;
 
-  // Modos de trabajo
+  // Modos de trabajo - INICIALIZAR CON VALORES POR DEFECTO
   modoEdicion = false;
   desdeHistorial = false;
-  soloLectura = false;
+
+
+  // ✅ NUEVA VARIABLE PARA MODO AUDITOR
+  esModoAuditor = false;
 
   // Formulario
   revisionForm!: FormGroup;
@@ -44,14 +56,22 @@ export class SupervisorFormComponent implements OnInit {
   nombrePazSalvoExistente: string = '';
   fechaPazSalvoExistente: Date | null = null;
 
+  // ✅ NUEVOS ARCHIVOS DE AUDITOR (primer radicado del año)
+  archivosAuditor: any[] = [];
+  primerRadicadoDelAno = false;
+
   cargandoVerAprobacion = false;
   cargandoVerPazSalvo = false;
 
+  documento: any = {};
+
+
+
   // Documentos radicados
   documentosExistentes = [
-    { nombre: '', disponible: false },
-    { nombre: '', disponible: false },
-    { nombre: '', disponible: false }
+    { nombre: '', disponible: false, tipo: 'cuentaCobro', indice: 1, nombreOriginal: '' },
+    { nombre: '', disponible: false, tipo: 'seguridadSocial', indice: 2, nombreOriginal: '' },
+    { nombre: '', disponible: false, tipo: 'informeActividades', indice: 3, nombreOriginal: '' }
   ];
 
   // Información del supervisor
@@ -75,54 +95,98 @@ export class SupervisorFormComponent implements OnInit {
 
   cargandoVer: { [key: string]: boolean } = {};
 
+  private destroy$ = new Subject<void>();
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private fb: FormBuilder,
-    private radicacionService: RadicacionService, // Mantener si es necesario, pero preferir supervisorService
     private supervisorService: SupervisorService,
+    private auditorService: AuditorService, // ← AÑADIR
     private notificationService: NotificationService,
     private cdr: ChangeDetectorRef
   ) { }
 
   ngOnInit(): void {
+    console.log('🚀 SupervisorForm: Inicializando componente...');
+
     this.initializeForm();
+
+    // ✅ DETECTAR SI ES MODO AUDITOR DESDE LA RUTA
+    this.esModoAuditor = this.router.url.includes('/auditor/');
+    console.log('🔍 Detectando contexto:', {
+      url: this.router.url,
+      esModoAuditor: this.esModoAuditor
+    });
 
     // Obtener parámetros de la ruta
     this.route.queryParams.subscribe(params => {
-      this.modoEdicion = params['modo'] === 'edicion';
       this.desdeHistorial = params['desdeHistorial'] === 'true';
-      this.soloLectura = params['soloLectura'] === 'true' || params['modo'] === 'consulta';
-
-      console.log('🔍 Parámetros de ruta:', {
-        modoEdicion: this.modoEdicion,
-        desdeHistorial: this.desdeHistorial,
-        soloLectura: this.soloLectura
-      });
+      this.determinarModoDesdeParams(params);
     });
 
     // Obtener ID del documento
     this.route.params.subscribe(params => {
       this.documentoId = params['id'];
+      console.log('📋 ID del documento:', this.documentoId);
       this.cargarDocumentoCompleto(this.documentoId);
     });
 
     // Suscripciones a cambios en el formulario
-    this.revisionForm.get('estadoRevision')?.valueChanges.subscribe(estado => {
-      this.onEstadoChange(estado);
-    });
+    this.revisionForm.get('estadoRevision')?.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(estado => {
+        this.onEstadoChange(estado);
+      });
 
-    this.revisionForm.get('esUltimoRadicado')?.valueChanges.subscribe(esUltimo => {
-      this.onUltimoRadicadoChange(esUltimo);
-      setTimeout(() => {
-        this.verificarConsistenciaDatos();
-      }, 100);
-    });
+    this.revisionForm.get('esUltimoRadicado')?.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(esUltimo => {
+        this.onUltimoRadicadoChange(esUltimo);
+        setTimeout(() => {
+          this.verificarConsistenciaDatos();
+        }, 100);
+      });
   }
 
-  // ========================
-  // MÉTODOS DE INICIALIZACIÓN
-  // ========================
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  /**
+   * ✅ Determinar modo basado en parámetros explícitos
+   */
+  private determinarModoDesdeParams(params: any): void {
+    console.log('🔍 Determinando modo desde parámetros:', params);
+
+    // ✅ MODO AUDITOR TIENE PRIORIDAD
+    if (this.esModoAuditor || params['modo'] === 'auditoria') {
+      this.soloLectura = true;
+      this.modoEdicion = false;
+      console.log('✅ Modo: AUDITORÍA (desde módulo auditor)');
+      return;
+    }
+
+    // Parámetro explícito de solo lectura tiene prioridad
+    if (params['soloLectura'] === 'true' || params['modo'] === 'consulta') {
+      this.soloLectura = true;
+      this.modoEdicion = false;
+      console.log('✅ Modo: SOLO LECTURA (parámetro explícito)');
+      return;
+    }
+
+    // Parámetro explícito modo=edicion
+    if (params['modo'] === 'edicion') {
+      this.soloLectura = false;
+      this.modoEdicion = true;
+      console.log('✅ Modo: EDICIÓN (parámetro explícito)');
+      return;
+    }
+
+    // Si viene desde historial sin parámetros, determinar después con datos del documento
+    console.log('⚠️ Modo: Por determinar con datos del documento');
+  }
 
   private initializeForm(): void {
     this.revisionForm = this.fb.group({
@@ -156,25 +220,39 @@ export class SupervisorFormComponent implements OnInit {
     });
   }
 
-  // ========================
-  // MÉTODOS PARA CARGAR DATOS
-  // ========================
-
   /**
    * ✅ Carga el documento completo con toda la información
    */
   cargarDocumentoCompleto(id: string): void {
     this.isLoading = true;
 
-    this.supervisorService.obtenerDocumentoPorId(id)
-      .pipe(
-        map((documentoResponse: any) => {
-          console.log('📊 Documento principal recibido:', documentoResponse);
+    console.log('📥 Cargando documento completo...', {
+      id,
+      modoEdicion: this.modoEdicion,
+      soloLectura: this.soloLectura,
+      desdeHistorial: this.desdeHistorial,
+      esModoAuditor: this.esModoAuditor
+    });
 
-          const documentoData = documentoResponse?.data?.documento ||
-            documentoResponse?.documento ||
-            documentoResponse?.data ||
-            documentoResponse;
+    // ✅ DIFERENCIAR SERVICIO SEGÚN MODO
+    let servicioObservable: Observable<any>;
+
+    if (this.esModoAuditor) {
+      // Endpoint correcto para auditor (vista)
+      servicioObservable = this.auditorService.obtenerDocumentoParaVista(id); // ← Usa este método
+    } else {
+      servicioObservable = this.supervisorService.obtenerDocumentoPorId(id);
+    }
+
+    servicioObservable
+      .pipe(
+        map((response: any) => {
+          console.log('📊 Documento recibido:', response);
+
+          const documentoData = response?.data?.documento ||
+            response?.documento ||
+            response?.data ||
+            response;
 
           return documentoData;
         }),
@@ -193,6 +271,28 @@ export class SupervisorFormComponent implements OnInit {
 
           this.radicadoData = documentoData;
 
+          console.log('🔍 Datos del documento recibido:', {
+            estado: documentoData.estado,
+            supervisorAsignado: documentoData.supervisorAsignado,
+            asignacion: documentoData.asignacion,
+            modoActual: {
+              soloLectura: this.soloLectura,
+              modoEdicion: this.modoEdicion,
+              desdeHistorial: this.desdeHistorial,
+              esModoAuditor: this.esModoAuditor
+            }
+          });
+
+          // ✅ CARGAR DATOS ESPECÍFICOS DE AUDITOR SI CORRESPONDE
+          if (this.esModoAuditor) {
+            this.cargarDatosAuditorEspecificos(documentoData);
+          }
+
+          // ✅ SI NO HAY PARÁMETROS EXPLÍCITOS, DETERMINAR MODO DESDE DOCUMENTO
+          if (!this.modoYaDeterminado()) {
+            this.determinarModoDesdeDocumento(documentoData);
+          }
+
           // Cargar datos en el formulario
           this.poblarFormulario(documentoData);
           this.cargarDocumentosExistentes(documentoData);
@@ -202,243 +302,533 @@ export class SupervisorFormComponent implements OnInit {
 
           this.isLoading = false;
 
-          if (this.soloLectura) {
-            this.configurarModoSoloLectura();
-          } else {
-            // ✅ Tomar el documento para obtener permisos
-            this.tomarDocumento();
-          }
+          // Configurar formulario según el modo FINAL
+          this.configurarFormularioSegunModo();
+
+          console.log('✅ Documento cargado. Modo final:', {
+            soloLectura: this.soloLectura,
+            modoEdicion: this.modoEdicion,
+            estado: documentoData.estado,
+            desdeHistorial: this.desdeHistorial,
+            esModoAuditor: this.esModoAuditor
+          });
+
+          // Mostrar notificación del modo actual
+          this.mostrarNotificacionModo();
         }
       });
   }
 
   /**
-   * ✅ Toma el documento para revisión si no es solo lectura
+   * ✅ Cargar datos específicos para auditor
    */
-  private tomarDocumento(): void {
-    this.supervisorService.tomarDocumentoParaRevision(this.documentoId).subscribe({
-      next: (response) => {
-        console.log('✅ Documento tomado para revisión:', response);
-        this.notificationService.success('Éxito', 'Documento asignado para revisión');
-      },
-      error: (error) => {
-        console.warn('⚠️ El documento ya está asignado o no se pudo tomar:', error);
-        if (error.status === 409 || error.message.includes('ya asignado')) {
-          this.notificationService.info('Información', 'El documento ya está en revisión');
-        } else {
-          this.notificationService.error('Error', 'No se pudo asignar el documento para revisión');
-        }
-      }
-    });
+  private cargarDatosAuditorEspecificos(documentoData: any): void {
+    console.log('🔍 Cargando datos específicos de auditor:', documentoData);
+
+    this.primerRadicadoDelAno = documentoData.primerRadicadoDelAno || false;
+
+    // Cargar archivos de auditor si es primer radicado del año
+    if (this.primerRadicadoDelAno && documentoData.archivosAuditor) {
+      this.archivosAuditor = documentoData.archivosAuditor.map((archivo: any) => ({
+        tipo: archivo.tipo,
+        descripcion: archivo.descripcion,
+        subido: archivo.subido || false,
+        nombreArchivo: archivo.nombreArchivo || ''
+      }));
+      console.log('📁 Archivos de auditor cargados:', this.archivosAuditor);
+    }
   }
 
   /**
-   * ✅ Carga los archivos del supervisor desde el backend
+   * ✅ Verificar si el modo ya fue determinado desde parámetros
    */
-  private cargarArchivosSupervisorDesdeBackend(documentoId: string, documentoData: any): void {
-    console.log('🔍 Buscando archivos del supervisor para documento:', documentoId);
-
-    this.supervisorService.getHistorial()
-      .pipe(
-        map((historialResponse: any) => {
-          if (historialResponse.success && Array.isArray(historialResponse.data)) {
-            const registroSupervisor = historialResponse.data.find((item: any) => {
-              return item.documentoId === documentoId ||
-                (item.documento && item.documento.id === documentoId);
-            });
-
-            return registroSupervisor;
-          }
-          return null;
-        }),
-        catchError(error => {
-          console.warn('⚠️ Error obteniendo historial:', error);
-          return of(null);
-        })
-      )
-      .subscribe({
-        next: (registroSupervisor: any) => {
-          if (registroSupervisor) {
-            console.log('✅ Archivos del supervisor encontrados en historial:', registroSupervisor);
-            this.procesarDatosSupervisor(registroSupervisor);
-          } else {
-            this.cargarArchivosDesdeDocumento(documentoData);
-          }
-        }
-      });
+  private modoYaDeterminado(): boolean {
+    // El modo ya está determinado si:
+    // 1. Hay parámetros explícitos en la URL
+    // 2. O viene desde historial
+    // 3. O es modo auditor
+    return this.soloLectura === true ||
+      this.modoEdicion === true ||
+      this.desdeHistorial === true ||
+      this.esModoAuditor === true;
   }
 
-  private procesarDatosSupervisor(supervisorData: any): void {
-    console.log('🔍 Procesando datos del supervisor:', supervisorData);
+  /**
+   * ✅ Determinar modo basado en el documento (solo si no hay parámetros explícitos)
+   */
+  private determinarModoDesdeDocumento(documentoData: any): void {
+    const estado = documentoData.estado?.toUpperCase() || '';
+    const usuarioActual = this.getCurrentUser();
+    const supervisorAsignado = documentoData.supervisorAsignado ||
+      documentoData.asignacion?.supervisorActual;
 
-    const nombreArchivoAprobacion = supervisorData?.nombreArchivoSupervisor || '';
-    const nombrePazSalvo = supervisorData?.pazSalvo || '';
-
-    console.log('📁 Archivos encontrados:', {
-      aprobacion: nombreArchivoAprobacion,
-      pazSalvo: nombrePazSalvo
+    console.log('🔍 Determinando modo desde documento:', {
+      estado,
+      usuarioActual,
+      supervisorAsignado,
+      desdeHistorial: this.desdeHistorial,
+      esModoAuditor: this.esModoAuditor
     });
 
-    this.nombreArchivoAprobacionExistente = nombreArchivoAprobacion;
-    this.nombrePazSalvoExistente = nombrePazSalvo;
+    // ✅ REGLA PRINCIPAL: Estados APROBADO y RECHAZADO → SIEMPRE solo lectura
+    const estadosSoloLectura = ['APROBADO', 'RECHAZADO'];
+    const esEstadoFinal = estadosSoloLectura.some(e => estado.includes(e));
 
-    if (supervisorData?.fechaAprobacion) {
-      this.fechaArchivoAprobacionExistente = new Date(supervisorData.fechaAprobacion);
-    }
-    if (supervisorData?.fechaActualizacion) {
-      this.fechaPazSalvoExistente = new Date(supervisorData.fechaActualizacion);
-    }
+    // ✅ Comparar nombres de forma flexible
+    const soyElSupervisor = this.compararNombres(supervisorAsignado, usuarioActual);
 
-    // ✅ CORRECCIÓN: Obtener observación y correcciones directamente desde los campos separados
-    const observacionSupervisor = supervisorData?.observacion || '';
-    const correccionesSugeridas = supervisorData?.correcciones || '';
-
-    console.log('📝 Campos separados encontrados:', {
-      observacion: observacionSupervisor,
-      correcciones: correccionesSugeridas
+    console.log('🔍 Resultados de verificación:', {
+      esEstadoFinal,
+      soyElSupervisor,
+      supervisorAsignado,
+      usuarioActual
     });
 
-    this.supervisorInfo = {
-      ...this.supervisorInfo,
-      tieneArchivoAprobacion: !!nombreArchivoAprobacion,
-      tienePazSalvo: !!nombrePazSalvo,
-      nombreArchivoAprobacion: nombreArchivoAprobacion,
-      nombrePazSalvo: nombrePazSalvo,
-      esUltimoRadicado: supervisorData?.esUltimoRadicado || !!nombrePazSalvo,
-      supervisorRevisor: supervisorData?.usuarioNombre || this.getCurrentUser(),
-      fechaRevision: supervisorData?.fechaAprobacion || supervisorData?.fechaActualizacion,
-      observacionSupervisor: observacionSupervisor,
-      correccionesSugeridas: correccionesSugeridas
+    // ✅ REGLA 1: Estados APROBADO y RECHAZADO → SOLO LECTURA
+    if (esEstadoFinal) {
+      this.soloLectura = true;
+      this.modoEdicion = false;
+      console.log('✅ Modo: SOLO LECTURA (documento en estado final: APROBADO/RECHAZADO)');
+    }
+    // ✅ REGLA 2: Estados pendientes + soy el supervisor → EDICIÓN
+    else if (soyElSupervisor) {
+      this.soloLectura = false;
+      this.modoEdicion = true;
+      console.log('✅ Modo: EDICIÓN (soy el supervisor asignado)');
+    }
+    // ✅ REGLA 3: Estados pendientes pero NO soy el supervisor → SOLO LECTURA
+    else {
+      this.soloLectura = true;
+      this.modoEdicion = false;
+      console.log('✅ Modo: SOLO LECTURA (NO soy el supervisor asignado)');
+    }
+  }
+
+  /**
+   * ✅ Comparar nombres de forma flexible
+   */
+  private compararNombres(nombre1: string, nombre2: string): boolean {
+    if (!nombre1 || !nombre2) return false;
+
+    const normalizar = (nombre: string) => {
+      return nombre.toLowerCase()
+        .trim()
+        .replace(/\s+/g, ' ')
+        .replace(/[áä]/g, 'a').replace(/[éë]/g, 'e').replace(/[íï]/g, 'i')
+        .replace(/[óö]/g, 'o').replace(/[úü]/g, 'u');
     };
 
-    // ✅ ACTUALIZAR EL FORMULARIO CON LAS OBSERVACIONES Y CORRECCIONES
-    this.revisionForm.patchValue({
-      estadoRevision: supervisorData?.estado || '',
-      observacionSupervisor: observacionSupervisor || '',
-      correcciones: correccionesSugeridas || '',  // ✅ AQUÍ ESTÁ LA CORRECCIÓN
-      esUltimoRadicado: this.supervisorInfo.esUltimoRadicado
-    });
+    const nombre1Normalizado = normalizar(nombre1);
+    const nombre2Normalizado = normalizar(nombre2);
 
-    if (nombreArchivoAprobacion || nombrePazSalvo) {
-      this.mostrarCampoArchivo = true;
-    }
+    // Verificar coincidencia exacta o parcial
+    const esIgual = nombre1Normalizado === nombre2Normalizado ||
+      nombre1Normalizado.includes(nombre2Normalizado) ||
+      nombre2Normalizado.includes(nombre1Normalizado);
 
-    console.log('✅ Información del supervisor actualizada:', {
-      observacionSupervisor: this.supervisorInfo.observacionSupervisor,
-      correccionesSugeridas: this.supervisorInfo.correccionesSugeridas,
-      estadoRevision: supervisorData?.estado
-    });
-
-    this.cdr.detectChanges();
+    return esIgual;
   }
 
   /**
- * ✅ Método para separar observaciones de correcciones
- */
-  private separarObservacionesYCorrecciones(observacionCompleta: string): { observacion: string, correcciones: string } {
-    if (!observacionCompleta) {
-      return { observacion: '', correcciones: '' };
+   * ✅ Configurar formulario según el modo final
+   */
+  private configurarFormularioSegunModo(): void {
+    if (this.soloLectura) {
+      this.configurarModoSoloLectura();
+    } else {
+      this.configurarModoEdicion();
+    }
+  }
+
+  /**
+   * ✅ Configurar formulario para modo edición
+   */
+  private configurarModoEdicion(): void {
+    console.log('✏️ Configurando formulario en modo EDICIÓN');
+
+    // Habilitar campos editables
+    this.revisionForm.get('estadoRevision')?.enable();
+    this.revisionForm.get('observacionSupervisor')?.enable();
+    this.revisionForm.get('correcciones')?.enable();
+    this.revisionForm.get('esUltimoRadicado')?.enable();
+
+    // Establecer valores por defecto si están vacíos
+    if (!this.revisionForm.get('supervisorRevisor')?.value) {
+      this.revisionForm.patchValue({
+        supervisorRevisor: this.getCurrentUser(),
+        fechaRevision: this.getCurrentDate()
+      });
     }
 
-    console.log('🔍 Analizando observación completa:', observacionCompleta);
+    // Si el estado actual es APROBADO, mostrar campo de archivo
+    const estadoActual = this.revisionForm.get('estadoRevision')?.value;
+    if (estadoActual === 'APROBADO') {
+      this.mostrarCampoArchivo = true;
+    }
+  }
 
-    // Patrones comunes para separar (solo los más importantes)
-    if (observacionCompleta.includes('Correcciones:') || observacionCompleta.includes('CORRECCIONES:')) {
-      // Si tiene formato estructurado con "Correcciones:"
-      const partes = observacionCompleta.split(/Correcciones:|CORRECCIONES:/i);
-      const observacion = partes[0].trim();
-      const correcciones = 'Correcciones:' + (partes[1] ? partes[1].trim() : '');
+  /**
+   * ✅ Configurar formulario para modo solo lectura
+   */
+  private configurarModoSoloLectura(): void {
+    console.log('👁️ Configurando formulario en modo SOLO LECTURA');
 
-      console.log('✅ Separado usando patrón Correcciones:');
-      return { observacion, correcciones };
+    // Deshabilitar todos los campos editables
+    this.revisionForm.get('estadoRevision')?.disable();
+    this.revisionForm.get('observacionSupervisor')?.disable();
+    this.revisionForm.get('correcciones')?.disable();
+    this.revisionForm.get('esUltimoRadicado')?.disable();
+
+    // Si es modo auditor, ocultar/secciones específicas
+    if (this.esModoAuditor) {
+      this.ocultarCamposNoRelevantesParaAuditor();
     }
 
-    if (observacionCompleta.includes('Sugerencias:') || observacionCompleta.includes('SUGERENCIAS:')) {
-      // Si tiene formato con "Sugerencias:"
-      const partes = observacionCompleta.split(/Sugerencias:|SUGERENCIAS:/i);
-      const observacion = partes[0].trim();
-      const correcciones = 'Sugerencias:' + (partes[1] ? partes[1].trim() : '');
-
-      console.log('✅ Separado usando patrón Sugerencias:');
-      return { observacion, correcciones };
+    // Si hay archivos existentes, mostrar la sección
+    if (this.nombreArchivoAprobacionExistente || this.nombrePazSalvoExistente) {
+      this.mostrarCampoArchivo = true;
     }
+  }
 
-    // Si no encuentra patrón, buscar por formato de lista
-    const lineas = observacionCompleta.split('\n');
-    const observacionLineas: string[] = [];
-    const correccionesLineas: string[] = [];
-    let enCorrecciones = false;
+  /**
+   * ✅ Ocultar campos no relevantes para auditor
+   */
+  private ocultarCamposNoRelevantesParaAuditor(): void {
+    console.log('👁️ Ocultando campos no relevantes para auditor');
+    // Los campos ya están deshabilitados en modo solo lectura
+    // Aquí podrías agregar lógica adicional si necesitas ocultar secciones completas
+  }
 
-    for (const linea of lineas) {
-      const trimmedLinea = linea.trim();
-
-      if (trimmedLinea.startsWith('-') || trimmedLinea.startsWith('*') ||
-        trimmedLinea.startsWith('•') || /^\d+\./.test(trimmedLinea)) {
-        enCorrecciones = true;
-        correccionesLineas.push(linea);
-      } else if (!enCorrecciones) {
-        observacionLineas.push(linea);
+  /**
+   * ✅ Mostrar notificación del modo actual
+   */
+  private mostrarNotificacionModo(): void {
+    setTimeout(() => {
+      if (this.esModoAuditor) {
+        this.notificationService.info(
+          'Modo Auditoría',
+          'Está visualizando el documento en modo auditoría. Esta vista es de solo lectura.'
+        );
+      } else if (this.soloLectura) {
+        this.notificationService.info(
+          'Modo consulta',
+          'Está visualizando en modo solo lectura. Los documentos APROBADOS y RECHAZADOS no se pueden modificar.'
+        );
       } else {
-        correccionesLineas.push(linea);
+        this.notificationService.info(
+          'Modo edición',
+          'Puede realizar cambios en la revisión. Recuerde guardar los cambios cuando termine.'
+        );
+      }
+    }, 500);
+  }
+
+  // ========================
+  // ✅ NUEVOS MÉTODOS PARA AUDITOR
+  // ========================
+
+  /**
+   * ✅ Ver archivo de auditor (primer radicado del año)
+   */
+  verArchivoAuditor(tipo: string): void {
+    const archivo = this.archivosAuditor.find(a => a.tipo === tipo);
+
+    if (!archivo?.subido) {
+      this.notificationService.warning('Archivo no disponible',
+        'Este archivo no ha sido subido por el auditor');
+      return;
+    }
+
+    console.log(`👁️ Visualizando archivo de auditor: ${tipo}`);
+
+    this.auditorService.descargarArchivoAuditor(this.documentoId, tipo)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (blob: Blob) => {
+          const fileURL = URL.createObjectURL(blob);
+          window.open(fileURL, '_blank');
+
+          setTimeout(() => {
+            URL.revokeObjectURL(fileURL);
+          }, 1000);
+        },
+        error: (error: any) => {
+          console.error('Error al previsualizar archivo de auditor:', error);
+          this.notificationService.error('Error', 'No se pudo abrir el archivo');
+        }
+      });
+  }
+
+  /**
+   * ✅ Descargar archivo de auditor (primer radicado del año)
+   */
+  descargarArchivoAuditor(tipo: string): void {
+    const archivo = this.archivosAuditor.find(a => a.tipo === tipo);
+
+    if (!archivo?.subido) {
+      this.notificationService.warning('Archivo no disponible',
+        'Este archivo no ha sido subido por el auditor');
+      return;
+    }
+
+    this.isProcessing = true;
+    const nombreArchivo = archivo.nombreArchivo || `${tipo}_${this.revisionForm.get('numeroRadicado')?.value}.pdf`;
+
+    this.auditorService.descargarArchivoAuditor(this.documentoId, tipo)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (blob: Blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = nombreArchivo;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+
+          this.notificationService.success('Descarga completada', 'Archivo descargado correctamente');
+          this.isProcessing = false;
+        },
+        error: (error: any) => {
+          console.error(`❌ Error descargando archivo de auditor ${tipo}:`, error);
+          this.notificationService.error('Error', 'No se pudo descargar el archivo');
+          this.isProcessing = false;
+        }
+      });
+  }
+
+  /**
+   * ✅ Tomar documento para auditoría
+   */
+  tomarParaAuditoria(): void {
+    if (!this.esModoAuditor) return;
+
+    const confirmar = confirm('¿Está seguro de tomar este documento para auditoría?');
+    if (!confirmar) return;
+
+    this.isProcessing = true;
+
+    // ✅ USAR EL MÉTODO CORRECTO
+    // Opción 1: Usar el método específico si existe
+    this.auditorService.tomarParaRevision(this.documentoId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response: any) => {
+          console.log('✅ Documento tomado para auditoría:', response);
+          this.notificationService.success('Éxito', 'Documento tomado para auditoría correctamente');
+          this.isProcessing = false;
+          this.volverALista();
+        },
+        error: (error: any) => {
+          console.error('❌ Error tomando documento para auditoría:', error);
+
+          // Mensaje específico según el error
+          let mensajeError = 'No se pudo tomar el documento para auditoría';
+          if (error.status === 409) {
+            mensajeError = 'El documento ya fue tomado por otro auditor';
+          } else if (error.status === 403) {
+            mensajeError = 'No tiene permisos para tomar este documento';
+          } else if (error.status === 404) {
+            mensajeError = 'El documento no existe o no está disponible';
+          }
+
+          this.notificationService.error('Error', mensajeError);
+          this.isProcessing = false;
+        }
+      });
+  }
+
+  /**
+   * ✅ Verificar si tiene archivos de auditor
+   */
+  tieneArchivosAuditor(): boolean {
+    return this.archivosAuditor.some(archivo => archivo.subido);
+  }
+
+  /**
+   * ✅ Contar archivos de auditor disponibles
+   */
+  contarArchivosAuditor(): number {
+    return this.archivosAuditor.filter(archivo => archivo.subido).length;
+  }
+
+  // ========================
+  // MÉTODOS MODIFICADOS PARA AUDITOR
+  // ========================
+
+  /**
+   * ✅ Ver documento - Usa servicio según el modo
+   */
+  verDocumento(index: number): void {
+    if (index < 0 || index >= this.documentosExistentes.length ||
+      !this.documentosExistentes[index].disponible) {
+      this.notificationService.warning('Documento no disponible',
+        'El documento seleccionado no está disponible para visualización');
+      return;
+    }
+
+    console.log(`👁️ Visualizando documento ${index}`);
+
+    let servicioObservable: Observable<Blob>;
+
+    if (this.esModoAuditor) {
+      // Usar servicio de auditor
+      servicioObservable = this.auditorService.descargarArchivoRadicado(
+        this.documentoId,
+        this.documentosExistentes[index].indice
+      );
+    } else {
+      // Usar servicio de supervisor
+      servicioObservable = this.supervisorService.descargarArchivo(
+        this.documentoId,
+        this.documentosExistentes[index].indice
+      );
+    }
+
+    servicioObservable.subscribe({
+      next: (blob: Blob) => {
+        // Crear URL para el blob y abrir en nueva pestaña
+        const fileURL = URL.createObjectURL(blob);
+        window.open(fileURL, '_blank');
+
+        // Limpiar la URL después de un tiempo
+        setTimeout(() => {
+          URL.revokeObjectURL(fileURL);
+        }, 1000);
+      },
+      error: (error: any) => {
+        console.error('Error al previsualizar:', error);
+        this.notificationService.error('Error', 'No se pudo abrir el documento');
+      }
+    });
+  }
+
+  /**
+   * ✅ Descargar documento - Usa servicio según el modo
+   */
+  descargarDocumento(index: number): void {
+    if (index < 0 || index >= this.documentosExistentes.length ||
+      !this.documentosExistentes[index].disponible) {
+      this.notificationService.warning('Documento no disponible',
+        'El documento seleccionado no está disponible para descarga');
+      return;
+    }
+
+    this.isProcessing = true;
+    const nombreArchivo = this.getNombreArchivo(index);
+
+    let servicioObservable: Observable<Blob>;
+
+    if (this.esModoAuditor) {
+      servicioObservable = this.auditorService.descargarArchivoRadicado(
+        this.documentoId,
+        this.documentosExistentes[index].indice
+      );
+    } else {
+      servicioObservable = this.supervisorService.descargarArchivo(
+        this.documentoId,
+        this.documentosExistentes[index].indice
+      );
+    }
+
+    servicioObservable.subscribe({
+      next: (blob: Blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = nombreArchivo;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        this.notificationService.success('Descarga completada', 'Documento descargado correctamente');
+        this.isProcessing = false;
+      },
+      error: (error: any) => {
+        console.error(`❌ Error descargando documento ${index}:`, error);
+        this.notificationService.error('Error', 'No se pudo descargar el documento');
+        this.isProcessing = false;
+      }
+    });
+  }
+
+  /**
+   * ✅ Obtener nombre de archivo mejorado
+   */
+  getNombreArchivo(index: number): string {
+    if (index < 0 || index >= this.documentosExistentes.length) {
+      return 'No disponible';
+    }
+
+    const archivo = this.documentosExistentes[index];
+
+    if (!archivo?.disponible) {
+      return 'No disponible';
+    }
+
+    // 1. Intenta usar nombreOriginal si existe
+    if (archivo.nombreOriginal && archivo.nombreOriginal.trim() !== '') {
+      const nombre = archivo.nombreOriginal;
+      const parts = nombre.split(/[\\/]/);
+      return parts[parts.length - 1] || nombre;
+    }
+
+    // 2. Intenta usar nombre si existe
+    if (archivo.nombre && archivo.nombre.trim() !== '') {
+      const nombre = archivo.nombre;
+      const parts = nombre.split(/[\\/]/);
+      return parts[parts.length - 1] || nombre;
+    }
+
+    // 3. Nombre por defecto basado en tipo
+    const nombresPorDefecto: { [key: string]: string } = {
+      'cuentaCobro': 'Cuenta de Cobro.pdf',
+      'seguridadSocial': 'Seguridad Social.pdf',
+      'informeActividades': 'Informe de Actividades.pdf'
+    };
+
+    return nombresPorDefecto[archivo.tipo] || `Documento ${index + 1}.pdf`;
+  }
+
+  /**
+   * ✅ Volver a lista según el modo
+   */
+  volverALista(): void {
+    if (this.esModoAuditor) {
+      this.router.navigate(['/auditor/lista']);
+    } else if (this.desdeHistorial) {
+      this.router.navigate(['/supervisor/historial']);
+    } else {
+      this.router.navigate(['/supervisor/pendientes']);
+    }
+  }
+
+
+  puedeGuardar(): boolean {
+    if (this.soloLectura) return false;
+
+    const estado = this.revisionForm.get('estadoRevision')?.value;
+    const esUltimoRadicado = this.revisionForm.get('esUltimoRadicado')?.value;
+
+    if (estado === 'APROBADO') {
+      if (esUltimoRadicado && !this.archivoPazSalvo && !this.tienePazSalvoExistente()) {
+        return false;
+      }
+
+      if (!this.archivoAprobacion && !this.tieneAprobacionExistente()) {
+        return false;
       }
     }
 
-    const observacion = observacionLineas.join('\n').trim();
-    const correcciones = correccionesLineas.join('\n').trim();
-
-    if (correcciones) {
-      console.log('✅ Separado por formato de lista');
-      return { observacion, correcciones };
-    }
-
-    // Si no se puede separar, todo es observación
-    console.log('⚠️ No se pudo separar, usando todo como observación');
-    return { observacion: observacionCompleta, correcciones: '' };
-  }
-
-  private cargarArchivosDesdeDocumento(documento: any): void {
-    console.log('🔍 Buscando archivos en datos del documento:', documento);
-
-    const docData = documento.documento || documento;
-
-    const historial = docData.historialEstados || [];
-    const estadoAprobado = historial.find((h: any) =>
-      h.estado === 'APROBADO' || h.estado === 'APROBADO_SUPERVISOR'
-    );
-
-    if (estadoAprobado) {
-      console.log('✅ Estado APROBADO encontrado en historial:', estadoAprobado);
-
-      this.revisionForm.patchValue({
-        observacionSupervisor: estadoAprobado.observacion || ''
-      });
-    }
-
-    if (docData.nombreArchivoSupervisor) {
-      this.nombreArchivoAprobacionExistente = docData.nombreArchivoSupervisor;
-      this.fechaArchivoAprobacionExistente = docData.fechaAprobacion ?
-        new Date(docData.fechaAprobacion) : null;
-      this.mostrarCampoArchivo = true;
-    }
-
-    if (docData.pazSalvo) {
-      this.nombrePazSalvoExistente = docData.pazSalvo;
-      this.fechaPazSalvoExistente = docData.fechaActualizacion ?
-        new Date(docData.fechaActualizacion) : null;
-    }
-
-    if (docData.esUltimoRadicado !== undefined) {
-      this.revisionForm.patchValue({
-        esUltimoRadicado: docData.esUltimoRadicado
-      });
-    }
+    return this.revisionForm.valid;
   }
 
   contarLineasCorrecciones(): number {
     const correcciones = this.revisionForm.get('correcciones')?.value || '';
     if (!correcciones) return 0;
 
-    // Contar líneas que contengan puntos, guiones o números
     const lineas = correcciones.split('\n');
     let count = 0;
 
@@ -456,92 +846,19 @@ export class SupervisorFormComponent implements OnInit {
     return count;
   }
 
-  private poblarFormulario(documento: any): void {
-    console.log('📝 Poblando formulario con datos:', documento);
-
-    const docData = documento.documento || documento;
-    const supervisorActual = this.getCurrentUser();
-
-    this.revisionForm.patchValue({
-      numeroRadicado: docData.numeroRadicado || '',
-      numeroContrato: docData.numeroContrato || '',
-      nombreContratista: docData.nombreContratista || '',
-      documentoContratista: docData.documentoContratista || '',
-      fechaInicio: this.formatDateForInput(docData.fechaInicio),
-      fechaFin: this.formatDateForInput(docData.fechaFin),
-      observacionOriginal: docData.observacion || '',
-
-      radicadorNombre: docData.radicador || docData.nombreRadicador || 'N/A',
-      radicadorUsuario: docData.radicadorUsuario || docData.usuarioRadicador || 'N/A',
-      fechaRadicacion: this.formatDateForInput(docData.fechaRadicacion || docData.createdAt),
-
-      supervisorAsignado: docData.supervisorAsignado ||
-        docData.asignacion?.supervisorActual ||
-        supervisorActual,
-      fechaAsignacion: this.formatDateForInput(docData.fechaAsignacion || new Date()),
-
-      supervisorRevisor: supervisorActual,
-      fechaRevision: this.getCurrentDate(),
-
-      // ✅ Estos campos se llenarán después en cargarInformacionSupervisorDesdeDocumento
-      estadoRevision: '', // Se llenará después
-      observacionSupervisor: '', // Se llenará después  
-      correcciones: '' // Se llenará después
-    });
-
-    // ✅ Guardar historial para uso posterior
-    if (docData.historialEstados && Array.isArray(docData.historialEstados)) {
-      this.historialEstados = docData.historialEstados;
-      console.log(`📋 Historial de estados guardado: ${this.historialEstados.length} registros`);
-    }
+  tienePazSalvoExistente(): boolean {
+    return !!this.nombrePazSalvoExistente ||
+      !!this.supervisorInfo?.nombrePazSalvo ||
+      this.supervisorInfo?.tienePazSalvo === true;
   }
 
-  private cargarDocumentosExistentes(documento: any): void {
-    const docData = documento.documento || documento;
-
-    console.log('📁 Datos para cargar documentos:', docData);
-
-    this.documentosExistentes[0] = {
-      nombre: docData.cuentaCobro || '',
-      disponible: !!docData.cuentaCobro
-    };
-
-    this.documentosExistentes[1] = {
-      nombre: docData.seguridadSocial || '',
-      disponible: !!docData.seguridadSocial
-    };
-
-    this.documentosExistentes[2] = {
-      nombre: docData.informeActividades || '',
-      disponible: !!docData.informeActividades
-    };
-
-    console.log('📁 Documentos existentes cargados:', this.documentosExistentes);
-  }
-
-  private configurarModoSoloLectura(): void {
-    console.log('🔒 Activando modo solo lectura en formulario');
-
-    this.revisionForm.get('estadoRevision')?.disable();
-    this.revisionForm.get('observacionSupervisor')?.disable();
-    this.revisionForm.get('correcciones')?.disable();
-    this.revisionForm.get('esUltimoRadicado')?.disable();
-
-    if (this.nombreArchivoAprobacionExistente || this.nombrePazSalvoExistente) {
-      this.mostrarCampoArchivo = true;
-    }
+  tieneAprobacionExistente(): boolean {
+    return !!this.nombreArchivoAprobacionExistente || !!this.supervisorInfo.nombreArchivoAprobacion;
   }
 
   private verificarConsistenciaDatos(): void {
     const tieneArchivoPazSalvo = this.tienePazSalvoExistente();
     const esUltimoRadicado = this.revisionForm.get('esUltimoRadicado')?.value;
-
-    console.log('🔍 Verificando consistencia de datos:', {
-      tieneArchivoPazSalvo,
-      esUltimoRadicado,
-      nombrePazSalvoExistente: this.nombrePazSalvoExistente,
-      supervisorInfoTienePazSalvo: this.supervisorInfo?.tienePazSalvo
-    });
 
     if (tieneArchivoPazSalvo && !esUltimoRadicado) {
       console.warn('⚠️ INCONSISTENCIA: Existe archivo de paz y salvo pero no está marcado como último radicado');
@@ -562,16 +879,6 @@ export class SupervisorFormComponent implements OnInit {
         'Al marcar como último radicado, debe adjuntar el archivo de paz y salvo.'
       );
     }
-  }
-
-  tienePazSalvoExistente(): boolean {
-    return !!this.nombrePazSalvoExistente ||
-      !!this.supervisorInfo?.nombrePazSalvo ||
-      this.supervisorInfo?.tienePazSalvo === true;
-  }
-
-  tieneAprobacionExistente(): boolean {
-    return !!this.nombreArchivoAprobacionExistente || !!this.supervisorInfo.nombreArchivoAprobacion;
   }
 
   getNombreArchivoPazSalvo(): string {
@@ -645,17 +952,6 @@ export class SupervisorFormComponent implements OnInit {
     return this.documentosExistentes.filter(doc => doc.disponible).length;
   }
 
-  getNombreArchivo(index: number): string {
-    if (index < 0 || index > 2) return '';
-    const archivo = this.documentosExistentes[index];
-    if (!archivo.disponible) return 'No disponible';
-
-    const path = archivo.nombre;
-    if (!path) return 'Sin nombre';
-    const parts = path.split(/[\\/]/);
-    return parts[parts.length - 1] || path;
-  }
-
   abrirTodosDocumentos(): void {
     if (!this.tieneDocumentosDisponibles()) {
       this.notificationService.warning('Sin documentos', 'No hay documentos disponibles para visualizar');
@@ -666,7 +962,7 @@ export class SupervisorFormComponent implements OnInit {
 
     let documentosAbiertos = 0;
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < this.documentosExistentes.length; i++) {
       if (this.documentosExistentes[i].disponible) {
         setTimeout(() => {
           this.verDocumento(i);
@@ -677,52 +973,6 @@ export class SupervisorFormComponent implements OnInit {
 
     this.notificationService.info('Documentos abiertos',
       `Se están abriendo ${documentosAbiertos} documentos en nuevas pestañas`);
-  }
-
-  verDocumento(index: number): void {
-    if (index < 0 || index > 2 || !this.documentosExistentes[index].disponible) {
-      this.notificationService.warning('Documento no disponible',
-        'El documento seleccionado no está disponible para visualización');
-      return;
-    }
-
-    console.log(`👁️ Visualizando documento ${index} usando SupervisorService`);
-    this.supervisorService.previsualizarArchivo(this.documentoId, index + 1);
-  }
-
-  descargarDocumento(index: number): void {
-    if (index < 0 || index > 2 || !this.documentosExistentes[index].disponible) {
-      this.notificationService.warning('Documento no disponible',
-        'El documento seleccionado no está disponible para descarga');
-      return;
-    }
-
-    this.isProcessing = true;
-    const nombreArchivo = this.getNombreArchivo(index);
-
-    console.log(`📥 Descargando documento individual ${index}: ${nombreArchivo}`);
-
-    this.supervisorService.descargarArchivo(this.documentoId, index + 1).subscribe({
-      next: (blob: Blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = nombreArchivo;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-
-        this.notificationService.success('Descarga completada', 'Documento descargado correctamente');
-        this.isProcessing = false;
-      },
-      error: (error: any) => {
-        console.error(`❌ Error descargando documento ${index}:`, error);
-        const errorMsg = error.error?.message || error.message || 'Error desconocido';
-        this.notificationService.error('Error', `No se pudo descargar el documento: ${errorMsg}`);
-        this.isProcessing = false;
-      }
-    });
   }
 
   descargarTodosDocumentos(): void {
@@ -756,7 +1006,21 @@ export class SupervisorFormComponent implements OnInit {
       setTimeout(() => {
         const nombreArchivo = this.getNombreArchivo(doc.index);
 
-        this.supervisorService.descargarArchivo(this.documentoId, doc.index + 1).subscribe({
+        let servicioObservable: Observable<Blob>;
+
+        if (this.esModoAuditor) {
+          servicioObservable = this.auditorService.descargarArchivoRadicado(
+            this.documentoId,
+            doc.indice
+          );
+        } else {
+          servicioObservable = this.supervisorService.descargarArchivo(
+            this.documentoId,
+            doc.indice
+          );
+        }
+
+        servicioObservable.subscribe({
           next: (blob: Blob) => {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -796,14 +1060,12 @@ export class SupervisorFormComponent implements OnInit {
       nombreArchivo = this.nombreArchivoAprobacionExistente ||
         this.supervisorInfo?.nombreArchivoAprobacion || '';
       if (nombreArchivo) {
-        // Llama al método DEL SERVICIO
         this.supervisorService.verArchivoAprobacion(nombreArchivo);
       }
     } else {
       nombreArchivo = this.nombrePazSalvoExistente ||
         this.supervisorInfo?.nombrePazSalvo || '';
       if (nombreArchivo) {
-        // Llama al método DEL SERVICIO
         this.supervisorService.previsualizarPazSalvo(nombreArchivo);
       }
     }
@@ -864,6 +1126,11 @@ export class SupervisorFormComponent implements OnInit {
   }
 
   guardarRevision(): void {
+    if (this.soloLectura) {
+      this.notificationService.error('Error', 'No puede guardar en modo solo lectura');
+      return;
+    }
+
     if (this.revisionForm.invalid) {
       this.notificationService.warning('Formulario incompleto',
         'Por favor completa todos los campos requeridos');
@@ -957,14 +1224,6 @@ export class SupervisorFormComponent implements OnInit {
     });
   }
 
-  volverALista(): void {
-    if (this.desdeHistorial) {
-      this.router.navigate(['/supervisor/historial']);
-    } else {
-      this.router.navigate(['/supervisor/pendientes']);
-    }
-  }
-
   cancelarRevision(): void {
     const mensaje = this.desdeHistorial
       ? '¿Cancelar la edición? Los cambios no guardados se perderán.'
@@ -1051,11 +1310,9 @@ export class SupervisorFormComponent implements OnInit {
     }
   }
 
-  // Método para manejar selección de archivo de aprobación (si existe en tu código original)
   onArchivoAprobacionSeleccionado(event: any): void {
     const file = event.target.files[0];
     if (file) {
-      // Validar y asignar similar a paz salvo
       if (file.size > this.maxFileSize) {
         this.notificationService.error('Error', 'El archivo excede el tamaño máximo de 10MB');
         return;
@@ -1082,12 +1339,251 @@ export class SupervisorFormComponent implements OnInit {
     }
   }
 
-  // Método para eliminar archivo de aprobación (si existe)
   eliminarArchivoAprobacion(): void {
     this.archivoAprobacion = null;
     this.notificationService.info('Archivo eliminado',
       'Archivo de aprobación eliminado de la selección');
   }
 
+  // ✅ MÉTODO PARA OBTENER CLASE CSS DEL ESTADO
+  getEstadoBadgeClass(estado: string): string {
+    if (!estado) return 'badge bg-light text-dark';
 
+    const estadoUpper = estado.toUpperCase();
+
+    switch (estadoUpper) {
+      case 'APROBADO':
+      case 'APROBADO_SUPERVISOR':
+        return 'badge bg-success';
+      case 'OBSERVADO':
+      case 'OBSERVADO_SUPERVISOR':
+        return 'badge bg-warning text-dark';
+      case 'RECHAZADO':
+      case 'RECHAZADO_SUPERVISOR':
+        return 'badge bg-danger';
+      case 'PENDIENTE':
+        return 'badge bg-secondary';
+      case 'EN_REVISION_SUPERVISOR':
+      case 'EN_REVISION':
+        return 'badge bg-info';
+      case 'RADICADO':
+        return 'badge bg-primary';
+      case 'EN_REVISION_AUDITOR':
+        return 'badge bg-info';
+      case 'APROBADO_AUDITOR':
+        return 'badge bg-success';
+      case 'RECHAZADO_AUDITOR':
+        return 'badge bg-danger';
+      case 'OBSERVADO_AUDITOR':
+        return 'badge bg-warning';
+      default:
+        return 'badge bg-light text-dark';
+    }
+  }
+
+  /**
+   * ✅ Carga los archivos del supervisor desde el backend
+   */
+  private cargarArchivosSupervisorDesdeBackend(documentoId: string, documentoData: any): void {
+    console.log('🔍 Buscando archivos del supervisor para documento:', documentoId);
+
+    this.supervisorService.getHistorial()
+      .pipe(
+        map((historialResponse: any) => {
+          if (historialResponse.success && Array.isArray(historialResponse.data)) {
+            const registroSupervisor = historialResponse.data.find((item: any) => {
+              return item.documentoId === documentoId ||
+                (item.documento && item.documento.id === documentoId);
+            });
+
+            return registroSupervisor;
+          }
+          return null;
+        }),
+        catchError(error => {
+          console.warn('⚠️ Error obteniendo historial:', error);
+          return of(null);
+        })
+      )
+      .subscribe({
+        next: (registroSupervisor: any) => {
+          if (registroSupervisor) {
+            console.log('✅ Archivos del supervisor encontrados en historial:', registroSupervisor);
+            this.procesarDatosSupervisor(registroSupervisor);
+          } else {
+            this.cargarArchivosDesdeDocumento(documentoData);
+          }
+        }
+      });
+  }
+
+  private procesarDatosSupervisor(supervisorData: any): void {
+    console.log('🔍 Procesando datos del supervisor:', supervisorData);
+
+    const nombreArchivoAprobacion = supervisorData?.nombreArchivoSupervisor || '';
+    const nombrePazSalvo = supervisorData?.pazSalvo || '';
+
+    console.log('📁 Archivos encontrados:', {
+      aprobacion: nombreArchivoAprobacion,
+      pazSalvo: nombrePazSalvo
+    });
+
+    this.nombreArchivoAprobacionExistente = nombreArchivoAprobacion;
+    this.nombrePazSalvoExistente = nombrePazSalvo;
+
+    if (supervisorData?.fechaAprobacion) {
+      this.fechaArchivoAprobacionExistente = new Date(supervisorData.fechaAprobacion);
+    }
+    if (supervisorData?.fechaActualizacion) {
+      this.fechaPazSalvoExistente = new Date(supervisorData.fechaActualizacion);
+    }
+
+    // ✅ Obtener observación y correcciones directamente desde los campos separados
+    const observacionSupervisor = supervisorData?.observacion || '';
+    const correccionesSugeridas = supervisorData?.correcciones || '';
+
+    console.log('📝 Campos separados encontrados:', {
+      observacion: observacionSupervisor,
+      correcciones: correccionesSugeridas
+    });
+
+    this.supervisorInfo = {
+      ...this.supervisorInfo,
+      tieneArchivoAprobacion: !!nombreArchivoAprobacion,
+      tienePazSalvo: !!nombrePazSalvo,
+      nombreArchivoAprobacion: nombreArchivoAprobacion,
+      nombrePazSalvo: nombrePazSalvo,
+      esUltimoRadicado: supervisorData?.esUltimoRadicado || !!nombrePazSalvo,
+      supervisorRevisor: supervisorData?.usuarioNombre || this.getCurrentUser(),
+      fechaRevision: supervisorData?.fechaAprobacion || supervisorData?.fechaActualizacion,
+      observacionSupervisor: observacionSupervisor,
+      correccionesSugeridas: correccionesSugeridas
+    };
+
+    // ✅ ACTUALIZAR EL FORMULARIO CON LAS OBSERVACIONES Y CORRECCIONES
+    this.revisionForm.patchValue({
+      estadoRevision: supervisorData?.estado || '',
+      observacionSupervisor: observacionSupervisor || '',
+      correcciones: correccionesSugeridas || '',
+      esUltimoRadicado: this.supervisorInfo.esUltimoRadicado
+    });
+
+    if (nombreArchivoAprobacion || nombrePazSalvo) {
+      this.mostrarCampoArchivo = true;
+    }
+
+    console.log('✅ Información del supervisor actualizada:', {
+      observacionSupervisor: this.supervisorInfo.observacionSupervisor,
+      correccionesSugeridas: this.supervisorInfo.correccionesSugeridas,
+      estadoRevision: supervisorData?.estado
+    });
+
+    this.cdr.detectChanges();
+  }
+
+  private cargarArchivosDesdeDocumento(documento: any): void {
+    console.log('🔍 Buscando archivos en datos del documento:', documento);
+
+    const docData = documento.documento || documento;
+
+    const historial = docData.historialEstados || [];
+    const estadoAprobado = historial.find((h: any) =>
+      h.estado === 'APROBADO' || h.estado === 'APROBADO_SUPERVISOR'
+    );
+
+    if (estadoAprobado) {
+      console.log('✅ Estado APROBADO encontrado en historial:', estadoAprobado);
+
+      this.revisionForm.patchValue({
+        observacionSupervisor: estadoAprobado.observacion || ''
+      });
+    }
+
+    if (docData.nombreArchivoSupervisor) {
+      this.nombreArchivoAprobacionExistente = docData.nombreArchivoSupervisor;
+      this.fechaArchivoAprobacionExistente = docData.fechaAprobacion ?
+        new Date(docData.fechaAprobacion) : null;
+      this.mostrarCampoArchivo = true;
+    }
+
+    if (docData.pazSalvo) {
+      this.nombrePazSalvoExistente = docData.pazSalvo;
+      this.fechaPazSalvoExistente = docData.fechaActualizacion ?
+        new Date(docData.fechaActualizacion) : null;
+    }
+
+    if (docData.esUltimoRadicado !== undefined) {
+      this.revisionForm.patchValue({
+        esUltimoRadicado: docData.esUltimoRadicado
+      });
+    }
+  }
+
+  private poblarFormulario(documento: any): void {
+    console.log('📝 Poblando formulario con datos:', documento);
+
+    const docData = documento.documento || documento;
+    const supervisorActual = this.getCurrentUser();
+
+    this.revisionForm.patchValue({
+      numeroRadicado: docData.numeroRadicado || '',
+      numeroContrato: docData.numeroContrato || '',
+      nombreContratista: docData.nombreContratista || '',
+      documentoContratista: docData.documentoContratista || '',
+      fechaInicio: this.formatDateForInput(docData.fechaInicio),
+      fechaFin: this.formatDateForInput(docData.fechaFin),
+      observacionOriginal: docData.observacion || '',
+
+      radicadorNombre: docData.radicador || docData.nombreRadicador || 'N/A',
+      radicadorUsuario: docData.radicadorUsuario || docData.usuarioRadicador || 'N/A',
+      fechaRadicacion: this.formatDateForInput(docData.fechaRadicacion || docData.createdAt),
+
+      supervisorAsignado: docData.supervisorAsignado ||
+        docData.asignacion?.supervisorActual ||
+        supervisorActual,
+      fechaAsignacion: this.formatDateForInput(docData.fechaAsignacion || new Date()),
+
+      supervisorRevisor: supervisorActual,
+      fechaRevision: this.getCurrentDate(),
+      estadoRevision: docData.estado || ''
+    });
+
+    // ✅ Guardar historial para uso posterior
+    if (docData.historialEstados && Array.isArray(docData.historialEstados)) {
+      this.historialEstados = docData.historialEstados;
+      console.log(`📋 Historial de estados guardado: ${this.historialEstados.length} registros`);
+    }
+  }
+
+  private cargarDocumentosExistentes(documento: any): void {
+    const docData = documento.documento || documento;
+
+    console.log('📁 Datos para cargar documentos:', docData);
+
+    this.documentosExistentes[0] = {
+      nombre: docData.cuentaCobro || '',
+      nombreOriginal: docData.descripcionCuentaCobro || 'cuenta_cobro.pdf',
+      disponible: !!docData.cuentaCobro,
+      tipo: 'cuentaCobro',
+      indice: 1
+    };
+
+    this.documentosExistentes[1] = {
+      nombre: docData.seguridadSocial || '',
+      nombreOriginal: docData.descripcionSeguridadSocial || 'seguridad_social.pdf',
+      disponible: !!docData.seguridadSocial,
+      tipo: 'seguridadSocial',
+      indice: 2
+    };
+
+    this.documentosExistentes[2] = {
+      nombre: docData.informeActividades || '',
+      nombreOriginal: docData.descripcionInformeActividades || 'informe_actividades.pdf',
+      disponible: !!docData.informeActividades,
+      tipo: 'informeActividades',
+      indice: 3
+    };
+
+    console.log('📁 Documentos existentes cargados:', this.documentosExistentes);
+  }
 }

@@ -112,7 +112,7 @@ export class ModulesService {
       id: 'auditoria',
       title: 'Auditoría',
       description: 'Auditoría de cuentas',
-      path: '/auditoria',
+      path: '/auditor',
       route: '/auditoria',
       icon: 'auditoria',
       requiredRole: UserRole.AUDITOR_CUENTAS,
