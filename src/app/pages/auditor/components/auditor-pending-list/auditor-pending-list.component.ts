@@ -134,22 +134,24 @@ export class AuditorPendingListComponent implements OnInit, OnDestroy {
     this.auditorService.tomarDocumentoParaRevision(doc.id)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (resultado: any) => {
+        next: (resultado) => {
           const index = this.documentos.findIndex(d => d.id === doc.id);
           if (index !== -1) {
-            this.documentos[index].estado = 'EN_REVISION_AUDITOR';
-            this.documentos[index].auditorAsignado = this.usuarioActual;
-            this.documentos[index].enAuditoria = true;
-            this.documentos[index].enRevision = true;
-            this.documentos[index].fechaAsignacionAuditoria = new Date().toISOString();
+            this.documentos[index] = {
+              ...this.documentos[index],
+              estado: 'EN_REVISION_AUDITOR',
+              auditorAsignado: this.usuarioActual,
+              enAuditoria: true,
+              enRevision: true,
+              fechaAsignacionAuditoria: new Date().toISOString()
+            };
           }
 
           this.notificationService.success(
             '¡Tomado!',
-            `Estado cambiado a EN_REVISION_AUDITOR. Redirigiendo...`
+            `Documento ${doc.numeroRadicado} asignado. Redirigiendo...`
           );
 
-          this.isProcessing = false;
           this.filteredDocumentos = [...this.documentos];
           this.updatePagination();
 
@@ -157,10 +159,16 @@ export class AuditorPendingListComponent implements OnInit, OnDestroy {
             queryParams: { modo: 'edicion', soloLectura: 'false' }
           });
         },
-        error: (err: any) => {
-          this.notificationService.error('Error', err.error?.message || 'No se pudo tomar');
+        error: (err) => {
+          let msg = 'No se pudo tomar el documento';
+          if (err.status === 404) msg = 'Endpoint no encontrado o documento inválido';
+          if (err.status === 409) msg = err.error?.message || 'Ya está asignado a otro auditor';
+          if (err.status === 403) msg = 'No tienes permisos';
+
+          this.notificationService.error('Error', msg);
           this.isProcessing = false;
-        }
+        },
+        complete: () => this.isProcessing = false
       });
   }
 

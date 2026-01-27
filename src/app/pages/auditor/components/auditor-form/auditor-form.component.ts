@@ -101,12 +101,12 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
   decisionSeleccionada: string = '';
 
   ngOnInit(): void {
-    console.log('[AUDITOR-FORM] Inicializando componente');
+
 
     this.route.params.subscribe(params => {
       this.documentoId = params['id'];
-      console.log('[AUDITOR-FORM] Documento ID:', this.documentoId);
-      
+
+
       // Cargar el documento
       this.cargarDocumentoParaAuditor(this.documentoId);
     });
@@ -119,13 +119,6 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
         modo: this.modo
       });
     });
-
-    // Monitorizar cambios en las variables críticas
-    interval(1000).pipe(
-      takeUntil(this.destroy$)
-    ).subscribe(() => {
-      console.log('[MONITOR] estadoDocumento actual:', this.estadoDocumento);
-    });
   }
 
   ngOnDestroy(): void {
@@ -134,18 +127,18 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
   }
 
   cargarDocumentoParaAuditor(id: string): void {
-    console.log('[AUDITOR-FORM] Cargando documento para auditor:', id);
+
     this.isLoading = true;
 
     // TEMPORAL: Usar endpoint debug
     const debugUrl = `${environment.apiUrl}/auditor/documentos/${id}/debug`;
-    console.log('[AUDITOR-FORM] Llamando a endpoint debug:', debugUrl);
+
 
     this.http.get(debugUrl, { headers: this.getAuthHeaders() })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (debugResponse: any) => {
-          console.log('[AUDITOR-FORM] Respuesta debug:', debugResponse);
+
 
           if (debugResponse.debug) {
             // Usar los datos del debug
@@ -158,7 +151,7 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
           this.isLoading = false;
         },
         error: (error: any) => {
-          console.error('[AUDITOR-FORM] Error en debug:', error);
+
           // Intentar con el endpoint normal si debug falla
           this.cargarConEndpointNormal(id);
         }
@@ -167,39 +160,33 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
 
   private cargarConEndpointNormal(id: string): void {
     const vistaUrl = `${environment.apiUrl}/auditor/documentos/${id}/vista`;
-    console.log('[AUDITOR-FORM] Llamando a endpoint normal:', vistaUrl);
+
 
     this.http.get(vistaUrl, { headers: this.getAuthHeaders() })
       .pipe(
         takeUntil(this.destroy$),
         catchError(error => {
-          console.error('[AUDITOR-FORM] Error en endpoint /vista:', error);
+
           const fallbackUrl = `${environment.apiUrl}/auditor/documentos/${id}`;
-          console.log('[AUDITOR-FORM] Intentando fallback:', fallbackUrl);
+
           return this.http.get(fallbackUrl, { headers: this.getAuthHeaders() });
         })
       )
       .subscribe({
         next: (response: any) => {
-          console.log('[AUDITOR-FORM] Respuesta normal:', response);
+
           this.procesarRespuestaDocumento(response);
           this.isLoading = false;
         },
         error: (error: any) => {
-          console.error('[AUDITOR-FORM] Error cargando documento:', error);
-          let mensaje = 'No se pudo cargar el documento';
-          if (error.status === 403) mensaje = 'No tiene permisos';
-          if (error.status === 404) mensaje = 'Documento no encontrado';
 
-          this.notificationService.error('Error', mensaje);
-          this.router.navigate(['/auditor/lista']);
           this.isLoading = false;
         }
       });
   }
 
   private procesarRespuestaDebug(debugResponse: any): void {
-    console.log('[AUDITOR-FORM] Procesando respuesta debug');
+
 
     const doc = debugResponse.documento;
 
@@ -231,54 +218,133 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
 
     this.verificarArchivosCompletos();
     this.verificarEstado();
-    
+
     // Forzar detección de cambios
     this.cdr.detectChanges();
   }
 
   private procesarRespuestaDocumento(response: any): void {
     console.log('[AUDITOR-FORM] RESPUESTA COMPLETA DEL BACKEND:', response);
-    
-    // Obtener el estado de la respuesta
-    this.estadoDocumento = response.estado || response.data?.documento?.estado || 'SIN ESTADO';
-    
-    console.log('[AUDITOR-FORM] Estado asignado:', this.estadoDocumento);
-    
-    // Procesar datos del documento
-    const datos = response.data || response;
-    const doc = datos?.documento || datos;
-    
-    if (doc) {
-      this.documentoData = doc;
-      this.numeroRadicado = doc.numeroRadicado || '';
-      this.nombreContratista = doc.nombreContratista || '';
-      this.primerRadicadoDelAno = !!doc.primerRadicadoDelAno;
-      
-      // Asegurar que estadoDocumento también se tome del documento si está disponible
-      if (!this.estadoDocumento || this.estadoDocumento === 'SIN ESTADO') {
-        this.estadoDocumento = doc.estado || doc.estadoDocumento || 'SIN ESTADO';
-      }
+
+    // Extraer el estado considerando la estructura anidada
+    let estadoEncontrado = 'SIN ESTADO';
+    let docData = null;
+
+    // Caso 1: Estructura anidada {ok: true, data: {success: true, data: {...}}}
+    if (response?.data?.data?.documento) {
+      console.log('[AUDITOR-FORM] Caso 1: Estructura anidada detectada');
+      docData = response.data.data.documento;
+      estadoEncontrado = docData.estado || response.data.data.estado || 'SIN ESTADO';
     }
-    
+    // Caso 2: Estructura simple {ok: true, data: {...}}
+    else if (response?.data?.documento) {
+      console.log('[AUDITOR-FORM] Caso 2: Estructura simple detectada');
+      docData = response.data.documento;
+      estadoEncontrado = docData.estado || response.data.estado || 'SIN ESTADO';
+    }
+    // Caso 3: Datos directos {documento: {...}}
+    else if (response?.documento) {
+      console.log('[AUDITOR-FORM] Caso 3: Datos directos detectados');
+      docData = response.documento;
+      estadoEncontrado = docData.estado || response.estado || 'SIN ESTADO';
+    }
+    // Caso 4: Respuesta directa del documento
+    else if (response?.estado) {
+      console.log('[AUDITOR-FORM] Caso 4: Respuesta directa detectada');
+      docData = response;
+      estadoEncontrado = response.estado;
+    }
+
+    console.log('[AUDITOR-FORM] Estado encontrado:', estadoEncontrado);
+
+    // Asignar valores
+    this.estadoDocumento = estadoEncontrado;
+
+    if (docData) {
+      this.documentoData = docData;
+      this.numeroRadicado = docData.numeroRadicado || '';
+      this.nombreContratista = docData.nombreContratista || '';
+      this.primerRadicadoDelAno = !!docData.primerRadicadoDelAno;
+    }
+
+    // Procesar archivos de auditor - considerando estructura anidada
+    let archivosAuditor = [];
+    if (response?.data?.data?.archivosAuditor) {
+      archivosAuditor = response.data.data.archivosAuditor;
+    } else if (response?.data?.archivosAuditor) {
+      archivosAuditor = response.data.archivosAuditor;
+    } else if (response?.archivosAuditor) {
+      archivosAuditor = response.archivosAuditor;
+    }
+
+    if (archivosAuditor.length > 0) {
+      this.procesarArchivosAuditor(archivosAuditor);
+    }
+
+    // Procesar archivos radicados - considerando estructura anidada
+    let archivosRadicados = [];
+    if (response?.data?.data?.archivosRadicados) {
+      archivosRadicados = response.data.data.archivosRadicados;
+    } else if (response?.data?.archivosRadicados) {
+      archivosRadicados = response.data.archivosRadicados;
+    } else if (response?.archivosRadicados) {
+      archivosRadicados = response.archivosRadicados;
+    }
+
+    if (archivosRadicados.length > 0) {
+      this.cargarDocumentosRadicados(archivosRadicados);
+    }
+
     // Actualizar banderas de estado
     this.documentoEnRevision = this.estadoDocumento === 'EN_REVISION_AUDITOR';
     this.estaEnRevision = this.documentoEnRevision;
-    
-    console.log('[AUDITOR-FORM] Datos procesados:', {
+
+    console.log('[AUDITOR-FORM] Datos procesados FINALES:', {
       estadoDocumento: this.estadoDocumento,
       numeroRadicado: this.numeroRadicado,
       nombreContratista: this.nombreContratista,
       primerRadicadoDelAno: this.primerRadicadoDelAno,
-      documentoEnRevision: this.documentoEnRevision
+      documentoEnRevision: this.documentoEnRevision,
+      estaEnRevision: this.estaEnRevision
     });
-    
+
     // Forzar la detección de cambios
     this.cdr.detectChanges();
-    
+
     // Verificar estado después de un breve delay
     setTimeout(() => {
       this.verificarEstado();
+      this.verificarArchivosCompletos();
     }, 100);
+  }
+
+  private procesarArchivosAuditor(archivos: any[]): void {
+    console.log('[AUDITOR-FORM] 🔍 ARCHIVOS RECIBIDOS DEL BACKEND:', archivos);
+
+    // Log detallado
+    archivos.forEach((archivo, index) => {
+      console.log(`Archivo ${index + 1}:`, {
+        tipo: archivo.tipo,
+        subido: archivo.subido,
+        nombreArchivo: archivo.nombreArchivo,
+        rutaServidor: archivo.rutaServidor,
+        descripcion: archivo.descripcion
+      });
+    });
+
+    // Cargar archivos desde la respuesta
+    archivos.forEach((archivo: any) => {
+      if (archivo.subido && archivo.tipo) {
+        const key = archivo.tipo as keyof typeof this.archivosAuditorFormulario;
+        if (this.archivosAuditorFormulario[key]) {
+          this.archivosAuditorFormulario[key].subido = archivo.subido;
+          this.archivosAuditorFormulario[key].nombreArchivo = archivo.nombreArchivo || '';
+          this.archivosAuditorFormulario[key].rutaServidor = archivo.rutaServidor || null;
+        }
+      }
+    });
+
+    console.log('[AUDITOR-FORM] Archivos auditor actualizados:', this.archivosAuditorFormulario);
   }
 
   tomarParaRevision(): void {
@@ -365,29 +431,43 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
   }
 
   private verificarArchivosCompletos(): void {
-    // Para primer radicado: todos deben estar subidos
-    // Para no primer radicado: no es obligatorio
+    // Contar archivos que están marcados como subidos O tienen archivo seleccionado
+    const archivosListos = Object.values(this.archivosAuditorFormulario)
+      .filter(a => a.subido || a.archivo !== null).length;
+
+    console.log('[AUDITOR-FORM] Verificando archivos completos:', {
+      primerRadicadoDelAno: this.primerRadicadoDelAno,
+      archivosListos: archivosListos,
+      totalRequerido: 6,
+      todosCompletos: archivosListos === 6
+    });
+
+    // Para primer radicado: todos deben estar listos
     if (this.primerRadicadoDelAno) {
-      this.archivosCompletos = Object.values(this.archivosAuditorFormulario).every(a => a.subido);
+      this.archivosCompletos = archivosListos === 6;
     } else {
       this.archivosCompletos = true; // No es obligatorio para no primer radicado
     }
 
-    console.log('[AUDITOR-FORM] Archivos completos:', {
-      primerRadicadoDelAno: this.primerRadicadoDelAno,
-      archivosCompletos: this.archivosCompletos,
-      archivosSubidos: this.contarArchivosAuditorSubidos()
-    });
+    console.log('[AUDITOR-FORM] Archivos completos:', this.archivosCompletos);
   }
 
   contarArchivosAuditorSubidos(): number {
-    const subidos = Object.values(this.archivosAuditorFormulario).filter(a => a.subido).length;
-    console.log('[AUDITOR-FORM] Archivos subidos:', subidos);
+    // ✅ CORREGIDO: Contar solo archivos REALMENTE subidos (con ruta o nombre)
+    const subidos = Object.values(this.archivosAuditorFormulario)
+      .filter(a => {
+        const tieneRuta = a.rutaServidor && a.rutaServidor.trim() !== '';
+        const tieneNombre = a.nombreArchivo && a.nombreArchivo.trim() !== '';
+        return (a.subido && (tieneRuta || tieneNombre)) || a.archivo !== null;
+      }).length;
+
     return subidos;
   }
 
   hayArchivosSeleccionados(): boolean {
-    const haySeleccionados = Object.values(this.archivosAuditorFormulario).some(a => a.archivo !== null);
+    const haySeleccionados = Object.values(this.archivosAuditorFormulario)
+      .some(a => a.archivo !== null);
+
     console.log('[AUDITOR-FORM] Hay archivos seleccionados:', haySeleccionados);
     return haySeleccionados;
   }
@@ -419,30 +499,22 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
   }
 
   puedeRealizarRevision(): boolean {
-    console.log('[AUDITOR-FORM] Verificando si puede realizar revisión:', {
-      estadoDocumento: this.estadoDocumento,
-      documentoEnRevision: this.documentoEnRevision,
-      estaEnRevision: this.estaEnRevision,
-      primerRadicadoDelAno: this.primerRadicadoDelAno,
-      archivosCompletos: this.archivosCompletos,
-      archivosSubidos: this.contarArchivosAuditorSubidos()
-    });
 
-    // Si el documento está en estado EN_REVISION_AUDITOR
-    if (this.estadoDocumento === 'EN_REVISION_AUDITOR') {
-      // Si es primer radicado, necesita todos los archivos
-      if (this.primerRadicadoDelAno) {
-        const puede = this.archivosCompletos;
-        console.log('[AUDITOR-FORM] Es primer radicado. Puede revisar:', puede);
-        return puede;
-      }
-      // Si no es primer radicado, puede revisar siempre
-      console.log('[AUDITOR-FORM] No es primer radicado. Puede revisar: true');
-      return true;
+
+    // 1. El documento debe estar en estado EN_REVISION_AUDITOR
+    if (this.estadoDocumento !== 'EN_REVISION_AUDITOR') {
+      console.log('[AUDITOR-FORM] ❌ NO puede revisar: No está en EN_REVISION_AUDITOR');
+      return false;
     }
 
-    console.log('[AUDITOR-FORM] No está en estado EN_REVISION_AUDITOR. Puede revisar: false');
-    return false;
+    // 2. Si es primer radicado, verificar archivos completos
+    if (this.primerRadicadoDelAno && !this.archivosCompletos) {
+
+      return false;
+    }
+
+
+    return true;
   }
 
   verificarEstado(): void {
@@ -454,15 +526,6 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
     console.log('Archivos completos:', this.archivosCompletos);
     console.log('Archivos subidos:', this.contarArchivosAuditorSubidos());
     console.log('=========================================');
-
-    // Llamar al backend directamente para ver la respuesta real
-    const url = `${environment.apiUrl}/auditor/documentos/${this.documentoId}/vista`;
-    this.http.get(url, { headers: this.getAuthHeaders() }).subscribe(
-      (response: any) => {
-        console.log('[DEBUG] Respuesta directa del backend:', response);
-      },
-      error => console.error('[DEBUG] Error:', error)
-    );
   }
 
   onArchivoSeleccionado(event: any, tipo: string): void {
@@ -500,10 +563,23 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
     }
 
     const key = tipo as keyof typeof this.archivosAuditorFormulario;
-    this.archivosAuditorFormulario[key].archivo = file;
-    this.archivosAuditorFormulario[key].nombreArchivo = file.name;
+
+    // ✅ IMPORTANTE: Marcar como subido cuando se selecciona el archivo
+    this.archivosAuditorFormulario[key] = {
+      subido: true,
+      archivo: file,
+      nombreArchivo: file.name,
+      rutaServidor: null
+    };
 
     console.log(`[AUDITOR-FORM] Archivo asignado para ${tipo}:`, file.name);
+    console.log(`[AUDITOR-FORM] Archivo marcado como subido:`, this.archivosAuditorFormulario[key]);
+
+    // Actualizar estado de archivos completos
+    this.verificarArchivosCompletos();
+
+    // Forzar detección de cambios
+    this.cdr.detectChanges();
   }
 
   subirArchivosAuditor(): void {
@@ -695,32 +771,59 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
 
   getEstadoBadgeClass(estado: string): string {
     console.log('[AUDITOR-FORM] getEstadoBadgeClass llamado con:', estado);
-    
-    if (!estado) {
-      console.log('[AUDITOR-FORM] Estado vacío, devolviendo clase por defecto');
+
+    if (!estado || estado === 'SIN ESTADO') {
+      console.log('[AUDITOR-FORM] Estado vacío o "SIN ESTADO", devolviendo bg-light');
       return 'badge bg-light text-dark';
     }
-    
+
     const upper = estado.toUpperCase();
     console.log('[AUDITOR-FORM] Estado en mayúsculas:', upper);
-    
+
+    // Estados específicos del backend
+    if (upper.includes('EN_REVISION_AUDITOR')) {
+      console.log('[AUDITOR-FORM] Devolviendo bg-info para EN_REVISION_AUDITOR');
+      return 'badge bg-info';
+    }
+    if (upper.includes('APROBADO_SUPERVISOR')) {
+      console.log('[AUDITOR-FORM] Devolviendo bg-success para APROBADO_SUPERVISOR');
+      return 'badge bg-success';
+    }
+    if (upper.includes('APROBADO_AUDITOR')) {
+      console.log('[AUDITOR-FORM] Devolviendo bg-success para APROBADO_AUDITOR');
+      return 'badge bg-success';
+    }
+    if (upper.includes('RECHAZADO_AUDITOR')) {
+      console.log('[AUDITOR-FORM] Devolviendo bg-danger para RECHAZADO_AUDITOR');
+      return 'badge bg-danger';
+    }
+    if (upper.includes('OBSERVADO_AUDITOR')) {
+      console.log('[AUDITOR-FORM] Devolviendo bg-warning para OBSERVADO_AUDITOR');
+      return 'badge bg-warning';
+    }
+    if (upper.includes('COMPLETADO_AUDITOR')) {
+      console.log('[AUDITOR-FORM] Devolviendo bg-primary para COMPLETADO_AUDITOR');
+      return 'badge bg-primary';
+    }
+
+    // Estados genéricos
     if (upper.includes('EN_REVISION')) {
-      console.log('[AUDITOR-FORM] Devolviendo clase bg-info');
+      console.log('[AUDITOR-FORM] Devolviendo bg-info para EN_REVISION');
       return 'badge bg-info';
     }
     if (upper.includes('APROBADO')) {
-      console.log('[AUDITOR-FORM] Devolviendo clase bg-success');
+      console.log('[AUDITOR-FORM] Devolviendo bg-success para APROBADO');
       return 'badge bg-success';
     }
     if (upper.includes('RECHAZADO')) {
-      console.log('[AUDITOR-FORM] Devolviendo clase bg-danger');
+      console.log('[AUDITOR-FORM] Devolviendo bg-danger para RECHAZADO');
       return 'badge bg-danger';
     }
     if (upper.includes('OBSERVADO')) {
-      console.log('[AUDITOR-FORM] Devolviendo clase bg-warning');
+      console.log('[AUDITOR-FORM] Devolviendo bg-warning para OBSERVADO');
       return 'badge bg-warning';
     }
-    
+
     console.log('[AUDITOR-FORM] Estado no reconocido, clase por defecto');
     return 'badge bg-light text-dark';
   }
@@ -850,58 +953,295 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
 
   private getAuthHeaders(): HttpHeaders {
     const token = localStorage.getItem('access_token') || localStorage.getItem('token') || '';
-    console.log('[AUDITOR-FORM] Token encontrado:', token ? 'Sí' : 'No');
+    const userJson = localStorage.getItem('user');
+    const userId = userJson ? JSON.parse(userJson).id : null;
 
-    return new HttpHeaders({
+    console.log('[AUDITOR-FORM] Token encontrado:', token ? 'Sí' : 'No');
+    console.log('[AUDITOR-FORM] User ID:', userId);
+
+    const headers = new HttpHeaders({
       Authorization: token.startsWith('Bearer ') ? token : `Bearer ${token}`,
       'Content-Type': 'application/json'
     });
+
+    // Agregar header de auditor si existe
+    if (userId) {
+      return headers.set('X-Auditor-Id', userId);
+    }
+
+    return headers;
   }
 
+  // ✅ Método público para contar archivos seleccionados
+  contarArchivosSeleccionados(): number {
+    return Object.values(this.archivosAuditorFormulario)
+      .filter(a => a.archivo !== null).length;
+  }
+
+  // ✅ Método público para contar archivos realmente subidos
+  contarArchivosRealmenteSubidos(): number {
+    // Contar solo archivos que tienen rutaServidor o nombreArchivo (subidos al servidor)
+    const subidos = Object.values(this.archivosAuditorFormulario)
+      .filter(a => {
+        const tieneRuta = a.rutaServidor && a.rutaServidor.trim() !== '';
+        const tieneNombre = a.nombreArchivo && a.nombreArchivo.trim() !== '';
+        return a.subido && (tieneRuta || tieneNombre);
+      }).length;
+
+    console.log('[AUDITOR-FORM] Archivos realmente subidos (con ruta):', subidos);
+    return subidos;
+  }
+
+  // ✅ Método público para verificar si hay archivos realmente subidos
+  archivosRealmenteSubidos(): boolean {
+    return this.primerRadicadoDelAno ?
+      this.contarArchivosRealmenteSubidos() === 6 : true;
+  }
+
+  // ✅ Método principal para registrar decisión
   registrarDecision(): void {
     console.log('[AUDITOR-FORM] Registrando decisión:', this.decisionSeleccionada);
 
-    if (!this.decisionSeleccionada) {
-      this.notificationService.warning('Advertencia', 'Debe seleccionar una decisión');
+    // Validaciones básicas
+    if (!this.decisionSeleccionada || !this.observacionesRevision.trim()) {
+      this.notificationService.warning('Advertencia', 'Complete todos los campos requeridos');
       return;
     }
 
-    if (!this.observacionesRevision.trim()) {
-      this.notificationService.warning('Advertencia', 'Debe ingresar observaciones');
-      return;
+    // Validar archivos para primer radicado
+    if (this.primerRadicadoDelAno) {
+      const archivosSeleccionados = this.contarArchivosSeleccionados();
+      if (archivosSeleccionados < 6) {
+        const faltantes = 6 - archivosSeleccionados;
+        this.notificationService.error(
+          'Archivos obligatorios',
+          `Primer radicado requiere los 6 documentos.\n\nFaltan: ${faltantes} documento(s).`
+        );
+        return;
+      }
     }
 
-    // Validación especial para primer radicado
-    if (this.primerRadicadoDelAno && !this.archivosCompletos) {
-      console.log('[AUDITOR-FORM] Validación fallida: primer radicado sin archivos completos');
-      this.notificationService.error('Error', 'Debe subir todos los documentos requeridos para primer radicado');
-      return;
-    }
-
-    console.log('[AUDITOR-FORM] Enviando decisión al servidor...');
     this.isProcessing = true;
 
-    const datos = {
+    // 🔴 PRIMERO: Verificar si hay archivos
+    const tieneArchivos = this.contarArchivosSeleccionados() > 0;
+
+    if (tieneArchivos) {
+      console.log('[AUDITOR-FORM] Hay archivos, usando método combinado');
+      this.enviarRevisionConArchivos();
+    } else {
+      console.log('[AUDITOR-FORM] No hay archivos, usando método simple');
+      this.enviarRevisionSimple();
+    }
+  }
+
+  private enviarRevisionConArchivos(): void {
+    const formData = new FormData();
+
+    // 🔴 IMPORTANTE: Agregar datos como JSON string para evitar problemas de parsing
+    const datosRevision = {
       estado: this.decisionSeleccionada,
-      observaciones: this.observacionesRevision
+      observaciones: this.observacionesRevision,
+      timestamp: new Date().toISOString()
     };
 
-    this.auditorService.guardarRevision(this.documentoId, datos)
+    formData.append('data', JSON.stringify(datosRevision));
+
+    // Agregar archivos
+    let archivosAgregados = 0;
+    Object.entries(this.archivosAuditorFormulario).forEach(([tipo, datos]) => {
+      if (datos.archivo) {
+        formData.append(tipo, datos.archivo);
+        archivosAgregados++;
+        console.log(`[AUDITOR-FORM] Agregando archivo ${tipo}:`, datos.archivo.name);
+      }
+    });
+
+    console.log('[AUDITOR-FORM] Enviando FormData con:', {
+      archivos: archivosAgregados,
+      decision: this.decisionSeleccionada
+    });
+
+    this.auditorService.registrarDecisionCompleta(this.documentoId, formData)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response) => {
+          console.log('[AUDITOR-FORM] Respuesta exitosa:', response);
+          this.notificationService.success('Éxito', 'Decisión registrada correctamente');
+          this.finalizarProceso();
+
+          setTimeout(() => {
+            this.router.navigate(['/auditor/lista']);
+          }, 1500);
+        },
+        error: (err) => {
+          console.error('[AUDITOR-FORM] Error en método combinado:', err);
+
+          // Fallback: intentar método secuencial
+          console.log('[AUDITOR-FORM] Intentando método secuencial...');
+          this.enviarRevisionSecuencial();
+        }
+      });
+  }
+
+  private enviarRevisionSimple(): void {
+    this.auditorService.guardarRevision(this.documentoId, {
+      estado: this.decisionSeleccionada,
+      observaciones: this.observacionesRevision
+    })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response) => {
+          console.log('[AUDITOR-FORM] Revisión simple exitosa:', response);
+          this.notificationService.success('Éxito', 'Decisión registrada');
+          this.finalizarProceso();
+
+          setTimeout(() => {
+            this.router.navigate(['/auditor/lista']);
+          }, 1500);
+        },
+        error: (err) => {
+          console.error('[AUDITOR-FORM] Error en revisión simple:', err);
+          this.notificationService.error('Error', err.error?.message || 'Error registrando decisión');
+          this.isProcessing = false;
+        }
+      });
+  }
+
+  private enviarRevisionSecuencial(): void {
+    // Método 1: Subir archivos primero
+    this.subirArchivosPrimero()
+      .then(() => {
+        // Método 2: Luego enviar decisión
+        return this.auditorService.guardarRevision(this.documentoId, {
+          estado: this.decisionSeleccionada,
+          observaciones: this.observacionesRevision
+        }).toPromise();
+      })
+      .then((response) => {
+        console.log('[AUDITOR-FORM] Revisión secuencial exitosa');
+        this.notificationService.success('Éxito', 'Decisión registrada');
+        this.finalizarProceso();
+
+        setTimeout(() => {
+          this.router.navigate(['/auditor/lista']);
+        }, 1500);
+      })
+      .catch((error) => {
+        console.error('[AUDITOR-FORM] Error en método secuencial:', error);
+        this.notificationService.error('Error', 'No se pudo completar la operación');
+        this.isProcessing = false;
+      });
+  }
+
+  subirArchivosPrimero(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+
+      // ¡Nombres EXACTOS que espera el backend!
+      if (this.archivosAuditorFormulario['rp']?.archivo) {
+        formData.append('rp', this.archivosAuditorFormulario['rp'].archivo);
+      }
+      if (this.archivosAuditorFormulario['cdp']?.archivo) {
+        formData.append('cdp', this.archivosAuditorFormulario['cdp'].archivo);
+      }
+      // ... lo mismo para poliza, certificadoBancario, minuta, actaInicio
+
+      if (this.observacionesRevision?.trim()) {
+        formData.append('observaciones', this.observacionesRevision.trim());
+      }
+
+
+
+      this.auditorService.subirArchivosAuditor(this.documentoId, formData)
+        .subscribe({
+          next: () => {
+            console.log('[FRONT] Archivos subidos OK');
+            resolve();
+          },
+          error: err => {
+            console.error('[FRONT] Falló subida:', err);
+            reject(err);
+          }
+        });
+    });
+  }
+
+  private intentarMetodoAlternativo(): void {
+    // Método alternativo: subir archivos primero, luego decisión
+    console.log('[AUDITOR-FORM] Método alternativo: Subir archivos, luego decisión');
+
+    const tieneArchivos = this.contarArchivosSeleccionados() > 0;
+
+    if (tieneArchivos) {
+      // Primero subir archivos
+      this.subirArchivosPrimero().then(() => {
+        // Luego registrar decisión
+        this.registrarDecisionDespuesDeSubida();
+      }).catch(error => {
+        console.error('[AUDITOR-FORM] Error en método alternativo:', error);
+        this.notificationService.error('Error', 'No se pudo completar la operación');
+        this.isProcessing = false;
+      });
+    } else {
+      // Si no hay archivos, solo registrar decisión
+      this.registrarDecisionDespuesDeSubida();
+    }
+  }
+
+
+
+  private registrarDecisionDespuesDeSubida(): void {
+    console.log('[AUDITOR-FORM] Registrando decisión después de subida...');
+
+    this.auditorService.guardarRevision(this.documentoId, {
+      estado: this.decisionSeleccionada,
+      observaciones: this.observacionesRevision
+    })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response) => {
           console.log('[AUDITOR-FORM] Decisión registrada:', response);
           this.notificationService.success('Éxito', 'Decisión registrada correctamente');
-          this.isProcessing = false;
-          this.decisionSeleccionada = '';
-          this.observacionesRevision = '';
-          this.cargarDocumentoParaAuditor(this.documentoId);
+          this.finalizarProceso();
+
+          setTimeout(() => {
+            this.router.navigate(['/auditor/lista']);
+          }, 1500);
         },
         error: (err) => {
           console.error('[AUDITOR-FORM] Error registrando decisión:', err);
-          this.notificationService.error('Error', err.error?.message || 'No se pudo registrar la decisión');
+          this.notificationService.error('Error', err.error?.message || 'Error registrando decisión');
           this.isProcessing = false;
         }
       });
+  }
+
+  private finalizarProceso(): void {
+    this.isProcessing = false;
+    this.decisionSeleccionada = '';
+    this.observacionesRevision = '';
+
+    // Limpiar archivos seleccionados
+    Object.keys(this.archivosAuditorFormulario).forEach(key => {
+      this.archivosAuditorFormulario[key].archivo = null;
+    });
+  }
+
+  // Métodos privados auxiliares
+  private debugResponseStructure(response: any): void {
+    if (!response) {
+      console.log('[DEBUG-STRUCTURE] Respuesta es null/undefined');
+      return;
+    }
+
+    console.log('[DEBUG-STRUCTURE] === INICIO DE ANÁLISIS DE RESPUESTA ===');
+    console.log('[DEBUG-STRUCTURE] Tipo de respuesta:', typeof response);
+    console.log('[DEBUG-STRUCTURE] ¿Es objeto?', typeof response === 'object');
+
+    // Ver claves principales
+    const claves = Object.keys(response);
+    console.log('[DEBUG-STRUCTURE] Claves principales:', claves);
+    console.log('[DEBUG-STRUCTURE] === FIN DE ANÁLISIS ===');
   }
 }

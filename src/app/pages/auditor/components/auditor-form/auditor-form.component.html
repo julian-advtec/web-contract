@@ -217,10 +217,6 @@ Estado del badge: {{ getEstadoBadgeClass(estadoDocumento) }}
                       </button>
                     </div>
 
-                    <button class="btn btn-primary" (click)="subirArchivosAuditor()"
-                      [disabled]="!hayArchivosSeleccionados() || isProcessing || !puedeSubirArchivos()">
-                      <i class="fas fa-cloud-upload-alt me-1"></i> Subir Archivos Seleccionados
-                    </button>
                   </div>
 
                   <!-- Botones solo para ver/descargar (no primer radicado) -->
@@ -316,17 +312,24 @@ Estado del badge: {{ getEstadoBadgeClass(estadoDocumento) }}
                   <div class="text-center" *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR'">
                     <button class="btn btn-primary btn-lg px-5" (click)="registrarDecision()"
                       [disabled]="!puedeRealizarRevision() || isProcessing || !decisionSeleccionada || !observacionesRevision.trim()">
-                      <i class="fas fa-check-double me-2"></i> Registrar Decisión
+
+                      <ng-container *ngIf="!isProcessing; else procesando">
+                        <i class="fas fa-check-double me-2"></i> Registrar Decisión
+                        <span *ngIf="primerRadicadoDelAno"> ({{ contarArchivosSeleccionados() }}/6 archivos)</span>
+                      </ng-container>
+
+                      <ng-template #procesando>
+                        <i class="fas fa-spinner fa-spin me-2"></i>
+                        {{ primerRadicadoDelAno ? 'Subiendo archivos y registrando...' : 'Registrando...' }}
+                      </ng-template>
+
                     </button>
 
-                    <!-- Mensaje de ayuda -->
+                    <!-- Mensaje de ayuda mejorado -->
                     <div class="mt-3">
-                      <small class="text-muted" *ngIf="!puedeRealizarRevision()">
+                      <small class="text-muted" *ngIf="primerRadicadoDelAno">
                         <i class="fas fa-info-circle me-1"></i>
-                        {{ primerRadicadoDelAno && !archivosCompletos ?
-                        'Debes subir todos los documentos primero (' + (6 - contarArchivosAuditorSubidos()) + '
-                        faltantes)' :
-                        'Complete todos los campos requeridos' }}
+                        Se subirán {{ contarArchivosSeleccionados() }} archivos junto con la decisión
                       </small>
                     </div>
                   </div>
