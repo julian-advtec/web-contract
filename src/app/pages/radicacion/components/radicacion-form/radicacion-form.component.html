@@ -271,55 +271,52 @@
         </div>
       </div>
 
-      <!-- ✅ Campo Primer Radicado del Año -->
-      <div class="form-row">
-        <div class="form-group full-width">
-          <div class="checkbox-container">
-            <div class="form-check">
-              <!-- ✅ CORREGIDO: Usar [checked] y (change) correctamente -->
-              <input type="checkbox" id="primerRadicadoDelAno" class="form-check-input"
-                [checked]="radicacionForm.get('primerRadicadoDelAno')?.value" (change)="onPrimerRadicadoChange($event)">
-              <label class="form-check-label" for="primerRadicadoDelAno">
-                <i class="fas fa-star text-warning me-2"></i>
-                <strong>Marcar como primer radicado del año</strong>
 
-                <span *ngIf="verificandoPrimerRadicado" class="text-muted ms-2">
-                  <i class="fas fa-spinner fa-spin"></i> Verificando...
-                </span>
+      <!-- Campo Primer Radicado del Año -->
+<div class="form-row">
+  <div class="form-group full-width">
+    <div class="checkbox-container">
+      <div class="form-check">
+        <input 
+          type="checkbox" 
+          id="primerRadicadoDelAno" 
+          class="form-check-input"
+          formControlName="primerRadicadoDelAno"
+          (change)="onPrimerRadicadoChange($event)"
+        >
+        <label class="form-check-label" for="primerRadicadoDelAno">
+          <i class="fas fa-star text-warning me-2"></i>
+          <strong>Marcar como primer radicado del contrato</strong>
 
-                <span *ngIf="!verificandoPrimerRadicado && mensajePrimerRadicado" class="ms-2" [ngClass]="{
-                  'text-success': primerRadicadoDisponible,
-                  'text-danger': !primerRadicadoDisponible
-                }">
-                  <i class="fas" [class.fa-check-circle]="primerRadicadoDisponible"
-                    [class.fa-exclamation-circle]="!primerRadicadoDisponible"></i>
-                  {{ mensajePrimerRadicado }}
-                </span>
-              </label>
-            </div>
+          <span *ngIf="verificandoPrimerRadicado" class="text-muted ms-2">
+            <i class="fas fa-spinner fa-spin"></i> Verificando...
+          </span>
 
-            <small class="form-text text-muted d-block mt-1">
-              <i class="fas fa-info-circle"></i>
-              Marque esta opción si este es el primer documento radicado para el año {{ getAnoRadicado() || 'actual' }}.
-              Solo un documento por año puede ser marcado como "primer radicado".
-            </small>
-
-            <!-- ✅ Mensaje de confirmación -->
-            <div *ngIf="radicacionForm.get('primerRadicadoDelAno')?.value && getAnoRadicado() && primerRadicadoDisponible"
-              class="alert alert-success mt-2">
-              <i class="fas fa-check-circle me-2"></i>
-              <strong>Confirmado:</strong> Este documento será registrado como el <strong>primer radicado</strong> del
-              año {{ getAnoRadicado() }}.
-            </div>
-
-            <!-- ✅ Mensaje de advertencia si no está disponible -->
-            <div *ngIf="!primerRadicadoDisponible && !verificandoPrimerRadicado" class="alert alert-warning mt-2">
-              <i class="fas fa-exclamation-triangle me-2"></i>
-              <strong>Advertencia:</strong> {{ mensajePrimerRadicado }}
-            </div>
-          </div>
-        </div>
+          <span *ngIf="!verificandoPrimerRadicado && mensajePrimerRadicado" class="ms-2" [ngClass]="{
+            'text-success': primerRadicadoDisponible,
+            'text-danger': !primerRadicadoDisponible
+          }">
+            <i class="fas" [class.fa-check-circle]="primerRadicadoDisponible"
+               [class.fa-exclamation-circle]="!primerRadicadoDisponible"></i>
+            {{ mensajePrimerRadicado }}
+          </span>
+        </label>
       </div>
+
+      <small class="form-text text-muted d-block mt-1">
+        <i class="fas fa-info-circle"></i>
+        Marque esta opción si este es el primer documento radicado para este **contrato**.
+        Puede haber varios primeros radicados (uno por contrato).
+      </small>
+
+      <div *ngIf="radicacionForm.get('primerRadicadoDelAno')?.value" class="alert alert-success mt-2 small">
+        <i class="fas fa-check-circle me-2"></i>
+        <strong>Confirmado:</strong> Se marcará como primer radicado del contrato.
+      </div>
+    </div>
+  </div>
+</div>
+
 
       <!-- Sección de Documentos -->
       <div class="documentos-section">

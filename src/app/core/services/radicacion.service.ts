@@ -212,28 +212,27 @@ export class RadicacionService {
         console.log('📝 Intentando crear documento:', createDocumentoDto);
         console.log('📁 Archivos a subir:', archivos.map(f => f.name));
 
-        // ✅ IMPORTANTE: Verificar el tipo de primerRadicadoDelAno
-        console.log('🔍 primerRadicadoDelAno:', createDocumentoDto.primerRadicadoDelAno);
-        console.log('🔍 tipo de primerRadicadoDelAno:', typeof createDocumentoDto.primerRadicadoDelAno);
+        console.log('🔍 primerRadicadoDelAno recibido:', createDocumentoDto.primerRadicadoDelAno);
+        console.log('🔍 Tipo de primerRadicadoDelAno:', typeof createDocumentoDto.primerRadicadoDelAno);
 
-        // Validar que haya 3 archivos
+        // Validar que haya exactamente 3 archivos
         if (archivos.length !== 3) {
             const error = new Error('Debe adjuntar exactamente 3 documentos');
             this.notificationService.error('Error de validación', error.message);
             return throwError(() => error);
         }
 
-        // Validar formato del radicado
-        const radicadoRegex = /^R\d{4}-\d{3}$/;
+        // Validar formato del radicado (ahora permite 4 dígitos al final)
+        const radicadoRegex = /^R\d{4}-\d{4}$/;
         if (!radicadoRegex.test(createDocumentoDto.numeroRadicado)) {
-            const error = new Error('Formato de radicado inválido. Debe ser RAAAA-NNN');
+            const error = new Error('Formato de radicado inválido. Debe ser RAAAA-NNNN (ej: R2025-0001)');
             this.notificationService.error('Error de validación', error.message);
             return throwError(() => error);
         }
 
         const formData = new FormData();
 
-        // ✅ Asegurar que las fechas sean strings válidos
+        // Fechas como strings limpios
         const fechaInicioStr = createDocumentoDto.fechaInicio
             ? String(createDocumentoDto.fechaInicio).trim()
             : '';
@@ -242,82 +241,68 @@ export class RadicacionService {
             ? String(createDocumentoDto.fechaFin).trim()
             : '';
 
-        // ✅ Agregar todos los campos como strings
-        formData.append('numeroRadicado', createDocumentoDto.numeroRadicado);
-        formData.append('numeroContrato', createDocumentoDto.numeroContrato);
-        formData.append('nombreContratista', createDocumentoDto.nombreContratista);
-        formData.append('documentoContratista', createDocumentoDto.documentoContratista);
-
-        // ✅ AGREGAR FECHAS COMO STRINGS
+        // Agregar todos los campos como strings
+        formData.append('numeroRadicado', createDocumentoDto.numeroRadicado.trim().toUpperCase());
+        formData.append('numeroContrato', createDocumentoDto.numeroContrato.trim());
+        formData.append('nombreContratista', createDocumentoDto.nombreContratista.trim());
+        formData.append('documentoContratista', createDocumentoDto.documentoContratista.trim());
         formData.append('fechaInicio', fechaInicioStr);
         formData.append('fechaFin', fechaFinStr);
+        formData.append('descripcionCuentaCobro', createDocumentoDto.descripcionCuentaCobro?.trim() || 'Cuenta de Cobro');
+        formData.append('descripcionSeguridadSocial', createDocumentoDto.descripcionSeguridadSocial?.trim() || 'Seguridad Social');
+        formData.append('descripcionInformeActividades', createDocumentoDto.descripcionInformeActividades?.trim() || 'Informe de Actividades');
 
-        // ✅ Descripciones con nuevos nombres
-        formData.append('descripcionCuentaCobro', createDocumentoDto.descripcionCuentaCobro || 'Cuenta de Cobro');
-        formData.append('descripcionSeguridadSocial', createDocumentoDto.descripcionSeguridadSocial || 'Seguridad Social');
-        formData.append('descripcionInformeActividades', createDocumentoDto.descripcionInformeActividades || 'Informe de Actividades');
-
-        // ✅ Campo observación
-        if (createDocumentoDto.observacion) {
-            formData.append('observacion', createDocumentoDto.observacion);
+        // Observación opcional
+        if (createDocumentoDto.observacion?.trim()) {
+            formData.append('observacion', createDocumentoDto.observacion.trim());
         }
 
-        // ✅ CORREGIDO: Asegurar que se envíe como string 'true' o 'false'
-        // FormData solo acepta strings, así que convertimos booleano a string
-        const primerRadicadoValue = createDocumentoDto.primerRadicadoDelAno ? 'true' : 'false';
+        // Enviar primerRadicadoDelAno EXACTAMENTE como viene del frontend
+        // No forzamos false ni hacemos ninguna lógica adicional aquí
+        const primerRadicadoValue = createDocumentoDto.primerRadicadoDelAno === true ? 'true' : 'false';
         formData.append('primerRadicadoDelAno', primerRadicadoValue);
 
         console.log('🔍 Enviando primerRadicadoDelAno como:', primerRadicadoValue);
 
-        // ✅ Agregar archivos
-        archivos.forEach((archivo) => {
+        // Agregar los 3 archivos
+        archivos.forEach((archivo, index) => {
             formData.append('documentos', archivo, archivo.name);
+            console.log(`Archivo ${index + 1} agregado:`, archivo.name, `(${archivo.size} bytes)`);
         });
 
-        // ✅ DEBUG: Verificar qué se está enviando
-        console.log('🔍 FormData contenido:');
+        // Debug completo del FormData
+        console.log('🔍 Contenido completo de FormData:');
         for (let pair of (formData as any).entries()) {
             console.log(`  ${pair[0]}:`, pair[1]);
         }
 
         const headers = this.getAuthHeaders();
-
-        // IMPORTANTE: No establecer Content-Type para FormData
         const uploadHeaders = headers.delete('Content-Type');
 
         return this.http.post<any>(this.apiUrl, formData, { headers: uploadHeaders }).pipe(
             tap(response => {
-                console.log('✅ Respuesta de creación:', response);
+                console.log('✅ Respuesta completa del backend:', response);
             }),
             map(response => {
-                console.log('🔍 Analizando respuesta del backend...');
+                console.log('🔍 Procesando respuesta...');
 
                 if (response && typeof response === 'object') {
-                    // 1. Verificar estructura con "ok"
-                    if (response.ok === true) {
-                        if (response.data) {
-                            this.notificationService.success('Documento radicado exitosamente');
-                            return response.data;
-                        }
+                    if (response.ok === true && response.data) {
+                        this.notificationService.success('Documento radicado exitosamente');
+                        return response.data;
                     }
-                    // 2. Verificar estructura con "success"
-                    else if (response.success === true) {
-                        if (response.data) {
-                            this.notificationService.success('Documento radicado exitosamente');
-                            return response.data;
-                        }
+
+                    if (response.success === true && response.data) {
+                        this.notificationService.success('Documento radicado exitosamente');
+                        return response.data;
                     }
-                    // 3. Si es el documento directamente
-                    else if (response.id && response.numeroRadicado) {
+
+                    if (response.id && response.numeroRadicado) {
                         this.notificationService.success('Documento radicado exitosamente');
                         return response;
                     }
-                    // 4. Si tiene success: false
-                    else if (response.success === false) {
-                        throw new Error(response.message || 'Error del servidor al crear documento');
-                    }
-                    // 5. Si tiene ok: false
-                    else if (response.ok === false) {
+
+                    if (response.success === false || response.ok === false) {
                         throw new Error(response.message || 'Error del servidor al crear documento');
                     }
                 }
@@ -329,45 +314,39 @@ export class RadicacionService {
                 console.error('❌ Error completo en crearDocumento:', error);
 
                 if (error instanceof HttpErrorResponse) {
-                    console.error('❌ Error HTTP:', {
+                    console.error('❌ Detalles HTTP:', {
                         status: error.status,
-                        error: error.error,
-                        message: error.message
+                        statusText: error.statusText,
+                        message: error.message,
+                        errorBody: error.error
                     });
 
-                    // Mostrar el error del backend si está disponible
                     const backendError = error.error?.message || error.error || error.message;
-                    console.log('❌ Error del backend:', backendError);
 
-                    // Manejo específico de errores HTTP
                     if (error.status === 401) {
                         this.notificationService.error('Sesión expirada', 'Por favor inicia sesión nuevamente');
                         localStorage.removeItem('access_token');
                         localStorage.removeItem('token');
                         localStorage.removeItem('user');
                         this.router.navigate(['/auth/login']);
-                        return throwError(() => new Error('Tu sesión ha expirado. Por favor inicia sesión nuevamente.'));
+                        return throwError(() => new Error('Sesión expirada'));
                     }
 
                     if (error.status === 400) {
-                        // Mostrar el mensaje de error específico del backend
                         let errorMsg = 'Datos inválidos. Verifique los campos.';
-
                         if (typeof backendError === 'string') {
                             errorMsg = backendError;
                         } else if (Array.isArray(backendError)) {
-                            // Si es un array de errores de validación
                             errorMsg = backendError.join(', ');
                         } else if (backendError?.message) {
                             errorMsg = backendError.message;
                         }
-
                         this.notificationService.error('Error de validación', errorMsg);
                         return throwError(() => new Error(errorMsg));
                     }
                 }
 
-                const errorMsg = error.error?.message || error.message || 'Error desconocido al crear documento';
+                const errorMsg = error.message || 'Error desconocido al crear documento';
                 this.notificationService.error('Error', errorMsg);
                 return throwError(() => new Error(errorMsg));
             })
@@ -524,7 +503,7 @@ export class RadicacionService {
     }
 
     validarFormatoRadicado(numeroRadicado: string): boolean {
-        const regex = /^R\d{4}-\d{3}$/;
+        const regex = /^R\d{4}-\d{4}$/;
         return regex.test(numeroRadicado);
     }
 

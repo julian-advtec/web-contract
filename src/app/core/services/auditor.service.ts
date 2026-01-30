@@ -1,10 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
+import { Observable, forkJoin, of, throwError } from 'rxjs';
+import { catchError, map, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { Documento } from '../models/documento.model';
-import { catchError, map, switchMap, tap } from 'rxjs/operators';
-import { throwError } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -26,7 +25,6 @@ export class AuditorService {
       'Content-Type': 'application/json'
     });
 
-    // Agregar auditor ID si existe
     if (userId) {
       return headers.set('X-Auditor-Id', userId);
     }
@@ -34,9 +32,6 @@ export class AuditorService {
     return headers;
   }
 
-  /**
-   * 🔹 Obtiene los documentos aprobados por supervisor y pendientes para auditoría
-   */
   obtenerPendientesParaAuditoria(): Observable<any[]> {
     return this.http.get<any>(`${this.baseUrl}/documentos/disponibles`, {
       headers: this.getAuthHeaders()
@@ -56,10 +51,7 @@ export class AuditorService {
     );
   }
 
-  /**
-   * Tomar un documento para auditoría
-   */
-tomarDocumentoParaRevision(documentoId: string): Observable<any> {
+  tomarDocumentoParaRevision(documentoId: string): Observable<any> {
     const url = `${this.apiUrl}/documentos/${documentoId}/tomar`;
 
     console.log('[SERVICE] Intentando tomar documento:', url);
@@ -79,23 +71,16 @@ tomarDocumentoParaRevision(documentoId: string): Observable<any> {
     );
   }
 
-  // Método auxiliar para refrescar después de tomar
   refrescarPendientes(): Observable<any[]> {
     return this.obtenerPendientesParaAuditoria();
   }
 
-  /**
-   * Obtener un documento por ID
-   */
   obtenerDocumentoPorId(id: string): Observable<Documento> {
     return this.http.get<Documento>(`${this.baseUrl}/documentos/${id}`, {
       headers: this.getAuthHeaders()
     });
   }
 
-  /**
-   * Descargar archivo radicado
-   */
   descargarArchivoRadicado(documentoId: string, numeroArchivo: number): Observable<Blob> {
     return this.http.get(
       `${this.baseUrl}/documentos/${documentoId}/descargar-radicado/${numeroArchivo}`,
@@ -103,9 +88,6 @@ tomarDocumentoParaRevision(documentoId: string): Observable<any> {
     );
   }
 
-  /**
-   * Descargar archivo de auditoría
-   */
   descargarArchivoAuditor(documentoId: string, tipo: string): Observable<Blob> {
     return this.http.get(
       `${this.baseUrl}/documentos/${documentoId}/descargar-auditor/${tipo}`,
@@ -113,15 +95,9 @@ tomarDocumentoParaRevision(documentoId: string): Observable<any> {
     );
   }
 
-  /**
-   * Guardar revisión del auditor CON archivos
-   * Esta versión permite enviar la decisión Y archivos al mismo tiempo
-   */
   guardarRevisionConArchivos(documentoId: string, datosRevision: any, archivos?: FormData): Observable<any> {
-    // Si hay archivos, usar FormData
     if (archivos) {
       const formData = archivos;
-      // Agregar los datos de revisión al FormData
       Object.keys(datosRevision).forEach(key => {
         formData.append(key, datosRevision[key]);
       });
@@ -136,22 +112,16 @@ tomarDocumentoParaRevision(documentoId: string): Observable<any> {
       }));
     }
 
-    // Si no hay archivos, usar el método normal
     return this.guardarRevision(documentoId, datosRevision);
   }
 
-  /**
-   * Guardar revisión del auditor (sin archivos)
-   */
   guardarRevision(documentoId: string, datosRevision: any): Observable<any> {
     console.log('[AuditorService] Guardando revisión:', { documentoId, datosRevision });
 
-    // Validar datos
     if (!datosRevision.estado) {
       throw new Error('El estado es requerido');
     }
 
-    // Si es OBSERVADO o RECHAZADO, requerir observaciones
     if (['OBSERVADO', 'RECHAZADO'].includes(datosRevision.estado) &&
       (!datosRevision.observaciones || datosRevision.observaciones.trim() === '')) {
       throw new Error('Se requieren observaciones para este estado');
@@ -165,7 +135,6 @@ tomarDocumentoParaRevision(documentoId: string): Observable<any> {
       catchError(err => {
         console.error('[AuditorService] Error revisando documento:', err);
 
-        // Proporcionar mensaje de error más útil
         let mensajeError = 'Error al guardar la revisión';
         if (err.status === 400) {
           mensajeError = err.error?.message || 'Datos de revisión inválidos';
@@ -180,9 +149,6 @@ tomarDocumentoParaRevision(documentoId: string): Observable<any> {
     );
   }
 
-  /**
-   * Obtener estadísticas
-   */
   obtenerEstadisticas(): Observable<any> {
     return this.http.get<any>(`${this.baseUrl}/estadisticas`, {
       headers: this.getAuthHeaders()
@@ -195,9 +161,6 @@ tomarDocumentoParaRevision(documentoId: string): Observable<any> {
     );
   }
 
-  /**
-   * Obtener documentos en revisión por el auditor actual
-   */
   obtenerDocumentosEnRevision(): Observable<any[]> {
     return this.http.get<any[]>(`${this.baseUrl}/mis-documentos`, {
       headers: this.getAuthHeaders()
@@ -210,9 +173,6 @@ tomarDocumentoParaRevision(documentoId: string): Observable<any> {
     );
   }
 
-  /**
-   * Subir documentos del auditor
-   */
   subirDocumentosAuditor(documentoId: string, formData: FormData): Observable<any> {
     return this.http.post<any>(
       `${this.baseUrl}/documentos/${documentoId}/subir-documentos`,
@@ -224,9 +184,6 @@ tomarDocumentoParaRevision(documentoId: string): Observable<any> {
     }));
   }
 
-  /**
-   * Liberar documento (dejar de revisarlo)
-   */
   liberarDocumento(documentoId: string): Observable<any> {
     return this.http.delete<any>(`${this.baseUrl}/documentos/${documentoId}/liberar`, {
       headers: this.getAuthHeaders()
@@ -236,16 +193,10 @@ tomarDocumentoParaRevision(documentoId: string): Observable<any> {
     }));
   }
 
-  /**
-   * Obtener historial de auditoría
-   */
   obtenerHistorial(): Observable<any> {
     return this.http.get(`${this.baseUrl}/historial`, { headers: this.getAuthHeaders() });
   }
 
-  /**
-   * Métodos simplificados (usando apiUrl)
-   */
   obtenerDocumentoParaAuditoria(id: string): Observable<any> {
     return this.http.get(`${this.apiUrl}/documento/${id}`, { headers: this.getAuthHeaders() });
   }
@@ -294,9 +245,6 @@ tomarDocumentoParaRevision(documentoId: string): Observable<any> {
     );
   }
 
-  /**
-   * ✅ Tomar documento para auditoría
-   */
   tomarDocumentoParaAuditoria(id: string): Observable<any> {
     const url = `${this.apiUrl}/documento/${id}/tomar-revision`;
 
@@ -312,9 +260,6 @@ tomarDocumentoParaRevision(documentoId: string): Observable<any> {
     );
   }
 
-  /**
-   * ✅ Alternativa: Tomar documento usando el método existente
-   */
   asignarDocumento(id: string): Observable<any> {
     return this.tomarParaRevision(id);
   }
@@ -331,9 +276,6 @@ tomarDocumentoParaRevision(documentoId: string): Observable<any> {
     );
   }
 
-  /**
-   * Verificar archivos existentes en el servidor para primer radicado
-   */
   verificarArchivosExistentes(documentoId: string): Observable<any> {
     return this.http.get<any>(`${this.apiUrl}/documentos/${documentoId}/vista`, {
       headers: this.getAuthHeaders()
@@ -349,9 +291,6 @@ tomarDocumentoParaRevision(documentoId: string): Observable<any> {
     );
   }
 
-  /**
-   * ✅ Obtener estado de archivos de auditoría
-   */
   obtenerEstadoArchivos(documentoId: string): Observable<any> {
     return this.http.get<any>(`${this.baseUrl}/documentos/${documentoId}/estado-archivos`, {
       headers: this.getAuthHeaders()
@@ -364,18 +303,13 @@ tomarDocumentoParaRevision(documentoId: string): Observable<any> {
     );
   }
 
-  /**
-   * ✅ Método para enviar decisión con FormData (archivos incluidos)
-   */
   registrarDecisionConArchivos(documentoId: string, datos: {
     estado: string;
     observaciones: string;
     archivos?: FormData;
   }): Observable<any> {
-
     console.log('[AuditorService] Registrando decisión con archivos:', datos.estado);
 
-    // Si no hay archivos, usar el método normal
     if (!datos.archivos) {
       return this.guardarRevision(documentoId, {
         estado: datos.estado,
@@ -383,7 +317,6 @@ tomarDocumentoParaRevision(documentoId: string): Observable<any> {
       });
     }
 
-    // Agregar los datos de decisión al FormData
     const formData = datos.archivos;
     formData.append('estado', datos.estado);
     formData.append('observaciones', datos.observaciones);
@@ -397,8 +330,6 @@ tomarDocumentoParaRevision(documentoId: string): Observable<any> {
     ).pipe(
       catchError(err => {
         console.error('[AuditorService] Error en revision-completa:', err);
-
-        // Si falla, intentar método secuencial
         console.log('[AuditorService] Intentando método secuencial...');
         return this.guardarRevision(documentoId, {
           estado: datos.estado,
@@ -408,13 +339,9 @@ tomarDocumentoParaRevision(documentoId: string): Observable<any> {
     );
   }
 
-  /**
-   * ✅ Nueva función para subir archivos de auditoría
-   */
   subirArchivosDeAuditoria(documentoId: string, archivos: { [key: string]: File }): Observable<any> {
     const formData = new FormData();
 
-    // Agregar archivos al FormData
     Object.entries(archivos).forEach(([tipo, archivo]) => {
       if (archivo) {
         formData.append(tipo, archivo);
@@ -431,41 +358,29 @@ tomarDocumentoParaRevision(documentoId: string): Observable<any> {
     }));
   }
 
-  /**
- * ✅ Método para enviar decisión y archivos en una sola petición
- */
+  subirArchivosAuditor(documentoId: string, formData: FormData): Observable<any> {
+    console.log('[SERVICE] Enviando FormData a /subir-auditoria');
 
+    return this.http.post<any>(
+      `${this.baseUrl}/documentos/${documentoId}/subir-auditoria`,
+      formData,
+      {
+        headers: this.getAuthHeaders().delete('Content-Type')
+      }
+    ).pipe(
+      tap(response => {
+        console.log('[SERVICE] Respuesta exitosa de subir-auditoria:', response);
+      }),
+      catchError(err => {
+        console.error('[SERVICE] Error subiendo archivos auditor:', err);
+        return throwError(() => err);
+      })
+    );
+  }
 
-  /**
-   * ✅ Método simplificado para subir archivos
-   */
-subirArchivosAuditor(documentoId: string, formData: FormData): Observable<any> {
-  console.log('[SERVICE] Enviando FormData a /subir-auditoria');
-
-  return this.http.post<any>(
-    `${this.baseUrl}/documentos/${documentoId}/subir-auditoria`,
-    formData,
-    {
-      headers: this.getAuthHeaders().delete('Content-Type')
-    }
-  ).pipe(
-    tap(response => {
-      console.log('[SERVICE] Respuesta exitosa de subir-auditoria:', response);
-    }),
-    catchError(err => {
-      console.error('[SERVICE] Error subiendo archivos auditor:', err);
-      return throwError(() => err);  // o new Error('Mensaje personalizado')
-    })
-  );
-}
-
-  /**
- * ✅ Método para enviar decisión y archivos en una sola petición
- */
   registrarDecisionCompleta(documentoId: string, formData: FormData): Observable<any> {
     console.log('[AuditorService] Enviando a revision-completa endpoint');
 
-    // Agregar timestamp para debugging
     formData.append('timestamp', new Date().toISOString());
 
     return this.http.post<any>(
@@ -473,7 +388,7 @@ subirArchivosAuditor(documentoId: string, formData: FormData): Observable<any> {
       formData,
       {
         headers: this.getAuthHeaders().delete('Content-Type'),
-        reportProgress: true // Para debugging
+        reportProgress: true
       }
     ).pipe(
       tap(response => {
@@ -487,9 +402,43 @@ subirArchivosAuditor(documentoId: string, formData: FormData): Observable<any> {
           url: err.url
         });
 
-        // Reintentar con método simple si falla
         return throwError(() => err);
       })
     );
+  }
+
+  // ========== NUEVOS MÉTODOS PARA ABRIR Y DESCARGAR TODOS ==========
+
+  descargarTodosArchivosAuditor(documentoId: string): Observable<Blob[]> {
+    const tiposArchivos = ['rp', 'cdp', 'poliza', 'certificadoBancario', 'minuta', 'actaInicio'];
+    const descargas: Observable<Blob>[] = [];
+
+    tiposArchivos.forEach(tipo => {
+      descargas.push(this.descargarArchivoAuditor(documentoId, tipo));
+    });
+
+    return forkJoin(descargas);
+  }
+
+  previsualizarArchivoAuditor(documentoId: string, tipo: string): void {
+    const token = this.getToken();
+    const url = `${this.apiUrl}/documentos/${documentoId}/archivo-auditor/${tipo}/preview?token=${token}`;
+    window.open(url, '_blank');
+  }
+
+  descargarArchivoAuditorDirecto(documentoId: string, tipo: string, nombreArchivo?: string): void {
+    const token = this.getToken();
+    const url = `${this.apiUrl}/documentos/${documentoId}/archivo-auditor/${tipo}/download?token=${token}`;
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = nombreArchivo || `${tipo}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  private getToken(): string {
+    return localStorage.getItem('access_token') || localStorage.getItem('token') || '';
   }
 }
