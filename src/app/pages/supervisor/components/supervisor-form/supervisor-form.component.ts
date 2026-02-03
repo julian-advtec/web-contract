@@ -541,7 +541,7 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
 
     console.log(`👁️ Visualizando archivo de auditor: ${tipo}`);
 
-    this.auditorService.descargarArchivoAuditor(this.documentoId, tipo)
+    this.auditorService.descargarArchivoAuditorBlob(this.documentoId, tipo)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (blob: Blob) => {
@@ -574,7 +574,7 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     this.isProcessing = true;
     const nombreArchivo = archivo.nombreArchivo || `${tipo}_${this.revisionForm.get('numeroRadicado')?.value}.pdf`;
 
-    this.auditorService.descargarArchivoAuditor(this.documentoId, tipo)
+    this.auditorService.descargarArchivoAuditorBlob(this.documentoId, tipo)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (blob: Blob) => {

@@ -32,6 +32,74 @@ export class AuditorService {
     return headers;
   }
 
+  // Método clave para obtener token
+  private getToken(): string {
+    const token = localStorage.getItem('access_token')
+      || localStorage.getItem('token')
+      || '';
+    if (!token) {
+      console.warn('[AuditorService] No se encontró token en localStorage');
+    }
+    return token;
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // MÉTODOS PÚBLICOS - VER Y DESCARGAR (sin token, sin interceptor)
+  // ────────────────────────────────────────────────────────────────
+
+  previsualizarArchivoAuditor(documentoId: string, tipo: string): void {
+    const url = `${this.apiUrl}/documentos/${documentoId}/archivo-auditor/${tipo}`;
+    console.log('[PREVISUALIZAR PUBLICO]', url);
+    window.open(url, '_blank');
+  }
+
+  descargarArchivoAuditorDirecto(documentoId: string, tipo: string, nombreSugerido?: string): void {
+    const url = `${this.apiUrl}/documentos/${documentoId}/descargar-auditor/${tipo}`;
+    console.log('[DESCARGA DIRECTA PUBLICA]', url);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nombreSugerido || `${tipo.toUpperCase()}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  descargarArchivoAuditorBlob(documentoId: string, tipo: string): Observable<Blob> {
+    const url = `${this.apiUrl}/documentos/${documentoId}/descargar-auditor/${tipo}`;
+    console.log('[DESCARGA PUBLICA BLOB]', url);
+
+    return this.http.get(url, { responseType: 'blob' }).pipe(
+      tap(() => console.log(`[DESCARGA OK] ${tipo}`)),
+      catchError(err => {
+        console.error(`[DESCARGA PUBLICA ERROR] ${tipo}:`, err);
+        return throwError(() => err);
+      })
+    );
+  }
+
+  descargarTodosArchivosAuditor(documentoId: string): void {
+    const tipos = ['rp', 'cdp', 'poliza', 'certificadoBancario', 'minuta', 'actaInicio'];
+    tipos.forEach((tipo, index) => {
+      setTimeout(() => {
+        this.descargarArchivoAuditorDirecto(documentoId, tipo);
+      }, index * 800); // retraso para evitar bloqueo
+    });
+  }
+
+  abrirTodosArchivosAuditor(documentoId: string): void {
+    const tipos = ['rp', 'cdp', 'poliza', 'certificadoBancario', 'minuta', 'actaInicio'];
+    tipos.forEach((tipo, index) => {
+      setTimeout(() => {
+        this.previsualizarArchivoAuditor(documentoId, tipo);
+      }, index * 600);
+    });
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // MÉTODOS PROTEGIDOS - CON TOKEN
+  // ────────────────────────────────────────────────────────────────
+
   obtenerPendientesParaAuditoria(): Observable<any[]> {
     return this.http.get<any>(`${this.baseUrl}/documentos/disponibles`, {
       headers: this.getAuthHeaders()
@@ -53,7 +121,6 @@ export class AuditorService {
 
   tomarDocumentoParaRevision(documentoId: string): Observable<any> {
     const url = `${this.apiUrl}/documentos/${documentoId}/tomar`;
-
     console.log('[SERVICE] Intentando tomar documento:', url);
 
     return this.http.post<any>(url, {}, {
@@ -61,11 +128,7 @@ export class AuditorService {
     }).pipe(
       tap(res => console.log('[SERVICE] Tomar OK:', res)),
       catchError(err => {
-        console.error('[SERVICE] Error al tomar documento:', {
-          status: err.status,
-          message: err.error?.message || err.message,
-          url: err.url
-        });
+        console.error('[SERVICE] Error al tomar documento:', err);
         return throwError(() => err);
       })
     );
@@ -84,13 +147,6 @@ export class AuditorService {
   descargarArchivoRadicado(documentoId: string, numeroArchivo: number): Observable<Blob> {
     return this.http.get(
       `${this.baseUrl}/documentos/${documentoId}/descargar-radicado/${numeroArchivo}`,
-      { responseType: 'blob', headers: this.getAuthHeaders() }
-    );
-  }
-
-  descargarArchivoAuditor(documentoId: string, tipo: string): Observable<Blob> {
-    return this.http.get(
-      `${this.baseUrl}/documentos/${documentoId}/descargar-auditor/${tipo}`,
       { responseType: 'blob', headers: this.getAuthHeaders() }
     );
   }
@@ -247,7 +303,6 @@ export class AuditorService {
 
   tomarDocumentoParaAuditoria(id: string): Observable<any> {
     const url = `${this.apiUrl}/documento/${id}/tomar-revision`;
-
     console.log('📋 Tomando documento para auditoría:', url);
 
     return this.http.post(url, {}, {
@@ -405,40 +460,5 @@ export class AuditorService {
         return throwError(() => err);
       })
     );
-  }
-
-  // ========== NUEVOS MÉTODOS PARA ABRIR Y DESCARGAR TODOS ==========
-
-  descargarTodosArchivosAuditor(documentoId: string): Observable<Blob[]> {
-    const tiposArchivos = ['rp', 'cdp', 'poliza', 'certificadoBancario', 'minuta', 'actaInicio'];
-    const descargas: Observable<Blob>[] = [];
-
-    tiposArchivos.forEach(tipo => {
-      descargas.push(this.descargarArchivoAuditor(documentoId, tipo));
-    });
-
-    return forkJoin(descargas);
-  }
-
-  previsualizarArchivoAuditor(documentoId: string, tipo: string): void {
-    const token = this.getToken();
-    const url = `${this.apiUrl}/documentos/${documentoId}/archivo-auditor/${tipo}/preview?token=${token}`;
-    window.open(url, '_blank');
-  }
-
-  descargarArchivoAuditorDirecto(documentoId: string, tipo: string, nombreArchivo?: string): void {
-    const token = this.getToken();
-    const url = `${this.apiUrl}/documentos/${documentoId}/archivo-auditor/${tipo}/download?token=${token}`;
-
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = nombreArchivo || `${tipo}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }
-
-  private getToken(): string {
-    return localStorage.getItem('access_token') || localStorage.getItem('token') || '';
   }
 }
