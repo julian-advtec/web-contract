@@ -1,10 +1,11 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ContabilidadService } from '../../../../core/services/contabilidad.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { AuditorFormComponent } from '../../../auditor/components/auditor-form/auditor-form.component';
+import { SupervisorFormComponent } from '../../../supervisor/components/supervisor-form/supervisor-form.component';
 
 @Component({
   selector: 'app-contabilidad-form',
@@ -12,7 +13,8 @@ import { AuditorFormComponent } from '../../../auditor/components/auditor-form/a
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    AuditorFormComponent
+    AuditorFormComponent,
+    SupervisorFormComponent
   ],
   templateUrl: './contabilidad-form.component.html',
   styleUrls: ['./contabilidad-form.component.scss']
@@ -22,7 +24,7 @@ export class ContabilidadFormComponent implements OnInit {
   isProcessing = false;
   isLoading = true;
   documento: any = null;
-  tieneGlosaDefinida = false;
+  tieneTipoDefinido = false;
 
   archivos: Record<string, File | null> = {
     glosa: null,
@@ -46,7 +48,14 @@ export class ContabilidadFormComponent implements OnInit {
   ) {
     this.form = this.fb.group({
       observaciones: [''],
-      tieneGlosa: [null]
+      tipoProceso: ['', Validators.required],  // nada | glosa | causacion
+      estadoFinal: ['', Validators.required]
+    });
+
+    // Escuchar cambios en el dropdown para limpiar automáticamente lo que no corresponda
+    this.form.get('tipoProceso')?.valueChanges.subscribe((nuevoValor: string) => {
+      this.limpiarArchivosSegunTipo(nuevoValor);
+      this.actualizarEstadoBotones();
     });
   }
 
@@ -67,9 +76,9 @@ export class ContabilidadFormComponent implements OnInit {
       this.documento = res?.data?.documento || res?.documento || null;
 
       if (this.documento) {
-        if (this.documento.tieneGlosa !== undefined) {
-          this.tieneGlosaDefinida = true;
-          this.form.patchValue({ tieneGlosa: this.documento.tieneGlosa });
+        if (this.documento.tipoProceso) {
+          this.form.patchValue({ tipoProceso: this.documento.tipoProceso });
+          this.tieneTipoDefinido = true;
         }
       }
 
@@ -81,28 +90,17 @@ export class ContabilidadFormComponent implements OnInit {
     }
   }
 
-  definirGlosa(): void {
-    const tieneGlosaValue = this.form.get('tieneGlosa')?.value;
-
-    if (tieneGlosaValue === null || tieneGlosaValue === undefined) {
-      this.notification.warning('Selecciona una opción', 'Debes indicar si hay glosa o no');
-      return;
+  private limpiarArchivosSegunTipo(tipo: string): void {
+    // Siempre limpiamos lo que no corresponda
+    if (tipo === 'glosa') {
+      this.archivos['causacion'] = null;
+    } else if (tipo === 'causacion') {
+      this.archivos['glosa'] = null;
+    } else { // nada
+      this.archivos['glosa'] = null;
+      this.archivos['causacion'] = null;
+      this.archivos['extracto'] = null; // extracto no aplica si no hay ninguno
     }
-
-    this.isProcessing = true;
-    this.contabilidadService.definirGlosa(this.documento.id, tieneGlosaValue)
-      .subscribe({
-        next: () => {
-          this.tieneGlosaDefinida = true;
-          this.mostrarMensaje('Decisión de glosa registrada correctamente', 'success');
-          this.isProcessing = false;
-          this.actualizarEstadoBotones();
-        },
-        error: (err) => {
-          this.mostrarMensaje(err.message || 'Error al registrar glosa', 'error');
-          this.isProcessing = false;
-        }
-      });
   }
 
   onFileSelected(event: any, tipo: string): void {
@@ -129,34 +127,62 @@ export class ContabilidadFormComponent implements OnInit {
     this.actualizarEstadoBotones();
   }
 
-  onSubmit(): void {
-    if (this.form.invalid) {
-      this.notification.warning('Formulario inválido', 'Revisa los campos requeridos');
-      return;
-    }
-
-    this.isProcessing = true;
-
-    const formData = new FormData();
-    Object.entries(this.archivos).forEach(([key, file]) => {
-      if (file) formData.append(key, file);
-    });
-    formData.append('observaciones', this.form.value.observaciones || '');
-    formData.append('tieneGlosa', String(this.form.value.tieneGlosa));
-
-    this.contabilidadService.subirDocumentosContabilidad(this.documento.id, formData)
-      .subscribe({
-        next: () => {
-          this.mostrarMensaje('Documentos subidos correctamente', 'success');
-          this.isProcessing = false;
-          setTimeout(() => this.volverALista(), 1800);
-        },
-        error: (err) => {
-          this.mostrarMensaje(err.message || 'Error al subir documentos', 'error');
-          this.isProcessing = false;
-        }
-      });
+onSubmit(): void {
+  if (this.form.invalid) {
+    this.notification.warning('Formulario inválido', 'Revisa los campos requeridos');
+    return;
   }
+
+  const estado = this.form.get('estadoFinal')?.value;
+
+  // Validación estricta para APROBADO
+  if (estado === 'APROBADO' && !this.archivos['comprobanteEgreso']) {
+    this.notification.error('Para APROBAR es obligatorio subir el Comprobante de Egreso');
+    return;
+  }
+
+  // Validación extra: si es APROBADO, comprobanteEgreso DEBE existir
+  if (estado === 'APROBADO' && (!this.archivos['comprobanteEgreso'] || !this.archivos['comprobanteEgreso']?.size)) {
+    this.notification.error('El archivo Comprobante de Egreso no se cargó correctamente');
+    return;
+  }
+
+  this.isProcessing = true;
+
+  const formData = new FormData();
+
+  // Adjuntamos SOLO los archivos que existen
+  if (this.archivos['glosa']) formData.append('glosa', this.archivos['glosa']);
+  if (this.archivos['causacion']) formData.append('causacion', this.archivos['causacion']);
+  if (this.archivos['extracto']) formData.append('extracto', this.archivos['extracto']);
+  if (this.archivos['comprobanteEgreso']) formData.append('comprobanteEgreso', this.archivos['comprobanteEgreso']);
+
+  formData.append('observaciones', this.form.value.observaciones || '');
+  formData.append('tipoProceso', this.form.value.tipoProceso || 'nada');
+  formData.append('estadoFinal', estado);
+
+  // ← Opcional: log para depurar qué se está enviando
+  console.log('Archivos enviados:', {
+    glosa: !!this.archivos['glosa'],
+    causacion: !!this.archivos['causacion'],
+    extracto: !!this.archivos['extracto'],
+    comprobanteEgreso: !!this.archivos['comprobanteEgreso']
+  });
+
+  this.contabilidadService.subirDocumentosContabilidad(this.documento.id, formData)
+    .subscribe({
+      next: () => {
+        this.mostrarMensaje(`Documento ${estado.toLowerCase()} correctamente`, 'success');
+        this.isProcessing = false;
+        setTimeout(() => this.volverALista(), 1800);
+      },
+      error: (err) => {
+        console.error('Error completo del backend:', err);
+        this.mostrarMensaje(err.error?.message || 'Error al subir documentos', 'error');
+        this.isProcessing = false;
+      }
+    });
+}
 
   liberarDocumento(): void {
     this.notification.showModal({
@@ -189,27 +215,34 @@ export class ContabilidadFormComponent implements OnInit {
     this.tipoMensaje = tipo;
   }
 
-  actualizarEstadoBotones(): void {
-    const tieneGlosa = this.form.get('tieneGlosa')?.value;
-    
-    let archivosRequeridos = ['causacion'];
-    
-    if (tieneGlosa === true) {
-      archivosRequeridos.push('glosa', 'extracto');
-    } else if (tieneGlosa === false) {
-      archivosRequeridos.push('comprobanteEgreso');
+actualizarEstadoBotones(): void {
+  const tipoProceso = this.form.get('tipoProceso')?.value;
+  const estadoFinal = this.form.get('estadoFinal')?.value;
+
+  let archivosRequeridos: string[] = ['comprobanteEgreso']; // siempre para aprobar
+
+  // Si NO es "nada", agregar extracto + glosa/causación según corresponda
+  if (tipoProceso && tipoProceso !== 'nada') {
+    archivosRequeridos.push('extracto');
+
+    if (tipoProceso === 'glosa') {
+      archivosRequeridos.push('glosa');
+    } else if (tipoProceso === 'causacion') {
+      archivosRequeridos.push('causacion');
     }
-    
-    const todosArchivosCargados = archivosRequeridos.every(key => 
-      this.archivos[key] !== null && this.archivos[key] !== undefined
-    );
-    
-    this.puedeGuardar = this.form.valid && 
-                       this.tieneGlosaDefinida && 
-                       todosArchivosCargados;
-    
-    this.puedeLiberar = !!this.documento && !this.isProcessing;
   }
+
+  const todosArchivosCargados = archivosRequeridos.every(key => 
+    this.archivos[key] !== null && this.archivos[key] !== undefined
+  );
+
+  this.puedeGuardar = this.form.valid && 
+                      !!tipoProceso && 
+                      todosArchivosCargados && 
+                      !!estadoFinal;
+
+  this.puedeLiberar = !!this.documento && !this.isProcessing;
+}
 
   getEstadoBadgeClass(estado: string): string {
     if (!estado) return 'badge bg-secondary';
@@ -217,6 +250,7 @@ export class ContabilidadFormComponent implements OnInit {
     if (upper.includes('APROBADO')) return 'badge bg-success';
     if (upper.includes('EN_REVISION')) return 'badge bg-warning';
     if (upper.includes('GLOSADO') || upper.includes('OBSERVADO')) return 'badge bg-danger';
+    if (upper.includes('RECHAZADO')) return 'badge bg-dark';
     return 'badge bg-info';
   }
 }

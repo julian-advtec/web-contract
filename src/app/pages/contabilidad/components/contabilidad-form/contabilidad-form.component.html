@@ -8,14 +8,18 @@
                 </h4>
             </div>
             <div class="card-body p-0">
-                <app-auditor-form 
-                    [documentoIdExterno]="documento?.id"
-                    [modo]="'contabilidad'"
-                    [soloLectura]="true">
+                <app-supervisor-form [documentoId]="documento?.id" [modo]="'auditoria'" [soloLectura]="true"
+                    (volver)="volverALista()">
+                </app-supervisor-form>
+            </div>
+
+            <div class="card-body p-0">
+                <app-auditor-form [documentoIdExterno]="documento?.id" [modo]="'contabilidad'" [soloLectura]="true">
                 </app-auditor-form>
             </div>
         </div>
     </section>
+
     <section class="contabilidad-section">
         <div class="container-fluid py-4">
             <div *ngIf="mensaje" class="alert-message mb-4" [ngClass]="{
@@ -31,6 +35,7 @@
                 }"></i>
                 {{ mensaje }}
             </div>
+
             <div *ngIf="!isLoading && !documento" class="alert alert-danger text-center py-5">
                 <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
                 <h5>No se pudo cargar el documento</h5>
@@ -39,10 +44,11 @@
                     Volver al listado
                 </button>
             </div>
+
             <ng-container *ngIf="documento">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h3 class="mb-0">
-                        <i class="fas fa-calculator me-2 text-primary"></i> 
+                        <i class="fas fa-calculator me-2 text-primary"></i>
                         Proceso Contable
                         <span class="badge ms-2" [ngClass]="getEstadoBadgeClass(documento.estado)">
                             {{ documento.estado || 'EN REVISIÓN' }}
@@ -57,148 +63,124 @@
                         </span>
                     </div>
                 </div>
+
                 <form [formGroup]="form" (ngSubmit)="onSubmit()" class="contabilidad-form">
                     <div class="form-grid">
-                        <div class="form-row" *ngIf="!tieneGlosaDefinida">
+                        <!-- Decisión final - AL INICIO Y SIEMPRE VISIBLE -->
+                        <div class="form-row">
                             <div class="form-group full-width">
                                 <label class="form-label">
-                                    <i class="fas fa-exclamation-triangle"></i> ¿Este documento tiene glosa?
+                                    <i class="fas fa-flag-checkered"></i> Decisión final
                                 </label>
-                                <div class="d-flex gap-5 mt-3">
-                                    <div class="form-check form-check-lg">
-                                        <input class="form-check-input" type="radio" id="sinGlosa" 
-                                            formControlName="tieneGlosa" [value]="false" [disabled]="isProcessing">
-                                        <label class="form-check-label fw-bold" for="sinGlosa">
-                                            <i class="fas fa-check-circle text-success me-2"></i> SIN GLOSA
-                                        </label>
-                                    </div>
-                                    <div class="form-check form-check-lg">
-                                        <input class="form-check-input" type="radio" id="conGlosa" 
-                                            formControlName="tieneGlosa" [value]="true" [disabled]="isProcessing">
-                                        <label class="form-check-label fw-bold" for="conGlosa">
-                                            <i class="fas fa-exclamation-triangle text-danger me-2"></i> CON GLOSA
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="mt-4">
-                                    <button type="button" class="btn btn-primary" (click)="definirGlosa()"
-                                        [disabled]="form.get('tieneGlosa')?.value === null || isProcessing">
-                                        <i class="fas fa-save me-2"></i> Confirmar decisión
-                                    </button>
-                                </div>
+                                <select class="form-control" formControlName="estadoFinal" required>
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="APROBADO">APROBADO</option>
+                                    <option value="OBSERVADO">OBSERVADO</option>
+                                    <option value="RECHAZADO">RECHAZADO</option>
+                                </select>
+                                <small class="form-text text-muted" *ngIf="form.get('estadoFinal')?.value === 'APROBADO'">
+                                    Para aprobar es obligatorio el Comprobante de Egreso.
+                                </small>
                             </div>
                         </div>
-                        <div class="documentos-section" *ngIf="tieneGlosaDefinida">
+
+                        <!-- Dropdown de tipo de proceso -->
+                        <div class="form-row mt-4">
+                            <div class="form-group full-width">
+                                <label class="form-label">
+                                    <i class="fas fa-exclamation-triangle"></i> Tipo de proceso contable
+                                </label>
+                                <select class="form-control" formControlName="tipoProceso" required>
+                                    <option value="">-- Seleccione --</option>
+                                    <option value="nada">Nada (sin glosa ni causación)</option>
+                                    <option value="glosa">Glosa</option>
+                                    <option value="causacion">Causación</option>
+                                </select>
+                                <small class="form-text text-muted">
+                                    Seleccione si hay glosa, causación o ninguno. Esta decisión es obligatoria.
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Sección de documentos condicional (solo si NO es "nada") -->
+                        <div class="documentos-section"
+                             *ngIf="form.get('tipoProceso')?.value && form.get('tipoProceso')?.value !== 'nada'">
                             <h4 class="section-title">
-                                <i class="fas fa-upload"></i> Documentos Contables a Adjuntar
+                                <i class="fas fa-upload"></i> Documentos a Adjuntar según selección
                             </h4>
                             <div class="documentos-grid">
-                                <div class="documento-card" *ngIf="form.get('tieneGlosa')?.value">
+                                <!-- Glosa - SOLO si tipo = glosa -->
+                                <div class="documento-card" *ngIf="form.get('tipoProceso')?.value === 'glosa'">
                                     <div class="documento-header">
-                                        <i class="fas fa-file-medical documento-icon"></i>
+                                        <i class="fas fa-file-medical documento-icon text-danger"></i>
                                         <h5>Documento de Glosa</h5>
-                                        <span class="badge bg-danger ms-2" *ngIf="!archivos['glosa']">Requerido</span>
+                                        <span class="badge bg-danger ms-2">Requerido</span>
                                         <span class="badge bg-success ms-2" *ngIf="archivos['glosa']">Subido</span>
                                     </div>
                                     <div class="documento-body">
                                         <div class="file-upload-area" [class.has-file]="!!archivos['glosa']">
-                                            <input type="file" class="file-input" 
-                                                (change)="onFileSelected($event, 'glosa')"
-                                                accept=".pdf,.doc,.docx" [disabled]="isProcessing">
+                                            <input type="file" class="file-input"
+                                                   (change)="onFileSelected($event, 'glosa')" accept=".pdf,.doc,.docx">
                                             <label class="file-label">
                                                 <i class="fas fa-cloud-upload-alt"></i>
                                                 <span *ngIf="!archivos['glosa']">Seleccionar glosa</span>
-                                                <span *ngIf="archivos['glosa']" class="file-name">
-                                                    {{ archivos['glosa']!.name }}
-                                                </span>
+                                                <span *ngIf="archivos['glosa']" class="file-name">{{ archivos['glosa']?.name || '' }}</span>
                                             </label>
                                             <div *ngIf="archivos['glosa']" class="file-actions">
-                                                <button type="button" class="btn-remove" 
-                                                    (click)="removeFile('glosa')" [disabled]="isProcessing">
+                                                <button type="button" class="btn-remove" (click)="removeFile('glosa')">
                                                     <i class="fas fa-times"></i>
                                                 </button>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="documento-card">
+
+                                <!-- Causación - SOLO si tipo = causacion -->
+                                <div class="documento-card" *ngIf="form.get('tipoProceso')?.value === 'causacion'">
                                     <div class="documento-header">
-                                        <i class="fas fa-calculator documento-icon"></i>
+                                        <i class="fas fa-calculator documento-icon text-primary"></i>
                                         <h5>Causación / Comprobante</h5>
                                         <span class="badge bg-danger ms-2">Requerido</span>
                                         <span class="badge bg-success ms-2" *ngIf="archivos['causacion']">Subido</span>
                                     </div>
                                     <div class="documento-body">
                                         <div class="file-upload-area" [class.has-file]="!!archivos['causacion']">
-                                            <input type="file" class="file-input" 
-                                                (change)="onFileSelected($event, 'causacion')"
-                                                accept=".pdf,.doc,.docx" [disabled]="isProcessing">
+                                            <input type="file" class="file-input"
+                                                   (change)="onFileSelected($event, 'causacion')" accept=".pdf,.doc,.docx">
                                             <label class="file-label">
                                                 <i class="fas fa-cloud-upload-alt"></i>
-                                                <span *ngIf="!archivos['causacion']">Seleccionar archivo</span>
-                                                <span *ngIf="archivos['causacion']" class="file-name">
-                                                    {{ archivos['causacion']!.name }}
-                                                </span>
+                                                <span *ngIf="!archivos['causacion']">Seleccionar causación</span>
+                                                <span *ngIf="archivos['causacion']" class="file-name">{{ archivos['causacion']?.name || '' }}</span>
                                             </label>
                                             <div *ngIf="archivos['causacion']" class="file-actions">
-                                                <button type="button" class="btn-remove" 
-                                                    (click)="removeFile('causacion')" [disabled]="isProcessing">
+                                                <button type="button" class="btn-remove" (click)="removeFile('causacion')">
                                                     <i class="fas fa-times"></i>
                                                 </button>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="documento-card" *ngIf="form.get('tieneGlosa')?.value">
+
+                                <!-- Extracto Bancario - Solo si hay glosa o causación -->
+                                <div class="documento-card"
+                                     *ngIf="form.get('tipoProceso')?.value === 'glosa' || form.get('tipoProceso')?.value === 'causacion'">
                                     <div class="documento-header">
-                                        <i class="fas fa-bank documento-icon"></i>
+                                        <i class="fas fa-bank documento-icon text-info"></i>
                                         <h5>Extracto Bancario</h5>
-                                        <span class="badge bg-danger ms-2" *ngIf="!archivos['extracto']">Requerido</span>
+                                        <span class="badge bg-danger ms-2">Requerido</span>
                                         <span class="badge bg-success ms-2" *ngIf="archivos['extracto']">Subido</span>
                                     </div>
                                     <div class="documento-body">
                                         <div class="file-upload-area" [class.has-file]="!!archivos['extracto']">
-                                            <input type="file" class="file-input" 
-                                                (change)="onFileSelected($event, 'extracto')"
-                                                accept=".pdf,.doc,.docx" [disabled]="isProcessing">
+                                            <input type="file" class="file-input"
+                                                   (change)="onFileSelected($event, 'extracto')" accept=".pdf,.doc,.docx">
                                             <label class="file-label">
                                                 <i class="fas fa-cloud-upload-alt"></i>
                                                 <span *ngIf="!archivos['extracto']">Seleccionar extracto</span>
-                                                <span *ngIf="archivos['extracto']" class="file-name">
-                                                    {{ archivos['extracto']!.name }}
-                                                </span>
+                                                <span *ngIf="archivos['extracto']" class="file-name">{{ archivos['extracto']?.name || '' }}</span>
                                             </label>
                                             <div *ngIf="archivos['extracto']" class="file-actions">
-                                                <button type="button" class="btn-remove" 
-                                                    (click)="removeFile('extracto')" [disabled]="isProcessing">
-                                                    <i class="fas fa-times"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="documento-card" *ngIf="!form.get('tieneGlosa')?.value">
-                                    <div class="documento-header">
-                                        <i class="fas fa-file-invoice documento-icon"></i>
-                                        <h5>Comprobante de Egreso</h5>
-                                        <span class="badge bg-danger ms-2" *ngIf="!archivos['comprobanteEgreso']">Requerido</span>
-                                        <span class="badge bg-success ms-2" *ngIf="archivos['comprobanteEgreso']">Subido</span>
-                                    </div>
-                                    <div class="documento-body">
-                                        <div class="file-upload-area" [class.has-file]="!!archivos['comprobanteEgreso']">
-                                            <input type="file" class="file-input"
-                                                (change)="onFileSelected($event, 'comprobanteEgreso')" 
-                                                accept=".pdf,.doc,.docx" [disabled]="isProcessing">
-                                            <label class="file-label">
-                                                <i class="fas fa-cloud-upload-alt"></i>
-                                                <span *ngIf="!archivos['comprobanteEgreso']">Seleccionar comprobante</span>
-                                                <span *ngIf="archivos['comprobanteEgreso']" class="file-name">
-                                                    {{ archivos['comprobanteEgreso']!.name }}
-                                                </span>
-                                            </label>
-                                            <div *ngIf="archivos['comprobanteEgreso']" class="file-actions">
-                                                <button type="button" class="btn-remove" 
-                                                    (click)="removeFile('comprobanteEgreso')" [disabled]="isProcessing">
+                                                <button type="button" class="btn-remove" (click)="removeFile('extracto')">
                                                     <i class="fas fa-times"></i>
                                                 </button>
                                             </div>
@@ -207,30 +189,59 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Comprobante de Egreso - SIEMPRE visible desde el inicio (fuera de condicionales) -->
+                        <div class="documento-card">
+                            <div class="documento-header">
+                                <i class="fas fa-file-invoice documento-icon text-success"></i>
+                                <h5>Comprobante de Egreso</h5>
+                                <span class="badge bg-danger ms-2">Requerido para aprobar</span>
+                                <span class="badge bg-success ms-2" *ngIf="archivos['comprobanteEgreso']">Subido</span>
+                            </div>
+                            <div class="documento-body">
+                                <div class="file-upload-area" [class.has-file]="!!archivos['comprobanteEgreso']">
+                                    <input type="file" class="file-input"
+                                           (change)="onFileSelected($event, 'comprobanteEgreso')" accept=".pdf,.doc,.docx">
+                                    <label class="file-label">
+                                        <i class="fas fa-cloud-upload-alt"></i>
+                                        <span *ngIf="!archivos['comprobanteEgreso']">Seleccionar comprobante de egreso</span>
+                                        <span *ngIf="archivos['comprobanteEgreso']" class="file-name">{{ archivos['comprobanteEgreso']?.name || '' }}</span>
+                                    </label>
+                                    <div *ngIf="archivos['comprobanteEgreso']" class="file-actions">
+                                        <button type="button" class="btn-remove" (click)="removeFile('comprobanteEgreso')">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Observaciones (siempre visible) -->
                         <div class="form-row">
                             <div class="form-group full-width">
                                 <label class="form-label">
                                     <i class="fas fa-sticky-note"></i> Observaciones contables
                                 </label>
                                 <textarea class="form-control" formControlName="observaciones" rows="4"
-                                    placeholder="Ingrese observaciones, justificaciones o comentarios relevantes..."
-                                    [disabled]="isProcessing"></textarea>
+                                          placeholder="Ingrese observaciones, justificaciones o comentarios relevantes..."></textarea>
                                 <small class="form-text text-muted">
                                     Opcional. Visible para auditoría y supervisión.
                                 </small>
                             </div>
                         </div>
-                        <div class="form-actions">
+
+                        <!-- Botones de acción -->
+                        <div class="form-actions mt-4">
                             <button type="button" class="btn btn-outline-danger" (click)="liberarDocumento()"
-                                [disabled]="isProcessing || !puedeLiberar">
+                                    [disabled]="isProcessing || !puedeLiberar">
                                 <i class="fas fa-unlock me-2"></i> Liberar documento
                             </button>
                             <button type="button" class="btn btn-outline-secondary" (click)="onCancel()"
-                                [disabled]="isProcessing">
+                                    [disabled]="isProcessing">
                                 <i class="fas fa-times me-2"></i> Cancelar
                             </button>
                             <button type="submit" class="btn btn-primary"
-                                [disabled]="isProcessing || form.invalid || !puedeGuardar">
+                                    [disabled]="isProcessing || form.invalid || !puedeGuardar">
                                 <span *ngIf="!isProcessing">
                                     <i class="fas fa-save me-2"></i> Guardar y Finalizar
                                 </span>
