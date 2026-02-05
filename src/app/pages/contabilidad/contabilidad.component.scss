@@ -1,0 +1,268 @@
+@import '../../shared/layout-styles.scss';
+
+/* ===== VARIABLES ESPECÍFICAS DE AUDITOR ===== */
+$color-auditor: #8B5CF6; // Violet auditor
+$color-auditor-light: rgba(139, 92, 246, 0.1);
+$color-auditor-medium: rgba(139, 92, 246, 0.2);
+$color-auditor-dark: #7C3AED;
+$color-warning: #F59E0B;
+$color-warning-light: rgba(245, 158, 11, 0.1);
+$color-success: #10B981;
+$color-success-light: rgba(16, 185, 129, 0.1);
+$color-danger: #EF4444;
+$color-danger-light: rgba(239, 68, 68, 0.1);
+$color-info: #3B82F6;
+$color-info-light: rgba(59, 130, 246, 0.1);
+
+/* ===== CONTENEDOR PRINCIPAL ===== */
+.auditor-container {
+  width: 100%;
+  height: 100%;
+  min-height: calc(100vh - 80px);
+  background-color: #f8f9fa;
+  
+  .auditor-inner {
+    padding: 15px;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}
+
+/* ===== HEADER ===== */
+.page-header {
+  margin-bottom: 1.5rem;
+  
+  .page-title {
+    color: $color-auditor-dark;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    font-size: 1.8rem;
+  }
+  
+  .page-subtitle {
+    color: #6B7280;
+    font-size: 1rem;
+  }
+}
+
+/* ===== MAIN CARD ===== */
+.main-card {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid $color-auditor-light;
+  
+  .card-header {
+    border-radius: 12px 12px 0 0 !important;
+    padding: 1rem 1.5rem;
+    font-size: 1.1rem;
+  }
+}
+
+/* ===== BADGES DE ESTADO AUDITOR ===== */
+.badge {
+  padding: 0.35em 0.85em;
+  border-radius: 20px;
+  font-weight: 500;
+  font-size: 0.85rem;
+  
+  &.aprobado-supervisor {
+    background: rgba(16, 185, 129, 0.1) !important;
+    color: #10B981 !important;
+    border: 1px solid #10B981;
+  }
+  
+  &.en-revision-auditor {
+    background: rgba(139, 92, 246, 0.1) !important;
+    color: #8B5CF6 !important;
+    border: 1px solid #8B5CF6;
+  }
+  
+  &.aprobado-auditor {
+    background: rgba(16, 185, 129, 0.1) !important;
+    color: #10B981 !important;
+    border: 1px solid #10B981;
+  }
+  
+  &.observado-auditor {
+    background: rgba(245, 158, 11, 0.1) !important;
+    color: #F59E0B !important;
+    border: 1px solid #F59E0B;
+  }
+  
+  &.rechazado-auditor {
+    background: rgba(239, 68, 68, 0.1) !important;
+    color: #EF4444 !important;
+    border: 1px solid #EF4444;
+  }
+  
+  &.completado-auditor {
+    background: rgba(59, 130, 246, 0.1) !important;
+    color: #3B82F6 !important;
+    border: 1px solid #3B82F6;
+  }
+  
+  &.default {
+    background: rgba(107, 114, 128, 0.1) !important;
+    color: #6B7280 !important;
+    border: 1px solid #6B7280;
+  }
+}
+
+/* ===== FORMULARIOS ===== */
+.form-control {
+  border: 1px solid $color-auditor-medium;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  transition: all 0.3s ease;
+  
+  &:focus {
+    border-color: $color-auditor;
+    box-shadow: 0 0 0 0.25rem rgba(139, 92, 246, 0.25);
+  }
+}
+
+.form-label {
+  color: $color-auditor-dark;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+/* ===== BOTONES AUDITOR ===== */
+.btn-auditor {
+  background: $color-auditor;
+  border-color: $color-auditor;
+  color: white;
+  
+  &:hover:not(:disabled) {
+    background: $color-auditor-dark;
+    border-color: $color-auditor-dark;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+  }
+}
+
+/* ===== DOCUMENTOS ADJUNTOS ===== */
+.document-card {
+  border: 1px solid $color-auditor-medium;
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.3s ease;
+  background: white;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
+    border-color: $color-auditor;
+  }
+  
+  .document-icon {
+    color: $color-auditor;
+    flex-shrink: 0;
+  }
+  
+  .document-info {
+    flex-grow: 1;
+    
+    h6 {
+      margin: 0;
+      color: $color-auditor-dark;
+      font-weight: 600;
+    }
+    
+    p {
+      margin: 0.25rem 0 0 0;
+      font-size: 0.85rem;
+    }
+  }
+}
+
+/* ===== PRIMER RADICADO BADGE ===== */
+.primer-radicado-badge {
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* ===== DECISION OPTIONS ===== */
+.decision-options {
+  .form-check {
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    border: 1px solid $color-auditor-light;
+    background: rgba(139, 92, 246, 0.05);
+    transition: all 0.3s ease;
+    
+    &:hover {
+      background: rgba(139, 92, 246, 0.08);
+      border-color: $color-auditor-medium;
+    }
+    
+    .form-check-label {
+      display: flex;
+      align-items: center;
+      font-size: 1rem;
+    }
+    
+    .form-check-input {
+      margin-top: 0.25rem;
+    }
+    
+    p {
+      margin: 0.5rem 0 0 0;
+      font-size: 0.9rem;
+    }
+  }
+}
+
+/* ===== LOADING SPINNER ===== */
+.loading-spinner {
+  display: inline-block;
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid rgba(139, 92, 246, 0.3);
+  border-radius: 50%;
+  border-top-color: $color-auditor;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .auditor-container {
+    .auditor-inner {
+      padding: 10px;
+    }
+  }
+  
+  .page-header {
+    .page-title {
+      font-size: 1.5rem;
+    }
+  }
+  
+  .document-card {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.75rem;
+    
+    .document-info {
+      text-align: center;
+    }
+  }
+}

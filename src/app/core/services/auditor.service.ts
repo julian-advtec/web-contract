@@ -319,17 +319,24 @@ export class AuditorService {
     return this.tomarParaRevision(id);
   }
 
-  obtenerDocumentoParaVista(id: string): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/documentos/${id}/vista`, {
-      headers: this.getAuthHeaders()
-    }).pipe(
-      map(res => res?.data || res),
-      catchError(err => {
-        console.error('[AuditorService] Error en /vista:', err);
-        return of(null);
-      })
-    );
+obtenerDocumentoParaVista(id: string, esDesdeContabilidad: boolean = false): Observable<any> {
+  const params: any = {};
+  if (esDesdeContabilidad) {
+    params.vistaDesde = 'contabilidad';
+    params.soloLectura = 'true';
   }
+
+  return this.http.get<any>(`${this.apiUrl}/documentos/${id}/vista`, {
+    headers: this.getAuthHeaders(),
+    params
+  }).pipe(
+    map(res => res?.data || res),
+    catchError(err => {
+      console.error('[AuditorService] Error en /vista:', err);
+      return of(null);
+    })
+  );
+}
 
   verificarArchivosExistentes(documentoId: string): Observable<any> {
     return this.http.get<any>(`${this.apiUrl}/documentos/${documentoId}/vista`, {

@@ -123,7 +123,7 @@ export class ModulesService {
       title: 'Contabilidad',
       description: 'Módulo de contabilidad',
       path: '/contabilidad',
-      route: '/contabilidad',
+      route: '/contabilidad',           // opcional, pero ponlo para consistencia
       icon: 'contabilidad',
       requiredRole: UserRole.CONTABILIDAD,
       isActive: true

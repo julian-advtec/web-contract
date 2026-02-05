@@ -29,13 +29,28 @@ export class SidebarComponent implements OnInit, OnDestroy {
   // Inputs con setters
   @Input()
   set currentUser(user: User | null) {
+    console.log('SIDEBAR DEBUG ──────────────────────────────');
+    console.log('currentUser RECIBIDO (completo):', user);
+    console.log('Rol del usuario:', user?.role);
+    console.log('Tipo de rol:', typeof user?.role);
     this._currentUser = user;
-    if (user) {
-      this._availableModules = this.modulesService.getModulesForUser(user.role);
+
+    if (user && user.role) {
+      const modules = this.modulesService.getModulesForUser(user.role);
+      console.log('Módulos calculados para este rol:', modules.map(m => ({
+        id: m.id,
+        title: m.title,
+        required: m.requiredRole
+      })));
+      console.log('¿Aparece contabilidad?', modules.some(m => m.id === 'contabilidad'));
+      this._availableModules = modules;
     } else {
+      console.log('Usuario o rol inválido → usando módulos por defecto');
       this._availableModules = this.getDefaultModules();
     }
   }
+
+
 
   get currentUser(): User | null {
     return this._currentUser;
@@ -65,7 +80,9 @@ export class SidebarComponent implements OnInit, OnDestroy {
   @Output() logout = new EventEmitter<void>();
 
   ngOnInit() {
-    console.log('Sidebar - OnInit - Módulos finales:', this.availableModules);
+    console.log('SIDEBAR ngOnInit ──────────────────────────────');
+    console.log('Módulos FINALES que se van a renderizar:', this.availableModules.map(m => m.title));
+    console.log('Sidebar collapsed?', this.sidebarCollapsed);
 
     if (this.isMobile()) {
       this.sidebarCollapsed = true;
@@ -238,10 +255,11 @@ export class SidebarComponent implements OnInit, OnDestroy {
       'mis-radicaciones': `<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor">
       <path d="M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Zm80-80h480v-32q0-11-5.5-20T700-306q-54-27-109-40.5T480-360q-56 0-111 13.5T260-306q-9 5-14.5 14t-5.5 20v32Zm240-320q33 0 56.5-23.5T560-640q0-33-23.5-56.5T480-720q-33 0-56.5 23.5T400-640q0 33 23.5 56.5T480-560Zm0-80Zm0 400Z"/>
     </svg>`,
-    
+
       'rechazados': `<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor">
   <path d="m336-280 144-144 144 144 56-56-144-144 144-144-56-56-144 144-144-144-56 56 144 144-144 144 56 56ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/>
 </svg>`,
+
 
     };
 

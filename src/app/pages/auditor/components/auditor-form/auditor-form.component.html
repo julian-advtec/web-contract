@@ -1,7 +1,6 @@
 <div class="auditor-detail-page container-fluid py-4">
 
-  <!-- Sección 1: Vista supervisor (sin cambios) -->
-  <section class="supervisor-view mb-5">
+  <section class="supervisor-view mb-5" *ngIf="!esModoContabilidad">
     <div class="card shadow">
       <div class="card-header bg-info text-white">
         <h4 class="mb-0">
@@ -17,25 +16,25 @@
     </div>
   </section>
 
-  <!-- Sección 2: Contenido auditor -->
   <section class="auditor-specific">
     <div class="container-fluid py-4">
 
       <div class="d-flex justify-content-between align-items-center mb-4">
         <h3 class="mb-0">
-          <i class="fas fa-gavel me-2 text-warning"></i> Revisión de Auditoría
+          <i class="fas fa-gavel me-2 text-warning"></i> 
+          {{ esModoContabilidad ? 'Documentos de Auditoría' : 'Revisión de Auditoría' }}
         </h3>
-        <button class="btn btn-warning btn-sm" (click)="verificarEstado()">
+        
+        <button class="btn btn-warning btn-sm" *ngIf="!esModoContabilidad" (click)="verificarEstado()">
           <i class="fas fa-bug me-1"></i> Depurar
         </button>
       </div>
 
-      <!-- Loading -->
       <div *ngIf="isLoading" class="text-center my-5">
         <div class="spinner-border text-primary" role="status">
           <span class="visually-hidden">Cargando...</span>
         </div>
-        <p class="mt-2">Cargando información...</p>
+        <p class="mt-2">Cargando información de auditoría...</p>
       </div>
 
       <ng-container *ngIf="!isLoading && documentoData">
@@ -53,30 +52,32 @@
 
           <div class="card-body">
 
-            <!-- Documentos de Auditoría – solo visualización + selección -->
             <section class="mb-5">
               <div class="card border-warning">
                 <div class="card-header bg-warning text-dark">
                   <h5 class="mb-0">
                     <i class="fas fa-shield-alt me-2"></i>
-                    Documentos de Auditoría (primer radicado del año)
+                    Documentos de Auditoría {{ primerRadicadoDelAno ? '(primer radicado del año)' : '' }}
                   </h5>
                 </div>
 
                 <div class="card-body">
 
-                  <div class="alert alert-info mb-4">
+                  <div class="alert" [ngClass]="esModoContabilidad ? 'alert-info' : 'alert-warning'">
                     <i class="fas fa-info-circle me-2"></i>
-                    <strong>Nota:</strong> Los documentos se validarán automáticamente al registrar la decisión.
-                    Si faltan archivos obligatorios, el sistema lo indicará.
+                    <strong *ngIf="esModoContabilidad">Vista contabilidad:</strong>
+                    <strong *ngIf="!esModoContabilidad">Nota:</strong>
+                    {{ esModoContabilidad ? 
+                      'Esta sección muestra los documentos de auditoría disponibles.' : 
+                      'Los documentos se validarán automáticamente al registrar la decisión.' }}
                   </div>
 
                   <div class="row g-4">
                     <div class="col-md-6 col-lg-4" *ngFor="let item of listaDocumentosAuditoria">
                       <div class="card h-100 shadow-sm" [ngClass]="{
                         'border-success border-2': archivosAuditorFormulario[item.key].subido,
-                        'border-primary': estadoDocumento === 'EN_REVISION_AUDITOR' && !archivosAuditorFormulario[item.key].subido,
-                        'border-secondary': estadoDocumento !== 'EN_REVISION_AUDITOR'
+                        'border-primary': !esModoContabilidad && estadoDocumento === 'EN_REVISION_AUDITOR' && !archivosAuditorFormulario[item.key].subido,
+                        'border-secondary': esModoContabilidad || estadoDocumento !== 'EN_REVISION_AUDITOR'
                       }">
                         <div class="card-body d-flex flex-column p-4">
 
@@ -97,8 +98,7 @@
                             <i class="fas fa-file me-1"></i> {{ archivosAuditorFormulario[item.key].nombreArchivo }}
                           </small>
 
-                          <!-- Selección de archivo -->
-                          <ng-container *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR' && primerRadicadoDelAno">
+                          <ng-container *ngIf="!esModoContabilidad && estadoDocumento === 'EN_REVISION_AUDITOR' && primerRadicadoDelAno">
                             <div class="input-group input-group-sm mb-3">
                               <input type="file" class="form-control" (change)="onArchivoSeleccionado($event, item.key)"
                                 accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" [id]="'file-'+item.key"
@@ -109,15 +109,13 @@
                             </div>
                           </ng-container>
 
-                          <!-- Mensaje cuando no se permite -->
-                          <ng-container *ngIf="!(estadoDocumento === 'EN_REVISION_AUDITOR' && primerRadicadoDelAno)">
+                          <ng-container *ngIf="esModoContabilidad">
                             <div class="alert alert-light text-center mb-3 py-2 small">
-                              <i class="fas fa-lock me-1"></i>
-                              {{ estadoDocumento !== 'EN_REVISION_AUDITOR' ? 'Solo en revisión' : 'No requerido' }}
+                              <i class="fas fa-eye me-1"></i>
+                              Modo visualización
                             </div>
                           </ng-container>
 
-                          <!-- Botones ver/descargar -->
                           <div class="mt-auto d-flex gap-2">
                             <button class="btn btn-outline-primary btn-sm flex-fill"
                               (click)="verArchivoAuditor(item.key)"
@@ -136,7 +134,6 @@
                     </div>
                   </div>
 
-                  <!-- Botones globales para todos los documentos de auditoría -->
                   <div class="mt-4 text-center" *ngIf="hayArchivosAuditorSubidos()">
                     <div class="d-grid gap-2 d-md-block">
                       <button class="btn btn-primary btn-lg" (click)="abrirTodosArchivosAuditor()"
@@ -145,7 +142,6 @@
                         Abrir todos ({{ contarArchivosRealmenteSubidos() }})
                       </button>
 
-                      <!-- Descargar todos -->
                       <button class="btn btn-success btn-lg" (click)="descargarTodosArchivosAuditor()"
                         [disabled]="isProcessing || contarArchivosRealmenteSubidos() === 0">
                         <i class="fas fa-download me-2"></i>
@@ -161,8 +157,7 @@
               </div>
             </section>
 
-            <!-- Decisión final -->
-            <section class="mt-5">
+            <section class="mt-5" *ngIf="!esModoContabilidad">
               <div class="card border-primary shadow-lg">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                   <h5 class="mb-0">
@@ -185,7 +180,6 @@
                     No se puede registrar decisión en estado <strong>{{ estadoDocumento | uppercase }}</strong>
                   </div>
 
-                  <!-- Observaciones -->
                   <div class="mb-5" *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR'">
                     <label class="form-label fw-bold required">
                       <i class="fas fa-sticky-note me-2"></i> Observaciones *
@@ -195,7 +189,6 @@
                     <small class="text-muted">Obligatorio para observar o rechazar</small>
                   </div>
 
-                  <!-- Decisión -->
                   <div class="mb-4" *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR'">
                     <label class="form-label fw-bold">
                       <i class="fas fa-gavel me-2"></i> Decisión
@@ -210,7 +203,6 @@
                     </select>
                   </div>
 
-                  <!-- Botón principal -->
                   <div class="text-center" *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR'">
                     <button class="btn btn-primary btn-lg px-5" (click)="registrarDecision()"
                       [disabled]="!decisionSeleccionada || isProcessing">
@@ -219,7 +211,6 @@
                     </button>
                   </div>
 
-                  <!-- Mensaje decisión ya tomada -->
                   <div class="alert alert-info text-center mt-4"
                     *ngIf="['APROBADO_AUDITOR','COMPLETADO_AUDITOR','RECHAZADO_AUDITOR','OBSERVADO_AUDITOR'].includes(estadoDocumento)">
                     <i class="fas fa-info-circle fa-2x me-2"></i>
@@ -230,7 +221,6 @@
                 </div>
               </div>
 
-              <!-- Liberar -->
               <div class="text-center mt-4" *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR'">
                 <button class="btn btn-outline-secondary btn-lg px-5" (click)="liberarDocumento()"
                   [disabled]="isProcessing">
@@ -247,15 +237,7 @@
     </div>
   </section>
 
-  <!-- Volver -->
-  <div class="text-center mt-4">
-    <button class="btn btn-secondary btn-lg" (click)="volverALista()" [disabled]="isProcessing">
-      <i class="fas fa-arrow-left me-2"></i> Volver a Mis Auditorías
-    </button>
-  </div>
-
-  <!-- Tomar para revisión -->
-  <div *ngIf="estadoDocumento === 'APROBADO_SUPERVISOR'" class="card border-warning mt-4">
+  <div *ngIf="!esModoContabilidad && estadoDocumento === 'APROBADO_SUPERVISOR'" class="card border-warning mt-4">
     <div class="card-header bg-warning text-dark">
       <h5 class="mb-0">
         <i class="fas fa-hand-paper me-2"></i> Tomar para Revisión
@@ -266,14 +248,6 @@
         <i class="fas fa-hand-paper me-2"></i> Tomar Documento
       </button>
     </div>
-  </div>
-
-  <!-- Error -->
-  <div *ngIf="!estadoDocumento" class="alert alert-danger mt-4">
-    <h5>No se pudo cargar el documento</h5>
-    <button class="btn btn-outline-danger" (click)="cargarDocumentoParaAuditor(documentoId)">
-      Reintentar
-    </button>
   </div>
 
 </div>

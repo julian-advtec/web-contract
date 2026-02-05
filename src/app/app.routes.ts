@@ -64,7 +64,13 @@ export const routes: Routes = [
     data: { roles: ['auditor de Cuentas', 'admin'] }
   },
   // ─────────────────────────────────────────────────────────────────────
-
+ {
+    path: 'contabilidad',
+    loadChildren: () => import('./pages/contabilidad/contabilidad-routing.module')
+      .then(m => m.ContabilidadRoutingModule),
+    canActivate: [AuthGuard, RoleGuard],
+    data: { roles: [UserRole.CONTABILIDAD, UserRole.ADMIN] }  // ← usa el enum si lo tienes
+  },
   {
     path: '',
     redirectTo: '/dashboard',

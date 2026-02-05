@@ -1,0 +1,41 @@
+<div class="app-container">
+  <!-- Sidebar FIXED -->
+  <div class="drawer-fixed" [class.collapsed]="sidebarCollapsed">
+    <app-sidebar 
+      [currentUser]="currentUser" 
+      [availableModules]="availableModules"
+      [sidebarCollapsed]="sidebarCollapsed" 
+      (toggleSidebar)="onToggleSidebar($event)" 
+      (logout)="onLogout()">
+    </app-sidebar>
+  </div>
+
+  <!-- Navbar FIXED -->
+  <app-navbar 
+    [currentUser]="currentUser" 
+    [sidebarCollapsed]="sidebarCollapsed" 
+    (logout)="onLogout()"
+    (toggleSidebar)="onToggleSidebar($event)">
+  </app-navbar>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="main-with-margin" [class.sidebar-collapsed]="sidebarCollapsed">
+    <div class="container-fluid py-4">
+      
+      <!-- Mensajes -->
+      <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
+        {{ errorMessage }}
+        <button type="button" class="btn-close" (click)="dismissError()" aria-label="Close"></button>
+      </div>
+      
+      <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show" role="alert">
+        {{ successMessage }}
+        <button type="button" class="btn-close" (click)="dismissSuccess()" aria-label="Close"></button>
+      </div>
+
+      <!-- Router outlet para rutas hijas -->
+      <router-outlet></router-outlet>
+
+    </div>
+  </main>
+</div>

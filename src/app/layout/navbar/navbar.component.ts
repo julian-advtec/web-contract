@@ -73,6 +73,13 @@ export class NavbarComponent implements OnInit {
            cleanUrl.startsWith('/auditor/documentos/');
   }
 
+  isContabilidadPage(): boolean {
+  const cleanUrl = this.currentUrl || this.router.url.split('?')[0];
+  return cleanUrl === '/contabilidad' ||
+         cleanUrl === '/contabilidad/pendientes' ||
+         cleanUrl.startsWith('/contabilidad/procesar/');
+}
+
   private updateTitle() {
     this.currentUrl = this.router.url.split('?')[0];
     const cleanUrl = this.currentUrl;
@@ -212,6 +219,12 @@ export class NavbarComponent implements OnInit {
       this.currentPageSubtitle = 'Auditoría de cuentas';
       return;
     }
+
+    if (this.isContabilidadPage()) {
+    this.currentPageTitle = 'Contabilidad';
+    this.currentPageSubtitle = 'Gestión contable y glosas';
+    return;
+  }
     
     const segments = cleanUrl.split('/').filter(seg => seg.trim() !== '');
     if (segments.length > 0) {
