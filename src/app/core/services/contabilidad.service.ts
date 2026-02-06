@@ -302,4 +302,18 @@ export class ContabilidadService {
             })
         );
     }
+
+    obtenerRechazadosVisibles(): Observable<any> {
+        return this.http.get<any>(`${this.apiUrl}/rechazados-visibles`, {
+            headers: this.getHeaders()
+        }).pipe(
+            map(res => res.data || res || []),
+            catchError(err => {
+                console.error('[RECHAZADOS-VISIBLES] Error:', err);
+                return throwError(() => err);
+            })
+        );
+    }
+
+    
 }

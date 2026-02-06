@@ -6,32 +6,30 @@ $navbar-height: 80px;
 $transition-duration: 0.3s;
 
 // Colores globales
-$primary-green: #10b981;      // Verde principal
-$light-green: #34d399;        // Verde claro  
-$dark-green: #047857;         // Verde oscuro
-$very-dark-green: #064e3b;    // Verde muy oscuro
+$primary-green: #10b981;
+$light-green: #34d399;
+$dark-green: #047857;
+$very-dark-green: #064e3b;
 $white: #ffffff;
-$off-white: #f8fafc;          // Blanco ligeramente cálido
-$light-gray-green: #ecfdf5;   // Verde muy claro para fondos
-$medium-gray-green: #d1fae5;  // Verde grisáceo medio
+$off-white: #f8fafc;
+$light-gray-green: #ecfdf5;
+$medium-gray-green: #d1fae5;
 
 // MIXINS
 @mixin mobile {
-  @media (max-width: 770px) {
-    @content;
-  }
+  @media (max-width: 770px) { @content; }
 }
 
 @mixin tablet {
-  @media (max-width: 1200px) {
-    @content;
-  }
+  @media (max-width: 1200px) { @content; }
 }
 
 @mixin small-tablet {
-  @media (max-width: 900px) {
-    @content;
-  }
+  @media (max-width: 900px) { @content; }
+}
+
+@mixin desktop-large {
+  @media (min-width: 901px) { @content; }  // > 900px
 }
 
 // CLASES GLOBALES PARA LAYOUT
@@ -50,13 +48,8 @@ $medium-gray-green: #d1fae5;  // Verde grisáceo medio
   z-index: 1000;
   transition: width $transition-duration ease;
   
-  &:not(.collapsed) {
-    width: $sidebar-width-normal;
-  }
-  
-  &.collapsed {
-    width: $sidebar-width-collapsed;
-  }
+  &:not(.collapsed) { width: $sidebar-width-normal; }
+  &.collapsed { width: $sidebar-width-collapsed; }
 }
 
 .main-with-margin {
@@ -80,11 +73,27 @@ $medium-gray-green: #d1fae5;  // Verde grisáceo medio
 .container-fluid {
   flex: 1;
   padding: 2rem;
-  max-width: 1400px;
   margin: 0 auto;
   width: 100%;
-  
-  /* Scroll invisible pero funcional */
+  box-sizing: border-box;
+
+  // En pantallas grandes (>900px): ocupa ~90% del ancho disponible
+  @include desktop-large {
+    max-width: 90vw;               // 90% del viewport width
+    padding: 2rem 3rem;            // más aire lateral
+  }
+
+  // En tablet y móvil: ocupa casi todo (sin max-width restrictivo)
+  @include tablet {
+    max-width: 100%;
+    padding: 1.5rem;
+  }
+
+  @include mobile {
+    padding: 1rem;
+  }
+
+  /* Scroll visible y delgado (como en tu versión que funciona) */
   &::-webkit-scrollbar {
     width: 8px;
   }
@@ -128,7 +137,7 @@ $medium-gray-green: #d1fae5;  // Verde grisáceo medio
   }
 }
 
-// MODAL GLOBAL
+// MODAL GLOBAL (sin cambios)
 .modal-overlay {
   position: fixed;
   top: 0;

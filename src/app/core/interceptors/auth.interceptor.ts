@@ -6,22 +6,17 @@ import { Router } from '@angular/router';
 
 @Injectable()
 export class AuthInterceptor implements HttpInterceptor {
-  constructor(private router: Router) {}
-
-  intercept(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
+  intercept(req: HttpRequest<any>, next: HttpHandler) {
     const token = localStorage.getItem('access_token');
-    
+
     if (token) {
-      request = request.clone({
+      req = req.clone({
         setHeaders: {
-          Authorization: `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
-    } else {
-      console.warn('No token found, redirecting to login');
-      this.router.navigate(['/auth/login']);
     }
-    
-    return next.handle(request);
+
+    return next.handle(req);
   }
 }

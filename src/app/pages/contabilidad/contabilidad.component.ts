@@ -90,14 +90,45 @@ export class ContabilidadComponent implements OnInit {
             },
             {
                 id: 'historial',
-                title: 'Historial',
+                title: 'Mi historial',
                 description: 'Historial de procesos contables',
                 path: '/contabilidad/historial',
                 route: '/contabilidad/historial',
                 icon: 'history',
                 requiredRole: UserRole.CONTABILIDAD,
                 isActive: true
+            },
+            {
+                id: 'lista-completa',
+                title: 'Lista Completa',
+                description: 'Todos los documentos de contabilidad',
+                path: '/contabilidad/lista',
+                route: '/contabilidad/lista',
+                icon: 'list_alt',
+                requiredRole: UserRole.CONTABILIDAD,
+                isActive: true
+            },
+            {
+                id: 'rechazados',                        // ← NUEVO
+                title: 'Rechazados',
+                description: 'Documentos rechazados por niveles superiores',
+                path: '/contabilidad/rechazados',
+                route: '/contabilidad/rechazados',
+                icon: 'cancel',                           // o 'block' o 'do_not_disturb'
+                requiredRole: UserRole.CONTABILIDAD,
+                isActive: true
+            },
+            {
+                id: 'estadisticas',
+                title: 'Mis Estadísticas',
+                description: 'Estadísticas y métricas de mi desempeño',
+                path: '/contabilidad/estadisticas',
+                route: '/contabilidad/estadisticas',
+                icon: 'bar_chart',
+                requiredRole: UserRole.CONTABILIDAD,
+                isActive: true
             }
+
             // Si más adelante quieres agregar "Procesar" o algo, agrégalo aquí
         ];
 

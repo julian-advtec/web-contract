@@ -1,0 +1,360 @@
+<!-- src/app/pages/contabilidad/components/contabilidad-stats/contabilidad-stats.component.html -->
+<div class="contabilidad-stats-container">
+  <!-- Header -->
+  <div class="stats-header">
+    <div class="header-title">
+      <h1><i class="fas fa-chart-bar"></i> Estadísticas de Contabilidad</h1>
+      <p class="text-muted">Análisis y métricas del proceso de contabilidad</p>
+    </div>
+    
+    <div class="header-actions">
+      <button class="btn btn-outline-secondary" (click)="exportarEstadisticas()" [disabled]="loading">
+        <i class="fas fa-download"></i> Exportar
+      </button>
+      <button class="btn btn-primary" (click)="cargarEstadisticasGenerales()" [disabled]="loading">
+        <i class="fas fa-sync-alt" [class.fa-spin]="loading"></i> Actualizar
+      </button>
+    </div>
+  </div>
+
+  <!-- Filtros - VERSIÓN SIMPLE -->
+  <div class="filtros-card">
+    <h3><i class="fas fa-filter"></i> Filtros</h3>
+    <form class="filtros-form">
+      <div class="filtros-grid">
+        <!-- Rango de fechas -->
+        <div class="form-group">
+          <label>Rango de Fechas</label>
+          <select [(ngModel)]="filtros.rangoFechas" name="rangoFechas" class="form-control" (change)="cargarEstadisticasGenerales()">
+            <option *ngFor="let rango of rangosFechas" [value]="rango.value">
+              {{ rango.label }}
+            </option>
+            <option value="custom">Personalizado</option>
+          </select>
+        </div>
+
+        <!-- Fechas personalizadas -->
+        <div class="form-group" *ngIf="filtros.rangoFechas === 'custom'">
+          <label>Fecha Inicio</label>
+          <input type="date" [(ngModel)]="filtros.fechaInicio" name="fechaInicio" class="form-control" (change)="cargarEstadisticasGenerales()">
+        </div>
+        
+        <div class="form-group" *ngIf="filtros.rangoFechas === 'custom'">
+          <label>Fecha Fin</label>
+          <input type="date" [(ngModel)]="filtros.fechaFin" name="fechaFin" class="form-control" (change)="cargarEstadisticasGenerales()">
+        </div>
+
+        <!-- Estado -->
+        <div class="form-group">
+          <label>Estado</label>
+          <select [(ngModel)]="filtros.estado" name="estado" class="form-control" (change)="cargarEstadisticasGenerales()">
+            <option value="">Todos los estados</option>
+            <option *ngFor="let estado of estadosContabilidad" [value]="estado.value">
+              {{ estado.label }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Tipo de Causación -->
+        <div class="form-group">
+          <label>Tipo de Causación</label>
+          <select [(ngModel)]="filtros.tipoCausacion" name="tipoCausacion" class="form-control" (change)="cargarEstadisticasGenerales()">
+            <option value="">Todos los tipos</option>
+            <option *ngFor="let tipo of tiposCausacion" [value]="tipo.value">
+              {{ tipo.label }}
+            </option>
+          </select>
+        </div>
+
+        <!-- ¿Tiene Glosa? -->
+        <div class="form-group">
+          <label>Glosa</label>
+          <select [(ngModel)]="filtros.tieneGlosa" name="tieneGlosa" class="form-control" (change)="cargarEstadisticasGenerales()">
+            <option value="">Ambos</option>
+            <option value="true">Con Glosa</option>
+            <option value="false">Sin Glosa</option>
+          </select>
+        </div>
+
+        <!-- Contador (solo admin) -->
+        <div class="form-group" *ngIf="isAdmin">
+          <label>Contador</label>
+          <select [(ngModel)]="filtros.contadorId" name="contadorId" class="form-control" (change)="cargarEstadisticasGenerales()">
+            <option value="">Todos los contadores</option>
+            <!-- Si tienes lista de contadores -->
+            <!-- <option *ngFor="let contador of listaContadores" [value]="contador.id">
+              {{ contador.nombre }}
+            </option> -->
+          </select>
+        </div>
+
+        <!-- Botones -->
+        <div class="form-group btn-group">
+          <button type="button" class="btn btn-secondary" (click)="limpiarFiltros()">
+            <i class="fas fa-times"></i> Limpiar
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-overlay">
+    <div class="spinner-container">
+      <div class="spinner"></div>
+      <p>Cargando estadísticas...</p>
+    </div>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error && !loading" class="alert alert-danger">
+    <i class="fas fa-exclamation-triangle"></i> {{ error }}
+    <button class="btn btn-sm btn-outline-danger ml-3" (click)="cargarEstadisticasGenerales()">
+      Reintentar
+    </button>
+  </div>
+
+  <!-- Resumen Rápido -->
+  <div class="resumen-rapido">
+    <div class="resumen-card total">
+      <div class="resumen-icon">
+        <i class="fas fa-file-invoice"></i>
+      </div>
+      <div class="resumen-content">
+        <h3>Total Documentos</h3>
+        <p class="resumen-value">{{ resumenRapidoSeguro.totalDocumentos }}</p>
+      </div>
+    </div>
+    
+    <div class="resumen-card completados">
+      <div class="resumen-icon">
+        <i class="fas fa-check-circle"></i>
+      </div>
+      <div class="resumen-content">
+        <h3>Completados</h3>
+        <p class="resumen-value">{{ resumenRapidoSeguro.completados }}</p>
+        <p class="resumen-porcentaje">{{ formatearPorcentaje(resumenRapidoSeguro.tasaCompletitud) }}</p>
+      </div>
+    </div>
+    
+    <div class="resumen-card revision">
+      <div class="resumen-icon">
+        <i class="fas fa-clock"></i>
+      </div>
+      <div class="resumen-content">
+        <h3>En Revisión</h3>
+        <p class="resumen-value">{{ resumenRapidoSeguro.enRevision }}</p>
+      </div>
+    </div>
+    
+    <div class="resumen-card tiempo">
+      <div class="resumen-icon">
+        <i class="fas fa-stopwatch"></i>
+      </div>
+      <div class="resumen-content">
+        <h3>Tiempo Promedio</h3>
+        <p class="resumen-value">{{ formatearTiempo(resumenRapidoSeguro.tiempoPromedio) }}</p>
+      </div>
+    </div>
+    
+    <div class="resumen-card glosas">
+      <div class="resumen-icon">
+        <i class="fas fa-sticky-note"></i>
+      </div>
+      <div class="resumen-content">
+        <h3>Con Glosa</h3>
+        <p class="resumen-value">{{ resumenRapidoSeguro.conGlosa }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mi Estadística Personal -->
+  <div class="mi-estadistica-card">
+    <h3><i class="fas fa-user-chart"></i> Mi Desempeño</h3>
+    <div class="mi-estadistica-content">
+      <div class="mi-resumen">
+        <div class="mi-item">
+          <span class="mi-label">Documentos Procesados:</span>
+          <span class="mi-value">{{ miEstadisticaSegura.resumen.completados }}</span>
+        </div>
+        <div class="mi-item">
+          <span class="mi-label">Tiempo Promedio:</span>
+          <span class="mi-value">{{ formatearTiempo(miEstadisticaSegura.tiempos.promedioRevision) }}</span>
+        </div>
+        <div class="mi-item">
+          <span class="mi-label">Eficiencia:</span>
+          <span class="mi-value">{{ miEstadisticaSegura.eficiencia.documentosPorDia }}/día</span>
+        </div>
+      </div>
+      
+      <div class="mi-distribucion" *ngIf="miEstadisticaSegura.resumen.completados > 0">
+        <h4>Distribución por Día</h4>
+        <div class="distribucion-barras">
+          <div *ngFor="let dia of miEstadisticaSegura.distribucionDias" class="barra-item">
+            <div class="barra-label">{{ dia.dia }}</div>
+            <div class="barra-container">
+              <div class="barra" [style.width.%]="(dia.cantidad / miEstadisticaSegura.resumen.completados) * 100"></div>
+              <span class="barra-valor">{{ dia.cantidad }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Estadísticas Detalladas -->
+  <div *ngIf="estadisticasGenerales && !loading" class="estadisticas-detalladas">
+    
+    <!-- Sección de Métricas Detalladas -->
+    <div class="metricas-detalladas">
+      <div class="metrica-card">
+        <h5><i class="fas fa-balance-scale"></i> Estados</h5>
+        <div class="metrica-content">
+          <div *ngFor="let estado of estadisticasGeneralesSeguras.distribucionEstados" class="metrica-item">
+            <div class="metrica-info">
+              <span class="metrica-label">{{ getNombreEstado(estado.estado) }}</span>
+              <span class="metrica-value">{{ estado.cantidad }}</span>
+            </div>
+            <div class="progress">
+              <div class="progress-bar" 
+                   [style.background-color]="getColorEstado(estado.estado)"
+                   [style.width.%]="estado.porcentaje">
+                {{ formatearPorcentaje(estado.porcentaje) }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="metrica-card">
+        <h5><i class="fas fa-file-contract"></i> Tipo de Causación</h5>
+        <div class="metrica-content">
+          <div *ngFor="let tipo of estadisticasGeneralesSeguras.tipoCausacion" class="metrica-item">
+            <div class="metrica-info">
+              <span class="metrica-label">{{ tipo.tipo }}</span>
+              <span class="metrica-value">{{ tipo.cantidad }}</span>
+            </div>
+            <div class="progress">
+              <div class="progress-bar bg-info" [style.width.%]="tipo.porcentaje">
+                {{ formatearPorcentaje(tipo.porcentaje) }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="metrica-card">
+        <h5><i class="fas fa-stopwatch"></i> Tiempos</h5>
+        <div class="metrica-content">
+          <div class="metrica-item">
+            <span class="metrica-label">Promedio</span>
+            <span class="metrica-value">{{ formatearTiempo(estadisticasGeneralesSeguras.tiempos.promedioRevision) }}</span>
+          </div>
+          <div class="metrica-item">
+            <span class="metrica-label">Máximo</span>
+            <span class="metrica-value">{{ formatearTiempo(estadisticasGeneralesSeguras.tiempos.maximoRevision) }}</span>
+          </div>
+          <div class="metrica-item">
+            <span class="metrica-label">Mínimo</span>
+            <span class="metrica-value">{{ formatearTiempo(estadisticasGeneralesSeguras.tiempos.minimoRevision) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sección de Tablas -->
+    <div class="tablas-section">
+      <!-- Documentos Recientes -->
+      <div class="tabla-card">
+        <h4><i class="fas fa-history"></i> Documentos Recientes</h4>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Radicado</th>
+                <th>Contratista</th>
+                <th>Estado</th>
+                <th>Tiempo</th>
+                <th>Glosa</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let doc of estadisticasGeneralesSeguras.documentosRecientes">
+                <td>{{ doc.numeroRadicado }}</td>
+                <td>{{ doc.nombreContratista }}</td>
+                <td>
+                  <span class="badge" [style.background-color]="getColorEstado(doc.estado)">
+                    {{ getNombreEstado(doc.estado) }}
+                  </span>
+                </td>
+                <td>{{ formatearTiempo(doc.tiempoRevision) }}</td>
+                <td>
+                  <i *ngIf="doc.tieneGlosa" class="fas fa-check text-success"></i>
+                  <i *ngIf="!doc.tieneGlosa" class="fas fa-times text-muted"></i>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Top Contadores (solo admin) -->
+      <div class="tabla-card" *ngIf="isAdmin && estadisticasGenerales?.topContadores?.length">
+        <h4><i class="fas fa-trophy"></i> Top Contadores</h4>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Contador</th>
+                <th>Procesados</th>
+                <th>Eficiencia</th>
+                <th>Tiempo Prom.</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let contador of estadisticasGenerales?.topContadores || []; let i = index">
+                <td>{{ i + 1 }}</td>
+                <td>{{ contador.contadorNombre }}</td>
+                <td>{{ contador.documentosProcesados }}</td>
+                <td>{{ contador.eficiencia }}/día</td>
+                <td>{{ formatearTiempo(contador.promedioTiempo) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Documentos por Estado -->
+  <div class="documentos-estado-section" *ngIf="documentosPorEstado.length > 0">
+    <h3><i class="fas fa-list"></i> Documentos por Estado</h3>
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Radicado</th>
+            <th>Contratista</th>
+            <th>Contador</th>
+            <th>Inicio</th>
+            <th>Fin</th>
+            <th>Tiempo</th>
+            <th>Observaciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let doc of documentosPorEstado">
+            <td>{{ doc.numeroRadicado }}</td>
+            <td>{{ doc.nombreContratista }}</td>
+            <td>{{ doc.contador }}</td>
+            <td>{{ formatearFecha(doc.fechaInicioRevision) }}</td>
+            <td>{{ formatearFecha(doc.fechaFinRevision) }}</td>
+            <td>{{ formatearTiempo(doc.tiempoRevision) }}</td>
+            <td>{{ doc.observaciones || 'Sin observaciones' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

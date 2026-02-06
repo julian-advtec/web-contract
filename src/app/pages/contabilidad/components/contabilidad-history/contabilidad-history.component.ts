@@ -116,22 +116,20 @@ export class ContabilidadHistoryComponent implements OnInit, OnDestroy {
     }
 
     consultarDocumento(item: any): void {
-        console.log('🔍 Consultar procesamiento contable desde historial:', item);
-
         let documentoId = item.documento?.id || item.id || item.documentoId;
         if (!documentoId) {
             this.notificationService.error('Error', 'ID de documento no disponible');
             return;
         }
 
+        const esEnRevision = item.estado === 'EN_REVISION';
+
         const queryParams = {
             desdeHistorial: 'true',
-            soloLectura: 'true',
-            modo: 'consulta',
+            soloLectura: esEnRevision ? 'false' : 'true',
+            modo: esEnRevision ? 'edicion' : 'consulta',
             origen: 'historial-contabilidad'
         };
-
-        console.log('→ Navegando a /contabilidad/procesar con params:', queryParams);
 
         this.router.navigate(['/contabilidad/procesar', documentoId], { queryParams });
     }

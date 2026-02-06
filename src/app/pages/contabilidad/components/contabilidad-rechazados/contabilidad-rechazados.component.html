@@ -1,0 +1,154 @@
+<div class="contabilidad-rechazados-container" [class.sidebar-collapsed]="sidebarCollapsed">
+  <div class="contabilidad-rechazados-inner">
+
+    <!-- Título + Buscador -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+      <h4 class="mb-0 text-danger fw-bold">
+        <i class="fas fa-ban me-2"></i>
+        Documentos Rechazados (Niveles Superiores)
+      </h4>
+
+      <div class="search-container flex-grow-1" style="max-width: 450px;">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-danger-subtle border-danger-subtle">
+            <i class="fas fa-search text-danger"></i>
+          </span>
+          <input type="text" class="form-control border-danger-subtle"
+                 placeholder="Buscar radicado, contratista, motivo..."
+                 [(ngModel)]="searchTerm" (input)="onSearch()" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Mensajes -->
+    <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show mb-3">
+      {{ errorMessage }}
+      <button type="button" class="btn-close" (click)="errorMessage = ''"></button>
+    </div>
+
+    <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show mb-3">
+      {{ successMessage }}
+      <button type="button" class="btn-close" (click)="successMessage = ''"></button>
+    </div>
+
+    <!-- Loading -->
+    <div *ngIf="loading" class="text-center py-5 my-5">
+      <div class="spinner-border text-danger" style="width: 3.5rem; height: 3.5rem;"></div>
+      <p class="mt-3 text-muted fw-medium">Cargando documentos rechazados...</p>
+    </div>
+
+    <!-- Empty state -->
+    <div *ngIf="!loading && filteredDocumentos.length === 0" class="text-center py-5 my-5">
+      <i class="fas fa-shield-check fa-5x text-success opacity-75 mb-4"></i>
+      <h5 class="text-success fw-bold">No hay rechazos visibles</h5>
+      <p class="text-muted">No se encontraron documentos rechazados por roles superiores</p>
+    </div>
+
+    <!-- Lista -->
+    <div *ngIf="!loading && filteredDocumentos.length > 0" class="card shadow border-0">
+      <div class="card-body p-0">
+
+        <!-- Header -->
+        <div class="documentos-header bg-danger text-white">
+          <div>Radicado</div>
+          <div>Contratista</div>
+          <div>Contrato</div>
+          <div>Rechazado por</div>
+          <div>Motivo</div>
+          <div>Acciones</div>
+        </div>
+
+        <!-- Items -->
+        <div class="documentos-list">
+          <div *ngFor="let doc of paginatedDocumentos" class="documento-card">
+            <!-- Radicado -->
+            <div class="documento-info">
+              <h5 class="mb-1 fw-bold">{{ doc.numeroRadicado || 'N/A' }}</h5>
+              <small class="text-muted">{{ formatDate(doc.fechaRadicacion) }}</small>
+            </div>
+
+            <!-- Contratista -->
+            <div class="contratista-info">
+              <strong>{{ doc.nombreContratista || 'Sin nombre' }}</strong>
+              <small class="text-muted d-block">{{ doc.documentoContratista || 'Sin documento' }}</small>
+            </div>
+
+            <!-- Contrato -->
+            <div class="contrato-info">
+              <span class="badge bg-secondary-subtle text-secondary">
+                {{ doc.numeroContrato || 'N/A' }}
+              </span>
+              <small class="d-block mt-1 text-muted">
+                {{ formatDateShort(doc.fechaInicio) }} - {{ formatDateShort(doc.fechaFin) }}
+              </small>
+            </div>
+
+            <!-- Rechazado por -->
+            <div class="rechazado-por text-center">
+              <span class="badge fs-6 px-3 py-2" [ngClass]="getRechazadoPorClass(doc)">
+                {{ getRechazadoPor(doc) }}
+              </span>
+              <small class="d-block mt-1 text-muted">
+                {{ doc.ultimoUsuario || 'Sistema' }}
+              </small>
+            </div>
+
+            <!-- Motivo -->
+            <div class="motivo">
+              <div class="small text-danger fw-medium">
+                <i class="fas fa-comment-medical me-1"></i>
+                {{ doc.observacion || doc.motivoRechazo || 'Sin motivo registrado' | slice:0:80 }}
+                {{ (doc.observacion || doc.motivoRechazo || '').length > 80 ? '...' : '' }}
+              </div>
+            </div>
+
+            <!-- Acciones -->
+            <div class="acciones text-center">
+              <button class="btn btn-sm btn-outline-primary me-1 mb-1" 
+                      (click)="verDetalle(doc)"
+                      title="Ver detalle completo">
+                <i class="fas fa-eye"></i>
+              </button>
+
+              <button class="btn btn-sm btn-outline-danger me-1 mb-1" 
+                      (click)="descargarTodos(doc)"
+                      [disabled]="getDocumentCount(doc) === 0"
+                      title="Descargar todos los documentos">
+                <i class="fas fa-download"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Paginación -->
+        <div class="p-3 border-top bg-light">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div class="text-muted small">
+              Mostrando {{ paginatedDocumentos.length }} de {{ filteredDocumentos.length }} documentos
+            </div>
+
+            <nav aria-label="Paginación">
+              <ul class="pagination pagination-sm mb-0">
+                <li class="page-item" [class.disabled]="currentPage === 1">
+                  <button class="page-link" (click)="changePage(currentPage - 1)">
+                    <i class="fas fa-chevron-left"></i>
+                  </button>
+                </li>
+                <li *ngFor="let page of pages" class="page-item" [class.active]="page === currentPage">
+                  <button class="page-link" (click)="changePage(page)">{{ page }}</button>
+                </li>
+                <li class="page-item" [class.disabled]="currentPage === totalPages">
+                  <button class="page-link" (click)="changePage(currentPage + 1)">
+                    <i class="fas fa-chevron-right"></i>
+                  </button>
+                </li>
+              </ul>
+            </nav>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>

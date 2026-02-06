@@ -7,10 +7,12 @@ import { UserRole } from '../../core/models/user.types';
 import { ContabilidadPendingListComponent } from './components/contabilidad-pending-list/contabilidad-pending-list.component';
 import { ContabilidadHistoryComponent } from './components/contabilidad-history/contabilidad-history.component';
 import { ContabilidadFormComponent } from './components/contabilidad-form/contabilidad-form.component';
+import { ContabilidadListComponent } from './components/contabilidad-list/contabilidad-list.component';
+import { ContabilidadRechazadosComponent } from './components/contabilidad-rechazados/contabilidad-rechazados.component';
+import { ContabilidadStatsComponent } from './components/contabilidad-stats/contabilidad-stats.component';
 
 const routes: Routes = [
     {
-
         path: '',
         component: ContabilidadComponent,
         canActivate: [RoleGuard],
@@ -18,21 +20,49 @@ const routes: Routes = [
         children: [
             {
                 path: '',
-                redirectTo: 'pendientes',
+                redirectTo: 'lista',
                 pathMatch: 'full'
             },
             {
+                path: 'lista',
+                component: ContabilidadListComponent,
+                data: { title: 'Lista Completa' }
+            },
+            {
                 path: 'pendientes',
-                component: ContabilidadPendingListComponent
+                component: ContabilidadPendingListComponent,
+                data: { title: 'Pendientes' }
             },
             {
                 path: 'historial',
-                component: ContabilidadHistoryComponent
+                component: ContabilidadHistoryComponent,
+                data: { title: 'Historial' }
             },
             {
                 path: 'procesar/:id',
-                component: ContabilidadFormComponent   // ← aquí estaba el error
-            }
+                component: ContabilidadFormComponent
+            },
+            // Ruta alternativa para consultar documentos
+            {
+                path: 'documento/:id',
+                component: ContabilidadFormComponent,
+                data: { modo: 'consulta' }
+            },
+            // Redirección para compatibilidad
+            {
+                path: 'revisar/:id',
+                component: ContabilidadFormComponent
+            },
+            {
+        path: 'rechazados',                        // ← NUEVA RUTA
+        component: ContabilidadRechazadosComponent
+
+      },
+      {
+        path: 'estadisticas',
+        component: ContabilidadStatsComponent,
+        data: { title: 'Mis Estadísticas' }
+      }
         ]
     }
 ];
