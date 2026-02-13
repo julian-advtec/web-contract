@@ -1,35 +1,61 @@
 <div class="contabilidad-pending-container" [class.sidebar-collapsed]="sidebarCollapsed">
   <div class="contabilidad-pending-inner">
 
+    <!-- Mensajes de éxito/error/info -->
+    <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+      <i class="fas fa-check-circle me-2"></i> {{ successMessage }}
+      <button type="button" class="btn-close" (click)="dismissSuccess()"></button>
+    </div>
+
+    <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+      <i class="fas fa-exclamation-triangle me-2"></i> {{ errorMessage }}
+      <button type="button" class="btn-close" (click)="dismissError()"></button>
+    </div>
+
+    <div *ngIf="infoMessage" class="alert alert-info alert-dismissible fade show mt-3" role="alert">
+      <i class="fas fa-info-circle me-2"></i> {{ infoMessage }}
+      <button type="button" class="btn-close" (click)="dismissInfo()"></button>
+    </div>
+
+    <!-- Búsqueda -->
     <div class="search-container mt-3 mb-4">
-      <div class="input-group search-group flex-grow-1">
-        <span class="input-group-text">
-          <i class="fas fa-search"></i>
-        </span>
-        <input type="text" class="form-control" placeholder="Buscar radicado, contratista, contrato..."
-               [(ngModel)]="searchTerm" (input)="onSearch()" [disabled]="isLoading" />
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div class="input-group search-group flex-grow-1">
+          <span class="input-group-text bg-white border-end-0">
+            <i class="fas fa-search text-muted"></i>
+          </span>
+          <input type="text" class="form-control border-start-0" 
+                 placeholder="Buscar radicado, contratista, contrato..." 
+                 [(ngModel)]="searchTerm" (input)="onSearch()" [disabled]="isLoading" />
+        </div>
+        
+        <button class="btn btn-outline-primary" (click)="refreshData()" [disabled]="isLoading">
+          <i class="fas fa-sync-alt me-1"></i> Refrescar
+        </button>
       </div>
     </div>
 
     <div class="card shadow main-card">
       <div class="card-body p-0">
 
+        <!-- Loading -->
         <div *ngIf="isLoading" class="text-center py-5">
           <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
           <p class="mt-3 text-muted">Buscando documentos pendientes de contabilidad...</p>
         </div>
 
+        <!-- Sin resultados -->
         <div *ngIf="!isLoading && filteredDocumentos.length === 0 && !errorMessage" class="text-center py-5">
           <div class="empty-state">
-            <i class="fas fa-file-search fa-4x text-secondary mb-4"></i>
-            <h4 class="text-muted mb-2">No hay documentos pendientes de contabilidad</h4>
-            <p class="text-muted mb-3">Los documentos en estado "APROBADO_AUDITOR" sin proceso contable aparecerán aquí</p>
-
+            <i class="fas fa-file-invoice-dollar fa-4x text-secondary mb-4"></i>
+            <h4 class="text-muted mb-2">No hay documentos pendientes</h4>
+            <p class="text-muted mb-3">Los documentos aprobados por auditoría sin proceso contable aparecerán aquí</p>
+            
             <div class="mt-4">
               <p class="text-start"><strong>¿Por qué no hay documentos?</strong></p>
               <ul class="list-unstyled text-start">
                 <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Verifica que hay documentos aprobados por auditoría</li>
-                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Los documentos deben estar sin proceso contable asignado</li>
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Los documentos deben estar sin contador asignado</li>
                 <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Asegúrate de estar autenticado como contabilidad</li>
               </ul>
             </div>
@@ -42,158 +68,194 @@
           </div>
         </div>
 
-        <div *ngIf="errorMessage" class="text-center py-5">
-          <div class="empty-state">
-            <i class="fas fa-exclamation-triangle fa-4x text-danger mb-4"></i>
-            <h4 class="text-danger mb-2">Error al cargar documentos</h4>
-            <p class="text-muted mb-3">{{ errorMessage }}</p>
-            <button class="btn btn-primary mt-3" (click)="refreshData()" [disabled]="isLoading">
-              <i class="fas fa-sync-alt me-1"></i> Reintentar
-            </button>
-          </div>
-        </div>
-
+        <!-- Lista de documentos -->
         <div *ngIf="!isLoading && filteredDocumentos.length > 0" class="documentos-container">
 
-          <div class="documentos-header">
+          <!-- Cabecera (visible en desktop) -->
+          <div class="documentos-header bg-light border-bottom d-none d-lg-grid">
             <div class="header-item">Radicado</div>
             <div class="header-item">Contratista</div>
             <div class="header-item">Contrato</div>
             <div class="header-item">Estado</div>
-            <div class="header-item">Auditor/Fechas</div>
+            <div class="header-item">Auditor / Fechas</div>
             <div class="header-item acciones-header">Acciones</div>
           </div>
 
+          <!-- Lista de documentos -->
           <div class="documentos-list">
-            <div *ngFor="let doc of paginatedDocumentos; trackBy: trackById" class="documento-card"
-                 [class.reciente]="esDocumentoReciente(doc)" [title]="getTooltipInfo(doc)">
+            <div *ngFor="let doc of paginatedDocumentos; trackBy: trackById" 
+                 class="documento-card shadow-sm" 
+                 [class.reciente]="esDocumentoReciente(doc)"
+                 [title]="getTooltipInfo(doc)">
 
+              <!-- Radicado -->
               <div class="documento-info">
-                <div class="documento-details">
-                  <h5 class="documento-numero mb-1">
-                    <i class="fas fa-hashtag me-1"></i>{{ doc.numeroRadicado }}
-                    <span *ngIf="esDocumentoReciente(doc)" class="reciente-badge">
-                      <i class="fas fa-star me-1"></i>NUEVO
-                    </span>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge bg-primary bg-opacity-10 text-primary d-lg-none">
+                    <i class="fas fa-hashtag"></i>
+                  </span>
+                  <h5 class="documento-numero mb-0 fw-bold">
+                    {{ doc.numeroRadicado || 'N/A' }}
                   </h5>
-                  <p class="documento-fecha mb-1">
-                    <i class="far fa-calendar me-1"></i>
-                    {{ formatDate(doc.fechaRadicacion) }}
-                  </p>
-                  <small class="text-muted">
-                    <i class="fas fa-user me-1"></i> {{ doc.radicador || 'Radicador' }}
-                  </small>
                 </div>
-              </div>
-
-              <div class="documento-contratista">
-                <p class="contratista-text mb-1"><strong>{{ doc.nombreContratista }}</strong></p>
+                
+                <span *ngIf="esDocumentoReciente(doc)" class="badge bg-success mt-1 d-inline-flex align-items-center">
+                  <i class="fas fa-star me-1"></i>NUEVO
+                </span>
+                
+                <p class="mb-1 mt-1">
+                  <i class="far fa-calendar me-1 text-muted"></i>
+                  <small>{{ formatDate(doc.fechaRadicacion) }}</small>
+                </p>
                 <small class="text-muted">
-                  <i class="fas fa-id-card me-1"></i> {{ doc.documentoContratista }}
+                  <i class="fas fa-user me-1"></i> {{ doc.radicador || 'Sistema' }}
                 </small>
               </div>
 
-              <div class="documento-contrato">
-                <span class="contrato-badge">
-                  <i class="fas fa-file-contract me-1"></i> {{ doc.numeroContrato }}
-                </span>
+              <!-- Contratista -->
+              <div class="documento-contratista">
+                <strong>{{ doc.nombreContratista || 'Sin nombre' }}</strong>
                 <small class="d-block text-muted mt-1">
-                  {{ getDuracionContrato(doc.fechaInicio, doc.fechaFin) }}
+                  <i class="fas fa-id-card me-1"></i> {{ doc.documentoContratista || 'N/A' }}
                 </small>
               </div>
 
-              <div class="documento-estado">
-                <span class="estado-badge" [ngClass]="getEstadoClass(doc.estado)">
-                  <i class="fas fa-file-alt me-1"></i> {{ getEstadoTexto(doc.estado) }}
+              <!-- Contrato -->
+              <div class="documento-contrato">
+                <span class="badge bg-info bg-opacity-10 text-info border border-info">
+                  <i class="fas fa-file-contract me-1"></i> {{ doc.numeroContrato || 'Sin contrato' }}
                 </span>
-                <div class="dias-transcurridos mt-1">
-                  <small [ngClass]="getDiasClass(doc)">
-                    <i class="far fa-clock me-1"></i>
-                    {{ getDiasTranscurridos(doc.fechaAprobacionAuditor || doc.fechaRadicacion) }} días
-                  </small>
-                </div>
+                <small class="d-block mt-1 text-muted">
+                  <i class="far fa-clock me-1"></i> {{ getDuracionContrato(doc.fechaInicio, doc.fechaFin) }}
+                </small>
               </div>
 
+              <!-- Estado -->
+              <div class="documento-estado">
+                <span class="badge fs-6 px-3 py-2 w-100" [ngClass]="getEstadoClass(doc.estado)">
+                  {{ getEstadoTexto(doc.estado) }}
+                </span>
+                <small class="d-block mt-1 text-center" [ngClass]="getDiasClass(doc)">
+                  <i class="far fa-clock me-1"></i>
+                  {{ getDiasTranscurridos(doc.fechaAprobacionAuditor || doc.fechaRadicacion) }} días
+                </small>
+              </div>
+
+              <!-- Auditor/Fechas -->
               <div class="documento-supervisor-fechas">
                 <div class="supervisor-info mb-2">
                   <small class="d-block text-success">
-                    <i class="fas fa-user-shield me-1"></i>
-                    <strong>Auditor:</strong> {{doc.auditor || 'No asignado'}}
+                    <i class="fas fa-user-check me-1"></i>
+                    <strong>Auditor:</strong> {{ doc.auditor || 'No asignado' }}
                   </small>
                 </div>
-                <div class="fechas-container">
+                <div class="fechas-container small">
                   <div class="fecha-line">
                     <span class="fecha-label">Aprobado:</span>
-                    <span class="fecha-value">{{ formatDateShort(doc.fechaAprobacionAuditor) }}</span>
+                    <span class="fecha-value">{{ formatDateShort(doc.fechaAprobacionAuditor) || 'N/A' }}</span>
                   </div>
-                  <div class="fecha-line">
+                  <div class="fecha-line" *ngIf="doc.fechaAsignacionContabilidad">
                     <span class="fecha-label">Asignado:</span>
                     <span class="fecha-value">{{ formatDateShort(doc.fechaAsignacionContabilidad) }}</span>
                   </div>
                 </div>
               </div>
 
+              <!-- Acciones -->
               <div class="documento-acciones">
-                <div class="acciones-buttons">
-                  <div class="d-flex flex-column gap-1">
+                <!-- Botón principal -->
+                <button class="btn btn-primary btn-sm mb-2 w-100" 
+                        (click)="tomarParaContabilidad(doc)"
+                        [disabled]="isProcessing || (!puedeTomarDocumento(doc) && !esMiDocumentoEnRevision(doc))">
+                  <i class="fas fa-calculator me-1"></i>
+                  {{ getTextoBoton(doc) }}
+                </button>
 
-                    <button class="btn btn-primary btn-sm" (click)="tomarParaContabilidad(doc)"
-                            [disabled]="isProcessing || (!puedeTomarDocumento(doc) && !esMiDocumentoEnRevision(doc))">
-                      <i class="fas fa-calculator me-1"></i>
-                      {{ getTextoBoton(doc) }}
+                <!-- Documentos disponibles -->
+                <div *ngIf="getDocumentCount(doc) > 0" class="documentos-preview mt-2">
+                  <small class="text-muted d-block mb-1">
+                    <i class="fas fa-file me-1"></i> Documentos ({{ getDocumentCount(doc) }}/3):
+                  </small>
+                  
+                  <!-- Botones de previsualización -->
+                  <div class="d-flex gap-1 mb-1">
+                    <button class="btn btn-outline-info btn-sm flex-fill" 
+                            (click)="previsualizarDocumentoEspecifico(doc, 1)" 
+                            [disabled]="!doc.cuentaCobro || isProcessing"
+                            title="Ver Cuenta de Cobro">
+                      <i class="fas fa-eye"></i>
                     </button>
-
-                    <div class="d-flex gap-1" *ngIf="getDocumentCount(doc) > 0">
-                      <button class="btn btn-outline-info btn-sm flex-fill"
-                              (click)="previsualizarDocumentoEspecifico(doc, 1)" [disabled]="!doc.cuentaCobro"
-                              title="Ver Cuenta de Cobro"><i class="fas fa-eye"></i></button>
-                      <button class="btn btn-outline-info btn-sm flex-fill"
-                              (click)="previsualizarDocumentoEspecifico(doc, 2)" [disabled]="!doc.seguridadSocial"
-                              title="Ver Seguridad Social"><i class="fas fa-eye"></i></button>
-                      <button class="btn btn-outline-info btn-sm flex-fill"
-                              (click)="previsualizarDocumentoEspecifico(doc, 3)" [disabled]="!doc.informeActividades"
-                              title="Ver Informe de Actividades"><i class="fas fa-eye"></i></button>
-                    </div>
-
-                    <div class="d-flex gap-1" *ngIf="getDocumentCount(doc) > 0">
-                      <button class="btn btn-outline-success btn-sm flex-fill"
-                              (click)="descargarDocumentoEspecifico(doc, 1)" [disabled]="!doc.cuentaCobro || isProcessing"
-                              title="Descargar Cuenta de Cobro"><i class="fas fa-download"></i></button>
-                      <button class="btn btn-outline-success btn-sm flex-fill"
-                              (click)="descargarDocumentoEspecifico(doc, 2)" [disabled]="!doc.seguridadSocial || isProcessing"
-                              title="Descargar Seguridad Social"><i class="fas fa-download"></i></button>
-                      <button class="btn btn-outline-success btn-sm flex-fill"
-                              (click)="descargarDocumentoEspecifico(doc, 3)" [disabled]="!doc.informeActividades || isProcessing"
-                              title="Descargar Informe de Actividades"><i class="fas fa-download"></i></button>
-                    </div>
+                    <button class="btn btn-outline-info btn-sm flex-fill" 
+                            (click)="previsualizarDocumentoEspecifico(doc, 2)" 
+                            [disabled]="!doc.seguridadSocial || isProcessing"
+                            title="Ver Seguridad Social">
+                      <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-outline-info btn-sm flex-fill" 
+                            (click)="previsualizarDocumentoEspecifico(doc, 3)" 
+                            [disabled]="!doc.informeActividades || isProcessing"
+                            title="Ver Informe de Actividades">
+                      <i class="fas fa-eye"></i>
+                    </button>
                   </div>
+
+                  <!-- Botones de descarga -->
+                  <div class="d-flex gap-1">
+                    <button class="btn btn-outline-success btn-sm flex-fill" 
+                            (click)="descargarDocumentoEspecifico(doc, 1)" 
+                            [disabled]="!doc.cuentaCobro || isProcessing"
+                            title="Descargar Cuenta de Cobro">
+                      <i class="fas fa-download"></i>
+                    </button>
+                    <button class="btn btn-outline-success btn-sm flex-fill" 
+                            (click)="descargarDocumentoEspecifico(doc, 2)" 
+                            [disabled]="!doc.seguridadSocial || isProcessing"
+                            title="Descargar Seguridad Social">
+                      <i class="fas fa-download"></i>
+                    </button>
+                    <button class="btn btn-outline-success btn-sm flex-fill" 
+                            (click)="descargarDocumentoEspecifico(doc, 3)" 
+                            [disabled]="!doc.informeActividades || isProcessing"
+                            title="Descargar Informe de Actividades">
+                      <i class="fas fa-download"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Mensaje si no hay documentos -->
+                <div *ngIf="getDocumentCount(doc) === 0" class="text-muted small text-center mt-2">
+                  <i class="fas fa-exclamation-circle me-1"></i> Sin documentos disponibles
                 </div>
               </div>
             </div>
           </div>
 
-          <div class="documentos-pagination" *ngIf="totalPages > 1">
-            <div class="pagination-info">
-              Página {{ currentPage }} de {{ totalPages }}
-            </div>
-
-            <div class="pagination-controls">
-              <button class="btn btn-outline-primary btn-sm" [disabled]="currentPage === 1"
-                      (click)="changePage(currentPage - 1)">
-                <i class="fas fa-chevron-left"></i> Anterior
-              </button>
-
-              <div class="page-numbers">
-                <button *ngFor="let page of pages" class="btn btn-sm" [class.btn-primary]="page === currentPage"
-                        [class.btn-outline-primary]="page !== currentPage" (click)="changePage(page)">
-                  {{ page }}
-                </button>
+          <!-- Paginación -->
+          <div class="documentos-pagination p-3 border-top bg-light" *ngIf="totalPages > 1">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+              <div class="pagination-info text-muted small">
+                <i class="fas fa-list me-1"></i>
+                Mostrando {{ paginatedDocumentos.length }} de {{ filteredDocumentos.length }} documentos
               </div>
 
-              <button class="btn btn-outline-primary btn-sm" [disabled]="currentPage === totalPages"
-                      (click)="changePage(currentPage + 1)">
-                Siguiente <i class="fas fa-chevron-right"></i>
-              </button>
+              <nav aria-label="Paginación">
+                <ul class="pagination pagination-sm mb-0">
+                  <li class="page-item" [class.disabled]="currentPage === 1">
+                    <button class="page-link" (click)="changePage(currentPage - 1)" [disabled]="isLoading">
+                      <i class="fas fa-chevron-left"></i> Anterior
+                    </button>
+                  </li>
+                  <li class="page-item" *ngFor="let page of pages" 
+                      [class.active]="page === currentPage">
+                    <button class="page-link" (click)="changePage(page)" [disabled]="isLoading">{{ page }}</button>
+                  </li>
+                  <li class="page-item" [class.disabled]="currentPage === totalPages">
+                    <button class="page-link" (click)="changePage(currentPage + 1)" [disabled]="isLoading">
+                      Siguiente <i class="fas fa-chevron-right"></i>
+                    </button>
+                  </li>
+                </ul>
+              </nav>
             </div>
           </div>
         </div>

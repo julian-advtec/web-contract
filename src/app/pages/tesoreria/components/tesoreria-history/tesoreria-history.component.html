@@ -1,0 +1,198 @@
+<div class="tesoreria-history-container" [class.sidebar-collapsed]="sidebarCollapsed">
+  <div class="tesoreria-history-inner">
+
+    <!-- Barra de búsqueda -->
+    <div class="search-container mt-3 mb-5">
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <div class="input-group search-group flex-grow-1">
+          <span class="input-group-text">
+            <i class="fas fa-search"></i>
+          </span>
+          <input type="text" class="form-control"
+            placeholder="Buscar radicado, contratista, estado, número de pago..." [(ngModel)]="searchTerm"
+            (input)="onSearch()" [disabled]="loading" />
+        </div>
+      </div>
+    </div>
+
+   
+
+    <!-- Contenido principal -->
+    <div class="card shadow main-card">
+      <div class="card-body p-0">
+
+        <!-- Loading -->
+        <div *ngIf="loading" class="text-center py-5">
+          <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
+          <p class="mt-3 text-muted">Cargando historial de pagos...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div *ngIf="!loading && filteredHistorial.length === 0" class="text-center py-5">
+          <div class="empty-state">
+            <i class="fas fa-money-bill-wave fa-4x text-secondary mb-4"></i>
+            <h4 class="text-muted mb-2">No hay pagos en el historial</h4>
+            <p class="text-muted mb-3">Los pagos procesados por tesorería aparecerán aquí</p>
+
+            <div class="mt-4 text-start">
+              <p><strong>¿Por qué no aparece nada?</strong></p>
+              <ul class="list-unstyled">
+                <li class="mb-2"><i class="fas fa-check text-primary me-2"></i> Aún no se han realizado pagos</li>
+                <li class="mb-2"><i class="fas fa-check text-primary me-2"></i> Los pagos deben estar en estados finales (PAGADO, ANULADO)</li>
+                <li class="mb-2"><i class="fas fa-check text-primary me-2"></i> Verifica que estás logueado como TESORERÍA o ADMIN</li>
+              </ul>
+            </div>
+
+            <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+              <button class="btn btn-primary" (click)="refreshData()" [disabled]="loading">
+                <i class="fas fa-sync-alt me-1"></i> Refrescar historial
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabla de pagos -->
+        <div *ngIf="!loading && filteredHistorial.length > 0" class="pagos-container">
+
+          <div class="pagos-header">
+            <div class="header-item">Radicado</div>
+            <div class="header-item">Contratista</div>
+            <div class="header-item">Contrato</div>
+            <div class="header-item">Estado Pago</div>
+            <div class="header-item acciones-header">Acciones</div>
+          </div>
+
+          <div class="pagos-list">
+            <div *ngFor="let item of paginatedHistorial" class="pago-card" [class.reciente]="esPagoReciente(item)">
+
+              <!-- Radicado -->
+              <div class="pago-info">
+                <div class="pago-details">
+                  <h5 class="pago-numero mb-1">
+                    <i class="fas fa-hashtag me-1"></i>{{ getNumeroRadicado(item) }}
+                    <span *ngIf="esPagoReciente(item)" class="reciente-badge ms-2">
+                      <i class="fas fa-star me-1"></i>NUEVO
+                    </span>
+                  </h5>
+                  <p class="pago-fecha mb-1">
+                    <i class="far fa-calendar me-1"></i>
+                    {{ formatDateOnly(item.documento?.fechaRadicacion || item.fechaPago || item.fechaActualizacion) }}
+                  </p>
+                  <small class="text-muted">
+                    {{ getResponsablePago(item) || 'Tesorería' }}
+                  </small>
+                </div>
+              </div>
+
+              <!-- Contratista -->
+              <div class="pago-contratista">
+                <p class="contratista-nombre mb-1">{{ getNombreContratista(item) || 'Sin nombre' }}</p>
+                <p class="contratista-documento mb-0">
+                  <i class="fas fa-id-card me-1"></i>{{ getDocumentoContratista(item) || 'Sin documento' }}
+                </p>
+              </div>
+
+              <!-- Contrato -->
+              <div class="pago-contrato">
+                <span class="contrato-badge">
+                  <i class="fas fa-file-contract me-1"></i>
+                  {{ getNumeroContrato(item) || 'Sin contrato' }}
+                </span>
+                <span class="valor-pago mt-1 d-block">
+                  <i class="fas fa-money-bill-wave me-1"></i>
+                  {{ getValorPago(item) | currency:'COP':'symbol':'1.0-0' }}
+                </span>
+              </div>
+
+              <!-- Estado Pago -->
+              <div class="pago-estado">
+                <span class="estado-badge" [ngClass]="getEstadoPagoBadgeClass(item.estadoPago)">
+                  <i class="fas fa-flag me-1"></i>
+                  {{ getEstadoPagoTexto(item.estadoPago) }}
+                </span>
+                <div *ngIf="item.numeroPago" class="numero-pago mt-1 d-block">
+                  <i class="fas fa-file-invoice me-1"></i>
+                  Pago #{{ item.numeroPago }}
+                </div>
+                <div class="fecha-pago mt-1 d-block">
+                  <i class="far fa-calendar-alt me-1"></i>
+                  {{ formatDateOnly(item.fechaPago || item.fechaActualizacion) }}
+                </div>
+              </div>
+
+              <!-- Acciones -->
+              <div class="pago-acciones">
+                <div class="d-flex flex-column gap-2 align-items-start">
+                  <!-- Ver detalles del pago -->
+                  <button class="btn btn-sm w-100 btn-info" 
+                          (click)="verDetallePago(item)" 
+                          [disabled]="isProcessing || loading">
+                    <i class="fas fa-eye me-1"></i>
+                    Ver Detalles
+                  </button>
+
+                  <!-- Si está en proceso y soy el responsable, puedo continuar -->
+                  <button *ngIf="item.estadoPago === 'EN_PROCESO' && esMiPago(item)" 
+                          class="btn btn-sm w-100 btn-warning" 
+                          (click)="continuarPago(item)">
+                    <i class="fas fa-edit me-1"></i>
+                    Continuar Pago
+                  </button>
+
+                  <!-- Botón para generar comprobante si está pagado -->
+                  <button *ngIf="item.estadoPago === 'PAGADO'" 
+                          class="btn btn-sm w-100 btn-success" 
+                          (click)="generarComprobante(item)">
+                    <i class="fas fa-file-pdf me-1"></i>
+                    Comprobante
+                  </button>
+
+                  <div class="badge w-100 text-center mt-2" [ngClass]="{
+                    'bg-success': item.estadoPago === 'PAGADO',
+                    'bg-warning text-dark': item.estadoPago === 'EN_PROCESO',
+                    'bg-danger': item.estadoPago === 'ANULADO',
+                    'bg-primary': item.estadoPago === 'PENDIENTE',
+                    'bg-secondary': !item.estadoPago
+                  }">
+                    <i class="fas me-1" [ngClass]="{
+                      'fa-lock': item.estadoPago === 'PAGADO' || item.estadoPago === 'ANULADO',
+                      'fa-unlock': item.estadoPago === 'EN_PROCESO'
+                    }"></i>
+                    {{ getAccesoTexto(item) }}
+                  </div>
+
+                  <small class="text-muted w-100 text-center mt-2">
+                    <i class="fas fa-clock me-1"></i> Duración: {{ getDuracionProceso(item) }}
+                  </small>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Paginación -->
+          <div class="pagos-pagination" *ngIf="totalPages > 1">
+            <div class="pagination-info">
+              Página {{ currentPage }} de {{ totalPages }}
+            </div>
+            <div class="pagination-controls">
+              <button class="btn btn-outline-primary btn-sm" [disabled]="currentPage === 1" (click)="changePage(currentPage - 1)">
+                <i class="fas fa-chevron-left"></i> Anterior
+              </button>
+              <div class="page-numbers">
+                <button *ngFor="let page of pages" class="btn btn-sm"
+                  [class.btn-primary]="page === currentPage"
+                  [class.btn-outline-primary]="page !== currentPage" (click)="changePage(page)">
+                  {{ page }}
+                </button>
+              </div>
+              <button class="btn btn-outline-primary btn-sm" [disabled]="currentPage === totalPages" (click)="changePage(currentPage + 1)">
+                Siguiente <i class="fas fa-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

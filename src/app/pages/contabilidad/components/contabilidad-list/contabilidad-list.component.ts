@@ -7,639 +7,690 @@ import { takeUntil } from 'rxjs/operators';
 
 import { ContabilidadService } from '../../../../core/services/contabilidad.service';
 import { NotificationService } from '../../../../core/services/notification.service';
+import { DocumentoContable } from '../../../../core/models/documento-contable.model';
 
 @Component({
-    selector: 'app-contabilidad-list',
-    standalone: true,
-    imports: [CommonModule, RouterModule, FormsModule],
-    templateUrl: './contabilidad-list.component.html',
-    styleUrls: ['./contabilidad-list.component.scss']
+  selector: 'app-contabilidad-list',
+  standalone: true,
+  imports: [CommonModule, RouterModule, FormsModule],
+  templateUrl: './contabilidad-list.component.html',
+  styleUrls: ['./contabilidad-list.component.scss']
 })
 export class ContabilidadListComponent implements OnInit, OnDestroy {
-    // Lista completa de TODOS los documentos (sin filtrar por estado)
-    todosDocumentos: any[] = [];
-    filteredDocumentos: any[] = [];
-    paginatedDocumentos: any[] = [];
+  documentos: any[] = [];
+  filteredDocumentos: any[] = [];
+  paginatedDocumentos: any[] = [];
 
-    loading = false;
-    isProcessing = false;
-    error = '';
-    successMessage = '';
-    infoMessage = '';
+  loading = false;
+  isProcessing = false;
+  error = '';
+  successMessage = '';
+  infoMessage = '';
 
-    searchTerm = '';
-    currentPage = 1;
-    pageSize = 10;
-    totalPages = 0;
-    pages: number[] = [];
+  searchTerm = '';
+  currentPage = 1;
+  pageSize = 10;
+  totalPages = 0;
+  pages: number[] = [];
 
-    usuarioActual = '';
-    sidebarCollapsed = false;
+  usuarioActual = '';
+  sidebarCollapsed = false;
 
-    // Filtros más completos
-    filtroEstado = 'todos'; // 'todos', 'aprobados', 'en_revision', 'completados', 'observados', 'rechazados', 'glosados'
-    filtroAsignacion = 'todos'; // 'todos', 'mios', 'sin_asignar', 'de_otros'
-    filtroFecha = 'todos'; // 'todos', 'hoy', 'semana', 'mes'
+  filtroEstado = 'todos';
+  filtroAsignacion = 'todos';
+  filtroFecha = 'todos';
 
-    private destroy$ = new Subject<void>();
+  private destroy$ = new Subject<void>();
 
-    constructor(
-        private contabilidadService: ContabilidadService,
-        private notificationService: NotificationService,
-        private router: Router
-    ) { }
+  constructor(
+    private contabilidadService: ContabilidadService,
+    private notificationService: NotificationService,
+    private router: Router
+  ) { }
 
-    ngOnInit(): void {
-        this.cargarUsuarioActual();
-        this.loadTodosDocumentos();
+  ngOnInit(): void {
+    this.cargarUsuarioActual();
+    this.cargarDocumentos();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  cargarUsuarioActual(): void {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        this.usuarioActual = user.fullName || user.username || 'Contador';
+      } catch {
+        this.usuarioActual = 'Contador';
+      }
+    }
+  }
+
+  cargarDocumentos(): void {
+    this.loading = true;
+    this.error = '';
+    this.successMessage = '';
+    this.infoMessage = '';
+
+    // Cargar disponibles, en revisión e historial en paralelo
+    Promise.all([
+      this.contabilidadService.obtenerDocumentosDisponibles().pipe(takeUntil(this.destroy$)).toPromise(),
+      this.contabilidadService.obtenerDocumentosEnRevision().pipe(takeUntil(this.destroy$)).toPromise(),
+      this.contabilidadService.getHistorial().pipe(takeUntil(this.destroy$)).toPromise()
+    ]).then(([disponibles, enRevision, historial]) => {
+      console.log('📊 Disponibles:', disponibles);
+      console.log('📊 En revisión:', enRevision);
+      console.log('📊 Historial:', historial);
+      
+      this.combinarDocumentos(disponibles || [], enRevision || [], historial || []);
+      this.loading = false;
+    }).catch((err) => {
+      console.error('Error cargando documentos:', err);
+      this.error = 'Error al cargar los documentos';
+      this.notificationService.error('Error', this.error);
+      this.loading = false;
+    });
+  }
+
+  combinarDocumentos(disponibles: any[], enRevision: any[], historial: any[]): void {
+    const todos: any[] = [];
+    const idsProcesados = new Set<string>();
+
+    // Procesar disponibles (documentos que vienen de obtenerDocumentosDisponibles)
+    disponibles.forEach((doc: any) => {
+      if (!doc?.id || idsProcesados.has(doc.id)) return;
+      todos.push({
+        ...doc,
+        tipo: 'disponible',
+        estadoContabilidad: 'DISPONIBLE', // Para contabilidad están disponibles
+        estadoDocumento: doc.estado || 'APROBADO_AUDITOR',
+        contadorAsignado: null,
+        puedeTomar: true,
+        esMio: false,
+        fechaReferencia: doc.fechaRadicacion || doc.fechaCreacion
+      });
+      idsProcesados.add(doc.id);
+    });
+
+    // Procesar en revisión (documentos que el usuario tiene en su contabilidad_documentos con estado EN_REVISION)
+    enRevision.forEach((doc: any) => {
+      if (!doc?.id || idsProcesados.has(doc.id)) return;
+      
+      // Determinar el estado real según el documento principal
+      let estadoContabilidad = 'EN_REVISION';
+      if (doc.estado?.includes('EN_REVISION_CONTABILIDAD')) {
+        estadoContabilidad = 'EN_REVISION';
+      } else if (doc.estado?.includes('COMPLETADO_CONTABILIDAD')) {
+        estadoContabilidad = 'COMPLETADO';
+      } else if (doc.estado?.includes('RECHAZADO_CONTABILIDAD')) {
+        estadoContabilidad = 'RECHAZADO';
+      } else if (doc.estado?.includes('OBSERVADO_CONTABILIDAD')) {
+        estadoContabilidad = 'OBSERVADO';
+      } else if (doc.estado?.includes('GLOSADO_CONTABILIDAD')) {
+        estadoContabilidad = 'GLOSADO';
+      } else if (doc.estado?.includes('PROCESADO_CONTABILIDAD')) {
+        estadoContabilidad = 'PROCESADO';
+      }
+
+      todos.push({
+        ...doc,
+        tipo: 'en_revision',
+        estadoContabilidad: estadoContabilidad,
+        estadoDocumento: doc.estado || 'EN_REVISION',
+        contadorAsignado: this.usuarioActual,
+        puedeTomar: false,
+        esMio: true,
+        tieneGlosa: doc.tieneGlosa,
+        tipoCausacion: doc.tipoCausacion,
+        observaciones: doc.observaciones || doc.observacion || '',
+        fechaInicioRevision: doc.fechaInicioRevision || doc.fechaAsignacion,
+        fechaFinRevision: doc.fechaFinRevision,
+        fechaReferencia: doc.fechaAsignacion || doc.fechaInicioRevision || doc.fechaRadicacion
+      });
+      idsProcesados.add(doc.id);
+    });
+
+    // Procesar historial (documentos ya procesados)
+  historial.forEach((item: any) => {
+    const doc = item.documento || item;
+    if (!doc?.id || idsProcesados.has(doc.id)) return;
+    
+    // Determinar estado simplificado (solo 3 opciones)
+    let estadoSimplificado = 'PROCESADO';
+    const estadoOriginal = item.estado || doc.estado || '';
+    const observaciones = item.observaciones || doc.observacion || '';
+    
+    if (estadoOriginal.includes('COMPLETADO') || 
+        estadoOriginal.includes('APROBADO') ||
+        estadoOriginal === 'COMPLETADO' ||
+        estadoOriginal === 'APROBADO') {
+        estadoSimplificado = 'COMPLETADO';
+    } 
+    else if (estadoOriginal.includes('RECHAZADO') || 
+             estadoOriginal === 'RECHAZADO' ||
+             observaciones.toUpperCase().includes('RECHAZ')) {
+        estadoSimplificado = 'RECHAZADO';
+    } 
+    else if (estadoOriginal.includes('OBSERVADO') || 
+             estadoOriginal === 'OBSERVADO' ||
+             observaciones.toUpperCase().includes('OBSERV')) {
+        estadoSimplificado = 'OBSERVADO';
     }
 
-    cargarUsuarioActual(): void {
-        const userStr = localStorage.getItem('user');
-        if (userStr) {
-            const user = JSON.parse(userStr);
-            this.usuarioActual = user.fullName || user.username || 'Contador';
-        }
+    todos.push({
+        ...doc,
+        tipo: 'procesado',
+        estadoContabilidad: estadoSimplificado,
+        estadoDocumento: doc.estado || item.estadoDocumento,
+        tieneGlosa: item.tieneGlosa ?? doc.tieneGlosa,
+        tipoCausacion: item.tipoCausacion ?? doc.tipoCausacion,
+        observaciones: item.observaciones || doc.observacion || '',
+        fechaInicioRevision: item.fechaInicioRevision || doc.fechaInicioRevision,
+        fechaFinRevision: item.fechaFinRevision || doc.fechaFinRevision,
+        contadorRevisor: item.contadorRevisor || item.contadorAsignado || doc.contadorRevisor,
+        contadorAsignado: item.contadorRevisor || item.contadorAsignado || doc.contadorAsignado,
+        puedeTomar: false,
+        esMio: this.esMiDocumento({
+            contadorRevisor: item.contadorRevisor,
+            contadorAsignado: item.contadorAsignado
+        }),
+        fechaReferencia: item.fechaFinRevision || item.fechaActualizacion || doc.fechaRadicacion
+    });
+    idsProcesados.add(doc.id);
+});
+
+    // Ordenar: primero en revisión (míos), luego disponibles, luego procesados
+    this.documentos = [
+      ...todos.filter(d => d.tipo === 'en_revision'),
+      ...todos.filter(d => d.tipo === 'disponible'),
+      ...todos.filter(d => d.tipo === 'procesado')
+    ];
+
+    console.log(`[CONTABILIDAD-LIST] Documentos cargados: ${this.documentos.length}`);
+    console.table(this.documentos.map(d => ({
+      radicado: d.numeroRadicado,
+      tipo: d.tipo,
+      estadoCont: d.estadoContabilidad,
+      estadoDoc: d.estadoDocumento,
+      tieneGlosa: d.tieneGlosa
+    })));
+    
+    this.aplicarFiltros();
+  }
+
+  // ==================== MÉTODOS GETTERS ====================
+
+  getDisponiblesCount(): number {
+    return this.documentos.filter(d => d.tipo === 'disponible').length;
+  }
+
+  getEnRevisionCount(): number {
+    return this.documentos.filter(d => d.tipo === 'en_revision').length;
+  }
+
+  getProcesadosCount(): number {
+    return this.documentos.filter(d => d.tipo === 'procesado').length;
+  }
+
+  getNumeroRadicado(documento: any): string {
+    return documento.numeroRadicado || 'N/A';
+  }
+
+  getFechaRadicacion(documento: any): string | Date {
+    return documento.fechaRadicacion || documento.fechaCreacion;
+  }
+
+  getRadicador(documento: any): string {
+    return documento.radicador || 'Sistema';
+  }
+
+  getNombreContratista(documento: any): string {
+    return documento.nombreContratista || 'Sin nombre';
+  }
+
+  getDocumentoContratista(documento: any): string {
+    return documento.documentoContratista || 'N/A';
+  }
+
+  getNumeroContrato(documento: any): string {
+    return documento.numeroContrato || 'Sin contrato';
+  }
+
+  getFechaInicio(documento: any): string | Date {
+    return documento.fechaInicio;
+  }
+
+  getFechaFin(documento: any): string | Date {
+    return documento.fechaFin;
+  }
+
+  getEstado(documento: any): string {
+    return documento.estado || '';
+  }
+
+  getObservacion(documento: any): string {
+    return documento.observacion || '';
+  }
+
+  getObservacionCorta(documento: any): string {
+    const obs = documento.observacion || '';
+    return obs.length > 25 ? obs.substring(0, 25) + '...' : obs;
+  }
+
+  getContadorRevisor(documento: any): string {
+    return documento.contadorRevisor || documento.contadorAsignado || '';
+  }
+
+  // ==================== MÉTODOS DE NEGOCIO ====================
+
+  esMiDocumento(item: any): boolean {
+    const contadorAsignado = item.contadorAsignado || item.contadorRevisor || '';
+    return this.compararNombres(contadorAsignado, this.usuarioActual);
+  }
+
+  compararNombres(nombre1: string, nombre2: string): boolean {
+    if (!nombre1 || !nombre2) return false;
+    const normalizar = (nombre: string) => nombre.toLowerCase().trim().replace(/\s+/g, ' ');
+    const n1 = normalizar(nombre1);
+    const n2 = normalizar(nombre2);
+    return n1 === n2 || n1.includes(n2) || n2.includes(n1);
+  }
+
+  tomarDocumento(documento: any): void {
+    if (this.isProcessing) return;
+    
+    if (documento.tipo !== 'disponible') {
+      this.notificationService.warning('Advertencia', 'Este documento no está disponible para tomar');
+      return;
     }
 
-    // Cargar TODOS los documentos sin importar estado
-    loadTodosDocumentos(): void {
-        this.loading = true;
-        this.error = '';
-        this.successMessage = '';
-        this.infoMessage = '';
+    this.notificationService.showModal({
+      title: 'Tomar documento',
+      message: `¿Deseas tomar el documento ${documento.numeroRadicado || 'N/A'} para revisión contable?`,
+      type: 'confirm',
+      confirmText: 'Sí, tomar',
+      cancelText: 'Cancelar',
+      onConfirm: () => this.procederTomarDocumento(documento)
+    });
+  }
 
-        console.log('[CONTABILIDAD - LISTA COMPLETA] Solicitando TODOS los documentos...');
+  procederTomarDocumento(documento: any): void {
+    this.isProcessing = true;
 
-        // Primero obtenemos los disponibles
-        this.contabilidadService.obtenerDocumentosDisponibles()
-            .pipe(takeUntil(this.destroy$))
-            .subscribe({
-                next: (disponibles: any[]) => {
-                    console.log('[CONTABILIDAD] Disponibles recibidos:', disponibles?.length || 0);
+    this.contabilidadService.tomarDocumentoParaRevision(documento.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response: any) => {
+          this.notificationService.success('Éxito', 'Documento tomado para revisión');
+          
+          // Actualizar el documento en la lista
+          const index = this.documentos.findIndex(d => d.id === documento.id);
+          if (index !== -1) {
+            this.documentos[index] = {
+              ...this.documentos[index],
+              tipo: 'en_revision',
+              estadoContabilidad: 'EN_REVISION',
+              estadoDocumento: 'EN_REVISION_CONTABILIDAD',
+              contadorAsignado: this.usuarioActual,
+              esMio: true,
+              puedeTomar: false
+            };
+          }
 
-                    // Luego obtenemos los que están en revisión (mis documentos)
-                    this.contabilidadService.obtenerDocumentosEnRevision()
-                        .pipe(takeUntil(this.destroy$))
-                        .subscribe({
-                            next: (enRevision: any[]) => {
-                                console.log('[CONTABILIDAD] En revisión recibidos:', enRevision?.length || 0);
+          this.aplicarFiltros();
+          this.isProcessing = false;
 
-                                // Finalmente obtenemos el historial (documentos procesados)
-                                this.contabilidadService.getHistorial()
-                                    .pipe(takeUntil(this.destroy$))
-                                    .subscribe({
-                                        next: (historialResponse: any) => {
-                                            console.log('[CONTABILIDAD] Historial recibido:', historialResponse?.data?.length || 0);
-
-                                            const historial = historialResponse?.data || [];
-
-                                            // Combinar TODOS los documentos
-                                            this.combinarTodosDocumentos(disponibles || [], enRevision || [], historial);
-
-                                            this.loading = false;
-                                        },
-                                        error: (err: any) => {
-                                            console.error('[CONTABILIDAD] Error cargando historial:', err);
-                                            // Si falla el historial, usamos solo disponibles y en revisión
-                                            this.combinarTodosDocumentos(disponibles || [], enRevision || [], []);
-                                            this.loading = false;
-                                        }
-                                    });
-                            },
-                            error: (err: any) => {
-                                console.error('[CONTABILIDAD] Error cargando documentos en revisión:', err);
-                                // Si falla, usamos solo disponibles
-                                this.combinarTodosDocumentos(disponibles || [], [], []);
-                                this.loading = false;
-                            }
-                        });
-                },
-                error: (err: any) => {
-                    console.error('[CONTABILIDAD] Error cargando documentos disponibles:', err);
-                    this.error = 'Error de conexión con el servidor: ' + (err.message || 'Desconocido');
-                    this.loading = false;
-                    this.notificationService.error('Error', this.error);
-                }
+          // Redirigir a la revisión
+          setTimeout(() => {
+            this.router.navigate(['/contabilidad/procesar', documento.id], {
+              queryParams: { modo: 'edicion', soloLectura: 'false' }
             });
-    }
-
-    // Combinar todos los documentos en una sola lista
-    combinarTodosDocumentos(disponibles: any[], enRevision: any[], historial: any[]): void {
-        const todos: any[] = [];
-        const idsProcesados = new Set<string>();
-
-        // 1. Agregar documentos disponibles (APROBADO_AUDITOR, COMPLETADO_AUDITOR)
-        disponibles.forEach(doc => {
-            if (!idsProcesados.has(doc.id)) {
-                todos.push({
-                    ...doc,
-                    tipo: 'disponible',
-                    estadoContabilidad: 'DISPONIBLE'
-                });
-                idsProcesados.add(doc.id);
-            }
-        });
-
-        // 2. Agregar documentos en revisión por mí
-        enRevision.forEach(doc => {
-            if (!idsProcesados.has(doc.id)) {
-                todos.push({
-                    ...doc,
-                    tipo: 'en_revision_mio',
-                    estadoContabilidad: 'EN_REVISION',
-                    asignacion: { enRevision: true, contadorAsignado: this.usuarioActual }
-                });
-                idsProcesados.add(doc.id);
-            }
-        });
-
-        // 3. Agregar documentos del historial (ya procesados)
-        historial.forEach(item => {
-            const doc = item.documento || item;
-            if (!idsProcesados.has(doc.id)) {
-                todos.push({
-                    ...doc,
-                    tipo: 'procesado',
-                    estadoContabilidad: item.estado || doc.estado,
-                    tieneGlosa: item.tieneGlosa,
-                    tipoCausacion: item.tipoCausacion,
-                    observaciones: item.observaciones,
-                    fechaInicioRevision: item.fechaInicioRevision,
-                    fechaFinRevision: item.fechaFinRevision,
-                    contadorRevisor: item.contadorRevisor,
-                    asignacion: {
-                        enRevision: item.estado?.includes('EN_REVISION'),
-                        contadorAsignado: item.contadorRevisor
-                    }
-                });
-                idsProcesados.add(doc.id);
-            }
-        });
-
-        console.log('[CONTABILIDAD] Total documentos combinados:', todos.length);
-        this.todosDocumentos = todos;
-
-        // Aplicar filtros iniciales
-        this.aplicarFiltros();
-        this.updatePagination();
-
-        if (this.filteredDocumentos.length > 0) {
-            const disponiblesCount = this.filteredDocumentos.filter(d => d.tipo === 'disponible').length;
-            const enRevisionCount = this.filteredDocumentos.filter(d => d.tipo === 'en_revision_mio').length;
-            const procesadosCount = this.filteredDocumentos.filter(d => d.tipo === 'procesado').length;
-
-            this.successMessage = `Se encontraron ${this.filteredDocumentos.length} documentos totales (${disponiblesCount} disponibles, ${enRevisionCount} en revisión, ${procesadosCount} procesados)`;
-        } else {
-            this.infoMessage = 'No hay documentos en el sistema';
+          }, 1500);
+        },
+        error: (err: any) => {
+          this.notificationService.error('Error', err.message || 'No se pudo tomar el documento');
+          this.isProcessing = false;
         }
+      });
+  }
+
+  verDocumento(documento: any): void {
+    const documentoId = documento.id;
+    const esMio = documento.tipo === 'en_revision' || documento.esMio;
+    const esEditable = documento.tipo === 'en_revision' && esMio;
+
+    this.router.navigate(['/contabilidad/procesar', documentoId], {
+      queryParams: {
+        modo: esEditable ? 'edicion' : 'consulta',
+        soloLectura: esEditable ? 'false' : 'true',
+        origen: 'lista'
+      }
+    });
+  }
+
+  getTextoBoton(documento: any): string {
+    if (documento.tipo === 'disponible') return 'Tomar';
+    if (documento.tipo === 'en_revision') return 'Revisar';
+    return 'Consultar';
+  }
+
+  getClaseBoton(documento: any): string {
+    if (documento.tipo === 'disponible') return 'btn-success';
+    if (documento.tipo === 'en_revision') return 'btn-primary';
+    return 'btn-info';
+  }
+
+  esDocumentoReciente(item: any): boolean {
+    const fecha = item.fechaRadicacion || item.fechaCreacion || item.fechaActualizacion;
+    if (!fecha) return false;
+    const dias = Math.floor((new Date().getTime() - new Date(fecha).getTime()) / (1000 * 60 * 60 * 24));
+    return dias <= 7;
+  }
+
+// ==================== MÉTODOS DE ESTADO SIMPLIFICADOS ====================
+
+/**
+ * Retorna la clase CSS para el badge según el estado
+ * Solo 3 estados principales: Aprobado, Rechazado, Observado
+ */
+getEstadoBadgeClass(estado: string | undefined): string {
+    if (!estado) return 'badge bg-secondary';
+    
+    const e = estado.toUpperCase();
+    
+    // Aprobado/Completado - Verde
+    if (e === 'COMPLETADO' || e.includes('COMPLETADO') || 
+        e === 'APROBADO' || e.includes('APROBADO') ||
+        e === 'PROCESADO' || e.includes('PROCESADO')) {
+        return 'badge bg-success';
     }
-
-    // Tomar documento para revisión
-    tomarDocumento(documento: any): void {
-        if (this.isProcessing) return;
-
-        if (documento.tipo !== 'disponible') {
-            this.notificationService.warning('Advertencia', 'Este documento no está disponible para tomar');
-            return;
-        }
-
-        this.isProcessing = true;
-        const documentoId = documento.id;
-
-        console.log(`[CONTABILIDAD] Tomando documento ${documentoId}...`);
-
-        this.contabilidadService.tomarDocumentoParaRevision(documentoId)
-            .pipe(takeUntil(this.destroy$))
-            .subscribe({
-                next: (response: any) => {
-                    console.log('[CONTABILIDAD] Documento tomado:', response);
-                    this.notificationService.success('Éxito', 'Documento tomado para revisión');
-
-                    // Actualizar el documento en la lista
-                    const index = this.todosDocumentos.findIndex(d => d.id === documentoId);
-                    if (index !== -1) {
-                        this.todosDocumentos[index] = {
-                            ...this.todosDocumentos[index],
-                            tipo: 'en_revision_mio',
-                            estadoContabilidad: 'EN_REVISION',
-                            asignacion: {
-                                ...this.todosDocumentos[index].asignacion,
-                                enRevision: true,
-                                contadorAsignado: this.usuarioActual
-                            }
-                        };
-                        this.aplicarFiltros();
-                        this.updatePagination();
-                    }
-
-                    this.isProcessing = false;
-                },
-                error: (err: any) => {
-                    console.error('[CONTABILIDAD] Error tomando documento:', err);
-                    this.notificationService.error('Error', err.message || 'No se pudo tomar el documento');
-                    this.isProcessing = false;
-                }
-            });
+    
+    // Rechazado - Rojo
+    if (e === 'RECHAZADO' || e.includes('RECHAZADO')) {
+        return 'badge bg-danger';
     }
-
-    // Ir a revisar documento
-    revisarDocumento(documento: any): void {
-        const documentoId = documento.id;
-        const soyElContador = documento.tipo === 'en_revision_mio' ||
-            (documento.asignacion?.contadorAsignado &&
-                this.compararNombres(documento.asignacion.contadorAsignado, this.usuarioActual));
-
-        const queryParams: any = { desdeLista: 'true' };
-
-        // Si está en revisión y soy yo el asignado, permitir edición
-        if (documento.estadoContabilidad?.includes('EN_REVISION') && soyElContador) {
-            queryParams.soloLectura = 'false';
-            queryParams.modo = 'edicion';
-        } else {
-            // En cualquier otro caso, solo lectura
-            queryParams.soloLectura = 'true';
-            queryParams.modo = 'consulta';
-        }
-
-        this.router.navigate(['/contabilidad/revisar', documentoId], { queryParams });
+    
+    // Observado - Amarillo
+    if (e === 'OBSERVADO' || e.includes('OBSERVADO')) {
+        return 'badge bg-warning text-dark';
     }
-
-    // Ver detalle del documento
-    verDetalle(documento: any): void {
-        const documentoId = documento.id;
-        this.router.navigate(['/contabilidad/documento', documentoId], { queryParams: { modo: 'consulta' } });
+    
+    // En Revisión - Azul
+    if (e === 'EN_REVISION' || e.includes('EN_REVISION')) {
+        return 'badge bg-primary';
     }
-
-    // Métodos auxiliares
-    esMiDocumento(item: any): boolean {
-        const contadorAsignado = item.asignacion?.contadorAsignado || item.contadorRevisor || '';
-        return this.compararNombres(contadorAsignado, this.usuarioActual);
+    
+    // Disponible - Celeste
+    if (e === 'DISPONIBLE') {
+        return 'badge bg-info';
     }
+    
+    return 'badge bg-secondary';
+}
 
-    compararNombres(nombre1: string, nombre2: string): boolean {
-        if (!nombre1 || !nombre2) return false;
-        const normalizar = (nombre: string) => nombre.toLowerCase().trim().replace(/\s+/g, ' ');
-        const n1 = normalizar(nombre1);
-        const n2 = normalizar(nombre2);
-        return n1 === n2 || n1.includes(n2) || n2.includes(n1);
+/**
+ * Retorna el texto legible del estado
+ * Solo 3 estados principales: Aprobado, Rechazado, Observado
+ */
+getEstadoTexto(estado: string | undefined): string {
+    if (!estado) return 'Desconocido';
+    
+    const e = estado.toUpperCase();
+    
+    // Aprobado/Completado
+    if (e === 'COMPLETADO' || e.includes('COMPLETADO') || 
+        e === 'APROBADO' || e.includes('APROBADO') ||
+        e === 'PROCESADO' || e.includes('PROCESADO')) {
+        return 'Aprobado';
     }
-
-    esDocumentoReciente(item: any): boolean {
-        const fecha = item.fechaRadicacion || item.fechaCreacion || item.fechaActualizacion;
-        if (!fecha) return false;
-        const dias = Math.floor((new Date().getTime() - new Date(fecha).getTime()) / (1000 * 60 * 60 * 24));
-        return dias <= 7;
+    
+    // Rechazado
+    if (e === 'RECHAZADO' || e.includes('RECHAZADO')) {
+        return 'Rechazado';
     }
-
-    getEstadoBadgeClass(estado: string): string {
-        if (!estado) return 'badge bg-light text-dark';
-        const e = estado.toUpperCase();
-        if (e.includes('COMPLETADO_CONTABILIDAD')) return 'badge bg-success';
-        if (e.includes('GLOSADO_CONTABILIDAD')) return 'badge bg-info';
-        if (e.includes('PROCESADO_CONTABILIDAD')) return 'badge bg-primary';
-        if (e.includes('OBSERVADO_CONTABILIDAD')) return 'badge bg-warning text-dark';
-        if (e.includes('RECHAZADO_CONTABILIDAD')) return 'badge bg-danger';
-        if (e.includes('EN_REVISION_CONTABILIDAD')) return 'badge bg-secondary';
-        if (e.includes('APROBADO_AUDITOR') || e.includes('COMPLETADO_AUDITOR')) return 'badge bg-light text-dark border';
-        if (e.includes('APROBADO_SUPERVISOR')) return 'badge bg-light text-dark border';
-        if (e.includes('DISPONIBLE')) return 'badge bg-light text-dark border';
-        return 'badge bg-secondary';
+    
+    // Observado
+    if (e === 'OBSERVADO' || e.includes('OBSERVADO')) {
+        return 'Observado';
     }
-
-    getEstadoTexto(estado: string): string {
-        if (!estado) return 'Desconocido';
-        const e = estado.toUpperCase();
-        if (e.includes('COMPLETADO_CONTABILIDAD')) return 'Completado';
-        if (e.includes('GLOSADO_CONTABILIDAD')) return 'Glosado';
-        if (e.includes('PROCESADO_CONTABILIDAD')) return 'Procesado';
-        if (e.includes('OBSERVADO_CONTABILIDAD')) return 'Observado';
-        if (e.includes('RECHAZADO_CONTABILIDAD')) return 'Rechazado';
-        if (e.includes('EN_REVISION_CONTABILIDAD')) return 'En Revisión';
-        if (e.includes('APROBADO_AUDITOR')) return 'Aprobado Auditor';
-        if (e.includes('COMPLETADO_AUDITOR')) return 'Completado Auditor';
-        if (e.includes('APROBADO_SUPERVISOR')) return 'Aprobado Supervisor';
-        if (e.includes('DISPONIBLE')) return 'Disponible';
-        return estado.replace(/_/g, ' ');
+    
+    // En Revisión
+    if (e === 'EN_REVISION' || e.includes('EN_REVISION')) {
+        return 'En Revisión';
     }
-
-    getTipoDocumentoTexto(documento: any): string {
-        switch (documento.tipo) {
-            case 'disponible': return 'Disponible';
-            case 'en_revision_mio': return 'En Revisión (Mío)';
-            case 'procesado': return 'Procesado';
-            default: return 'Desconocido';
-        }
+    
+    // Disponible
+    if (e === 'DISPONIBLE') {
+        return 'Disponible';
     }
+    
+    return estado;
+}
 
-    getTipoDocumentoBadgeClass(documento: any): string {
-        switch (documento.tipo) {
-            case 'disponible': return 'badge bg-primary';
-            case 'en_revision_mio': return 'badge bg-success';
-            case 'procesado':
-                const estado = documento.estadoContabilidad || '';
-                if (estado.includes('COMPLETADO')) return 'badge bg-info';
-                if (estado.includes('OBSERVADO')) return 'badge bg-warning';
-                if (estado.includes('RECHAZADO')) return 'badge bg-danger';
-                if (estado.includes('GLOSADO')) return 'badge bg-secondary';
-                return 'badge bg-secondary';
-            default: return 'badge bg-light text-dark';
-        }
+  getTipoDocumentoTexto(documento: any): string {
+    switch (documento.tipo) {
+      case 'disponible': return 'Disponible';
+      case 'en_revision': return 'En Revisión (Mío)';
+      case 'procesado': return 'Procesado';
+      default: return 'Desconocido';
     }
+  }
 
-    getTieneGlosaTexto(item: any): string {
-        if (item.tieneGlosa === true) return 'Con Glosa';
-        if (item.tieneGlosa === false) return 'Sin Glosa';
-        return 'No definido';
+  getTieneGlosaTexto(item: any): string {
+    if (item.tieneGlosa === true) return 'Con Glosa';
+    if (item.tieneGlosa === false) return 'Sin Glosa';
+    return 'No definido';
+  }
+
+  formatDate(fecha: Date | string): string {
+    if (!fecha) return 'N/A';
+    try {
+      return new Date(fecha).toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return 'Fecha inválida';
     }
+  }
 
-    formatDate(fecha: Date | string): string {
-        if (!fecha) return 'N/A';
-        try {
-            return new Date(fecha).toLocaleDateString('es-ES', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        } catch {
-            return 'Fecha inválida';
-        }
+  formatDateOnly(fecha: Date | string): string {
+    if (!fecha) return 'N/A';
+    try {
+      return new Date(fecha).toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+    } catch {
+      return 'Fecha inválida';
     }
+  }
 
-    formatDateOnly(fecha: Date | string): string {
-        if (!fecha) return 'N/A';
-        try {
-            return new Date(fecha).toLocaleDateString('es-ES', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit'
-            });
-        } catch {
-            return 'Fecha inválida';
-        }
+  formatDateShort(fecha: Date | string): string {
+    if (!fecha) return 'N/A';
+    try {
+      return new Date(fecha).toLocaleDateString('es-ES', {
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return 'Fecha inválida';
     }
+  }
 
-    formatDateShort(fecha: Date | string): string {
-        if (!fecha) return 'N/A';
-        try {
-            return new Date(fecha).toLocaleDateString('es-ES', {
-                month: 'short',
-                day: 'numeric'
-            });
-        } catch {
-            return 'Fecha inválida';
-        }
-    }
+  getDocumentCount(item: any): number {
+    let count = 0;
+    if (item.cuentaCobro) count++;
+    if (item.seguridadSocial) count++;
+    if (item.informeActividades) count++;
+    return count;
+  }
 
-    getDocumentCount(item: any): number {
-        let count = 0;
-        if (item.cuentaCobro) count++;
-        if (item.seguridadSocial) count++;
-        if (item.informeActividades) count++;
-        return count;
-    }
+aplicarFiltros(): void {
+    let filtered = [...this.documentos];
 
-    // Aplicar filtros
-    aplicarFiltros(): void {
-        let filtered = [...this.todosDocumentos];
-
-        // Filtro por estado de contabilidad
-        if (this.filtroEstado !== 'todos') {
-            switch (this.filtroEstado) {
-                case 'aprobados':
-                    filtered = filtered.filter(doc =>
-                        doc.estado?.includes('APROBADO_AUDITOR') ||
-                        doc.estado?.includes('COMPLETADO_AUDITOR')
-                    );
-                    break;
-                case 'en_revision':
-                    filtered = filtered.filter(doc =>
-                        doc.estadoContabilidad?.includes('EN_REVISION') ||
-                        doc.tipo === 'en_revision_mio'
-                    );
-                    break;
-                case 'completados':
-                    filtered = filtered.filter(doc =>
-                        doc.estadoContabilidad?.includes('COMPLETADO_CONTABILIDAD') ||
-                        doc.estadoContabilidad?.includes('PROCESADO_CONTABILIDAD')
-                    );
-                    break;
-                case 'observados':
-                    filtered = filtered.filter(doc =>
-                        doc.estadoContabilidad?.includes('OBSERVADO_CONTABILIDAD')
-                    );
-                    break;
-                case 'rechazados':
-                    filtered = filtered.filter(doc =>
-                        doc.estadoContabilidad?.includes('RECHAZADO_CONTABILIDAD')
-                    );
-                    break;
-                case 'glosados':
-                    filtered = filtered.filter(doc =>
-                        doc.estadoContabilidad?.includes('GLOSADO_CONTABILIDAD')
-                    );
-                    break;
-            }
-        }
-
-        // Filtro por asignación
-        if (this.filtroAsignacion !== 'todos') {
-            switch (this.filtroAsignacion) {
-                case 'mios':
-                    filtered = filtered.filter(doc => this.esMiDocumento(doc));
-                    break;
-                case 'sin_asignar':
-                    filtered = filtered.filter(doc => doc.tipo === 'disponible');
-                    break;
-                case 'de_otros':
-                    filtered = filtered.filter(doc =>
-                        doc.tipo === 'en_revision_mio' && !this.esMiDocumento(doc)
-                    );
-                    break;
-            }
-        }
-
-        // Filtro por fecha
-        if (this.filtroFecha !== 'todos') {
-            const ahora = new Date();
-            filtered = filtered.filter(doc => {
-                const fechaDoc = doc.fechaRadicacion || doc.fechaCreacion || doc.fechaActualizacion;
-                if (!fechaDoc) return true;
-
-                const fecha = new Date(fechaDoc);
-                const diffDias = Math.floor((ahora.getTime() - fecha.getTime()) / (1000 * 60 * 60 * 24));
-
-                switch (this.filtroFecha) {
-                    case 'hoy': return diffDias === 0;
-                    case 'semana': return diffDias <= 7;
-                    case 'mes': return diffDias <= 30;
-                    default: return true;
-                }
-            });
-        }
-
-        // Filtro por búsqueda
-        if (this.searchTerm.trim()) {
-            const term = this.searchTerm.toLowerCase();
-            filtered = filtered.filter(item => {
-                return (
-                    (item.numeroRadicado?.toLowerCase().includes(term)) ||
-                    (item.nombreContratista?.toLowerCase().includes(term)) ||
-                    (item.numeroContrato?.toLowerCase().includes(term)) ||
-                    (item.estado?.toLowerCase().includes(term)) ||
-                    (item.estadoContabilidad?.toLowerCase().includes(term)) ||
-                    (item.observacion?.toLowerCase().includes(term)) ||
-                    (item.observaciones?.toLowerCase().includes(term)) ||
-                    (item.radicador?.toLowerCase().includes(term)) ||
-                    (item.supervisor?.toLowerCase().includes(term)) ||
-                    (item.auditor?.toLowerCase().includes(term))
+    // Filtro por estado - VERSIÓN SIMPLIFICADA
+    if (this.filtroEstado !== 'todos') {
+        switch (this.filtroEstado) {
+            case 'disponibles':
+                filtered = filtered.filter(doc => doc.tipo === 'disponible');
+                break;
+            case 'en_revision':
+                filtered = filtered.filter(doc => doc.tipo === 'en_revision');
+                break;
+            case 'aprobados':
+                filtered = filtered.filter(doc => 
+                    doc.estadoContabilidad === 'COMPLETADO' || 
+                    doc.estadoContabilidad === 'APROBADO' ||
+                    doc.estadoContabilidad?.includes('COMPLETADO') ||
+                    doc.estadoContabilidad?.includes('APROBADO')
                 );
-            });
-        }
-
-        this.filteredDocumentos = filtered;
-        this.currentPage = 1;
-    }
-
-    onSearch(): void {
-        this.aplicarFiltros();
-        this.updatePagination();
-    }
-
-    onFiltroChange(): void {
-        this.aplicarFiltros();
-        this.updatePagination();
-    }
-
-    updatePagination(): void {
-        this.totalPages = Math.ceil(this.filteredDocumentos.length / this.pageSize);
-        this.pages = [];
-        const maxPagesToShow = 5;
-        let startPage = Math.max(1, this.currentPage - Math.floor(maxPagesToShow / 2));
-        let endPage = Math.min(this.totalPages, startPage + maxPagesToShow - 1);
-        if (endPage - startPage + 1 < maxPagesToShow) {
-            startPage = Math.max(1, endPage - maxPagesToShow + 1);
-        }
-        for (let i = startPage; i <= endPage; i++) {
-            this.pages.push(i);
-        }
-        const startIndex = (this.currentPage - 1) * this.pageSize;
-        const endIndex = Math.min(startIndex + this.pageSize, this.filteredDocumentos.length);
-        this.paginatedDocumentos = this.filteredDocumentos.slice(startIndex, endIndex);
-    }
-
-    changePage(page: number): void {
-        if (page >= 1 && page <= this.totalPages && page !== this.currentPage) {
-            this.currentPage = page;
-            this.updatePagination();
+                break;
+            case 'observados':
+                filtered = filtered.filter(doc => 
+                    doc.estadoContabilidad === 'OBSERVADO' || 
+                    doc.estadoContabilidad?.includes('OBSERVADO')
+                );
+                break;
+            case 'rechazados':
+                filtered = filtered.filter(doc => 
+                    doc.estadoContabilidad === 'RECHAZADO' || 
+                    doc.estadoContabilidad?.includes('RECHAZADO')
+                );
+                break;
         }
     }
 
-    dismissError(): void {
-        this.error = '';
+    // Filtro por asignación
+    if (this.filtroAsignacion !== 'todos') {
+        switch (this.filtroAsignacion) {
+            case 'mios':
+                filtered = filtered.filter(doc => doc.esMio);
+                break;
+            case 'disponibles':
+                filtered = filtered.filter(doc => doc.tipo === 'disponible');
+                break;
+        }
     }
 
-    dismissSuccess(): void {
-        this.successMessage = '';
+    // Filtro por fecha
+    if (this.filtroFecha !== 'todos') {
+        const ahora = new Date();
+        filtered = filtered.filter(doc => {
+            const fechaDoc = doc.fechaReferencia || doc.fechaRadicacion || doc.fechaCreacion;
+            if (!fechaDoc) return true;
+            const fecha = new Date(fechaDoc);
+            const diffDias = Math.floor((ahora.getTime() - fecha.getTime()) / (1000 * 60 * 60 * 24));
+            
+            switch (this.filtroFecha) {
+                case 'hoy': return diffDias === 0;
+                case 'semana': return diffDias <= 7;
+                case 'mes': return diffDias <= 30;
+                default: return true;
+            }
+        });
     }
 
-    dismissInfo(): void {
-        this.infoMessage = '';
+    // Filtro por búsqueda
+    if (this.searchTerm.trim()) {
+        const term = this.searchTerm.toLowerCase();
+        filtered = filtered.filter(item => {
+            return (
+                (item.numeroRadicado?.toLowerCase().includes(term)) ||
+                (item.nombreContratista?.toLowerCase().includes(term)) ||
+                (item.numeroContrato?.toLowerCase().includes(term)) ||
+                (item.estado?.toLowerCase().includes(term)) ||
+                (item.estadoContabilidad?.toLowerCase().includes(term)) ||
+                (item.observacion?.toLowerCase().includes(term))
+            );
+        });
     }
 
-    refreshData(): void {
-        this.loadTodosDocumentos();
+    this.filteredDocumentos = filtered;
+    this.currentPage = 1;
+    this.updatePagination();
+
+    if (this.filteredDocumentos.length === 0) {
+        this.infoMessage = 'No hay documentos con los filtros aplicados';
+    } else {
+        this.successMessage = `Mostrando ${this.filteredDocumentos.length} documentos`;
+        setTimeout(() => this.successMessage = '', 3000);
+    }
+}
+
+  onSearch(): void {
+    this.aplicarFiltros();
+  }
+
+  onFiltroChange(): void {
+    this.aplicarFiltros();
+  }
+
+  updatePagination(): void {
+    this.totalPages = Math.ceil(this.filteredDocumentos.length / this.pageSize);
+    this.pages = [];
+    
+    if (this.totalPages <= 1) {
+      if (this.totalPages === 1) this.pages.push(1);
+    } else {
+      const maxPagesToShow = 5;
+      let startPage = Math.max(1, this.currentPage - Math.floor(maxPagesToShow / 2));
+      let endPage = Math.min(this.totalPages, startPage + maxPagesToShow - 1);
+      
+      if (endPage - startPage + 1 < maxPagesToShow) {
+        startPage = Math.max(1, endPage - maxPagesToShow + 1);
+      }
+      
+      for (let i = startPage; i <= endPage; i++) {
+        this.pages.push(i);
+      }
     }
 
-    ngOnDestroy(): void {
-        this.destroy$.next();
-        this.destroy$.complete();
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    const endIndex = Math.min(startIndex + this.pageSize, this.filteredDocumentos.length);
+    this.paginatedDocumentos = this.filteredDocumentos.slice(startIndex, endIndex);
+  }
+
+  changePage(page: number): void {
+    if (page >= 1 && page <= this.totalPages && page !== this.currentPage) {
+      this.currentPage = page;
+      this.updatePagination();
     }
-    limpiarFiltros(): void {
-        this.filtroEstado = 'todos';
-        this.filtroAsignacion = 'todos';
-        this.filtroFecha = 'todos';
-        this.searchTerm = '';
-        this.onFiltroChange();
-    }
+  }
 
+  dismissError(): void {
+    this.error = '';
+  }
 
-    // Métodos auxiliares para el template (evitan expresiones complejas en HTML)
+  dismissSuccess(): void {
+    this.successMessage = '';
+  }
 
-getDisponiblesCount(): number {
-  return this.todosDocumentos.filter(d => d.tipo === 'disponible').length;
-}
+  dismissInfo(): void {
+    this.infoMessage = '';
+  }
 
-getEnRevisionCount(): number {
-  return this.todosDocumentos.filter(d => d.tipo === 'en_revision_mio').length;
-}
+  refreshData(): void {
+    this.cargarDocumentos();
+  }
 
-getProcesadosCount(): number {
-  return this.todosDocumentos.filter(d => d.tipo === 'procesado').length;
-}
+  limpiarFiltros(): void {
+    this.filtroEstado = 'todos';
+    this.filtroAsignacion = 'todos';
+    this.filtroFecha = 'todos';
+    this.searchTerm = '';
+    this.aplicarFiltros();
+  }
 
-// Métodos para acceder a propiedades del documento
-getNumeroRadicado(documento: any): string {
-  return documento.numeroRadicado || 'N/A';
-}
-
-getFechaRadicacion(documento: any): string | Date {
-  return documento.fechaRadicacion || documento.fechaCreacion;
-}
-
-getRadicador(documento: any): string {
-  return documento.radicador || 'Sin radicador';
-}
-
-getNombreContratista(documento: any): string {
-  return documento.nombreContratista || 'Sin nombre';
-}
-
-getDocumentoContratista(documento: any): string {
-  return documento.documentoContratista || 'Sin documento';
-}
-
-getNumeroContrato(documento: any): string {
-  return documento.numeroContrato || 'Sin contrato';
-}
-
-getFechaInicio(documento: any): string | Date {
-  return documento.fechaInicio;
-}
-
-getFechaFin(documento: any): string | Date {
-  return documento.fechaFin;
-}
-
-getEstado(documento: any): string {
-  return documento.estado;
-}
-
-getSupervisor(documento: any): string {
-  return documento.supervisor || documento.auditor || 'Sin supervisor';
-}
-
-getObservacion(documento: any): string {
-  return documento.observacion;
-}
-
-getObservacionCorta(documento: any): string {
-  const observacion = documento.observacion;
-  return observacion && observacion.length > 25 ? 
-         observacion.substring(0, 25) + '...' : 
-         observacion || '';
-}
-
-getContadorRevisor(documento: any): string {
-  return documento.contadorRevisor;
-}
-
-esConsultable(documento: any): boolean {
-  return documento.tipo === 'procesado' || 
-         (documento.tipo === 'en_revision_mio' && !this.esMiDocumento(documento));
-}
-
-
+  trackById(index: number, item: any): string {
+    return item.id || index.toString();
+  }
 }

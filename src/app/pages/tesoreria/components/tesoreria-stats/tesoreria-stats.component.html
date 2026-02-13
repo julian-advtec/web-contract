@@ -1,0 +1,381 @@
+<!-- src/app/pages/tesoreria/components/tesoreria-stats/tesoreria-stats.component.html -->
+<div class="tesoreria-stats-container">
+  <!-- Header -->
+  <div class="stats-header">
+    <div class="header-title">
+      <h1><i class="fas fa-chart-line"></i> Estadísticas de Tesorería</h1>
+      <p class="text-muted">Análisis y métricas del proceso de pagos</p>
+    </div>
+    
+    <div class="header-actions">
+      <button class="btn btn-outline-secondary" (click)="exportarEstadisticas()" [disabled]="loading">
+        <i class="fas fa-download"></i> Exportar
+      </button>
+      <button class="btn btn-primary" (click)="cargarEstadisticasGenerales()" [disabled]="loading">
+        <i class="fas fa-sync-alt" [class.fa-spin]="loading"></i> Actualizar
+      </button>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filtros-card">
+    <h3><i class="fas fa-filter"></i> Filtros</h3>
+    <form class="filtros-form">
+      <div class="filtros-grid">
+        <!-- Rango de fechas -->
+        <div class="form-group">
+          <label>Rango de Fechas</label>
+          <select [(ngModel)]="filtros.rangoFechas" name="rangoFechas" class="form-control" (change)="cargarEstadisticasGenerales()">
+            <option *ngFor="let rango of rangosFechas" [value]="rango.value">
+              {{ rango.label }}
+            </option>
+            <option value="custom">Personalizado</option>
+          </select>
+        </div>
+
+        <!-- Fechas personalizadas -->
+        <div class="form-group" *ngIf="filtros.rangoFechas === 'custom'">
+          <label>Fecha Inicio</label>
+          <input type="date" [(ngModel)]="filtros.fechaInicio" name="fechaInicio" class="form-control" (change)="cargarEstadisticasGenerales()">
+        </div>
+        
+        <div class="form-group" *ngIf="filtros.rangoFechas === 'custom'">
+          <label>Fecha Fin</label>
+          <input type="date" [(ngModel)]="filtros.fechaFin" name="fechaFin" class="form-control" (change)="cargarEstadisticasGenerales()">
+        </div>
+
+        <!-- Estado de pago -->
+        <div class="form-group">
+          <label>Estado del Pago</label>
+          <select [(ngModel)]="filtros.estadoPago" name="estadoPago" class="form-control" (change)="cargarEstadisticasGenerales()">
+            <option value="">Todos los estados</option>
+            <option *ngFor="let estado of estadosPago" [value]="estado.value">
+              {{ estado.label }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Método de pago -->
+        <div class="form-group">
+          <label>Método de Pago</label>
+          <select [(ngModel)]="filtros.metodoPago" name="metodoPago" class="form-control" (change)="cargarEstadisticasGenerales()">
+            <option value="">Todos los métodos</option>
+            <option *ngFor="let metodo of metodosPago" [value]="metodo.value">
+              {{ metodo.label }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Responsable (solo admin) -->
+        <div class="form-group" *ngIf="isAdmin">
+          <label>Responsable</label>
+          <select [(ngModel)]="filtros.responsableId" name="responsableId" class="form-control" (change)="cargarEstadisticasGenerales()">
+            <option value="">Todos los responsables</option>
+            <!-- Si tienes lista de responsables -->
+            <!-- <option *ngFor="let resp of listaResponsables" [value]="resp.id">
+              {{ resp.nombre }}
+            </option> -->
+          </select>
+        </div>
+
+        <!-- Botones -->
+        <div class="form-group btn-group">
+          <button type="button" class="btn btn-secondary" (click)="limpiarFiltros()">
+            <i class="fas fa-times"></i> Limpiar
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-overlay">
+    <div class="spinner-container">
+      <div class="spinner"></div>
+      <p>Cargando estadísticas...</p>
+    </div>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error && !loading" class="alert alert-danger">
+    <i class="fas fa-exclamation-triangle"></i> {{ error }}
+    <button class="btn btn-sm btn-outline-danger ml-3" (click)="cargarEstadisticasGenerales()">
+      Reintentar
+    </button>
+  </div>
+
+  <!-- Resumen Rápido -->
+  <div class="resumen-rapido">
+    <div class="resumen-card total">
+      <div class="resumen-icon">
+        <i class="fas fa-money-bill-wave"></i>
+      </div>
+      <div class="resumen-content">
+        <h3>Total Pagos</h3>
+        <p class="resumen-value">{{ resumenRapidoSeguro.totalPagos }}</p>
+      </div>
+    </div>
+    
+    <div class="resumen-card pagados">
+      <div class="resumen-icon">
+        <i class="fas fa-check-circle"></i>
+      </div>
+      <div class="resumen-content">
+        <h3>Pagados</h3>
+        <p class="resumen-value">{{ resumenRapidoSeguro.pagados }}</p>
+        <p class="resumen-porcentaje">{{ formatearPorcentaje(resumenRapidoSeguro.tasaPagados) }}</p>
+        <p class="resumen-monto">{{ formatearMoneda(resumenRapidoSeguro.montoPagado) }}</p>
+      </div>
+    </div>
+    
+    <div class="resumen-card en-proceso">
+      <div class="resumen-icon">
+        <i class="fas fa-clock"></i>
+      </div>
+      <div class="resumen-content">
+        <h3>En Proceso</h3>
+        <p class="resumen-value">{{ resumenRapidoSeguro.enProceso }}</p>
+        <p class="resumen-monto">{{ formatearMoneda(resumenRapidoSeguro.montoEnProceso) }}</p>
+      </div>
+    </div>
+    
+    <div class="resumen-card anulados">
+      <div class="resumen-icon">
+        <i class="fas fa-ban"></i>
+      </div>
+      <div class="resumen-content">
+        <h3>Anulados</h3>
+        <p class="resumen-value">{{ resumenRapidoSeguro.anulados }}</p>
+        <p class="resumen-monto">{{ formatearMoneda(resumenRapidoSeguro.montoAnulado) }}</p>
+      </div>
+    </div>
+    
+    <div class="resumen-card tiempo">
+      <div class="resumen-icon">
+        <i class="fas fa-stopwatch"></i>
+      </div>
+      <div class="resumen-content">
+        <h3>Tiempo Promedio</h3>
+        <p class="resumen-value">{{ formatearTiempo(resumenRapidoSeguro.tiempoPromedioProceso) }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mi Estadística Personal -->
+  <div class="mi-estadistica-card">
+    <h3><i class="fas fa-user-chart"></i> Mi Desempeño en Tesorería</h3>
+    <div class="mi-estadistica-content">
+      <div class="mi-resumen">
+        <div class="mi-item">
+          <span class="mi-label">Pagos Procesados:</span>
+          <span class="mi-value">{{ miEstadisticaSegura.resumen.pagados }}</span>
+        </div>
+        <div class="mi-item">
+          <span class="mi-label">Monto Total Procesado:</span>
+          <span class="mi-value">{{ formatearMoneda(miEstadisticaSegura.montoTotalProcesado) }}</span>
+        </div>
+        <div class="mi-item">
+          <span class="mi-label">Tiempo Promedio:</span>
+          <span class="mi-value">{{ formatearTiempo(miEstadisticaSegura.tiempos.promedioProceso) }}</span>
+        </div>
+        <div class="mi-item">
+          <span class="mi-label">Eficiencia:</span>
+          <span class="mi-value">{{ miEstadisticaSegura.eficiencia.pagosPorDia }}/día</span>
+        </div>
+      </div>
+      
+      <div class="mi-distribucion" *ngIf="miEstadisticaSegura.resumen.pagados > 0">
+        <h4>Distribución por Día</h4>
+        <div class="distribucion-barras">
+          <div *ngFor="let dia of miEstadisticaSegura.distribucionDias" class="barra-item">
+            <div class="barra-label">{{ dia.dia }}</div>
+            <div class="barra-container">
+              <div class="barra" [style.width.%]="(dia.cantidad / miEstadisticaSegura.resumen.pagados) * 100"></div>
+              <span class="barra-valor">{{ dia.cantidad }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Métricas Financieras -->
+  <div class="metricas-financieras">
+    <div class="metrica-card">
+      <h5><i class="fas fa-chart-pie"></i> Distribución por Estado</h5>
+      <div class="metrica-content">
+        <div *ngFor="let estado of estadisticasGeneralesSeguras.distribucionEstados" class="metrica-item">
+          <div class="metrica-info">
+            <span class="metrica-label">{{ getNombreEstadoPago(estado.estado) }}</span>
+            <span class="metrica-value">{{ estado.cantidad }}</span>
+          </div>
+          <div class="progress">
+            <div class="progress-bar" 
+                 [style.background-color]="getColorEstadoPago(estado.estado)"
+                 [style.width.%]="estado.porcentaje">
+              {{ formatearPorcentaje(estado.porcentaje) }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="metrica-card">
+      <h5><i class="fas fa-money-check-alt"></i> Métodos de Pago</h5>
+      <div class="metrica-content">
+        <div *ngFor="let metodo of estadisticasGeneralesSeguras.metodosPago" class="metrica-item">
+          <div class="metrica-info">
+            <span class="metrica-label">{{ metodo.metodo }}</span>
+            <span class="metrica-value">{{ formatearMoneda(metodo.monto) }}</span>
+          </div>
+          <div class="progress">
+            <div class="progress-bar bg-info" [style.width.%]="metodo.porcentaje">
+              {{ formatearPorcentaje(metodo.porcentaje) }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="metrica-card">
+      <h5><i class="fas fa-business-time"></i> Tiempos de Proceso</h5>
+      <div class="metrica-content">
+        <div class="metrica-item">
+          <span class="metrica-label">Promedio</span>
+          <span class="metrica-value">{{ formatearTiempo(estadisticasGeneralesSeguras.tiempos.promedioProceso) }}</span>
+        </div>
+        <div class="metrica-item">
+          <span class="metrica-label">Máximo</span>
+          <span class="metrica-value">{{ formatearTiempo(estadisticasGeneralesSeguras.tiempos.maximoProceso) }}</span>
+        </div>
+        <div class="metrica-item">
+          <span class="metrica-label">Mínimo</span>
+          <span class="metrica-value">{{ formatearTiempo(estadisticasGeneralesSeguras.tiempos.minimoProceso) }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sección de Tablas -->
+  <div class="tablas-section">
+    <!-- Pagos Recientes -->
+    <div class="tabla-card">
+      <h4><i class="fas fa-history"></i> Pagos Recientes</h4>
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Pago #</th>
+              <th>Contratista</th>
+              <th>Estado</th>
+              <th>Monto</th>
+              <th>Método</th>
+              <th>Tiempo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let pago of estadisticasGeneralesSeguras.pagosRecientes">
+              <td>{{ pago.numeroPago }}</td>
+              <td>{{ pago.nombreContratista }}</td>
+              <td>
+                <span class="badge" [style.background-color]="getColorEstadoPago(pago.estadoPago)">
+                  {{ getNombreEstadoPago(pago.estadoPago) }}
+                </span>
+              </td>
+              <td>{{ formatearMoneda(pago.valor) }}</td>
+              <td>{{ pago.metodoPago || 'N/A' }}</td>
+              <td>{{ formatearTiempo(pago.tiempoProceso) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Top Responsables (solo admin) -->
+    <div class="tabla-card" *ngIf="isAdmin && estadisticasGenerales?.topResponsables?.length">
+      <h4><i class="fas fa-trophy"></i> Top Responsables</h4>
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Responsable</th>
+              <th>Pagos Procesados</th>
+              <th>Monto Total</th>
+              <th>Eficiencia</th>
+              <th>Tiempo Prom.</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let resp of estadisticasGenerales?.topResponsables || []; let i = index">
+              <td>{{ i + 1 }}</td>
+              <td>{{ resp.responsableNombre }}</td>
+              <td>{{ resp.pagosProcesados }}</td>
+              <td>{{ formatearMoneda(resp.montoTotal) }}</td>
+              <td>{{ resp.eficiencia }}/día</td>
+              <td>{{ formatearTiempo(resp.promedioTiempo) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pagos por Monto -->
+  <div class="pagos-monto-section" *ngIf="estadisticasGeneralesSeguras.pagosPorMonto?.length">
+    <h3><i class="fas fa-list-ol"></i> Pagos por Rango de Monto</h3>
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Rango</th>
+            <th>Cantidad</th>
+            <th>Monto Total</th>
+            <th>Porcentaje</th>
+            <th>Promedio</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let rango of estadisticasGeneralesSeguras.pagosPorMonto">
+            <td>{{ rango.rango }}</td>
+            <td>{{ rango.cantidad }}</td>
+            <td>{{ formatearMoneda(rango.montoTotal) }}</td>
+            <td>{{ formatearPorcentaje(rango.porcentaje) }}</td>
+            <td>{{ formatearMoneda(rango.promedio) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tendencias Mensuales -->
+  <div class="tendencias-section" *ngIf="estadisticasGeneralesSeguras.tendenciasMensuales?.length">
+    <h3><i class="fas fa-chart-area"></i> Tendencias Mensuales</h3>
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Mes</th>
+            <th>Total Pagos</th>
+            <th>Pagados</th>
+            <th>En Proceso</th>
+            <th>Anulados</th>
+            <th>Monto Total</th>
+            <th>Tasa de Éxito</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let tendencia of estadisticasGeneralesSeguras.tendenciasMensuales">
+            <td>{{ tendencia.mes }}</td>
+            <td>{{ tendencia.totalPagos }}</td>
+            <td>{{ tendencia.pagados }}</td>
+            <td>{{ tendencia.enProceso }}</td>
+            <td>{{ tendencia.anulados }}</td>
+            <td>{{ formatearMoneda(tendencia.montoTotal) }}</td>
+            <td>{{ formatearPorcentaje(tendencia.tasaExito) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

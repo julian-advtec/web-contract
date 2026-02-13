@@ -1,0 +1,155 @@
+<div class="tesoreria-list-container">
+
+
+
+  <!-- Sin datos -->
+  <div *ngIf="!loading && filteredDocumentos.length === 0" class="text-center py-5">
+    <i class="fas fa-file-invoice-dollar fa-4x text-secondary mb-4"></i>
+    <h4 class="text-muted mb-2">No hay documentos</h4>
+    <p class="text-muted mb-3">No se encontraron documentos con los filtros aplicados</p>
+    <div class="d-flex justify-content-center gap-2 mt-4 flex-wrap">
+      <button class="btn btn-primary" (click)="refreshData()" [disabled]="loading">
+        <i class="fas fa-sync-alt me-1"></i> Refrescar
+      </button>
+      <button class="btn btn-outline-primary" (click)="limpiarFiltros()">
+        <i class="fas fa-filter me-1"></i> Limpiar filtros
+      </button>
+    </div>
+  </div>
+
+  <!-- Lista -->
+  <div *ngIf="!loading && filteredDocumentos.length > 0" class="documentos-container">
+    <div class="documentos-header">
+      <div class="header-item">Radicado</div>
+      <div class="header-item">Contratista</div>
+      <div class="header-item">Contrato</div>
+      <div class="header-item">Estado Documento</div>
+      <div class="header-item">Estado Tesorería</div>
+      <div class="header-item acciones-header">Acciones</div>
+    </div>
+
+    <div class="documentos-list">
+      <div *ngFor="let documento of paginatedDocumentos"
+           class="documento-card"
+           [class.reciente]="esDocumentoReciente(documento)"
+           [class.mi-documento]="esMiDocumento(documento)">
+
+        <!-- Radicado -->
+        <div class="documento-info">
+          <h5 class="documento-numero">
+            <i class="fas fa-hashtag me-1"></i>{{ getNumeroRadicado(documento) }}
+            <span *ngIf="esDocumentoReciente(documento)" class="reciente-badge">
+              <i class="fas fa-star me-1"></i>NUEVO
+            </span>
+            <span *ngIf="esMiDocumento(documento)" class="mi-badge">
+              <i class="fas fa-user me-1"></i>MÍO
+            </span>
+          </h5>
+          <small>{{ formatDateOnly(getFechaRadicacion(documento)) }}</small>
+          <small class="d-block"><i class="fas fa-user-tie me-1"></i>{{ getRadicador(documento) }}</small>
+        </div>
+
+        <!-- Contratista -->
+        <div class="documento-contratista">
+          <strong>{{ getNombreContratista(documento) }}</strong>
+          <small>{{ getDocumentoContratista(documento) }}</small>
+          <small *ngIf="documento.contador" class="text-success">
+            <i class="fas fa-calculator me-1"></i>{{ documento.contador }}
+          </small>
+        </div>
+
+        <!-- Contrato -->
+        <div class="documento-contrato">
+          <span class="contrato-badge">
+            <i class="fas fa-file-contract me-1"></i>{{ getNumeroContrato(documento) }}
+          </span>
+          <div class="contrato-periodo">
+            <small>Inicio: {{ formatDateShort(getFechaInicio(documento)) }}</small>
+            <small>Fin: {{ formatDateShort(getFechaFin(documento)) }}</small>
+          </div>
+        </div>
+
+        <!-- Estado del documento -->
+        <div class="documento-estado">
+          <span class="badge" [ngClass]="getEstadoBadgeClass(getEstado(documento))">
+            {{ getEstadoTexto(getEstado(documento)) }}
+          </span>
+          <small *ngIf="getObservacion(documento)" class="observacion-preview">
+            <i class="fas fa-comment me-1"></i>{{ getObservacionCorta(documento) }}
+          </small>
+        </div>
+
+        <!-- Estado tesorería -->
+        <div class="documento-tesoreria">
+          <span class="badge" [ngClass]="getTipoDocumentoBadgeClass(documento)">
+            {{ getTipoDocumentoTexto(documento) }}
+          </span>
+          <div *ngIf="documento.estadoTesoreria && documento.estadoTesoreria !== 'DISPONIBLE'">
+            <small>{{ getEstadoTexto(documento.estadoTesoreria) }}</small>
+          </div>
+          <div *ngIf="documento.fechaPago">
+            <small><i class="far fa-calendar me-1"></i>Pago: {{ formatDateShort(documento.fechaPago) }}</small>
+          </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="documento-acciones">
+          <div class="acciones-buttons">
+            <!-- Si está disponible, botón para tomar -->
+            <button *ngIf="documento.tipo === 'disponible'"
+                    class="btn btn-sm btn-primary"
+                    (click)="tomarDocumento(documento)"
+                    [disabled]="isProcessing">
+              <i class="fas fa-hand-paper me-1"></i> Tomar
+            </button>
+
+            <!-- Si está en revisión por mí, botón para procesar pago -->
+            <button *ngIf="documento.tipo === 'en_revision_mio'"
+                    class="btn btn-sm btn-success"
+                    (click)="revisarDocumento(documento)">
+              <i class="fas fa-money-bill-wave me-1"></i> Procesar Pago
+            </button>
+
+            <!-- Si está procesado o es de otro, botón para consultar -->
+            <button *ngIf="esConsultable(documento)"
+                    class="btn btn-sm btn-info"
+                    (click)="revisarDocumento(documento)">
+              <i class="fas fa-eye me-1"></i> Consultar
+            </button>
+
+            <!-- Info adicional -->
+            <div class="mt-1">
+              <small><i class="fas fa-file me-1"></i>Docs: {{ getDocumentCount(documento) }}/3</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Paginación -->
+    <div class="documentos-pagination" *ngIf="totalPages > 1">
+      <div class="pagination-info">
+        Mostrando {{ paginatedDocumentos.length }} de {{ filteredDocumentos.length }} documentos
+        (Página {{ currentPage }} de {{ totalPages }})
+      </div>
+      <div class="pagination-controls">
+        <button class="btn btn-outline-primary btn-sm" [disabled]="currentPage === 1"
+                (click)="changePage(currentPage - 1)">
+          <i class="fas fa-chevron-left"></i> Anterior
+        </button>
+        <div class="page-numbers">
+          <button *ngFor="let page of pages" class="btn btn-sm"
+                  [class.btn-primary]="page === currentPage"
+                  [class.btn-outline-primary]="page !== currentPage"
+                  (click)="changePage(page)">
+            {{ page }}
+          </button>
+        </div>
+        <button class="btn btn-outline-primary btn-sm" [disabled]="currentPage === totalPages"
+                (click)="changePage(currentPage + 1)">
+          Siguiente <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

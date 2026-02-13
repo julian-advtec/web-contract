@@ -64,12 +64,19 @@ export const routes: Routes = [
     data: { roles: ['auditor de Cuentas', 'admin'] }
   },
   // ─────────────────────────────────────────────────────────────────────
- {
+  {
     path: 'contabilidad',
     loadChildren: () => import('./pages/contabilidad/contabilidad-routing.module')
       .then(m => m.ContabilidadRoutingModule),
     canActivate: [AuthGuard, RoleGuard],
     data: { roles: [UserRole.CONTABILIDAD, UserRole.ADMIN] }  // ← usa el enum si lo tienes
+  },
+  {
+    path: 'tesoreria',
+    loadChildren: () => import('./pages/tesoreria/tesoreria-routing.module')
+      .then(m => m.TesoreriaRoutingModule),
+    canActivate: [AuthGuard, RoleGuard],
+    data: { roles: [UserRole.TESORERIA, UserRole.ADMIN] }  // ← usa el enum si lo tienes
   },
   {
     path: '',

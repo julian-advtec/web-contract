@@ -24,6 +24,8 @@ export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
   isLoading = false;
   isProcessing = false;
   errorMessage = '';
+  successMessage = '';
+  infoMessage = '';
 
   searchTerm = '';
   currentPage = 1;
@@ -40,7 +42,7 @@ export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
     private contabilidadService: ContabilidadService,
     private notificationService: NotificationService,
     private router: Router
-  ) { }
+  ) {}
 
   ngOnInit(): void {
     this.cargarUsuarioActual();
@@ -67,18 +69,31 @@ export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
   cargarDocumentosPendientes(): void {
     this.isLoading = true;
     this.errorMessage = '';
-    
+    this.successMessage = '';
+    this.infoMessage = '';
+
     this.contabilidadService.obtenerDocumentosDisponibles()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (docs: DocumentoContable[]) => {
           this.documentos = docs || [];
+          
+          console.log('[PENDIENTES] Documentos cargados:', this.documentos.length);
+          
+          if (this.documentos.length > 0) {
+            this.successMessage = `Se encontraron ${this.documentos.length} documentos pendientes`;
+            setTimeout(() => this.successMessage = '', 4000);
+          } else {
+            this.infoMessage = 'No hay documentos pendientes de contabilidad';
+          }
+
           this.filteredDocumentos = [...this.documentos];
           this.updatePagination();
           this.isLoading = false;
         },
-        error: (err) => {
-          this.errorMessage = err.message || 'No se pudieron cargar los documentos pendientes';
+        error: (err: any) => {
+          console.error('[PENDIENTES] Error cargando:', err);
+          this.errorMessage = err.error?.message || err.message || 'Error al cargar documentos pendientes';
           this.notificationService.error('Error', this.errorMessage);
           this.documentos = [];
           this.filteredDocumentos = [];
@@ -91,23 +106,18 @@ export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
   puedeTomarDocumento(doc: DocumentoContable): boolean {
     const estado = (doc.estado || '').toUpperCase();
     const estadosPermitidos = ['APROBADO_AUDITOR', 'COMPLETADO_AUDITOR'];
-    
-    return estadosPermitidos.some(e => estado.includes(e)) 
-           && doc.disponible !== false
-           && (!doc.asignacion || !doc.asignacion.enRevision);
+    return estadosPermitidos.some(e => estado.includes(e)) && doc.disponible !== false;
   }
 
   esMiDocumentoEnRevision(doc: DocumentoContable): boolean {
     const estado = (doc.estado || '').toUpperCase();
     const estadosRevision = ['EN_REVISION_CONTABILIDAD', 'EN_PROCESO_CONTABILIDAD'];
-    
-    return estadosRevision.some(e => estado.includes(e)) &&
-           doc.contadorAsignado === this.usuarioActual;
+    return estadosRevision.some(e => estado.includes(e));
   }
 
   tomarParaContabilidad(doc: DocumentoContable): void {
     if (!doc.id) {
-      this.notificationService.error('Error', 'Documento no válido');
+      this.notificationService.error('Error', 'ID de documento no válido');
       return;
     }
 
@@ -115,8 +125,8 @@ export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
 
     if (yaEsMio) {
       this.notificationService.showModal({
-        title: 'Continuar proceso contable',
-        message: `El documento ${doc.numeroRadicado} ya está asignado a ti.\n\n¿Quieres continuar ahora?`,
+        title: 'Continuar proceso',
+        message: `El documento ${doc.numeroRadicado} ya está en revisión.\n\n¿Quieres continuar ahora?`,
         type: 'confirm',
         confirmText: 'Sí, continuar',
         cancelText: 'Cancelar',
@@ -127,18 +137,18 @@ export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
 
     if (!this.puedeTomarDocumento(doc)) {
       this.notificationService.warning(
-        'Documento no disponible',
-        `Este documento no puede ser tomado para contabilidad. Estado: ${doc.estado}`
+        'No disponible',
+        `El documento no está disponible para tomar (Estado: ${doc.estado || 'desconocido'})`
       );
       return;
     }
 
     this.notificationService.showModal({
-      title: 'Tomar para contabilidad',
+      title: 'Tomar documento',
       message: `¿Deseas tomar el documento ${doc.numeroRadicado} (${doc.nombreContratista || 'sin nombre'})?\n\n` +
-               `Se cambiará a EN_REVISION_CONTABILIDAD y se te asignará como contador.`,
+               `Se asignará a ti para revisión contable.`,
       type: 'confirm',
-      confirmText: 'Sí, tomar y procesar',
+      confirmText: 'Sí, tomar',
       cancelText: 'No, cancelar',
       onConfirm: () => this.procederTomarDocumento(doc)
     });
@@ -147,69 +157,70 @@ export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
   private procederTomarDocumento(doc: DocumentoContable): void {
     this.isProcessing = true;
 
-    this.contabilidadService.tomarDocumentoParaRevision(doc.id)
+    this.contabilidadService.tomarDocumentoParaRevision(doc.id!)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (response: any) => {
-          const success = response?.success === true || response?.data?.success === true;
-
-          if (success) {
-            const index = this.documentos.findIndex(d => d.id === doc.id);
-            if (index !== -1) {
-              this.documentos[index] = {
-                ...this.documentos[index],
+        next: (res: any) => {
+          if (res?.success) {
+            // Actualizar el documento en la lista
+            const idx = this.documentos.findIndex(d => d.id === doc.id);
+            if (idx !== -1) {
+              this.documentos[idx] = {
+                ...this.documentos[idx],
                 estado: 'EN_REVISION_CONTABILIDAD',
-                contadorAsignado: this.usuarioActual,
-                fechaAsignacionContabilidad: new Date().toISOString(),
                 disponible: false
               };
+              this.filteredDocumentos = [...this.documentos];
+              this.updatePagination();
             }
 
-            this.filteredDocumentos = [...this.documentos];
-            this.updatePagination();
-
             this.notificationService.success(
-              '¡Tomado!',
-              `Documento ${doc.numeroRadicado} asignado. Redirigiendo al procesamiento...`
+              '¡Documento tomado!',
+              `Redirigiendo al procesamiento de ${doc.numeroRadicado}...`
             );
 
             setTimeout(() => {
-              this.router.navigate(['/contabilidad/procesar', doc.id]);
+              this.router.navigate(['/contabilidad/procesar', doc.id], {
+                queryParams: { modo: 'edicion', soloLectura: 'false' }
+              });
             }, 1500);
           } else {
-            const msg = response?.data?.message || response?.message || 'No se pudo tomar el documento';
-            this.notificationService.error('Error', msg);
+            this.notificationService.error('Error', res?.message || 'No se pudo tomar el documento');
           }
           this.isProcessing = false;
         },
-        error: (err) => {
-          this.notificationService.error('Error', err.message || 'Error de conexión');
+        error: (err: any) => {
+          let msg = 'No se pudo tomar el documento';
+          if (err.status === 404) msg = 'Endpoint no encontrado o documento inválido';
+          if (err.status === 409) msg = err.error?.message || 'El documento ya está siendo revisado';
+          if (err.status === 403) msg = 'No tienes permisos para realizar esta acción';
+
+          this.notificationService.error('Error', msg);
           this.isProcessing = false;
         }
       });
   }
 
   continuarProceso(doc: DocumentoContable): void {
-    this.router.navigate(['/contabilidad/procesar', doc.id]);
+    this.router.navigate(['/contabilidad/procesar', doc.id], {
+      queryParams: { modo: 'edicion', soloLectura: 'false' }
+    });
   }
 
   getTextoBoton(doc: DocumentoContable): string {
-    if (this.esMiDocumentoEnRevision(doc)) {
-      return 'Continuar';
-    }
-    return this.puedeTomarDocumento(doc) ? 'Procesar' : 'No disponible';
+    return this.esMiDocumentoEnRevision(doc) ? 'Continuar' : 'Procesar';
   }
 
   onSearch(): void {
     if (!this.searchTerm.trim()) {
       this.filteredDocumentos = [...this.documentos];
     } else {
-      const term = this.searchTerm.toLowerCase();
+      const term = this.searchTerm.toLowerCase().trim();
       this.filteredDocumentos = this.documentos.filter(doc =>
-        (doc.numeroRadicado?.toLowerCase().includes(term) || false) ||
-        (doc.nombreContratista?.toLowerCase().includes(term) || false) ||
-        (doc.numeroContrato?.toLowerCase().includes(term) || false) ||
-        (doc.documentoContratista?.toLowerCase().includes(term) || false)
+        (doc.numeroRadicado || '').toLowerCase().includes(term) ||
+        (doc.nombreContratista || '').toLowerCase().includes(term) ||
+        (doc.numeroContrato || '').toLowerCase().includes(term) ||
+        (doc.documentoContratista || '').toLowerCase().includes(term)
       );
     }
     this.currentPage = 1;
@@ -223,7 +234,7 @@ export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
   updatePagination(): void {
     this.totalPages = Math.ceil(this.filteredDocumentos.length / this.pageSize);
     this.pages = [];
-    
+
     const maxPages = 5;
     let start = Math.max(1, this.currentPage - Math.floor(maxPages / 2));
     let end = Math.min(this.totalPages, start + maxPages - 1);
@@ -236,102 +247,124 @@ export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
       this.pages.push(i);
     }
 
-    const startIndex = (this.currentPage - 1) * this.pageSize;
-    this.paginatedDocumentos = this.filteredDocumentos.slice(startIndex, startIndex + this.pageSize);
+    const startIdx = (this.currentPage - 1) * this.pageSize;
+    this.paginatedDocumentos = this.filteredDocumentos.slice(startIdx, startIdx + this.pageSize);
   }
 
   changePage(page: number): void {
-    if (page >= 1 && page <= this.totalPages && page !== this.currentPage) {
-      this.currentPage = page;
-      this.updatePagination();
+    if (page < 1 || page > this.totalPages || page === this.currentPage) return;
+    this.currentPage = page;
+    this.updatePagination();
+  }
+
+  formatDate(fecha: any): string {
+    if (!fecha) return 'N/A';
+    try {
+      return new Date(fecha).toLocaleDateString('es-CO', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+    } catch {
+      return 'Fecha inválida';
     }
   }
 
-  formatDate(fecha: Date | string | undefined): string {
+  formatDateShort(fecha: any): string {
     if (!fecha) return 'N/A';
-    const date = new Date(fecha);
-    return date.toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    });
+    try {
+      return new Date(fecha).toLocaleDateString('es-CO', { 
+        month: 'short', 
+        day: 'numeric' 
+      });
+    } catch {
+      return 'Fecha inválida';
+    }
   }
 
-  formatDateShort(fecha: Date | string | undefined): string {
-    if (!fecha) return 'N/A';
-    const date = new Date(fecha);
-    return date.toLocaleDateString('es-ES', {
-      month: 'short',
-      day: 'numeric'
-    });
-  }
-
-  getDiasTranscurridos(fecha: Date | string | undefined): number {
+  getDiasTranscurridos(fecha: any): number {
     if (!fecha) return 0;
-    const fechaDoc = new Date(fecha);
-    const hoy = new Date();
-    const diferenciaMs = hoy.getTime() - fechaDoc.getTime();
-    return Math.floor(diferenciaMs / (1000 * 60 * 60 * 24));
+    try {
+      const diffMs = Date.now() - new Date(fecha).getTime();
+      return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    } catch {
+      return 0;
+    }
   }
 
-  getDuracionContrato(inicio: Date | string | undefined, fin: Date | string | undefined): string {
+  getDuracionContrato(inicio: any, fin: any): string {
     if (!inicio || !fin) return 'N/A';
-    const fechaInicio = new Date(inicio);
-    const fechaFin = new Date(fin);
-    const diferenciaMs = fechaFin.getTime() - fechaInicio.getTime();
-    const dias = Math.floor(diferenciaMs / (1000 * 60 * 60 * 24));
-    return `${dias} días`;
+    try {
+      const diffMs = new Date(fin).getTime() - new Date(inicio).getTime();
+      const dias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      return `${dias} días`;
+    } catch {
+      return 'N/A';
+    }
   }
 
   esDocumentoReciente(doc: DocumentoContable): boolean {
-    const fechaAprobacion = doc.fechaAprobacionAuditor || doc.fechaRadicacion;
-    if (!fechaAprobacion) return false;
-    const diasTranscurridos = this.getDiasTranscurridos(fechaAprobacion);
-    return diasTranscurridos < 1;
+    const fechaRef = doc.fechaAprobacionAuditor || doc.fechaRadicacion;
+    return this.getDiasTranscurridos(fechaRef) <= 1;
   }
 
   getEstadoClass(estado: string | undefined): string {
-    if (!estado) return 'badge-secondary';
-    const estadoUpper = estado.toUpperCase();
-    if (estadoUpper.includes('APROBADO_AUDITOR') || estadoUpper.includes('COMPLETADO_AUDITOR')) return 'badge-success';
-    if (estadoUpper.includes('EN_REVISION_CONTABILIDAD') || estadoUpper.includes('EN_PROCESO_CONTABILIDAD')) return 'badge-warning';
-    if (estadoUpper.includes('GLOSADO') || estadoUpper.includes('OBSERVADO')) return 'badge-danger';
-    if (estadoUpper.includes('PROCESADO_CONTABILIDAD') || estadoUpper.includes('COMPLETADO_CONTABILIDAD')) return 'badge-primary';
-    return 'badge-secondary';
+    if (!estado) return 'badge bg-secondary';
+    
+    const e = estado.toUpperCase();
+    
+    if (e.includes('APROBADO_AUDITOR') || e.includes('COMPLETADO_AUDITOR')) {
+      return 'badge bg-success';
+    }
+    if (e.includes('EN_REVISION_CONTABILIDAD')) {
+      return 'badge bg-warning text-dark';
+    }
+    if (e.includes('GLOSADO') || e.includes('OBSERVADO')) {
+      return 'badge bg-danger';
+    }
+    if (e.includes('PROCESADO') || e.includes('COMPLETADO')) {
+      return 'badge bg-primary';
+    }
+    
+    return 'badge bg-secondary';
   }
 
   getEstadoTexto(estado: string | undefined): string {
     if (!estado) return 'Desconocido';
-    const estadoUpper = estado.toUpperCase();
-    if (estadoUpper.includes('APROBADO_AUDITOR')) return 'Aprobado Auditor';
-    if (estadoUpper.includes('COMPLETADO_AUDITOR')) return 'Completado Auditor';
-    if (estadoUpper.includes('EN_REVISION_CONTABILIDAD')) return 'En Revisión Contable';
-    if (estadoUpper.includes('EN_PROCESO_CONTABILIDAD')) return 'En Proceso Contable';
-    if (estadoUpper.includes('GLOSADO_CONTABILIDAD')) return 'Glosado';
-    if (estadoUpper.includes('OBSERVADO_CONTABILIDAD')) return 'Observado';
-    if (estadoUpper.includes('PROCESADO_CONTABILIDAD')) return 'Procesado';
-    if (estadoUpper.includes('COMPLETADO_CONTABILIDAD')) return 'Completado';
-    return estado;
+    
+    const e = estado.toUpperCase();
+    
+    if (e.includes('APROBADO_AUDITOR')) return 'Aprobado por Auditor';
+    if (e.includes('COMPLETADO_AUDITOR')) return 'Completado Auditor';
+    if (e.includes('EN_REVISION_CONTABILIDAD')) return 'En Revisión';
+    if (e.includes('GLOSADO')) return 'Glosado';
+    if (e.includes('OBSERVADO')) return 'Observado';
+    if (e.includes('PROCESADO')) return 'Procesado';
+    if (e.includes('COMPLETADO')) return 'Completado';
+    
+    return estado.replace(/_/g, ' ');
   }
 
   getDiasClass(doc: DocumentoContable): string {
     const dias = this.getDiasTranscurridos(doc.fechaAprobacionAuditor || doc.fechaRadicacion);
-    if (dias < 1) return 'text-success';
+    
+    if (dias <= 1) return 'text-success fw-bold';
     if (dias <= 3) return 'text-primary';
     if (dias <= 7) return 'text-warning';
     return 'text-danger';
   }
 
   getTooltipInfo(doc: DocumentoContable): string {
-    let info = '';
-    if (doc.numeroRadicado) info += `Radicado: ${doc.numeroRadicado}\n`;
-    if (doc.nombreContratista) info += `Contratista: ${doc.nombreContratista}\n`;
-    if (doc.auditor) info += `Auditor: ${doc.auditor}\n`;
-    if (doc.contadorAsignado) info += `Contador: ${doc.contadorAsignado}\n`;
-    const dias = this.getDiasTranscurridos(doc.fechaAprobacionAuditor || doc.fechaRadicacion);
-    info += `Días desde aprobación: ${dias}\n`;
-    if (doc.observacion) info += `Observación: ${doc.observacion.substring(0, 100)}...\n`;
-    return info;
+    const lines = [
+      `Radicado: ${doc.numeroRadicado || 'N/A'}`,
+      `Contratista: ${doc.nombreContratista || 'N/A'}`,
+      `Contrato: ${doc.numeroContrato || 'N/A'}`,
+      `Auditor: ${doc.auditor || 'No asignado'}`,
+      `Días desde aprobación: ${this.getDiasTranscurridos(doc.fechaAprobacionAuditor || doc.fechaRadicacion)}`,
+      doc.observacion ? `Observación: ${doc.observacion.substring(0, 100)}${doc.observacion.length > 100 ? '...' : ''}` : ''
+    ];
+    
+    return lines.filter(Boolean).join('\n');
   }
 
   getDocumentCount(doc: DocumentoContable): number {
@@ -343,58 +376,90 @@ export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
   }
 
   previsualizarDocumentoEspecifico(doc: DocumentoContable, index: number): void {
-    if (index < 1 || index > 3) return;
-    let existe = false;
-    switch (index) {
-      case 1: existe = !!doc.cuentaCobro; break;
-      case 2: existe = !!doc.seguridadSocial; break;
-      case 3: existe = !!doc.informeActividades; break;
-    }
-    if (!existe) {
-      this.notificationService.warning('Sin archivo', 'Este documento no está disponible');
+    if (index < 1 || index > 3) {
+      this.notificationService.warning('Advertencia', 'Índice de documento no válido');
       return;
     }
-    this.contabilidadService.previsualizarArchivoRadicado(doc.id, index).subscribe({
-      next: (blob: Blob) => {
-        const url = window.URL.createObjectURL(blob);
-        window.open(url, '_blank');
-      },
-      error: () => this.notificationService.error('Error', 'No se pudo previsualizar')
-    });
+
+    const tipos = ['cuentaCobro', 'seguridadSocial', 'informeActividades'] as const;
+    const tipo = tipos[index - 1];
+    const nombreArchivo = doc[tipo];
+
+    if (!nombreArchivo) {
+      this.notificationService.warning('Documento no disponible', 'Este documento no está disponible para previsualizar');
+      return;
+    }
+
+    this.contabilidadService.previsualizarArchivoRadicado(doc.id!, index)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (blob: Blob) => {
+          const url = window.URL.createObjectURL(blob);
+          window.open(url, '_blank');
+          setTimeout(() => window.URL.revokeObjectURL(url), 100);
+        },
+        error: (error: any) => {
+          console.error('Error al previsualizar:', error);
+          this.notificationService.error('Error', 'No se pudo previsualizar el documento');
+        }
+      });
   }
 
   descargarDocumentoEspecifico(doc: DocumentoContable, index: number): void {
-    if (index < 1 || index > 3) return;
-    let existe = false;
-    let nombre = '';
-    switch (index) {
-      case 1: existe = !!doc.cuentaCobro; nombre = doc.cuentaCobro || 'cuenta_cobro.pdf'; break;
-      case 2: existe = !!doc.seguridadSocial; nombre = doc.seguridadSocial || 'seguridad_social.pdf'; break;
-      case 3: existe = !!doc.informeActividades; nombre = doc.informeActividades || 'informe_actividades.pdf'; break;
-    }
-    if (!existe) {
-      this.notificationService.warning('Sin archivo', 'Este documento no está disponible');
+    if (index < 1 || index > 3) {
+      this.notificationService.warning('Advertencia', 'Índice de documento no válido');
       return;
     }
+
+    const tipos = ['cuentaCobro', 'seguridadSocial', 'informeActividades'] as const;
+    const tipo = tipos[index - 1];
+    const nombres = ['cuenta_cobro.pdf', 'seguridad_social.pdf', 'informe_actividades.pdf'];
+    const nombreArchivo = doc[tipo];
+
+    if (!nombreArchivo) {
+      this.notificationService.warning('Documento no disponible', 'Este documento no está disponible para descarga');
+      return;
+    }
+
     this.isProcessing = true;
-    this.contabilidadService.descargarArchivoRadicado(doc.id, index).subscribe({
-      next: (blob: Blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = nombre;
-        a.click();
-        window.URL.revokeObjectURL(url);
-        this.isProcessing = false;
-      },
-      error: () => {
-        this.notificationService.error('Error', 'No se pudo descargar');
-        this.isProcessing = false;
-      }
-    });
+
+    this.contabilidadService.descargarArchivoRadicado(doc.id!, index)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (blob: Blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = nombres[index - 1];
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+
+          this.isProcessing = false;
+          this.notificationService.success('Descarga completada', `Documento "${nombres[index - 1]}" descargado`);
+        },
+        error: (error: any) => {
+          console.error('Error al descargar:', error);
+          this.notificationService.error('Error', 'No se pudo descargar el documento');
+          this.isProcessing = false;
+        }
+      });
   }
 
   trackById(index: number, doc: DocumentoContable): string {
-    return doc.id;
+    return doc.id || index.toString();
+  }
+
+  dismissError(): void {
+    this.errorMessage = '';
+  }
+
+  dismissSuccess(): void {
+    this.successMessage = '';
+  }
+
+  dismissInfo(): void {
+    this.infoMessage = '';
   }
 }

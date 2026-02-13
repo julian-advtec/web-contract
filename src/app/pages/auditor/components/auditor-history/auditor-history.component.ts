@@ -51,8 +51,12 @@ export class AuditorHistoryComponent implements OnInit, OnDestroy {
   cargarUsuarioActual(): void {
     const userStr = localStorage.getItem('user');
     if (userStr) {
-      const user = JSON.parse(userStr);
-      this.usuarioActual = user.fullName || user.username || 'Auditor';
+      try {
+        const user = JSON.parse(userStr);
+        this.usuarioActual = user.fullName || user.username || 'Auditor';
+      } catch (e) {
+        console.error('Error parsing user from localStorage', e);
+      }
     }
   }
 
@@ -86,15 +90,17 @@ export class AuditorHistoryComponent implements OnInit, OnDestroy {
   }
 
   getAuditorAsignado(item: any): string {
-    return item.auditorAsignado || item.documento?.auditorAsignado || '';
+    return item.auditorAsignado || 
+           item.documento?.auditorAsignado || 
+           item.auditor || 
+           item.documento?.auditor || 
+           '';
   }
 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
-
- 
 
   esMiDocumento(item: any): boolean {
     const auditorAsignado = this.getAuditorAsignado(item);
@@ -109,10 +115,12 @@ export class AuditorHistoryComponent implements OnInit, OnDestroy {
     return n1 === n2 || n1.includes(n2) || n2.includes(n1);
   }
 
- 
-
   esDocumentoReciente(item: any): boolean {
-    const fecha = item.fechaActualizacion || item.updatedAt || item.fechaAprobacion || item.fechaCreacion;
+    const fecha = item.fechaActualizacion || 
+                  item.updatedAt || 
+                  item.fechaAprobacion || 
+                  item.fechaCreacion || 
+                  item.createdAt;
     if (!fecha) return false;
     const dias = Math.floor((new Date().getTime() - new Date(fecha).getTime()) / (1000 * 60 * 60 * 24));
     return dias <= 7;
@@ -124,12 +132,20 @@ export class AuditorHistoryComponent implements OnInit, OnDestroy {
   }
 
   getDuracionRevision(item: any): string {
-    const inicio = item.fechaInicioRevision || item.fechaCreacion || item.createdAt;
-    const fin = item.fechaActualizacion || item.updatedAt || new Date();
+    const inicio = item.fechaInicioRevision || 
+                   item.fechaCreacion || 
+                   item.createdAt;
+    const fin = item.fechaActualizacion || 
+                item.updatedAt || 
+                new Date();
     if (!inicio) return 'N/A';
-    const diffMs = new Date(fin).getTime() - new Date(inicio).getTime();
-    const dias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    return dias === 0 ? 'Hoy' : dias === 1 ? '1 día' : `${dias} días`;
+    try {
+      const diffMs = new Date(fin).getTime() - new Date(inicio).getTime();
+      const dias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      return dias === 0 ? 'Hoy' : dias === 1 ? '1 día' : `${dias} días`;
+    } catch (e) {
+      return 'N/A';
+    }
   }
 
   getEstadoBadgeClass(estado: string): string {
@@ -140,6 +156,10 @@ export class AuditorHistoryComponent implements OnInit, OnDestroy {
     if (e.includes('RECHAZADO_AUDITOR')) return 'badge bg-danger';
     if (e.includes('EN_REVISION_AUDITOR')) return 'badge bg-info';
     if (e.includes('APROBADO_SUPERVISOR')) return 'badge bg-primary';
+    if (e.includes('RECHAZADO_SUPERVISOR')) return 'badge bg-danger';
+    if (e.includes('APROBADO')) return 'badge bg-success';
+    if (e.includes('RECHAZADO')) return 'badge bg-danger';
+    if (e.includes('OBSERVADO')) return 'badge bg-warning text-dark';
     return 'badge bg-secondary';
   }
 
@@ -152,6 +172,10 @@ export class AuditorHistoryComponent implements OnInit, OnDestroy {
     if (e.includes('RECHAZADO_AUDITOR')) return 'Rechazado';
     if (e.includes('EN_REVISION_AUDITOR')) return 'En Revisión';
     if (e.includes('APROBADO_SUPERVISOR')) return 'Aprobado Supervisor';
+    if (e.includes('RECHAZADO_SUPERVISOR')) return 'Rechazado Supervisor';
+    if (e.includes('APROBADO')) return 'Aprobado';
+    if (e.includes('RECHAZADO')) return 'Rechazado';
+    if (e.includes('OBSERVADO')) return 'Observado';
     return estado;
   }
 
@@ -228,15 +252,23 @@ export class AuditorHistoryComponent implements OnInit, OnDestroy {
   updatePagination(): void {
     this.totalPages = Math.ceil(this.filteredHistorial.length / this.pageSize);
     this.pages = [];
-    const maxPagesToShow = 5;
-    let startPage = Math.max(1, this.currentPage - Math.floor(maxPagesToShow / 2));
-    let endPage = Math.min(this.totalPages, startPage + maxPagesToShow - 1);
-    if (endPage - startPage + 1 < maxPagesToShow) {
-      startPage = Math.max(1, endPage - maxPagesToShow + 1);
+    
+    if (this.totalPages <= 1) {
+      if (this.totalPages === 1) this.pages.push(1);
+    } else {
+      const maxPagesToShow = 5;
+      let startPage = Math.max(1, this.currentPage - Math.floor(maxPagesToShow / 2));
+      let endPage = Math.min(this.totalPages, startPage + maxPagesToShow - 1);
+      
+      if (endPage - startPage + 1 < maxPagesToShow) {
+        startPage = Math.max(1, endPage - maxPagesToShow + 1);
+      }
+      
+      for (let i = startPage; i <= endPage; i++) {
+        this.pages.push(i);
+      }
     }
-    for (let i = startPage; i <= endPage; i++) {
-      this.pages.push(i);
-    }
+    
     const startIndex = (this.currentPage - 1) * this.pageSize;
     const endIndex = Math.min(startIndex + this.pageSize, this.filteredHistorial.length);
     this.paginatedHistorial = this.filteredHistorial.slice(startIndex, endIndex);
@@ -279,7 +311,53 @@ export class AuditorHistoryComponent implements OnInit, OnDestroy {
         next: (response: any) => {
           console.log('[FRONT - HISTORIAL] Respuesta completa del backend:', response);
 
-          this.historial = response.data || [];
+          // EXTRACCIÓN MEJORADA DE DATOS
+          let historialData: any[] = [];
+
+          if (response) {
+            // Caso 1: Array directo
+            if (Array.isArray(response)) {
+              historialData = response;
+              console.log('[FRONT - HISTORIAL] Formato: Array directo');
+            }
+            // Caso 2: Respuesta con propiedad 'data' que es array
+            else if (response.data && Array.isArray(response.data)) {
+              historialData = response.data;
+              console.log('[FRONT - HISTORIAL] Formato: response.data');
+            }
+            // Caso 3: Respuesta con propiedad 'data' que tiene propiedad 'data'
+            else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+              historialData = response.data.data;
+              console.log('[FRONT - HISTORIAL] Formato: response.data.data');
+            }
+            // Caso 4: Respuesta con formato { ok: true, data: [...] }
+            else if (response.ok === true && response.data) {
+              if (Array.isArray(response.data)) {
+                historialData = response.data;
+                console.log('[FRONT - HISTORIAL] Formato: ok.data');
+              } else if (response.data.data && Array.isArray(response.data.data)) {
+                historialData = response.data.data;
+                console.log('[FRONT - HISTORIAL] Formato: ok.data.data');
+              }
+            }
+            // Caso 5: Respuesta con propiedad 'documentos'
+            else if (response.documentos && Array.isArray(response.documentos)) {
+              historialData = response.documentos;
+              console.log('[FRONT - HISTORIAL] Formato: response.documentos');
+            }
+            // Caso 6: Intentar extraer cualquier propiedad que sea array
+            else {
+              for (const key in response) {
+                if (Array.isArray(response[key])) {
+                  historialData = response[key];
+                  console.log(`[FRONT - HISTORIAL] Formato: response.${key}`);
+                  break;
+                }
+              }
+            }
+          }
+
+          this.historial = historialData;
           console.log('[FRONT - HISTORIAL] Registros recibidos:', this.historial.length);
 
           if (this.historial.length > 0) {

@@ -1,14 +1,17 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms'; // ← Necesario para ngModel
+import { FormsModule } from '@angular/forms';
+import { RouterModule, Router } from '@angular/router';
 import { ContabilidadService } from '../../../../core/services/contabilidad.service';
+import { NotificationService } from '../../../../core/services/notification.service';
 
 @Component({
   selector: 'app-contabilidad-rechazados',
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule   // ← AGREGAR ESTO OBLIGATORIO para ngModel
+    FormsModule,
+    RouterModule
   ],
   templateUrl: './contabilidad-rechazados.component.html',
   styleUrls: ['./contabilidad-rechazados.component.scss']
@@ -30,7 +33,11 @@ export class ContabilidadRechazadosComponent implements OnInit {
 
   sidebarCollapsed = false;
 
-  constructor(private contabilidadService: ContabilidadService) {}
+  constructor(
+    private contabilidadService: ContabilidadService,
+    private notificationService: NotificationService,
+    private router: Router
+  ) {}
 
   ngOnInit() {
     this.cargarRechazados();
@@ -42,8 +49,9 @@ export class ContabilidadRechazadosComponent implements OnInit {
     this.successMessage = '';
 
     this.contabilidadService.obtenerRechazadosVisibles().subscribe({
-      next: (res: any) => {
-        this.documentos = res.data || [];
+      next: (data: any[]) => {
+        console.log('[RECHAZADOS] Documentos recibidos:', data);
+        this.documentos = data || [];
         this.filtrarYPaginar();
 
         this.loading = false;
@@ -55,10 +63,11 @@ export class ContabilidadRechazadosComponent implements OnInit {
           setTimeout(() => this.successMessage = '', 4000);
         }
       },
-      error: (err: any) => {  // ← Tipado explícito para evitar error TS
+      error: (err: any) => {
         console.error('[RECHAZADOS] Error:', err);
         this.errorMessage = err.error?.message || err.message || 'Error al cargar documentos rechazados';
         this.loading = false;
+        this.notificationService.error('Error', this.errorMessage);
       }
     });
   }
@@ -80,7 +89,7 @@ export class ContabilidadRechazadosComponent implements OnInit {
         (doc.observacion || '').toLowerCase().includes(term) ||
         (doc.motivoRechazo || '').toLowerCase().includes(term) ||
         (doc.ultimoUsuario || '').toLowerCase().includes(term) ||
-        (doc.rechazadoPor || '').toLowerCase().includes(term)
+        (this.getRechazadoPor(doc) || '').toLowerCase().includes(term)
       );
     }
 
@@ -108,7 +117,7 @@ export class ContabilidadRechazadosComponent implements OnInit {
     if (estado.includes('ASESOR')) return 'Asesor Gerencia';
     if (estado.includes('RENDICION')) return 'Rendición Cuentas';
 
-    return 'Sistema / No especificado';
+    return doc.rechazadoPor || 'Sistema / No especificado';
   }
 
   getRechazadoPorClass(doc: any): string {
@@ -131,24 +140,72 @@ export class ContabilidadRechazadosComponent implements OnInit {
   }
 
   verDetalle(doc: any) {
-    console.log('Ver detalle:', doc);
-    // Aquí puedes navegar o abrir modal
+    const documentoId = doc.id || doc.documentoId;
+    if (!documentoId) {
+      this.notificationService.warning('Atención', 'ID de documento no disponible');
+      return;
+    }
+
+    // Navegar a la vista de procesamiento en modo solo lectura
+    this.router.navigate(['/contabilidad/procesar', documentoId], {
+      queryParams: {
+        origen: 'rechazados',
+        soloLectura: 'true',
+        modo: 'consulta'
+      }
+    });
   }
 
   descargarTodos(doc: any) {
-    console.log('Descargar todos:', doc.numeroRadicado);
-    // Implementa descarga múltiple
+    // Implementar descarga de todos los archivos relacionados
+    console.log('Descargar todos los archivos para:', doc.numeroRadicado);
+    
+    // Ejemplo de descarga secuencial
+    const archivos = [
+      { tipo: 'cuenta_cobro', existe: doc.cuentaCobro },
+      { tipo: 'seguridad_social', existe: doc.seguridadSocial },
+      { tipo: 'informe_actividades', existe: doc.informeActividades }
+    ];
+
+    archivos.forEach(archivo => {
+      if (archivo.existe) {
+        // Llamar al servicio de descarga
+        // this.descargarArchivo(doc.id, archivo.tipo);
+      }
+    });
+
+    this.notificationService.info('Info', 'Función de descarga múltiple en desarrollo');
   }
 
   formatDate(date: any): string {
     if (!date) return 'N/A';
-    return new Date(date).toLocaleDateString('es-CO', { 
-      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
-    });
+    try {
+      return new Date(date).toLocaleDateString('es-CO', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric', 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    } catch {
+      return 'N/A';
+    }
   }
 
   formatDateShort(date: any): string {
     if (!date) return 'N/A';
-    return new Date(date).toLocaleDateString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    try {
+      return new Date(date).toLocaleDateString('es-CO', { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit' 
+      });
+    } catch {
+      return 'N/A';
+    }
+  }
+
+  refreshData(): void {
+    this.cargarRechazados();
   }
 }

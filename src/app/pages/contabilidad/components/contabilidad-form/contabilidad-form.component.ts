@@ -1,11 +1,13 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+
 import { ContabilidadService } from '../../../../core/services/contabilidad.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { AuditorFormComponent } from '../../../auditor/components/auditor-form/auditor-form.component';
-import { SupervisorFormComponent } from '../../../supervisor/components/supervisor-form/supervisor-form.component';
 
 @Component({
   selector: 'app-contabilidad-form',
@@ -13,42 +15,70 @@ import { SupervisorFormComponent } from '../../../supervisor/components/supervis
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    AuditorFormComponent,
-    SupervisorFormComponent
+    AuditorFormComponent
   ],
   templateUrl: './contabilidad-form.component.html',
   styleUrls: ['./contabilidad-form.component.scss']
 })
-export class ContabilidadFormComponent implements OnInit {
+export class ContabilidadFormComponent implements OnInit, OnDestroy {
   form: FormGroup;
   isProcessing = false;
   isLoading = true;
   documento: any = null;
 
-  esModoLectura = false;
-  estaProcesado = false;
-  archivosPrevios: { tipo: string; nombre: string; path?: string }[] = [];
+  // Flags de estado
+  estaEnRevision = false;           // Documentos que contabilidad puede editar
+  estaProcesado = false;            // Documentos ya procesados por contabilidad
+  esDocumentoDeOtroRol = false;     // Documentos de otras áreas (tesorería, etc.)
+  esSoloLectura = false;            // Forzado por URL
 
-  private estadosProcesados = [
-    'COMPLETADO_CONTABILIDAD',
-    'OBSERVADO_CONTABILIDAD',
-    'RECHAZADO_CONTABILIDAD',
-    'GLOSADO_CONTABILIDAD',
-    'PROCESADO_CONTABILIDAD'
-  ];
-
+  // Archivos
   archivos: Record<string, File | null> = {
     glosa: null,
     causacion: null,
     extracto: null,
     comprobanteEgreso: null
   };
+  archivosPrevios: { tipo: string; nombre: string; path?: string }[] = [];
 
+  // Mensajes
   mensaje = '';
   tipoMensaje: 'success' | 'error' | 'warning' | 'info' = 'info';
 
+  // Control de botones
   puedeGuardar = false;
   puedeLiberar = false;
+
+  private destroy$ = new Subject<void>();
+
+  // Estados que CONTABILIDAD puede editar
+  private estadosEdicionContabilidad = [
+    'EN_REVISION_CONTABILIDAD',
+    'EN_REVISION'
+  ];
+
+  // Estados que son de OTROS ROLES (solo consulta)
+  private estadosOtrosRoles = [
+    'EN_REVISION_TESORERIA',
+    'OBSERVADO_TESORERIA',
+    'RECHAZADO_TESORERIA',
+    'PROCESADO_TESORERIA',
+    'EN_REVISION_SUPERVISOR',
+    'APROBADO_SUPERVISOR',
+    'EN_REVISION_AUDITOR',
+    'RECHAZADO_AUDITOR',
+    'OBSERVADO_AUDITOR',
+    'APROBADO_AUDITOR'
+  ];
+
+  // Estados finales de contabilidad (procesados)
+  private estadosFinalesContabilidad = [
+    'COMPLETADO_CONTABILIDAD',
+    'PROCESADO_CONTABILIDAD',
+    'OBSERVADO_CONTABILIDAD',
+    'RECHAZADO_CONTABILIDAD',
+    'GLOSADO_CONTABILIDAD'
+  ];
 
   constructor(
     private fb: FormBuilder,
@@ -63,19 +93,22 @@ export class ContabilidadFormComponent implements OnInit {
       estadoFinal: ['', Validators.required]
     });
 
+    // Suscripciones para validaciones
     this.form.get('tipoProceso')?.valueChanges.subscribe(valor => {
       this.limpiarArchivosSegunTipo(valor);
       this.actualizarEstadoBotones();
     });
+
+    this.form.valueChanges.subscribe(() => this.actualizarEstadoBotones());
   }
 
   ngOnInit(): void {
+    // Obtener parámetros de la URL
+    this.route.queryParams.subscribe(params => {
+      this.esSoloLectura = params['soloLectura'] === 'true' || params['modo'] === 'consulta';
+    });
+
     const id = this.route.snapshot.paramMap.get('id');
-    const modo = this.route.snapshot.queryParamMap.get('modo') ||
-      this.route.snapshot.data?.['modo'] || 'edicion';
-
-    this.esModoLectura = ['vista', 'lectura', 'consulta'].includes(modo.toLowerCase());
-
     if (id) {
       this.cargarDocumento(id);
     } else {
@@ -84,301 +117,359 @@ export class ContabilidadFormComponent implements OnInit {
     }
   }
 
-  async cargarDocumento(id: string): Promise<void> {
-    this.isLoading = true;
-    try {
-      const res: any = await this.contabilidadService.obtenerDetalleDocumento(id).toPromise();
-      this.documento = res?.data?.documento || res?.documento || null;
-
-      if (!this.documento) throw new Error('Documento no encontrado');
-
-      console.log('[DEBUG] Datos completos del backend:', JSON.stringify(this.documento, null, 2));
-
-      // Determinar si está procesado
-      this.estaProcesado = this.estadosProcesados.includes(this.documento.estado?.toUpperCase() || '');
-
-      // Cargar archivos previos si aplica
-      if (this.estaProcesado || this.esModoLectura) {
-        this.cargarDatosPrevios();
-      }
-
-      // Deshabilitar formulario si es modo lectura o ya procesado
-      if (this.esModoLectura || this.estaProcesado) {
-        this.form.disable();
-      }
-
-      // ────────────────────────────────────────────────────────────────
-      // TIPO DE PROCESO - Lógica FINAL y robusta
-      // Prioriza la presencia real de archivos sobre los campos booleanos/null
-      // ────────────────────────────────────────────────────────────────
-      let tipoProceso = 'nada';
-
-      // Caso 1: Glosa explícita o archivo de glosa presente
-      if (this.documento.tieneGlosa === true || this.documento.glosaPath) {
-        tipoProceso = 'glosa';
-      }
-      // Caso 2: Cualquier indicio de causación (archivo o tipo)
-      else if (
-        this.documento.causacionPath ||
-        this.documento.extractoPath ||
-        this.documento.comprobanteEgresoPath ||
-        this.documento.tipoCausacion
-      ) {
-        tipoProceso = 'causacion';
-      }
-      // Caso 3: fallback a nada
-
-      this.form.patchValue({ tipoProceso });
-
-      // Debug para confirmar la detección
-      console.log('[DEBUG] Tipo de proceso detectado:', tipoProceso);
-      console.log('[DEBUG] Razón de detección:', {
-        tieneGlosa: this.documento.tieneGlosa,
-        glosaPathExiste: !!this.documento.glosaPath,
-        causacionPathExiste: !!this.documento.causacionPath,
-        extractoPathExiste: !!this.documento.extractoPath,
-        comprobanteEgresoPathExiste: !!this.documento.comprobanteEgresoPath,
-        tipoCausacion: this.documento.tipoCausacion
-      });
-
-      // Decisión final
-      let estadoFinal = '';
-      const estadoUpper = this.documento.estado?.toUpperCase() || '';
-      if (estadoUpper === 'COMPLETADO_CONTABILIDAD') {
-        estadoFinal = 'APROBADO';
-      } else if (estadoUpper === 'OBSERVADO_CONTABILIDAD') {
-        estadoFinal = 'OBSERVADO';
-      } else if (estadoUpper === 'RECHAZADO_CONTABILIDAD' || estadoUpper === 'GLOSADO_CONTABILIDAD') {
-        estadoFinal = 'RECHAZADO';
-      }
-      if (estadoFinal) {
-        this.form.patchValue({ estadoFinal });
-      }
-
-      // Observaciones contables (ya llega como observacionesContabilidad)
-      if (this.documento.observacionesContabilidad) {
-        this.form.patchValue({ observaciones: this.documento.observacionesContabilidad });
-      } else if (this.documento.observaciones) {
-        this.form.patchValue({ observaciones: this.documento.observaciones });
-      }
-
-      this.actualizarEstadoBotones();
-    } catch (err: any) {
-      console.error('Error cargando documento:', err);
-      this.mostrarMensaje(err.message || 'Error al cargar el documento', 'error');
-    } finally {
-      this.isLoading = false;
-    }
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
-  private cargarDatosPrevios() {
+  cargarDocumento(id: string): void {
+    this.isLoading = true;
+    
+    this.contabilidadService.obtenerDetalleDocumento(id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response: any) => {
+          // Extraer datos según estructura de respuesta
+          const data = response?.data || response;
+          this.documento = data?.documento || data || null;
+
+          if (!this.documento) {
+            throw new Error('Documento no encontrado');
+          }
+
+          const estadoUpper = (this.documento.estado || '').toUpperCase();
+          
+          // Determinar qué tipo de documento es
+          this.estaEnRevision = this.estadosEdicionContabilidad.some(e => estadoUpper.includes(e));
+          this.esDocumentoDeOtroRol = this.estadosOtrosRoles.some(e => estadoUpper.includes(e));
+          this.estaProcesado = this.estadosFinalesContabilidad.some(e => estadoUpper.includes(e));
+
+          // SIEMPRE deshabilitar si es solo lectura por URL o es de otro rol o ya está procesado
+          const deshabilitarFormulario = this.esSoloLectura || this.esDocumentoDeOtroRol || this.estaProcesado;
+
+          // Logs para depuración
+          console.log('=================================');
+          console.log('ID:', id);
+          console.log('Estado documento:', estadoUpper);
+          console.log('estaEnRevision (puede editar):', this.estaEnRevision);
+          console.log('esDocumentoDeOtroRol (solo consulta):', this.esDocumentoDeOtroRol);
+          console.log('estaProcesado:', this.estaProcesado);
+          console.log('deshabilitarFormulario:', deshabilitarFormulario);
+          console.log('=================================');
+
+          // Cargar datos previos si existen
+          this.cargarDatosPrevios();
+
+          // Establecer valores iniciales
+          this.inicializarFormulario(estadoUpper);
+
+          // Habilitar/deshabilitar según corresponda
+          if (deshabilitarFormulario) {
+            this.form.disable();
+          } else {
+            this.form.enable();
+          }
+
+          this.actualizarEstadoBotones();
+          this.isLoading = false;
+        },
+        error: (err) => {
+          console.error('Error cargando documento:', err);
+          this.mostrarMensaje(err.error?.message || 'Error al cargar el documento', 'error');
+          this.isLoading = false;
+        }
+      });
+  }
+
+  private inicializarFormulario(estadoUpper: string): void {
+    // Tipo de proceso basado en los archivos existentes
+    let tipoProceso = 'nada';
+    if (this.documento.tieneGlosa === true || this.documento.glosaPath) {
+      tipoProceso = 'glosa';
+    } else if (this.documento.causacionPath || this.documento.extractoPath || this.documento.comprobanteEgresoPath) {
+      tipoProceso = 'causacion';
+    }
+    
+    // Estado final basado en el estado del documento
+    let estadoFinal = '';
+    if (estadoUpper.includes('COMPLETADO') || estadoUpper.includes('PROCESADO') || estadoUpper.includes('APROBADO')) {
+      estadoFinal = 'APROBADO';
+    } else if (estadoUpper.includes('OBSERVADO')) {
+      estadoFinal = 'OBSERVADO';
+    } else if (estadoUpper.includes('RECHAZADO') || estadoUpper.includes('GLOSADO')) {
+      estadoFinal = 'RECHAZADO';
+    }
+
+    this.form.patchValue({
+      tipoProceso,
+      estadoFinal,
+      observaciones: this.documento.observacionesContabilidad || 
+                     this.documento.observaciones || ''
+    });
+  }
+
+  private cargarDatosPrevios(): void {
     this.archivosPrevios = [];
-
-    // Normalización ultra robusta de paths
-    const normalize = (p?: any) => {
-      if (!p) return '';
-      return String(p).replace(/\\/g, '/').trim();
-    };
-
+    
+    // Buscar en el objeto documento directamente
     const mapping = [
-      { tipo: 'glosa', path: normalize(this.documento.glosaPath), label: 'Glosa' },
-      { tipo: 'causacion', path: normalize(this.documento.causacionPath), label: 'Causación / Comprobante' },
-      { tipo: 'extracto', path: normalize(this.documento.extractoPath), label: 'Extracto Bancario' },
-      { tipo: 'comprobanteEgreso', path: normalize(this.documento.comprobanteEgresoPath), label: 'Comprobante de Egreso' }
+      { tipo: 'comprobanteEgreso', path: this.documento.comprobanteEgresoPath, label: 'Comprobante de Egreso' },
+      { tipo: 'glosa', path: this.documento.glosaPath, label: 'Glosa' },
+      { tipo: 'causacion', path: this.documento.causacionPath, label: 'Causación' },
+      { tipo: 'extracto', path: this.documento.extractoPath, label: 'Extracto Bancario' }
     ];
 
     mapping.forEach(item => {
-      if (item.path && item.path.length > 0) {
-        const fileName = item.path.split('/').pop() || 'archivo';
-        this.archivosPrevios.push({
-          tipo: item.tipo,
-          nombre: `${item.label} (${fileName})`,
-          path: item.path
+      if (item.path) {
+        const fileName = item.path.split(/[\\/]/).pop() || 'archivo';
+        this.archivosPrevios.push({ 
+          tipo: item.tipo, 
+          nombre: `${item.label} (${fileName})`, 
+          path: item.path 
         });
       }
     });
 
-    console.log('[DEBUG] Archivos previos generados:', this.archivosPrevios);
-    console.log('[DEBUG] Paths originales:', {
-      glosa: this.documento.glosaPath,
-      causacion: this.documento.causacionPath,
-      extracto: this.documento.extractoPath,
-      comprobanteEgreso: this.documento.comprobanteEgresoPath
-    });
-  }
-
-  private extraerNombreArchivo(ruta: string): string {
-    if (!ruta) return 'Archivo';
-    const nombre = ruta.replace(/\\/g, '/').split('/').pop() || 'Archivo';
-    return decodeURIComponent(nombre);
-  }
-
-  descargarArchivo(tipo: string) {
-    this.contabilidadService.descargarArchivoContabilidad(this.documento.id, tipo)
-      .subscribe({
-        next: (blob: Blob) => {
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${tipo}_${this.documento.numeroRadicado || 'documento'}.pdf`;
-          a.click();
-          window.URL.revokeObjectURL(url);
-        },
-        error: () => this.mostrarMensaje('Error al descargar el archivo', 'error')
+    // También buscar en archivosContabilidad si existe (estructura anidada)
+    if (this.documento.archivosContabilidad && Array.isArray(this.documento.archivosContabilidad)) {
+      this.documento.archivosContabilidad.forEach((arch: any) => {
+        if (arch.subido && arch.nombreArchivo && !this.archivosPrevios.some(a => a.tipo === arch.tipo)) {
+          const fileName = arch.nombreArchivo.split(/[\\/]/).pop() || 'archivo';
+          this.archivosPrevios.push({
+            tipo: arch.tipo,
+            nombre: `${arch.descripcion || arch.tipo} (${fileName})`,
+            path: arch.nombreArchivo
+          });
+        }
       });
-  }
-
-  previsualizarArchivo(tipo: string) {
-    this.contabilidadService.descargarArchivoContabilidad(this.documento.id, tipo)
-      .subscribe({
-        next: (blob: Blob) => {
-          const url = window.URL.createObjectURL(blob);
-          window.open(url, '_blank');
-        },
-        error: () => this.mostrarMensaje('Error al previsualizar el archivo', 'error')
-      });
-  }
-
-  limpiarArchivosSegunTipo(tipo: string) {
-    if (tipo === 'nada') {
-      this.archivos['glosa'] = null;
-      this.archivos['causacion'] = null;
-      this.archivos['extracto'] = null;
-    } else if (tipo === 'glosa') {
-      this.archivos['causacion'] = null;
-    } else if (tipo === 'causacion') {
-      this.archivos['glosa'] = null;
     }
   }
 
-  onFileSelected(event: any, tipo: string) {
-    if (this.esModoLectura || this.estaProcesado) return;
+  onFileSelected(event: any, tipo: keyof typeof this.archivos): void {
+    if (!this.estaEnRevision || this.esSoloLectura) {
+      this.mostrarMensaje('No puedes subir archivos en modo consulta', 'warning');
+      return;
+    }
 
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Validar tamaño (15MB)
     if (file.size > 15 * 1024 * 1024) {
-      this.mostrarMensaje('Archivo muy grande (máx 15MB)', 'error');
+      this.mostrarMensaje('El archivo no puede superar los 15MB', 'error');
+      event.target.value = '';
       return;
     }
 
-    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    // Validar tipo
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
     if (!allowedTypes.includes(file.type)) {
-      this.mostrarMensaje('Tipo no permitido (solo PDF, DOC, DOCX)', 'error');
+      this.mostrarMensaje('Solo se permiten archivos PDF, DOC o DOCX', 'error');
+      event.target.value = '';
       return;
     }
 
     this.archivos[tipo] = file;
     this.actualizarEstadoBotones();
+    this.mostrarMensaje(`Archivo ${file.name} seleccionado`, 'info');
   }
 
-  onSubmit() {
-    if (this.esModoLectura || this.estaProcesado || this.form.invalid) return;
-
-    const estado = this.form.get('estadoFinal')?.value;
-
-    if (estado === 'APROBADO' && !this.archivos['comprobanteEgreso']) {
-      this.mostrarMensaje('Para APROBAR es obligatorio subir el Comprobante de Egreso', 'error');
+  onSubmit(): void {
+    if (!this.estaEnRevision || this.esSoloLectura) {
+      this.mostrarMensaje('No puedes guardar en modo consulta', 'warning');
       return;
     }
 
+    if (this.form.invalid) {
+      this.mostrarMensaje('Complete todos los campos requeridos', 'warning');
+      return;
+    }
+
+    if (this.isProcessing) return;
+
+    const estado = this.form.get('estadoFinal')?.value;
+    const tipoProceso = this.form.get('tipoProceso')?.value;
+
+    // Validar comprobante de egreso para aprobación
+    if (estado === 'APROBADO' && !this.archivos['comprobanteEgreso']) {
+      this.mostrarMensaje('Debe adjuntar el Comprobante de Egreso para aprobar', 'error');
+      return;
+    }
+
+    // Validar archivos según tipo de proceso
+    if (tipoProceso === 'glosa') {
+      if (!this.archivos['glosa']) {
+        this.mostrarMensaje('Debe adjuntar el documento de Glosa', 'error');
+        return;
+      }
+      if (!this.archivos['extracto']) {
+        this.mostrarMensaje('Debe adjuntar el Extracto Bancario', 'error');
+        return;
+      }
+    } else if (tipoProceso === 'causacion') {
+      if (!this.archivos['causacion']) {
+        this.mostrarMensaje('Debe adjuntar el documento de Causación', 'error');
+        return;
+      }
+      if (!this.archivos['extracto']) {
+        this.mostrarMensaje('Debe adjuntar el Extracto Bancario', 'error');
+        return;
+      }
+    }
+
     this.isProcessing = true;
+    this.mostrarMensaje('Guardando documento...', 'info');
 
     const formData = new FormData();
 
-    if (this.archivos['glosa']) formData.append('glosa', this.archivos['glosa']);
-    if (this.archivos['causacion']) formData.append('causacion', this.archivos['causacion']);
-    if (this.archivos['extracto']) formData.append('extracto', this.archivos['extracto']);
-    if (this.archivos['comprobanteEgreso']) formData.append('comprobanteEgreso', this.archivos['comprobanteEgreso']);
+    // Agregar archivos
+    Object.entries(this.archivos).forEach(([key, file]) => {
+      if (file) {
+        formData.append(key, file);
+      }
+    });
 
+    // Agregar datos del formulario
     formData.append('observaciones', this.form.value.observaciones || '');
-    formData.append('tipoProceso', this.form.value.tipoProceso || 'nada');
+    formData.append('tipoProceso', tipoProceso);
     formData.append('estadoFinal', estado);
 
+    console.log('Enviando formulario:', {
+      documentoId: this.documento.id,
+      tipoProceso,
+      estado,
+      archivos: Object.keys(this.archivos).filter(k => this.archivos[k])
+    });
+
     this.contabilidadService.subirDocumentosContabilidad(this.documento.id, formData)
+      .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: () => {
-          this.mostrarMensaje(`Documento ${estado.toLowerCase()} correctamente`, 'success');
+        next: (response) => {
+          this.mostrarMensaje('Documento guardado correctamente', 'success');
           this.isProcessing = false;
-          setTimeout(() => this.volverALista(), 1800);
+          
+          // Recargar datos para mostrar el estado actualizado
+          setTimeout(() => {
+            this.cargarDocumento(this.documento.id);
+          }, 1500);
         },
         error: (err) => {
-          console.error('Error completo del backend:', err);
-          this.mostrarMensaje(err.error?.message || 'Error al subir documentos', 'error');
+          console.error('Error al guardar:', err);
+          this.mostrarMensaje(err.error?.message || 'Error al guardar el documento', 'error');
           this.isProcessing = false;
         }
       });
   }
 
-  liberarDocumento() {
-    this.notification.showModal({
-      title: 'Liberar documento',
-      message: '¿Realmente deseas liberar este documento?\nVolverá a estar disponible para otros contadores.',
-      type: 'confirm',
-      confirmText: 'Sí, liberar',
-      onConfirm: () => {
-        this.contabilidadService.liberarDocumento(this.documento.id).subscribe({
-          next: () => {
-            this.mostrarMensaje('Documento liberado correctamente', 'success');
-            setTimeout(() => this.volverALista(), 1500);
-          },
-          error: (err) => this.mostrarMensaje(err.message || 'Error al liberar', 'error')
-        });
-      }
-    });
+  liberarDocumento(): void {
+    if (!this.estaEnRevision || this.esSoloLectura) {
+      this.mostrarMensaje('No puedes liberar en modo consulta', 'warning');
+      return;
+    }
+
+    if (!confirm('¿Está seguro de liberar este documento? Volverá a estar disponible para otros contadores.')) {
+      return;
+    }
+
+    this.isProcessing = true;
+
+    this.contabilidadService.liberarDocumento(this.documento.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.mostrarMensaje('Documento liberado correctamente', 'success');
+          this.isProcessing = false;
+          setTimeout(() => this.volverALista(), 1500);
+        },
+        error: (err) => {
+          this.mostrarMensaje(err.error?.message || 'Error al liberar', 'error');
+          this.isProcessing = false;
+        }
+      });
   }
 
-  volverALista() {
+  volverALista(): void {
     this.router.navigate(['/contabilidad/pendientes']);
   }
 
-  onCancel() {
-    this.volverALista();
+  previsualizarArchivo(tipo: string): void {
+    if (!this.archivosPrevios.find(a => a.tipo === tipo)?.path) {
+      this.mostrarMensaje('Archivo no disponible', 'warning');
+      return;
+    }
+
+    this.contabilidadService.previsualizarArchivoContabilidad(this.documento.id, tipo)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (blob) => {
+          const url = window.URL.createObjectURL(blob);
+          window.open(url, '_blank');
+          setTimeout(() => window.URL.revokeObjectURL(url), 100);
+        },
+        error: () => {
+          this.mostrarMensaje('Error al previsualizar el archivo', 'error');
+        }
+      });
   }
 
-  mostrarMensaje(texto: string, tipo: 'success' | 'error' | 'warning' | 'info') {
-    this.mensaje = texto;
-    this.tipoMensaje = tipo;
-    setTimeout(() => this.mensaje = '', 5000);
-  }
-
-  actualizarEstadoBotones() {
-    if (this.esModoLectura || this.estaProcesado) {
+  private actualizarEstadoBotones(): void {
+    if (!this.estaEnRevision || this.esSoloLectura) {
       this.puedeGuardar = false;
       this.puedeLiberar = false;
       return;
     }
 
-    const tipoProceso = this.form.get('tipoProceso')?.value;
+    const tipo = this.form.get('tipoProceso')?.value;
     const estadoFinal = this.form.get('estadoFinal')?.value;
 
-    let archivosRequeridos: string[] = ['comprobanteEgreso'];
-
-    if (tipoProceso && tipoProceso !== 'nada') {
-      archivosRequeridos.push('extracto');
-      if (tipoProceso === 'glosa') archivosRequeridos.push('glosa');
-      if (tipoProceso === 'causacion') archivosRequeridos.push('causacion');
+    // Validar campos requeridos
+    if (!tipo || !estadoFinal) {
+      this.puedeGuardar = false;
+      this.puedeLiberar = true;
+      return;
     }
 
-    const todosArchivosCargados = archivosRequeridos.every(key =>
-      this.archivos[key] !== null && this.archivos[key] !== undefined
+    // Validar archivos según tipo
+    let archivosRequeridos = ['comprobanteEgreso'];
+    
+    if (tipo === 'glosa') {
+      archivosRequeridos.push('glosa', 'extracto');
+    } else if (tipo === 'causacion') {
+      archivosRequeridos.push('causacion', 'extracto');
+    }
+
+    const todosArchivosCargados = archivosRequeridos.every(
+      req => !!this.archivos[req as keyof typeof this.archivos]
     );
 
-    this.puedeGuardar = this.form.valid &&
-      !!tipoProceso &&
-      todosArchivosCargados &&
-      !!estadoFinal;
+    this.puedeGuardar = this.form.valid && todosArchivosCargados;
+    this.puedeLiberar = true;
+  }
 
-    this.puedeLiberar = !!this.documento && !this.isProcessing;
+  private limpiarArchivosSegunTipo(tipo: string): void {
+    // Limpiar archivos no relevantes
+    this.archivos['glosa'] = null;
+    this.archivos['causacion'] = null;
+    this.archivos['extracto'] = null;
+  }
+
+  mostrarMensaje(texto: string, tipo: 'success' | 'error' | 'warning' | 'info'): void {
+    this.mensaje = texto;
+    this.tipoMensaje = tipo;
+    setTimeout(() => this.mensaje = '', 5000);
   }
 
   getEstadoBadgeClass(estado: string): string {
-    if (!estado) return 'badge bg-secondary';
-    const upper = estado.toUpperCase();
-    if (upper.includes('APROBADO')) return 'badge bg-success';
-    if (upper.includes('EN_REVISION')) return 'badge bg-warning';
-    if (upper.includes('GLOSADO') || upper.includes('OBSERVADO')) return 'badge bg-danger';
-    if (upper.includes('RECHAZADO')) return 'badge bg-dark';
-    return 'badge bg-info';
+    if (!estado) return 'bg-secondary';
+    const e = estado.toUpperCase();
+    if (e.includes('COMPLETADO') || e.includes('PROCESADO') || e.includes('APROBADO')) return 'bg-success';
+    if (e.includes('EN_REVISION')) return 'bg-info';
+    if (e.includes('GLOSADO') || e.includes('OBSERVADO')) return 'bg-warning text-dark';
+    if (e.includes('RECHAZADO')) return 'bg-danger';
+    return 'bg-secondary';
   }
 }

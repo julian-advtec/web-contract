@@ -1,0 +1,424 @@
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterModule, Router } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+import { TesoreriaService } from '../../../../core/services/tesoreria.service';
+import { NotificationService } from '../../../../core/services/notification.service';
+
+@Component({
+    selector: 'app-tesoreria-history',
+    standalone: true,
+    imports: [CommonModule, RouterModule, FormsModule],
+    templateUrl: './tesoreria-history.component.html',
+    styleUrls: ['./tesoreria-history.component.scss']
+})
+export class TesoreriaHistoryComponent implements OnInit, OnDestroy {
+    historial: any[] = [];
+    filteredHistorial: any[] = [];
+    paginatedHistorial: any[] = [];
+
+    loading = false;
+    isProcessing = false;
+    error = '';
+    successMessage = '';
+    infoMessage = '';
+
+    searchTerm = '';
+    currentPage = 1;
+    pageSize = 10;
+    totalPages = 0;
+    pages: number[] = [];
+
+    usuarioActual = '';
+    sidebarCollapsed = false;
+
+    private destroy$ = new Subject<void>();
+
+    constructor(
+        private tesoreriaService: TesoreriaService,
+        private notificationService: NotificationService,
+        private router: Router
+    ) { }
+
+    ngOnInit(): void {
+        console.log('🚀 Tesorería: Inicializando historial de pagos...');
+        this.cargarUsuarioActual();
+        this.loadHistorial();
+    }
+
+    ngOnDestroy(): void {
+        this.destroy$.next();
+        this.destroy$.complete();
+    }
+
+    cargarUsuarioActual(): void {
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                this.usuarioActual = user.fullName || user.username || 'Tesorería';
+                console.log('👤 Usuario actual de tesorería:', this.usuarioActual);
+            } catch (error) {
+                console.error('Error parseando usuario:', error);
+                this.usuarioActual = 'Tesorería';
+            }
+        }
+    }
+
+    loadHistorial(): void {
+        this.loading = true;
+        this.error = '';
+        this.successMessage = '';
+        this.infoMessage = '';
+
+        this.tesoreriaService.getHistorial()
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+                next: (response: any) => {
+                    console.log('📊 Respuesta del historial de pagos:', response);
+
+                    if (response.success) {
+                        this.historial = response.data || [];
+                        console.log('✅ Historial cargado con', this.historial.length, 'pagos');
+
+                        // Ordenar por fecha más reciente primero
+                        this.historial.sort((a, b) => {
+                            const fechaA = new Date(a.fechaPago || a.fechaActualizacion || a.createdAt);
+                            const fechaB = new Date(b.fechaPago || b.fechaActualizacion || b.createdAt);
+                            return fechaB.getTime() - fechaA.getTime();
+                        });
+
+                        this.filteredHistorial = [...this.historial];
+                        this.updatePagination();
+
+                        if (this.filteredHistorial.length > 0) {
+                            const recientes = this.filteredHistorial.filter(item => this.esPagoReciente(item));
+                            const pagados = this.filteredHistorial.filter(item => item.estadoPago === 'PAGADO').length;
+                            const enProceso = this.filteredHistorial.filter(item => item.estadoPago === 'EN_PROCESO').length;
+                            const anulados = this.filteredHistorial.filter(item => item.estadoPago === 'ANULADO').length;
+                            
+                            this.successMessage = `${this.filteredHistorial.length} pagos (${pagados} pagados, ${enProceso} en proceso, ${anulados} anulados, ${recientes.length} recientes)`;
+                        } else {
+                            this.infoMessage = 'No hay pagos en el historial';
+                        }
+                    } else {
+                        this.error = response.message || 'Error al cargar el historial de pagos';
+                        this.notificationService.error('Error', this.error);
+                    }
+                    this.loading = false;
+                },
+                error: (err: any) => {
+                    this.error = 'Error de conexión con el servidor: ' + err.message;
+                    this.loading = false;
+                    console.error('Error:', err);
+
+                    if (err.status === 404 || err.status === 0) {
+                        this.infoMessage = 'El servicio de historial de pagos no está disponible temporalmente';
+                        this.historial = [];
+                        this.filteredHistorial = [];
+                        this.updatePagination();
+                    } else {
+                        this.notificationService.error('Error', this.error);
+                    }
+                }
+            });
+    }
+
+    verDetallePago(item: any): void {
+        let pagoId = item.id || item.pagoId;
+        if (!pagoId) {
+            this.notificationService.error('Error', 'ID de pago no disponible');
+            return;
+        }
+
+        const queryParams = {
+            desdeHistorial: 'true',
+            soloLectura: 'true',
+            modo: 'consulta',
+            origen: 'historial-tesoreria'
+        };
+
+        this.router.navigate(['/tesoreria/pago', pagoId], { queryParams });
+    }
+
+    continuarPago(item: any): void {
+        let pagoId = item.id || item.pagoId;
+        if (!pagoId) {
+            this.notificationService.error('Error', 'ID de pago no disponible');
+            return;
+        }
+
+        const queryParams = {
+            desdeHistorial: 'true',
+            soloLectura: 'false',
+            modo: 'edicion',
+            origen: 'historial-tesoreria'
+        };
+
+        this.router.navigate(['/tesoreria/pagar', pagoId], { queryParams });
+    }
+
+    generarComprobante(item: any): void {
+        this.isProcessing = true;
+        const pagoId = item.id || item.pagoId;
+
+       this.tesoreriaService.descargarComprobantePago(pagoId)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+                next: (response: any) => {
+                    if (response.success && response.url) {
+                        // Abrir el comprobante en una nueva pestaña
+                        window.open(response.url, '_blank');
+                        this.notificationService.success('Éxito', 'Comprobante generado correctamente');
+                    } else {
+                        this.notificationService.error('Error', 'No se pudo generar el comprobante');
+                    }
+                    this.isProcessing = false;
+                },
+                error: (err: any) => {
+                    console.error('Error generando comprobante:', err);
+                    this.notificationService.error('Error', err.message || 'Error al generar comprobante');
+                    this.isProcessing = false;
+                }
+            });
+    }
+
+    getResponsablePago(item: any): string {
+        return item.responsablePago ||
+            item.usuarioResponsable?.fullName ||
+            item.usuarioResponsable?.username ||
+            item.documento?.responsablePago ||
+            this.usuarioActual ||
+            'Tesorería';
+    }
+
+    getEstadoPagoBadgeClass(estadoPago: string): string {
+        if (!estadoPago) return 'badge badge-default';
+
+        const upper = estadoPago.toUpperCase();
+
+        if (upper === 'PAGADO') return 'badge badge-pagado';
+        if (upper === 'EN_PROCESO') return 'badge badge-en-proceso';
+        if (upper === 'ANULADO') return 'badge badge-anulado';
+        if (upper === 'PENDIENTE') return 'badge badge-pendiente';
+
+        return 'badge badge-default';
+    }
+
+    getEstadoPagoTexto(estadoPago: string): string {
+        if (!estadoPago) return 'Desconocido';
+        
+        switch (estadoPago.toUpperCase()) {
+            case 'PAGADO': return 'Pagado';
+            case 'EN_PROCESO': return 'En Proceso';
+            case 'ANULADO': return 'Anulado';
+            case 'PENDIENTE': return 'Pendiente';
+            default: return estadoPago;
+        }
+    }
+
+    getAccesoTexto(item: any): string {
+        switch (item.estadoPago?.toUpperCase()) {
+            case 'PAGADO':
+            case 'ANULADO':
+                return 'Solo lectura';
+            case 'EN_PROCESO':
+                return 'Editable';
+            default:
+                return 'Acceso limitado';
+        }
+    }
+
+    esMiPago(item: any): boolean {
+        const responsable = this.getResponsablePago(item);
+        return responsable === this.usuarioActual;
+    }
+
+    esPagoReciente(item: any): boolean {
+        const fechaPago = item.fechaPago || item.fechaActualizacion || item.updatedAt;
+        if (!fechaPago) return false;
+
+        try {
+            const fechaPagoObj = new Date(fechaPago);
+            const ahora = new Date();
+            const diferenciaDias = Math.floor((ahora.getTime() - fechaPagoObj.getTime()) / (1000 * 60 * 60 * 24));
+            return diferenciaDias <= 7;
+        } catch {
+            return false;
+        }
+    }
+
+    getValorPago(item: any): number {
+        return item.valorPago || 
+               item.valor || 
+               item.documento?.valor || 
+               item.documento?.valorTotal || 
+               0;
+    }
+
+    getDuracionProceso(item: any): string {
+        const fechaInicio = item.fechaInicioProceso || item.createdAt;
+        const fechaFin = item.fechaPago || item.fechaActualizacion || new Date();
+
+        if (!fechaInicio) return 'N/A';
+
+        try {
+            const inicio = new Date(fechaInicio);
+            const fin = new Date(fechaFin);
+            const diffMs = fin.getTime() - inicio.getTime();
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+            if (diffDays === 0) {
+                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                if (diffHours === 0) {
+                    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+                    return `${diffMinutes} min`;
+                }
+                return `${diffHours} h`;
+            } else if (diffDays === 1) {
+                return '1 día';
+            } else {
+                return `${diffDays} días`;
+            }
+        } catch {
+            return 'N/A';
+        }
+    }
+
+    formatDate(fecha: Date | string): string {
+        if (!fecha) return 'N/A';
+        try {
+            const date = new Date(fecha);
+            return date.toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch {
+            return 'Fecha inválida';
+        }
+    }
+
+    formatDateShort(fecha: Date | string): string {
+        if (!fecha) return 'N/A';
+        try {
+            const date = new Date(fecha);
+            return date.toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        } catch {
+            return 'Fecha inválida';
+        }
+    }
+
+    formatDateOnly(fecha: Date | string): string {
+        if (!fecha) return 'N/A';
+        try {
+            const date = new Date(fecha);
+            return date.toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+        } catch {
+            return 'Fecha inválida';
+        }
+    }
+
+    getNumeroRadicado(item: any): string {
+        return item.documento?.numeroRadicado || 
+               item.numeroRadicado || 
+               item.documentoRadicado ||
+               'N/A';
+    }
+
+    getNombreContratista(item: any): string {
+        return item.documento?.nombreContratista || 
+               item.nombreContratista || 
+               'N/A';
+    }
+
+    getDocumentoContratista(item: any): string {
+        return item.documento?.documentoContratista || 
+               item.documentoContratista || 
+               'N/A';
+    }
+
+    getNumeroContrato(item: any): string {
+        return item.documento?.numeroContrato || 
+               item.numeroContrato || 
+               'N/A';
+    }
+
+    onSearch(): void {
+        if (!this.searchTerm.trim()) {
+            this.filteredHistorial = [...this.historial];
+        } else {
+            const term = this.searchTerm.toLowerCase();
+            this.filteredHistorial = this.historial.filter(item => {
+                const doc = item.documento || item;
+                return (
+                    (doc.numeroRadicado?.toLowerCase().includes(term)) ||
+                    (doc.nombreContratista?.toLowerCase().includes(term)) ||
+                    (doc.numeroContrato?.toLowerCase().includes(term)) ||
+                    (doc.documentoContratista?.toLowerCase().includes(term)) ||
+                    (item.estadoPago?.toLowerCase().includes(term)) ||
+                    (item.numeroPago?.toString().includes(term)) ||
+                    (item.responsablePago?.toLowerCase().includes(term))
+                );
+            });
+        }
+        this.currentPage = 1;
+        this.updatePagination();
+    }
+
+    updatePagination(): void {
+        this.totalPages = Math.ceil(this.filteredHistorial.length / this.pageSize);
+
+        this.pages = [];
+        const maxPagesToShow = 5;
+        let startPage = Math.max(1, this.currentPage - Math.floor(maxPagesToShow / 2));
+        let endPage = Math.min(this.totalPages, startPage + maxPagesToShow - 1);
+
+        if (endPage - startPage + 1 < maxPagesToShow) {
+            startPage = Math.max(1, endPage - maxPagesToShow + 1);
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            this.pages.push(i);
+        }
+
+        const startIndex = (this.currentPage - 1) * this.pageSize;
+        const endIndex = Math.min(startIndex + this.pageSize, this.filteredHistorial.length);
+        this.paginatedHistorial = this.filteredHistorial.slice(startIndex, endIndex);
+    }
+
+    changePage(page: number): void {
+        if (page >= 1 && page <= this.totalPages && page !== this.currentPage) {
+            this.currentPage = page;
+            this.updatePagination();
+        }
+    }
+
+    dismissError(): void {
+        this.error = '';
+    }
+
+    dismissSuccess(): void {
+        this.successMessage = '';
+    }
+
+    dismissInfo(): void {
+        this.infoMessage = '';
+    }
+
+    refreshData(): void {
+        this.loadHistorial();
+    }
+}

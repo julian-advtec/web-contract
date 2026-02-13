@@ -9,7 +9,7 @@
         </h4>
       </div>
       <div class="card-body p-0">
-        <app-supervisor-form [documentoId]="documentoId!" [modo]="'auditoria'" [soloLectura]="true"
+        <app-supervisor-form [documentoId]="documentoId!" [modo]="'auditoria'" [soloLectura]="esModoSoloLectura()"
           (volver)="volverALista()">
         </app-supervisor-form>
       </div>
@@ -21,10 +21,10 @@
 
       <div class="d-flex justify-content-between align-items-center mb-4">
         <h3 class="mb-0">
-          <i class="fas fa-gavel me-2 text-warning"></i> 
+          <i class="fas fa-gavel me-2 text-warning"></i>
           {{ esModoContabilidad ? 'Documentos de Auditoría' : 'Revisión de Auditoría' }}
         </h3>
-        
+
         <button class="btn btn-warning btn-sm" *ngIf="!esModoContabilidad" (click)="verificarEstado()">
           <i class="fas fa-bug me-1"></i> Depurar
         </button>
@@ -52,6 +52,7 @@
 
           <div class="card-body">
 
+            <!-- Sección de documentos de auditoría -->
             <section class="mb-5">
               <div class="card border-warning">
                 <div class="card-header bg-warning text-dark">
@@ -62,14 +63,13 @@
                 </div>
 
                 <div class="card-body">
-
                   <div class="alert" [ngClass]="esModoContabilidad ? 'alert-info' : 'alert-warning'">
                     <i class="fas fa-info-circle me-2"></i>
                     <strong *ngIf="esModoContabilidad">Vista contabilidad:</strong>
                     <strong *ngIf="!esModoContabilidad">Nota:</strong>
-                    {{ esModoContabilidad ? 
-                      'Esta sección muestra los documentos de auditoría disponibles.' : 
-                      'Los documentos se validarán automáticamente al registrar la decisión.' }}
+                    {{ esModoContabilidad ?
+                    'Esta sección muestra los documentos de auditoría disponibles.' :
+                    'Los documentos se validarán automáticamente al registrar la decisión.' }}
                   </div>
 
                   <div class="row g-4">
@@ -80,7 +80,6 @@
                         'border-secondary': esModoContabilidad || estadoDocumento !== 'EN_REVISION_AUDITOR'
                       }">
                         <div class="card-body d-flex flex-column p-4">
-
                           <div class="d-flex align-items-center mb-3">
                             <i [class]="item.icon" class="fa-3x me-3"></i>
                             <div class="flex-grow-1">
@@ -98,7 +97,9 @@
                             <i class="fas fa-file me-1"></i> {{ archivosAuditorFormulario[item.key].nombreArchivo }}
                           </small>
 
-                          <ng-container *ngIf="!esModoContabilidad && estadoDocumento === 'EN_REVISION_AUDITOR' && primerRadicadoDelAno">
+                          <!-- Solo muestra input de subida si está en modo edición -->
+                          <ng-container
+                            *ngIf="!esModoSoloLectura() && estadoDocumento === 'EN_REVISION_AUDITOR' && primerRadicadoDelAno">
                             <div class="input-group input-group-sm mb-3">
                               <input type="file" class="form-control" (change)="onArchivoSeleccionado($event, item.key)"
                                 accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" [id]="'file-'+item.key"
@@ -106,13 +107,6 @@
                               <label class="input-group-text btn btn-outline-primary" [for]="'file-'+item.key">
                                 <i class="fas fa-upload me-1"></i> Seleccionar
                               </label>
-                            </div>
-                          </ng-container>
-
-                          <ng-container *ngIf="esModoContabilidad">
-                            <div class="alert alert-light text-center mb-3 py-2 small">
-                              <i class="fas fa-eye me-1"></i>
-                              Modo visualización
                             </div>
                           </ng-container>
 
@@ -128,7 +122,6 @@
                               <i class="fas fa-download me-1"></i> Descargar
                             </button>
                           </div>
-
                         </div>
                       </div>
                     </div>
@@ -157,11 +150,12 @@
               </div>
             </section>
 
+            <!-- Sección de Decisión Final -->
             <section class="mt-5" *ngIf="!esModoContabilidad">
               <div class="card border-primary shadow-lg">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                   <h5 class="mb-0">
-                    <i class="fas fa-balance-scale me-2"></i> Decisión Final
+                    <i class="fas fa-balance-scale me-2"></i> Decisión Final del Auditor
                   </h5>
                   <span class="badge bg-light text-primary fs-6">
                     {{ estadoDocumento || 'SIN ESTADO' | uppercase }}
@@ -170,64 +164,114 @@
 
                 <div class="card-body">
 
-                  <div *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR'" class="alert alert-info mb-4">
-                    <i class="fas fa-info-circle me-2"></i>
-                    <strong>En revisión</strong> – Registra tu decisión cuando estés listo.
-                  </div>
+                  <!-- Sección de Decisión Final - Modo EDICIÓN (solo aparece cuando está en revisión y NO es solo lectura) -->
+                  <ng-container *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR' && !esModoSoloLectura()">
+                    <div class="alert alert-info mb-4">
+                      <i class="fas fa-info-circle me-2"></i>
+                      <strong>En revisión</strong> – Registra tu decisión cuando estés listo.
+                    </div>
 
-                  <div *ngIf="estadoDocumento !== 'EN_REVISION_AUDITOR'" class="alert alert-warning mb-4">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    No se puede registrar decisión en estado <strong>{{ estadoDocumento | uppercase }}</strong>
-                  </div>
+                    <div class="mb-5">
+                      <label class="form-label fw-bold required">
+                        <i class="fas fa-sticky-note me-2"></i> Observaciones *
+                      </label>
+                      <textarea class="form-control" rows="5" [(ngModel)]="observacionesRevision"
+                        [disabled]="isProcessing"
+                        placeholder="Ingrese observaciones detalladas... (obligatorio para observar o rechazar)"
+                        required>
+    </textarea>
+                      <small class="text-muted d-block mt-1">
+                        Obligatorio para las decisiones "Observado" o "Rechazado".
+                      </small>
+                    </div>
 
-                  <div class="mb-5" *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR'">
-                    <label class="form-label fw-bold required">
-                      <i class="fas fa-sticky-note me-2"></i> Observaciones *
-                    </label>
-                    <textarea class="form-control" rows="5" [(ngModel)]="observacionesRevision"
-                      [disabled]="isProcessing" placeholder="Ingrese observaciones detalladas..."></textarea>
-                    <small class="text-muted">Obligatorio para observar o rechazar</small>
-                  </div>
+                    <div class="mb-4">
+                      <label class="form-label fw-bold">
+                        <i class="fas fa-gavel me-2"></i> Decisión
+                      </label>
+                      <select class="form-select form-select-lg" [(ngModel)]="decisionSeleccionada"
+                        [disabled]="isProcessing" required>
+                        <option value="" disabled>Seleccione una decisión</option>
+                        <option value="APROBADO">Aprobar</option>
+                        <option value="OBSERVADO">Observar</option>
+                        <option value="RECHAZADO">Rechazar</option>
+                        <option value="COMPLETADO">Completar revisión</option>
+                      </select>
+                    </div>
 
-                  <div class="mb-4" *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR'">
-                    <label class="form-label fw-bold">
-                      <i class="fas fa-gavel me-2"></i> Decisión
-                    </label>
-                    <select class="form-select form-select-lg" [(ngModel)]="decisionSeleccionada"
-                      [disabled]="isProcessing">
-                      <option value="" disabled>Seleccione una decisión</option>
-                      <option value="APROBADO">Aprobar</option>
-                      <option value="OBSERVADO">Observar</option>
-                      <option value="RECHAZADO">Rechazar</option>
-                      <option value="COMPLETADO">Completar revisión</option>
-                    </select>
-                  </div>
+                    <div class="text-center mt-4">
+                      <button class="btn btn-primary btn-lg px-5" (click)="registrarDecision()"
+                        [disabled]="!puedeRegistrarDecision() || isProcessing">
+                        <i class="fas fa-check-double me-2"></i>
+                        Registrar Decisión
+                      </button>
+                    </div>
+                  </ng-container>
 
-                  <div class="text-center" *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR'">
-                    <button class="btn btn-primary btn-lg px-5" (click)="registrarDecision()"
-                      [disabled]="!decisionSeleccionada || isProcessing">
-                      <i class="fas fa-check-double me-2"></i>
-                      Registrar Decisión
-                    </button>
-                  </div>
+                  <!-- Modo SOLO LECTURA: mostrar decisión y observaciones previas -->
+                  <ng-container
+                    *ngIf="esModoSoloLectura() || ['APROBADO_AUDITOR','COMPLETADO_AUDITOR','RECHAZADO_AUDITOR','OBSERVADO_AUDITOR'].includes(estadoDocumento)">
+                    <div class="alert alert-secondary text-center mb-4">
+                      <i class="fas fa-eye me-2"></i>
+                      <strong>Modo consulta (solo lectura)</strong><br>
+                      Esta es la decisión registrada por el auditor.
+                    </div>
 
-                  <div class="alert alert-info text-center mt-4"
-                    *ngIf="['APROBADO_AUDITOR','COMPLETADO_AUDITOR','RECHAZADO_AUDITOR','OBSERVADO_AUDITOR'].includes(estadoDocumento)">
-                    <i class="fas fa-info-circle fa-2x me-2"></i>
-                    <h5>Decisión ya registrada</h5>
-                    <p>Estado: <strong>{{ estadoDocumento | uppercase }}</strong></p>
-                  </div>
+                    <div class="row g-4">
+                      <div class="col-md-6">
+                        <div class="card border-info h-100">
+                          <div class="card-header bg-info text-white">
+                            <h6 class="mb-0">Decisión tomada</h6>
+                          </div>
+                          <div class="card-body text-center">
+                            <h4 class="mb-3" [ngClass]="getClaseEstado(decisionAuditor)">
+                              {{ decisionAuditor || 'No registrada' | uppercase }}
+                            </h4>
+                            <span class="badge fs-5" [ngClass]="getClaseEstado(decisionAuditor)">
+                              {{ decisionAuditor || 'Pendiente' }}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="col-md-6">
+                        <div class="card border-info h-100">
+                          <div class="card-header bg-info text-white">
+                            <h6 class="mb-0">Observaciones del auditor</h6>
+                          </div>
+                          <div class="card-body">
+                            <p class="mb-0" *ngIf="observacionAuditor; else sinObs">
+                              {{ observacionAuditor }}
+                            </p>
+                            <ng-template #sinObs>
+                              <p class="text-muted text-center mb-0">
+                                <i class="fas fa-comment-slash me-2"></i>
+                                Sin observaciones registradas
+                              </p>
+                            </ng-template>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="text-center mt-4" *ngIf="fechaDecisionAuditor">
+                      <small class="text-muted">
+                        Registrado el: {{ fechaDecisionAuditor | date:'dd/MM/yyyy HH:mm' }}
+                        por {{ nombreAuditor || 'Auditor' }}
+                      </small>
+                    </div>
+                  </ng-container>
 
                 </div>
               </div>
 
-              <div class="text-center mt-4" *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR'">
+              <!-- Botón liberar solo si está en revisión y NO es solo lectura -->
+              <div class="text-center mt-4" *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR' && !esModoSoloLectura()">
                 <button class="btn btn-outline-secondary btn-lg px-5" (click)="liberarDocumento()"
                   [disabled]="isProcessing">
                   <i class="fas fa-unlock me-2"></i> Liberar Documento
                 </button>
               </div>
-
             </section>
 
           </div>
@@ -236,18 +280,5 @@
       </ng-container>
     </div>
   </section>
-
-  <div *ngIf="!esModoContabilidad && estadoDocumento === 'APROBADO_SUPERVISOR'" class="card border-warning mt-4">
-    <div class="card-header bg-warning text-dark">
-      <h5 class="mb-0">
-        <i class="fas fa-hand-paper me-2"></i> Tomar para Revisión
-      </h5>
-    </div>
-    <div class="card-body text-center">
-      <button class="btn btn-primary btn-lg" (click)="tomarParaRevision()" [disabled]="isProcessing">
-        <i class="fas fa-hand-paper me-2"></i> Tomar Documento
-      </button>
-    </div>
-  </div>
 
 </div>
