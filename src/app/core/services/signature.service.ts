@@ -1,9 +1,17 @@
-// core/services/signature.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';          // ← IMPORTAR AQUÍ el map de RxJS
 import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
+
+// Definir una interfaz para la respuesta real del backend
+interface SignatureApiResponse {
+  ok: boolean;
+  path: string;
+  timestamp: string;
+  data: Signature | null;
+}
 
 export interface Signature {
   id: string;
@@ -25,15 +33,18 @@ export class SignatureService {
     private http: HttpClient,
     private authService: AuthService
   ) {}
-
   /**
    * Obtener mi firma
    */
-  getMySignature(): Observable<Signature | null> {
-    return this.http.get<Signature | null>(`${this.apiUrl}/my-signature`, {
+getMySignature(): Observable<Signature | null> {
+    return this.http.get<SignatureApiResponse>(`${this.apiUrl}/my-signature`, {
       headers: this.getAuthHeaders()
-    });
+    }).pipe(
+      map((response: SignatureApiResponse) => response?.data || null)
+    );
   }
+
+  
 
   /**
    * Subir o actualizar firma
@@ -80,7 +91,7 @@ export class SignatureService {
   /**
    * Obtener headers con token
    */
-  private getAuthHeaders(): HttpHeaders {
+private getAuthHeaders(): HttpHeaders {
     const token = this.authService.getToken();
     return new HttpHeaders({
       'Authorization': `Bearer ${token || ''}`
@@ -116,4 +127,6 @@ getSignatureBlob(): Observable<Blob> {
     responseType: 'blob'
   });
 }
+
+
 }

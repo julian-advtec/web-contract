@@ -1,13 +1,20 @@
 @import '../../../../shared/layout-styles.scss';
 
 /* ===== VARIABLES ESPECÍFICAS DE TESORERÍA ===== */
-$color-tesoreria: #8B5CF6;
+$color-tesoreria: #8B5CF6; // Púrpura para tesorería
 $color-tesoreria-light: rgba(139, 92, 246, 0.1);
+$color-tesoreria-medium: rgba(139, 92, 246, 0.2);
 $color-tesoreria-dark: #7C3AED;
-$color-danger: #EF4444;
 $color-warning: #F59E0B;
+$color-warning-light: rgba(245, 158, 11, 0.1);
+$color-success: #10B981;
+$color-success-light: rgba(16, 185, 129, 0.1);
+$color-danger: #EF4444;
+$color-danger-light: rgba(239, 68, 68, 0.1);
 $color-info: #3B82F6;
-$color-dark: #374151;
+$color-info-light: rgba(59, 130, 246, 0.1);
+$color-pending: #6B7280;
+$color-pending-light: rgba(107, 114, 128, 0.1);
 
 /* ===== CONTENEDOR PRINCIPAL ===== */
 .tesoreria-rechazados-container {
@@ -22,7 +29,7 @@ $color-dark: #374151;
   }
 
   .tesoreria-rechazados-inner {
-    padding: 20px;
+    padding: 15px;
     max-width: 1600px;
     margin: 0 auto;
     width: 100%;
@@ -30,223 +37,583 @@ $color-dark: #374151;
   }
 }
 
-/* ===== ESTILOS DE TARJETAS ===== */
-.card {
-  border: none;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  margin-bottom: 1.5rem;
+/* ===== BARRA DE BÚSQUEDA ===== */
+.search-container {
+  width: 100%;
+  margin: 0 auto 20px;
+  max-width: 800px;
   
-  .card-header {
-    background-color: white;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-    padding: 1.5rem 1.5rem 0.5rem;
-    border-radius: 12px 12px 0 0 !important;
+  .search-group {
+    width: 100%;
+    border: 4px solid rgba(139, 92, 246, 0.4);
+    border-radius: 12px;
+    overflow: hidden;
+    background: white;
+    display: flex;
+    align-items: stretch;
     
-    h5 {
-      color: $color-tesoreria-dark;
-      font-weight: 600;
+    .input-group-text {
+      background-color: rgba(139, 92, 246, 0.08);
+      border: none;
+      margin: 0;
+      color: $color-tesoreria;
+      padding: 0.7rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      flex-shrink: 0;
     }
     
-    .text-sm {
-      color: #6B7280;
-      font-size: 0.875rem;
+    .form-control {
+      border: none;
+      margin: 0;
+      width: 100%;
+      padding: 0.7rem 1rem;
+      font-size: 0.9rem;
+      box-shadow: none;
+      text-align: center;
+      flex: 1;
+      
+      &:focus {
+        outline: none;
+        box-shadow: none;
+      }
+      
+      &::placeholder {
+        color: rgba(139, 92, 246, 0.6);
+        font-size: 0.9rem;
+      }
     }
-  }
-  
-  .card-body {
-    padding: 1.5rem;
   }
 }
 
-/* ===== ESTADÍSTICAS RÁPIDAS ===== */
-.icon-shape {
-  width: 48px;
-  height: 48px;
+/* ===== TARJETA PRINCIPAL ===== */
+.main-card {
+  border: none;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+  border: 2px solid $color-tesoreria-light;
+
+  .card-body {
+    padding: 0;
+  }
+}
+
+/* ===== CONTENEDOR DE DOCUMENTOS ===== */
+.documentos-container {
+  padding: 20px;
+  width: 100%;
+}
+
+/* ===== ENCABEZADOS DE TABLA ===== */
+.documentos-header {
+  display: grid;
+  grid-template-columns: 1.5fr 1.5fr 1fr 1.2fr 1.2fr 1fr;
+  gap: 1.2rem;
+  padding: 1rem 1.2rem;
+  margin-bottom: 0.8rem;
+  border-bottom: 2px solid $color-tesoreria-medium;
+  font-weight: 700;
+  color: $color-tesoreria-dark;
+  text-align: center;
+  width: 100%;
+  font-size: 0.85rem;
+
+  .header-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+  }
+  
+  .acciones-header {
+    text-align: center;
+  }
+}
+
+/* ===== LISTA DE DOCUMENTOS ===== */
+.documentos-list {
   display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  width: 100%;
+}
+
+/* ===== TARJETA DE DOCUMENTO - ESCRITORIO ===== */
+.documento-card {
+  display: grid;
+  grid-template-columns: 1.5fr 1.5fr 1fr 1.2fr 1.2fr 1fr;
+  gap: 1.2rem;
+  padding: 1rem;
+  background: $color-tesoreria-light !important;
+  border-radius: 10px;
+  border: 1px solid $color-tesoreria-medium;
+  transition: all 0.3s ease;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  cursor: default;
+  position: relative;
+
+  &:hover {
+    background-color: $color-tesoreria-medium !important;
+    border-color: $color-tesoreria;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(139, 92, 246, 0.15);
+  }
+
+  // Documento reciente
+  &.reciente {
+    background: linear-gradient(90deg, $color-info-light 0%, $color-tesoreria-light 100%) !important;
+    border-left: 4px solid $color-info;
+    
+    .reciente-badge {
+      background: $color-info;
+      color: white;
+      font-size: 0.7rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 10px;
+      margin-left: 0.5rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+    }
+  }
+
+  // Todos los hijos se comportan como celdas flexibles
+  & > * {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-width: 0;
+    overflow: hidden;
+  }
+}
+
+/* ===== INFORMACIÓN DEL DOCUMENTO ===== */
+.documento-info {
+  .documento-details {
+    width: 100%;
+    text-align: center;
+
+    .documento-numero {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: $color-tesoreria-dark;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 0.3rem;
+      line-height: 1.3;
+    }
+
+    .documento-fecha {
+      margin: 0.25rem 0 0 0;
+      font-size: 0.8rem;
+      color: $color-tesoreria-dark;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    small {
+      font-size: 0.75rem;
+      color: #7C3AED;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+  }
+}
+
+/* ===== CONTRATISTA ===== */
+.documento-contratista {
+  .contratista-text {
+    margin: 0;
+    color: $color-tesoreria-dark;
+    font-size: 0.85rem;
+    text-align: center;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+    line-height: 1.3;
+    
+    strong {
+      display: block;
+      margin-bottom: 0.2rem;
+    }
+  }
+
+  .text-muted {
+    font-size: 0.75rem;
+    margin-top: 0.2rem;
+    color: #6B7280;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+}
+
+/* ===== CONTRATO ===== */
+.documento-contrato {
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 1.25rem;
-  
-  &.bg-danger {
-    background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
-  }
-  
-  &.bg-warning {
-    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
-  }
-  
-  &.bg-info {
-    background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-  }
-  
-  &.bg-dark {
-    background: linear-gradient(135deg, #374151 0%, #1F2937 100%);
+
+  .contrato-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.3em 0.7em;
+    border-radius: 50px;
+    font-size: 0.8em;
+    font-weight: 500;
+    background-color: white !important;
+    color: $color-tesoreria-dark !important;
+    border: 1px solid $color-tesoreria;
+    white-space: nowrap;
+    min-width: 80px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 
-/* ===== TABLA ===== */
-.table {
-  margin-bottom: 0;
-  
-  thead th {
-    border-bottom: 2px solid $color-tesoreria-light;
-    color: $color-tesoreria-dark;
-    font-weight: 600;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 1rem 0.75rem;
-    background-color: rgba(139, 92, 246, 0.03);
-  }
-  
-  tbody tr {
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-    transition: all 0.2s ease;
-    
-    &:hover {
-      background-color: rgba(139, 92, 246, 0.03);
-      transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba(139, 92, 246, 0.1);
+/* ===== ESTADO ===== */
+.documento-estado {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+
+  .estado-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    padding: 0.3em 0.7em;
+    border-radius: 50px;
+    font-size: 0.8em;
+    font-weight: 500;
+    white-space: nowrap;
+    background-color: white;
+    border: 1px solid;
+    min-width: 100px;
+    max-width: 100%;
+
+    &.badge-primary {
+      color: $color-tesoreria;
+      border-color: $color-tesoreria;
+      background-color: $color-tesoreria-light;
     }
-    
-    td {
-      padding: 1rem 0.75rem;
-      vertical-align: middle;
-      border-top: none;
+
+    &.badge-warning {
+      color: $color-warning;
+      border-color: $color-warning;
+      background-color: $color-warning-light;
+    }
+
+    &.badge-success {
+      color: $color-success;
+      border-color: $color-success;
+      background-color: $color-success-light;
+    }
+
+    &.badge-danger {
+      color: $color-danger;
+      border-color: $color-danger;
+      background-color: $color-danger-light;
+    }
+
+    &.badge-info {
+      color: $color-info;
+      border-color: $color-info;
+      background-color: $color-info-light;
+    }
+
+    &.badge-secondary {
+      color: #6B7280;
+      border-color: #6B7280;
+      background-color: rgba(107, 114, 128, 0.1);
+    }
+  }
+
+  .dias-transcurridos {
+    small {
+      font-size: 0.7rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      
+      &.text-success {
+        color: $color-success !important;
+      }
+      
+      &.text-warning {
+        color: $color-warning !important;
+      }
+      
+      &.text-danger {
+        color: $color-danger !important;
+      }
+      
+      &.text-primary {
+        color: $color-tesoreria !important;
+      }
     }
   }
 }
 
-/* ===== BADGES ===== */
-.badge {
-  font-weight: 500;
-  letter-spacing: 0.3px;
-  
-  &.bg-gradient-secondary {
-    background: linear-gradient(135deg, #6B7280 0%, #4B5563 100%);
-  }
-  
-  &.bg-danger {
-    background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
-  }
-  
-  &.bg-warning {
-    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
-  }
-  
-  &.bg-info {
-    background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
-  }
-  
-  &.bg-dark {
-    background: linear-gradient(135deg, #374151 0%, #1F2937 100%);
+/* ===== QUIEN RECHAZA ===== */
+.documento-rechazado-por {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  .rechazado-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.3em 0.7em;
+    border-radius: 50px;
+    font-size: 0.8em;
+    font-weight: 500;
+    background-color: white;
+    border: 1px solid;
+    white-space: nowrap;
+    
+    &.badge-tesoreria {
+      color: $color-tesoreria;
+      border-color: $color-tesoreria;
+      background-color: $color-tesoreria-light;
+    }
+    
+    &.badge-asesor {
+      color: $color-info;
+      border-color: $color-info;
+      background-color: $color-info-light;
+    }
+    
+    &.badge-rendicion {
+      color: $color-tesoreria-dark;
+      border-color: $color-tesoreria-dark;
+      background-color: $color-tesoreria-light;
+    }
+    
+    &.badge-sistema {
+      color: #6B7280;
+      border-color: #6B7280;
+      background-color: rgba(107, 114, 128, 0.1);
+    }
   }
 }
 
-/* ===== BOTONES ===== */
-.btn {
-  border-radius: 8px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  
-  &.btn-outline-info {
-    color: $color-info;
-    border-color: $color-info;
+/* ===== ACCIONES ===== */
+.documento-acciones {
+  .acciones-buttons {
+    width: 100%;
     
-    &:hover {
-      background-color: $color-info;
-      color: white;
-      transform: translateY(-1px);
-    }
-  }
-  
-  &.btn-outline-primary {
-    color: $color-tesoreria;
-    border-color: $color-tesoreria;
-    
-    &:hover {
-      background-color: $color-tesoreria;
-      color: white;
-      transform: translateY(-1px);
-    }
-  }
-  
-  &.btn-outline-secondary {
-    color: #6B7280;
-    border-color: #6B7280;
-    
-    &:hover {
-      background-color: #6B7280;
-      color: white;
+    .d-flex {
+      width: 100%;
+      gap: 0.4rem;
+
+      .btn-primary, .btn-outline-info {
+        padding: 0.4rem 0.8rem !important;
+        font-size: 0.8rem !important;
+        border-radius: 6px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        transition: all 0.3s ease !important;
+        width: 100%;
+        white-space: nowrap;
+        
+        i {
+          margin-right: 0.4rem !important;
+          font-size: 0.8rem !important;
+        }
+        
+        &:hover:not(:disabled) {
+          transform: translateY(-2px) !important;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+        }
+      }
+      
+      .btn-primary {
+        background-color: $color-tesoreria !important;
+        color: white !important;
+        border: 1px solid $color-tesoreria !important;
+        
+        &:hover:not(:disabled) {
+          background-color: $color-tesoreria-dark !important;
+          border-color: $color-tesoreria-dark !important;
+        }
+      }
+      
+      .btn-outline-info {
+        color: $color-info !important;
+        border-color: $color-info !important;
+        
+        &:hover:not(:disabled) {
+          background-color: $color-info !important;
+          color: white !important;
+        }
+      }
     }
   }
 }
 
 /* ===== PAGINACIÓN ===== */
-.pagination {
-  .page-item {
-    margin: 0 2px;
-    
-    .page-link {
-      border: none;
-      border-radius: 6px;
-      color: #6B7280;
-      min-width: 36px;
-      text-align: center;
-      transition: all 0.2s ease;
+.documentos-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  margin-top: 1.2rem;
+  border-top: 1px solid $color-tesoreria-light;
+  flex-wrap: wrap;
+  
+  .pagination-info {
+    font-size: 0.9rem;
+    color: #6B7280;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    width: 100%;
+    text-align: center;
+  }
+
+  .pagination-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8rem;
+    width: 100%;
+    flex-wrap: wrap;
+
+    .btn {
+      border-radius: 8px;
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      min-width: 100px;
+      transition: all 0.3s ease;
+      flex-shrink: 0;
       
-      &:hover {
-        background-color: rgba(139, 92, 246, 0.1);
+      &:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+      
+      &.btn-outline-primary {
         color: $color-tesoreria;
+        border-color: $color-tesoreria;
+        
+        &:hover {
+          background-color: $color-tesoreria;
+          color: white;
+        }
       }
       
-      &:focus {
-        box-shadow: 0 0 0 0.2rem rgba(139, 92, 246, 0.25);
+      &.btn-primary {
+        background-color: $color-tesoreria;
+        border-color: $color-tesoreria;
+        box-shadow: 0 2px 6px rgba(139, 92, 246, 0.2);
+      }
+      
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
       }
     }
-    
-    &.active .page-link {
-      background-color: $color-tesoreria;
-      color: white;
-      box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);
-    }
-    
-    &.disabled .page-link {
-      color: #D1D5DB;
-      background-color: #F9FAFB;
-      cursor: not-allowed;
+
+    .page-numbers {
+      display: flex;
+      gap: 0.3rem;
+      flex-wrap: wrap;
+      justify-content: center;
+
+      .btn {
+        min-width: 36px;
+        height: 36px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
     }
   }
 }
 
 /* ===== LOADING STATE ===== */
-.spinner-border {
-  color: $color-tesoreria;
+.text-center {
+  text-align: center;
 }
 
-/* ===== EMPTY STATE ===== */
+.spinner-border {
+  display: inline-block;
+  width: 3rem;
+  height: 3rem;
+  vertical-align: text-bottom;
+  border: 0.3em solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spinner-border .75s linear infinite;
+  color: $color-tesoreria !important;
+}
+
+@keyframes spinner-border {
+  to { transform: rotate(360deg); }
+}
+
+.text-primary {
+  color: $color-tesoreria !important;
+}
+
+.text-muted {
+  color: #6b7280 !important;
+}
+
+/* ===== ESTADO VACÍO ===== */
 .empty-state {
   padding: 3rem 1rem;
-  
+
   i {
     font-size: 4rem;
-    opacity: 0.2;
+    color: #6B7280;
+    opacity: 0.5;
   }
-  
+
   h4 {
-    font-size: 1.25rem;
+    font-size: 1.2rem;
     margin-bottom: 0.5rem;
+    text-align: center;
+    color: #6B7280;
+    font-weight: 600;
   }
-  
+
   p {
     font-size: 0.95rem;
-    color: #6B7280;
+    margin-bottom: 1rem;
+    text-align: center;
+    color: #9CA3AF;
   }
-  
+
   ul {
-    max-width: 500px;
+    max-width: 400px;
     margin: 0 auto;
+    text-align: left;
     
     li {
       margin-bottom: 0.5rem;
@@ -261,99 +628,86 @@ $color-dark: #374151;
       }
     }
   }
-}
 
-/* ===== ALERTAS ===== */
-.alert {
-  border: none;
-  border-radius: 10px;
-  
-  &.alert-info {
-    background: linear-gradient(135deg, #E0E7FF 0%, #DBEAFE 100%);
-    border-left: 4px solid $color-info;
-    
-    .alert-heading {
-      color: $color-info;
-    }
-  }
-  
-  &.alert-danger {
-    background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
-    border-left: 4px solid $color-danger;
+  .btn {
+    margin: 0 0.25rem;
   }
 }
 
 /* ===== RESPONSIVE ===== */
-@media (max-width: 768px) {
-  .tesoreria-rechazados-inner {
-    padding: 15px;
+@media (max-width: 1024px) {
+  .documentos-header {
+    display: none;
   }
   
-  .card .card-body {
-    padding: 1rem;
-  }
-  
-  .table-responsive {
-    margin: 0 -1rem;
-    
-    .table {
-      font-size: 0.85rem;
-      
-      thead th {
-        font-size: 0.7rem;
-        padding: 0.75rem 0.5rem;
-      }
-      
-      tbody td {
-        padding: 0.75rem 0.5rem;
-      }
-    }
-  }
-  
-  .btn-group {
-    flex-direction: column;
-    gap: 0.25rem;
-    
-    .btn {
-      width: 100%;
-    }
-  }
-  
-  .pagination-controls {
-    margin-top: 1rem;
-    width: 100%;
-    justify-content: center !important;
-  }
-  
-  .d-flex.justify-content-between.align-items-center {
-    flex-direction: column;
+  .documento-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: 
+      "info info"
+      "contratista contrato"
+      "estado rechazado"
+      "acciones acciones";
     gap: 1rem;
-    text-align: center;
+    padding: 1rem;
+    
+    .documento-info {
+      grid-area: info;
+    }
+    
+    .documento-contratista {
+      grid-area: contratista;
+    }
+    
+    .documento-contrato {
+      grid-area: contrato;
+    }
+    
+    .documento-estado {
+      grid-area: estado;
+    }
+    
+    .documento-rechazado-por {
+      grid-area: rechazado;
+    }
+    
+    .documento-acciones {
+      grid-area: acciones;
+    }
   }
 }
 
-/* ===== TOOLTIP ===== */
-.tooltip {
-  font-size: 0.75rem;
+@media (max-width: 768px) {
+  .documento-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+  
+  .search-container {
+    .search-group {
+      flex-direction: column;
+      border-width: 3px;
+    }
+  }
 }
 
-/* ===== TEXTO ===== */
-.text-primary {
-  color: $color-tesoreria !important;
+/* Scrollbar personalizado */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-.text-danger {
-  color: $color-danger !important;
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
 }
 
-.text-warning {
-  color: $color-warning !important;
-}
+::-webkit-scrollbar-thumb {
+  background: $color-tesoreria;
+  border-radius: 4px;
 
-.text-info {
-  color: $color-info !important;
-}
-
-.text-muted {
-  color: #6B7280 !important;
+  &:hover {
+    background: $color-tesoreria-dark;
+  }
 }

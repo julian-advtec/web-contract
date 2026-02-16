@@ -1,0 +1,41 @@
+<div class="modal-backdrop" 
+     *ngIf="isOpen"
+     (click)="onBackdropClick($event)">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title">
+          <i class="fas fa-file-pdf me-2"></i>
+          {{ title }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" (click)="close()" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0 position-relative">
+        <!-- Iframe sin sandbox problemático -->
+        <iframe 
+          *ngIf="pdfUrl"
+          [src]="pdfUrl" 
+          width="100%" 
+          height="100%" 
+          class="pdf-iframe"
+          title="Visor PDF">
+        </iframe>
+        
+        <!-- Overlay transparente para evitar clics derechos -->
+        <div class="protection-overlay" *ngIf="pdfUrl"></div>
+        
+        <!-- Loading -->
+        <div *ngIf="!pdfUrl" class="loading-container">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="close()">
+          <i class="fas fa-times me-1"></i> Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

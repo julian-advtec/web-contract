@@ -184,14 +184,55 @@ export class TesoreriaService {
     );
   }
 
-  obtenerRechazadosVisibles(): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/rechazados-visibles`, {
-      headers: this.getHeaders()
-    }).pipe(
-      map(res => res.data || res || []),
-      catchError(err => throwError(() => err))
-    );
-  }
+obtenerRechazadosVisibles(): Observable<any[]> {
+  return this.http.get<any>(`${this.apiUrl}/rechazados-visibles`, {
+    headers: this.getHeaders()
+  }).pipe(
+    map(res => {
+      console.log('[Service] Respuesta rechazados COMPLETA:', res);
+      
+      // El backend devuelve: { ok: true, path: '/api/tesoreria/rechazados-visibles', timestamp: '...', data: [...] }
+      
+      // 1. Si la respuesta tiene data y es un array
+      if (res?.data && Array.isArray(res.data)) {
+        console.log('[Service] Usando res.data:', res.data.length);
+        return res.data;
+      }
+      
+      // 2. Si la respuesta tiene data.data y es un array (estructura anidada)
+      if (res?.data?.data && Array.isArray(res.data.data)) {
+        console.log('[Service] Usando res.data.data:', res.data.data.length);
+        return res.data.data;
+      }
+      
+      // 3. Si la respuesta es directamente un array
+      if (Array.isArray(res)) {
+        console.log('[Service] Usando res como array:', res.length);
+        return res;
+      }
+      
+      // 4. Si tiene propiedad documentos
+      if (res?.documentos && Array.isArray(res.documentos)) {
+        console.log('[Service] Usando res.documentos:', res.documentos.length);
+        return res.documentos;
+      }
+      
+      // 5. Si tiene propiedad resultados
+      if (res?.resultados && Array.isArray(res.resultados)) {
+        console.log('[Service] Usando res.resultados:', res.resultados.length);
+        return res.resultados;
+      }
+      
+      console.warn('[Service] Formato de respuesta no reconocido:', res);
+      return [];
+    }),
+    catchError(err => {
+      console.error('[Service] Error en rechazados:', err);
+      const errorMsg = err.error?.message || err.message || 'Error desconocido';
+      return throwError(() => new Error(errorMsg));
+    })
+  );
+}
 
   obtenerDetallePago(documentoId: string): Observable<any> {
     return this.http.get<any>(
@@ -218,11 +259,33 @@ export class TesoreriaService {
     );
   }
 
-  verArchivoPago(id: string): Observable<Blob> {
-  return this.http.get(`/api/tesoreria/pago/${id}/ver`, { responseType: 'blob' });
-}
+  verArchivoPago(documentoId: string): Observable<Blob> {
+    return this.http.get(
+      `${this.apiUrl}/documentos/${documentoId}/archivo/pagorealizado?download=false`,
+      {
+        headers: this.getHeaders(),
+        responseType: 'blob'
+      }
+    ).pipe(
+      catchError(err => {
+        console.error('Error al ver archivo:', err);
+        return throwError(() => new Error('No se pudo cargar el archivo'));
+      })
+    );
+  }
 
-descargarArchivoPago(id: string): Observable<Blob> {
-  return this.http.get(`/api/tesoreria/pago/${id}/descargar`, { responseType: 'blob' });
-}
+  descargarArchivoPago(documentoId: string): Observable<Blob> {
+    return this.http.get(
+      `${this.apiUrl}/documentos/${documentoId}/descargar/pagorealizado`,
+      {
+        headers: this.getHeaders(),
+        responseType: 'blob'
+      }
+    ).pipe(
+      catchError(err => {
+        console.error('Error al descargar archivo:', err);
+        return throwError(() => new Error('No se pudo descargar el archivo'));
+      })
+    );
+  }
 }

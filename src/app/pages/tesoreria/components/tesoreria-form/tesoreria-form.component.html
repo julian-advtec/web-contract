@@ -96,13 +96,9 @@
                 </div>
               </div>
             </div>
-            <div class="btn-group">
+            <div>
               <button class="btn btn-outline-primary btn-sm" (click)="verArchivoPago()" [disabled]="isProcessing">
                 <i class="fas fa-eye me-1"></i> Ver
-              </button>
-              <button class="btn btn-outline-success btn-sm ms-2" (click)="descargarArchivoPago()"
-                [disabled]="isProcessing">
-                <i class="fas fa-download me-1"></i> Descargar
               </button>
             </div>
           </div>
@@ -115,8 +111,6 @@
         <strong>Modo lectura</strong> —
         {{ estaProcesado ? 'Este documento ya fue procesado por tesorería.' : 'Solo puedes consultar la información.' }}
       </div>
-
-
 
       <!-- SECCIÓN TESORERÍA - DECISIÓN Y SUBIDA DE ARCHIVO -->
       <section class="tesoreria-decision mt-5">
@@ -209,18 +203,9 @@
                     </ng-container>
                   </div>
 
-                  <div class="alert alert-info" *ngIf="form.get('estadoFinal')?.value === 'PAGADO'">
-                    <strong>DEBUG - Estado PAGADO:</strong>
-                    <ul>
-                      <li>mostrarSelectorPosicion: {{ mostrarSelectorPosicion }}</li>
-                      <li>archivoSeleccionado: {{ archivoSeleccionado ? 'SÍ' : 'NO' }}</li>
-                      <li>userSignature: {{ userSignature ? 'SÍ' : 'NO' }}</li>
-                      <li>tieneFirma: {{ tieneFirma }}</li>
-                    </ul>
-                  </div>
                   <!-- SELECTOR DE POSICIÓN DE FIRMA -->
                   <app-signature-position *ngIf="mostrarSelectorPosicion && archivoSeleccionado && userSignature"
-                    [pdfFile]="archivoSeleccionado" [signatureName]="userSignature?.name || 'Firma'"
+                    [pdfFile]="archivoSeleccionado" [signatureName]="userSignature.name || 'Firma'"
                     (positionChange)="onPositionSelected($event)" (onClose)="cerrarSelectorPosicion()">
                   </app-signature-position>
 
@@ -299,3 +284,11 @@
     </ng-container>
   </div>
 </div>
+
+<!-- MODAL PARA VER PDF -->
+<app-pdf-viewer-modal 
+  *ngIf="showPdfModal"
+  [blob]="pdfBlob" 
+  [title]="pdfModalTitle"
+  (closed)="cerrarModalPdf()">
+</app-pdf-viewer-modal>

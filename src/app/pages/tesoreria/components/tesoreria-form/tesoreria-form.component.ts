@@ -19,6 +19,9 @@ import { SignatureService, Signature } from '../../../../core/services/signature
 import { SignaturePadComponent } from '../../../signature/components/signature-pad/signature-pad.component';
 import { SignaturePositionComponent, SignaturePosition } from '../../../signature/components/signature-position/signature-position.component';
 
+// Modal PDF
+import { PdfViewerModalComponent } from '../pdf-viewer-modal/pdf-viewer-modal.component';
+
 @Component({
   selector: 'app-tesoreria-form',
   standalone: true,
@@ -29,7 +32,8 @@ import { SignaturePositionComponent, SignaturePosition } from '../../../signatur
     AuditorFormComponent,
     ContabilidadFormComponent,
     SignaturePadComponent,
-    SignaturePositionComponent
+    SignaturePositionComponent,
+    PdfViewerModalComponent
   ],
   templateUrl: './tesoreria-form.component.html',
   styleUrls: ['./tesoreria-form.component.scss']
@@ -49,6 +53,11 @@ export class TesoreriaFormComponent implements OnInit {
 
   archivoSeleccionado: File | null = null;
   urlPrevisualizacion: SafeUrl | null = null;
+
+  // Modal PDF
+  showPdfModal = false;
+  pdfBlob: Blob | null = null;
+  pdfModalTitle = '';
 
   private estadosProcesados = [
     'COMPLETADO_TESORERIA',
@@ -81,9 +90,9 @@ export class TesoreriaFormComponent implements OnInit {
   ) {
     this.form.valueChanges.subscribe(() => this.actualizarEstadoBotones());
     this.form.get('estadoFinal')?.valueChanges.subscribe(() => {
-    console.log('🎯 valueChanges detectado');
-    this.onEstadoFinalChange();
-  });
+      console.log('🎯 valueChanges detectado');
+      this.onEstadoFinalChange();
+    });
   }
 
   ngOnInit(): void {
@@ -128,40 +137,91 @@ export class TesoreriaFormComponent implements OnInit {
    */
   cargarFirmaUsuario(): void {
     const currentUser = this.authService.getCurrentUser();
-    if (currentUser) {
-      this.currentUserRole = currentUser.role;
-      if (this.signatureService.canRoleHaveSignature(currentUser.role)) {
-        this.signatureService.getMySignature().subscribe({
-          next: (signature) => {
-            this.userSignature = signature;
-            this.tieneFirma = !!signature;
-            console.log('✅ Firma cargada para tesorería:', signature?.name);
-          },
-          error: (error) => console.error('Error cargando firma:', error)
-        });
-      }
+    if (!currentUser) {
+      console.warn('[Firma] No hay usuario autenticado');
+      this.tieneFirma = false;
+      this.userSignature = null;
+      return;
     }
+
+    this.currentUserRole = currentUser.role;
+
+    if (!this.signatureService.canRoleHaveSignature(currentUser.role)) {
+      console.log(`[Firma] Rol ${currentUser.role} no puede tener firma`);
+      this.tieneFirma = false;
+      this.userSignature = null;
+      return;
+    }
+
+    this.signatureService.getMySignature().subscribe({
+      next: (signature) => {
+        console.log('[Firma] Respuesta directa del servicio:', signature);
+
+        this.userSignature = signature;
+        
+        // Validación estricta
+        this.tieneFirma = !!signature && 
+                          !!signature.id && 
+                          !!signature.name && 
+                          (signature.type === 'pdf' || signature.type === 'image');
+
+        console.log('[Firma] Cargada correctamente:', {
+          id: signature?.id,
+          name: signature?.name,
+          type: signature?.type,
+          mimeType: signature?.mimeType,
+          fileSize: signature?.fileSize,
+          tieneIdValido: !!signature?.id,
+          tieneFirmaFinal: this.tieneFirma
+        });
+
+        this.actualizarEstadoBotones();
+      },
+      error: (err) => {
+        console.error('[Firma] Error al cargar firma:', err);
+        this.tieneFirma = false;
+        this.userSignature = null;
+        this.mostrarMensaje('No se pudo cargar tu firma registrada', 'warning');
+        this.actualizarEstadoBotones();
+      }
+    });
   }
 
   /**
    * Cuando cambia el estado final
    */
-onEstadoFinalChange(): void {
-  const estado = this.form.get('estadoFinal')?.value;
-  console.log('📝 Estado final cambiado a:', estado);
-  console.log('📁 archivoSeleccionado:', !!this.archivoSeleccionado);
-  console.log('🔏 tieneFirma:', this.tieneFirma);
-  console.log('👤 userSignature:', this.userSignature);
-  
-  if (estado === 'PAGADO' && this.archivoSeleccionado && this.tieneFirma) {
-    console.log('✅ Mostrando selector de posición');
-    this.mostrarSelectorPosicion = true;
-  } else {
-    console.log('❌ Ocultando selector de posición');
-    this.mostrarSelectorPosicion = false;
-    this.firmaPosicion = null;
+  onEstadoFinalChange(): void {
+    const estado = this.form.get('estadoFinal')?.value;
+    console.log('[Estado] Cambio a:', estado);
+
+    if (estado === 'PAGADO') {
+      console.log('[Firma Debug] Estado PAGADO - chequeo actual:', {
+        tieneFirma: this.tieneFirma,
+        userSignature: this.userSignature,
+        tieneId: !!this.userSignature?.id,
+        archivo: !!this.archivoSeleccionado
+      });
+
+      if (!this.archivoSeleccionado) {
+        console.log('[Firma] PAGADO seleccionado pero sin archivo → ocultando selector');
+        this.mostrarSelectorPosicion = false;
+        this.firmaPosicion = null;
+      } else if (!this.tieneFirma || !this.userSignature?.id) {
+        console.warn('[Firma] PAGADO seleccionado pero NO hay firma válida');
+        this.mostrarSelectorPosicion = false;
+        this.firmaPosicion = null;
+        this.mostrarMensaje('Debes tener una firma registrada y con ID válido para marcar como PAGADO con firma', 'warning');
+      } else {
+        console.log('[Firma] Mostrando selector de posición para firma');
+        this.mostrarSelectorPosicion = true;
+      }
+    } else {
+      this.mostrarSelectorPosicion = false;
+      this.firmaPosicion = null;
+    }
+
+    this.actualizarEstadoBotones();
   }
-}
 
   async cargarDocumento(id: string): Promise<void> {
     this.isLoading = true;
@@ -266,7 +326,7 @@ onEstadoFinalChange(): void {
     } else {
       this.urlPrevisualizacion = null;
     }
- this.onEstadoFinalChange();
+    this.onEstadoFinalChange();
     this.actualizarEstadoBotones();
   }
 
@@ -295,7 +355,8 @@ onEstadoFinalChange(): void {
    */
   onPositionSelected(position: SignaturePosition): void {
     this.firmaPosicion = position;
-    console.log('📍 Posición de firma seleccionada:', position);
+    console.log('[Firma] Posición seleccionada por el usuario:', position);
+    this.actualizarEstadoBotones();
   }
 
   /**
@@ -308,68 +369,72 @@ onEstadoFinalChange(): void {
 
   onSubmit(): void {
     if (this.form.invalid || this.esModoLectura || this.estaProcesado) {
-      this.mostrarMensaje('No se puede guardar en modo lectura o documento ya procesado', 'error');
+      this.mostrarMensaje('Formulario inválido o modo no permitido', 'error');
       return;
     }
 
     const estadoFinal = this.form.get('estadoFinal')?.value;
-
     if (!estadoFinal) {
-      this.mostrarMensaje('Debe seleccionar una decisión final', 'error');
+      this.mostrarMensaje('Selecciona una decisión final', 'error');
       return;
     }
 
-    if (estadoFinal === 'PAGADO' && !this.archivoSeleccionado) {
-      this.mostrarMensaje('Obligatorio subir comprobante para PAGADO', 'error');
-      return;
-    }
+    // Validaciones específicas por estado
+    if (estadoFinal === 'PAGADO') {
+      if (!this.archivoSeleccionado) {
+        this.mostrarMensaje('Obligatorio subir comprobante para PAGADO', 'error');
+        return;
+      }
 
-    // Verificar firma para PAGADO
-    if (estadoFinal === 'PAGADO' && this.tieneFirma && !this.firmaPosicion) {
-      this.mostrarMensaje('Debe seleccionar la posición de la firma en el documento', 'warning');
-      return;
+      // Validación crítica de firma
+      if (this.tieneFirma && !this.userSignature?.id) {
+        this.mostrarMensaje('Error interno: Firma marcada como existente pero ID inválido', 'error');
+        return;
+      }
+
+      if (this.tieneFirma && !this.firmaPosicion) {
+        this.mostrarMensaje('Debes seleccionar la posición donde colocar la firma', 'warning');
+        return;
+      }
     }
 
     if ((estadoFinal === 'OBSERVADO' || estadoFinal === 'RECHAZADO') &&
-      (!this.form.value.observaciones?.trim() ||
-        this.form.value.observaciones.trim().length < 10)) {
+        (!this.form.value.observaciones?.trim() || this.form.value.observaciones.trim().length < 10)) {
       this.mostrarMensaje('Justificación mínima de 10 caracteres requerida', 'error');
       return;
     }
 
     this.isProcessing = true;
 
+    const formData = new FormData();
+    if (this.archivoSeleccionado) {
+      formData.append('pagoRealizado', this.archivoSeleccionado);
+    }
+    formData.append('observaciones', this.form.value.observaciones?.trim() || '');
+    formData.append('estadoFinal', estadoFinal);
 
-      this.isProcessing = true;
+    // Solo enviamos firma si TODO está correcto
+    if (this.userSignature?.id && this.firmaPosicion) {
+      console.log('✅ Enviando firma digital:', {
+        signatureId: this.userSignature.id,
+        position: this.firmaPosicion
+      });
+      formData.append('signatureId', this.userSignature.id);
+      formData.append('signaturePosition', JSON.stringify(this.firmaPosicion));
+    } else if (estadoFinal === 'PAGADO' && this.tieneFirma) {
+      console.warn('⚠️ PAGADO pero NO se envía firma (falta ID o posición)');
+    }
 
-  const formData = new FormData();
-  if (this.archivoSeleccionado) {
-    formData.append('pagoRealizado', this.archivoSeleccionado);
-  }
-  formData.append('observaciones', this.form.value.observaciones?.trim() || '');
-  formData.append('estadoFinal', estadoFinal);
-  
-  // 👇 ESTO ES CRÍTICO - DEBE ESTAR AQUÍ
-  if (this.userSignature && this.firmaPosicion) {
-    formData.append('signatureId', this.userSignature.id);
-    formData.append('signaturePosition', JSON.stringify(this.firmaPosicion));
-    console.log('📤 Enviando firma:', {
-      signatureId: this.userSignature.id,
-      position: this.firmaPosicion
-    });
-  }
-
-  this.tesoreriaService.procesarPago(this.documento.id, formData)
-    .subscribe({
+    this.tesoreriaService.procesarPago(this.documento.id, formData).subscribe({
       next: (response) => {
-        console.log('✅ Pago procesado con firma:', response);
+        console.log('✅ Pago procesado:', response);
         this.mostrarMensaje(`Documento marcado como ${estadoFinal} correctamente`, 'success');
         this.isProcessing = false;
-        setTimeout(() => this.volverALista(), 2000);
+        setTimeout(() => this.volverALista(), 1800);
       },
       error: (err) => {
-        console.error('❌ Error al procesar pago:', err);
-        this.mostrarMensaje(err.error?.message || err.message || 'Error al procesar', 'error');
+        console.error('❌ Error procesando pago:', err);
+        this.mostrarMensaje(err.error?.message || 'Error al procesar el documento', 'error');
         this.isProcessing = false;
       }
     });
@@ -413,7 +478,7 @@ onEstadoFinalChange(): void {
   }
 
   actualizarEstadoBotones(): void {
-    if (this.esModoLectura || this.estaProcesado) {
+    if (this.esModoLectura || this.estaProcesado || this.isProcessing) {
       this.puedeGuardar = false;
       this.puedeLiberar = false;
       return;
@@ -422,12 +487,22 @@ onEstadoFinalChange(): void {
     const estadoFinal = this.form.get('estadoFinal')?.value;
     const obs = this.form.value.observaciones?.trim() || '';
 
-    this.puedeGuardar = !!estadoFinal &&
-      (estadoFinal !== 'PAGADO' || !!this.archivoSeleccionado) &&
-      ((estadoFinal === 'OBSERVADO' || estadoFinal === 'RECHAZADO') ? obs.length >= 10 : true) &&
-      (estadoFinal !== 'PAGADO' || !this.tieneFirma || !!this.firmaPosicion);
+    let valido = !!estadoFinal;
 
-    this.puedeLiberar = !!this.documento && !this.isProcessing;
+    if (estadoFinal === 'PAGADO') {
+      valido = valido && !!this.archivoSeleccionado;
+      // Si el rol requiere firma y dice que la tiene, debe tener posición
+      if (this.tieneFirma) {
+        valido = valido && !!this.firmaPosicion && !!this.userSignature?.id;
+      }
+    }
+
+    if (estadoFinal === 'OBSERVADO' || estadoFinal === 'RECHAZADO') {
+      valido = valido && obs.length >= 10;
+    }
+
+    this.puedeGuardar = valido;
+    this.puedeLiberar = !!this.documento;
   }
 
   getEstadoPagoBadgeClass(estado: string): string {
@@ -461,9 +536,15 @@ onEstadoFinalChange(): void {
     this.tesoreriaService.verArchivoPago(this.documento.id)
       .subscribe({
         next: (blob: Blob) => {
-          const url = window.URL.createObjectURL(blob);
-          window.open(url, '_blank');
-          setTimeout(() => window.URL.revokeObjectURL(url), 120000);
+          if (blob.type === 'application/pdf') {
+            this.pdfBlob = blob;
+            this.pdfModalTitle = `Comprobante - ${this.documento.numeroRadicado}`;
+            this.showPdfModal = true;
+          } else {
+            const url = window.URL.createObjectURL(blob);
+            window.open(url, '_blank');
+            setTimeout(() => window.URL.revokeObjectURL(url), 120000);
+          }
           this.isProcessing = false;
         },
         error: (err) => {
@@ -514,9 +595,15 @@ onEstadoFinalChange(): void {
     this.tesoreriaService.verArchivoPago(this.documento.id)
       .subscribe({
         next: (blob: Blob) => {
-          const url = window.URL.createObjectURL(blob);
-          window.open(url, '_blank');
-          setTimeout(() => window.URL.revokeObjectURL(url), 120000);
+          if (blob.type === 'application/pdf') {
+            this.pdfBlob = blob;
+            this.pdfModalTitle = `Comprobante - ${this.documento.numeroRadicado}`;
+            this.showPdfModal = true;
+          } else {
+            const url = window.URL.createObjectURL(blob);
+            window.open(url, '_blank');
+            setTimeout(() => window.URL.revokeObjectURL(url), 120000);
+          }
           this.isProcessing = false;
         },
         error: (err) => {
@@ -527,32 +614,10 @@ onEstadoFinalChange(): void {
       });
   }
 
-  descargarArchivoPago(): void {
-    if (!this.documento?.id) return;
-
-    this.isProcessing = true;
-
-    const nombre = this.documento.pagoRealizadoPath?.split('/').pop() || 'comprobante_pago.pdf';
-
-    this.tesoreriaService.descargarArchivoPago(this.documento.id)
-      .subscribe({
-        next: (blob: Blob) => {
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = nombre;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          window.URL.revokeObjectURL(url);
-          this.notificationService.success('Descargado', 'Archivo descargado');
-          this.isProcessing = false;
-        },
-        error: (err) => {
-          console.error('Error al descargar pago:', err);
-          this.notificationService.error('Error', 'No se pudo descargar');
-          this.isProcessing = false;
-        }
-      });
+  cerrarModalPdf(): void {
+    this.showPdfModal = false;
+    this.pdfBlob = null;
   }
+
+  
 }

@@ -126,87 +126,117 @@ export class TesoreriaHistoryComponent implements OnInit, OnDestroy {
             });
     }
 
-    verDetallePago(item: any): void {
-  const pagoId = item.id || item.pagoId || item.documento?.id;
-  
-  if (!pagoId) {
-    console.error('[HISTORIAL] No se encontró ID válido en item:', item);
-    this.notificationService.error('Error', 'No se pudo identificar el pago');
-    return;
-  }
-
-  console.log('[HISTORIAL] Ver detalle pago ID:', pagoId);
-
-  this.router.navigate(['/tesoreria/procesar', pagoId], {
-    queryParams: {
-      desdeHistorial: 'true',
-      soloLectura: 'true',
-      modo: 'consulta',
-      origen: 'historial-tesoreria'
+  /**
+ * Ver detalle de un pago desde el historial
+ */
+verDetallePago(item: any): void {
+    // Usar documentoId que viene del backend
+    const documentoId = item.documentoId || item.documento?.id;
+    
+    if (!documentoId) {
+        console.error('[HISTORIAL] No se encontró ID de documento válido en item:', item);
+        this.notificationService.error('Error', 'No se pudo identificar el documento');
+        return;
     }
-  }).then(success => {
-    if (!success) {
-      console.error('[HISTORIAL] Falló navegación a detalle');
-      this.notificationService.error('Error de ruta', 'No se pudo abrir el detalle');
-    }
-  });
+
+    console.log('[HISTORIAL] Ver detalle - ID documento:', documentoId);
+    console.log('[HISTORIAL] Item completo:', item);
+
+    // Determinar si es solo lectura basado en el estado
+    const esSoloLectura = item.estadoPago === 'PAGADO' || 
+                        item.estadoPago === 'ANULADO' || 
+                        item.estadoTesoreria?.includes('COMPLETADO') ||
+                        item.estadoTesoreria?.includes('RECHAZADO');
+
+    this.router.navigate(['/tesoreria/procesar', documentoId], {
+        queryParams: {
+            desdeHistorial: 'true',
+            soloLectura: esSoloLectura ? 'true' : 'false',
+            modo: esSoloLectura ? 'consulta' : 'edicion',
+            origen: 'historial-tesoreria'
+        }
+    }).then(success => {
+        if (!success) {
+            console.error('[HISTORIAL] Falló navegación a detalle');
+            this.notificationService.error('Error de ruta', 'No se pudo abrir el detalle');
+        }
+    });
 }
 
+/**
+ * Continuar con un pago en proceso
+ */
 continuarPago(item: any): void {
-  const pagoId = item.id || item.pagoId || item.documento?.id;
-  
-  if (!pagoId) {
-    console.error('[HISTORIAL] No se encontró ID válido para continuar:', item);
-    this.notificationService.error('Error', 'No se pudo identificar el pago');
-    return;
-  }
-
-  if (item.estadoPago !== 'EN_PROCESO' || !this.esMiPago(item)) {
-    this.notificationService.warning('No permitido', 'Solo puedes continuar pagos en proceso y asignados a ti');
-    return;
-  }
-
-  console.log('[HISTORIAL] Continuar pago ID:', pagoId);
-
-  this.router.navigate(['/tesoreria/procesar', pagoId], {
-    queryParams: {
-      desdeHistorial: 'true',
-      soloLectura: 'false',
-      modo: 'edicion',
-      origen: 'historial-tesoreria'
+    // Usar documentoId que viene del backend
+    const documentoId = item.documentoId || item.documento?.id;
+    
+    if (!documentoId) {
+        console.error('[HISTORIAL] No se encontró ID de documento válido para continuar:', item);
+        this.notificationService.error('Error', 'No se pudo identificar el documento');
+        return;
     }
-  }).then(success => {
-    if (!success) {
-      console.error('[HISTORIAL] Falló navegación para continuar');
-      this.notificationService.error('Error', 'No se pudo abrir el formulario');
+
+    // Validar que realmente pueda continuar
+    if (item.estadoPago !== 'EN_PROCESO' || !this.esMiPago(item)) {
+        this.notificationService.warning('No permitido', 'Solo puedes continuar pagos en proceso y asignados a ti');
+        return;
     }
-  });
+
+    console.log('[HISTORIAL] Continuar pago - ID documento:', documentoId);
+
+    this.router.navigate(['/tesoreria/procesar', documentoId], {
+        queryParams: {
+            desdeHistorial: 'true',
+            soloLectura: 'false',
+            modo: 'edicion',
+            origen: 'historial-tesoreria'
+        }
+    }).then(success => {
+        if (!success) {
+            console.error('[HISTORIAL] Falló navegación para continuar');
+            this.notificationService.error('Error', 'No se pudo abrir el formulario');
+        }
+    });
 }
 
-    generarComprobante(item: any): void {
-        this.isProcessing = true;
-        const pagoId = item.id || item.pagoId;
-
-       this.tesoreriaService.descargarComprobantePago(pagoId)
-            .pipe(takeUntil(this.destroy$))
-            .subscribe({
-                next: (response: any) => {
-                    if (response.success && response.url) {
-                        // Abrir el comprobante en una nueva pestaña
-                        window.open(response.url, '_blank');
-                        this.notificationService.success('Éxito', 'Comprobante generado correctamente');
-                    } else {
-                        this.notificationService.error('Error', 'No se pudo generar el comprobante');
-                    }
-                    this.isProcessing = false;
-                },
-                error: (err: any) => {
-                    console.error('Error generando comprobante:', err);
-                    this.notificationService.error('Error', err.message || 'Error al generar comprobante');
-                    this.isProcessing = false;
-                }
-            });
+/**
+ * Generar comprobante (usa ID de tesorería o documento según corresponda)
+ */
+generarComprobante(item: any): void {
+    this.isProcessing = true;
+    // Para descargar comprobante, necesitas el ID del documento
+    const documentoId = item.documentoId || item.documento?.id;
+    
+    if (!documentoId) {
+        this.notificationService.error('Error', 'No se pudo identificar el documento');
+        this.isProcessing = false;
+        return;
     }
+
+    this.tesoreriaService.descargarComprobantePago(documentoId)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+            next: (blob: Blob) => {
+                // Crear URL del blob y descargar
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `comprobante_${item.documento?.numeroRadicado || 'pago'}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                this.notificationService.success('Éxito', 'Comprobante descargado correctamente');
+                this.isProcessing = false;
+            },
+            error: (err: any) => {
+                console.error('Error descargando comprobante:', err);
+                this.notificationService.error('Error', err.message || 'Error al descargar comprobante');
+                this.isProcessing = false;
+            }
+        });
+}
 
     getResponsablePago(item: any): string {
         return item.responsablePago ||

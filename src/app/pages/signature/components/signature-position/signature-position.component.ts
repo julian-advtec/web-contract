@@ -45,6 +45,7 @@ export class SignaturePositionComponent implements OnInit, AfterViewInit, OnDest
   private canvasReady = false;
   private pdfLoaded = false;
   private renderInProgress = false;
+  private pageCache: Map<number, any> = new Map(); // Cache para páginas ya cargadas
 
   constructor() {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -90,6 +91,10 @@ export class SignaturePositionComponent implements OnInit, AfterViewInit, OnDest
       
       this.pages = Array.from({ length: this.pdfDoc.numPages }, (_, i) => i + 1);
       
+      // Precargar la primera página
+      const page = await this.pdfDoc.getPage(1);
+      this.pageCache.set(1, page);
+      
       setTimeout(() => {
         if (this.pdfCanvas && !this.renderInProgress) {
           this.renderPage(1, true);
@@ -103,6 +108,18 @@ export class SignaturePositionComponent implements OnInit, AfterViewInit, OnDest
     }
   }
 
+  async getPage(pageNum: number): Promise<any> {
+    // Usar cache si ya tenemos la página
+    if (this.pageCache.has(pageNum)) {
+      return this.pageCache.get(pageNum);
+    }
+    
+    // Si no está en cache, cargarla
+    const page = await this.pdfDoc.getPage(pageNum);
+    this.pageCache.set(pageNum, page);
+    return page;
+  }
+
   async renderPage(pageNum: number, drawMarker: boolean = true) {
     if (this.renderInProgress) return;
     
@@ -114,7 +131,7 @@ export class SignaturePositionComponent implements OnInit, AfterViewInit, OnDest
     this.renderInProgress = true;
     
     try {
-      const page = await this.pdfDoc.getPage(pageNum);
+      const page = await this.getPage(pageNum);
       const viewport = page.getViewport({ scale: 1.5 });
       
       const context = canvas.getContext('2d');
@@ -145,12 +162,12 @@ export class SignaturePositionComponent implements OnInit, AfterViewInit, OnDest
     }
   }
 
-  // Nuevo método: SOLO dibuja el marcador sin re-renderizar
+  /**
+   * Dibuja el marcador de la firma en el canvas
+   * Las coordenadas son top-left (origen en esquina superior izquierda)
+   */
   private drawMarkerOnly() {
     if (!this.canvasContext) return;
-    
-    // Limpiar cualquier marcador anterior dibujando un rectángulo blanco sobre el área
-    // Pero mejor, confiamos en que la página recién renderizada no tiene marcador
     
     this.canvasContext.save();
     
@@ -159,7 +176,7 @@ export class SignaturePositionComponent implements OnInit, AfterViewInit, OnDest
     this.canvasContext.lineWidth = 3;
     this.canvasContext.setLineDash([10, 5]);
     
-    // Rectángulo punteado
+    // Rectángulo punteado - usa coordenadas top-left
     this.canvasContext.strokeRect(
       this.selectedPosition.x,
       this.selectedPosition.y,
@@ -188,7 +205,11 @@ export class SignaturePositionComponent implements OnInit, AfterViewInit, OnDest
     this.canvasContext.restore();
   }
 
-  onCanvasClick(event: MouseEvent) {
+  /**
+   * Maneja el clic en el canvas para posicionar la firma
+   * Guarda coordenadas top-left para el canvas
+   */
+  async onCanvasClick(event: MouseEvent) {
     if (!this.pdfCanvas || !this.pdfCanvas.nativeElement) return;
     
     const canvas = this.pdfCanvas.nativeElement;
@@ -196,6 +217,7 @@ export class SignaturePositionComponent implements OnInit, AfterViewInit, OnDest
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     
+    // Coordenadas top-left (origen en esquina superior izquierda)
     const x = (event.clientX - rect.left) * scaleX;
     const y = (event.clientY - rect.top) * scaleY;
     
@@ -204,13 +226,16 @@ export class SignaturePositionComponent implements OnInit, AfterViewInit, OnDest
       y: Math.round(y) 
     };
     
-    // Emitir la nueva posición
-    this.emitPosition();
+    // Emitir la posición convertida a bottom-left para el backend
+    await this.emitPosition();
     
-    // Redibujar la página para limpiar marcadores anteriores y dibujar el nuevo
+    // Redibujar la página con el nuevo marcador
     this.renderPage(this.selectedPage, true);
   }
 
+  /**
+   * Muestra guías de posición mientras el mouse se mueve
+   */
   onCanvasMouseMove(event: MouseEvent) {
     if (!this.pdfCanvas || !this.pdfCanvas.nativeElement) return;
     
@@ -224,26 +249,78 @@ export class SignaturePositionComponent implements OnInit, AfterViewInit, OnDest
     this.showGuide = true;
   }
 
-  onPageChange() {
+  /**
+   * Cambia de página en el PDF
+   */
+  async onPageChange() {
     if (!this.renderInProgress) {
-      this.renderPage(this.selectedPage, true);
+      await this.renderPage(this.selectedPage, true);
     }
   }
 
-  updatePosition() {
-    this.renderPage(this.selectedPage, true);
+  /**
+   * Actualiza la posición cuando se modifican los inputs manualmente
+   */
+  async updatePosition() {
+    await this.emitPosition();
+    await this.renderPage(this.selectedPage, true);
   }
 
-  private emitPosition() {
-    this.positionChange.emit({
-      page: this.selectedPage,
-      x: this.selectedPosition.x,
-      y: this.selectedPosition.y,
-      width: this.signatureWidth,
-      height: this.signatureHeight
-    });
+  /**
+   * Emite la posición al componente padre
+   * CONVIERTE las coordenadas de top-left (canvas) a bottom-left (pdf-lib)
+   */
+  private async emitPosition() {
+    const canvas = this.pdfCanvas.nativeElement;
+    const canvasHeight = canvas.height;
+    
+    try {
+      // Obtener la página actual del PDF para conocer su tamaño real
+      const page = await this.getPage(this.selectedPage);
+      const viewport = page.getViewport({ scale: 1.0 }); // escala 1.0 para tamaño real
+      const pdfHeight = viewport.height;
+      const pdfWidth = viewport.width;
+      
+      // La relación entre el canvas y el PDF real
+      const scaleY = canvas.height / pdfHeight;
+      const scaleX = canvas.width / pdfWidth;
+      
+      // Convertir coordenadas considerando el tamaño real del PDF
+      // La Y del canvas está en píxeles escalados, necesitamos convertir a puntos del PDF
+      const yInPdfPoints = this.selectedPosition.y / scaleY;
+      const xInPdfPoints = this.selectedPosition.x / scaleX;
+      const heightInPdfPoints = this.signatureHeight / scaleY;
+      const widthInPdfPoints = this.signatureWidth / scaleX;
+      
+      // Ahora convertir de top-left (canvas) a bottom-left (pdf-lib) usando puntos del PDF
+      const yBottomLeft = pdfHeight - yInPdfPoints - heightInPdfPoints;
+      
+      console.log('=== DEBUG POSICIÓN FIRMA ===');
+      console.log('📏 Canvas dimensions:', canvas.width, 'x', canvas.height);
+      console.log('📄 PDF dimensions (puntos):', pdfWidth, 'x', pdfHeight);
+      console.log('🔍 Escala X:', scaleX, 'Y:', scaleY);
+      console.log('👆 Y donde hiciste clic (canvas pixels):', this.selectedPosition.y);
+      console.log('📐 Y en puntos PDF:', yInPdfPoints);
+      console.log('📐 Altura firma en puntos PDF:', heightInPdfPoints);
+      console.log('👇 Y bottom-left para pdf-lib:', yBottomLeft);
+      console.log('============================');
+      
+      this.positionChange.emit({
+        page: this.selectedPage,
+        x: Math.round(xInPdfPoints),
+        y: Math.round(yBottomLeft),
+        width: Math.round(widthInPdfPoints),
+        height: Math.round(heightInPdfPoints)
+      });
+      
+    } catch (error) {
+      console.error('Error al emitir posición:', error);
+    }
   }
 
+  /**
+   * Cierra el selector de posición
+   */
   close() {
     this.onClose.emit();
   }
