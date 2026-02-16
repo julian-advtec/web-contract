@@ -1,5 +1,16 @@
 <div class="tesoreria-form-container">
   <div class="container-fluid py-4">
+    <section class="flow-views mb-5">
+      <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+          <h5>Contabilidad (solo lectura)</h5>
+        </div>
+        <div class="card-body p-0">
+          <app-contabilidad-form [documentoId]="documento?.id" [forceReadOnly]="true">
+          </app-contabilidad-form>
+        </div>
+      </div>
+    </section>
 
     <!-- MENSAJES GLOBALES -->
     <div *ngIf="mensaje" class="alert alert-dismissible fade show" [ngClass]="{
@@ -58,55 +69,74 @@
         </div>
       </div>
 
-      <!-- ALERTA MODO LECTURA / PROCESADO -->
+      <!-- COMPROBANTE PROCESADO -->
+      <div class="card shadow mb-4" *ngIf="(esModoLectura || estaProcesado) && documento?.pagoRealizadoPath">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">
+            <i class="fas fa-file-invoice-dollar me-2"></i>
+            Comprobante de Pago Procesado
+          </h5>
+          <!-- Indicador de firma -->
+          <span class="badge bg-light text-dark" *ngIf="documento?.firmaAplicada">
+            <i class="fas fa-signature text-primary me-1"></i>
+            Firmado digitalmente
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between p-3 bg-light rounded border">
+            <div class="d-flex align-items-center">
+              <i class="fas fa-file-pdf fa-3x text-danger me-3"></i>
+              <div>
+                <strong>Archivo subido</strong>
+                <div class="small text-muted">
+                  Nombre: {{ documento.pagoRealizadoPath.split('/').pop() || 'comprobante_pago.pdf' }}
+                </div>
+                <div class="small text-muted">
+                  Fecha: {{ documento.fechaPagoRealizado | date:'dd/MM/yyyy HH:mm' || 'No disponible' }}
+                </div>
+              </div>
+            </div>
+            <div class="btn-group">
+              <button class="btn btn-outline-primary btn-sm" (click)="verArchivoPago()" [disabled]="isProcessing">
+                <i class="fas fa-eye me-1"></i> Ver
+              </button>
+              <button class="btn btn-outline-success btn-sm ms-2" (click)="descargarArchivoPago()"
+                [disabled]="isProcessing">
+                <i class="fas fa-download me-1"></i> Descargar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ALERTA MODO LECTURA -->
       <div class="alert alert-info mb-4" *ngIf="esModoLectura || estaProcesado">
         <i class="fas fa-info-circle me-2"></i>
         <strong>Modo lectura</strong> —
         {{ estaProcesado ? 'Este documento ya fue procesado por tesorería.' : 'Solo puedes consultar la información.' }}
       </div>
 
-      <!-- =================================================================== -->
-      <!-- ✅ VISTAS PREVIAS DEL FLUJO - SUPERVISOR, AUDITOR Y CONTABILIDAD    -->
-      <!-- =================================================================== -->
-      <section class="auditor-view mb-5">
-        <div class="card shadow">
-          <div class="card-header bg-warning text-dark">
-            <h4 class="mb-0">
-              <i class="fas fa-gavel me-2"></i>
-              Información de Auditoría y Contabilidad
-            </h4>
-          </div>
 
-
-
-          <!-- ✅ CONTABILIDAD - MODO SOLO LECTURA -->
-          <div class="card-body p-0">
-            <div class="card-header bg-info text-white">
-              <h5 class="mb-0">
-                <i class="fas fa-calculator me-2"></i>
-                Información de Contabilidad
-              </h5>
-            </div>
-
-          </div>
-        </div>
-      </section>
 
       <!-- SECCIÓN TESORERÍA - DECISIÓN Y SUBIDA DE ARCHIVO -->
       <section class="tesoreria-decision mt-5">
         <div class="card shadow border-primary">
-          <div class="card-header bg-primary text-white">
+          <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
             <h4 class="mb-0">
               <i class="fas fa-hand-holding-usd me-2"></i>
               Decisión de Tesorería
             </h4>
+
+            <!-- Indicador de firma -->
+            <app-signature-pad [currentUserRole]="currentUserRole" [tieneFirma]="tieneFirma">
+            </app-signature-pad>
           </div>
 
           <div class="card-body">
             <form [formGroup]="form" (ngSubmit)="onSubmit()">
               <div class="row g-4">
 
-                <!-- CAMPO: Decisión final -->
+                <!-- Decisión final -->
                 <div class="col-12">
                   <label class="form-label required fw-bold">
                     <i class="fas fa-flag-checkered me-1"></i> Decisión final
@@ -119,7 +149,7 @@
                     <option value="RECHAZADO">RECHAZADO - No procede el pago</option>
                   </select>
 
-                  <!-- Ayuda contextual según selección -->
+                  <!-- Ayuda contextual -->
                   <div class="mt-2 small text-muted" *ngIf="form.get('estadoFinal')?.value">
                     <ng-container [ngSwitch]="form.get('estadoFinal')?.value">
                       <div *ngSwitchCase="'PAGADO'" class="text-success">
@@ -138,7 +168,7 @@
                   </div>
                 </div>
 
-                <!-- CAMPO: Subida de comprobante (solo PAGADO) -->
+                <!-- Subida de comprobante (solo PAGADO) -->
                 <div class="col-12"
                   *ngIf="!esModoLectura && !estaProcesado && form.get('estadoFinal')?.value === 'PAGADO'">
                   <label class="form-label required fw-bold">
@@ -179,6 +209,21 @@
                     </ng-container>
                   </div>
 
+                  <div class="alert alert-info" *ngIf="form.get('estadoFinal')?.value === 'PAGADO'">
+                    <strong>DEBUG - Estado PAGADO:</strong>
+                    <ul>
+                      <li>mostrarSelectorPosicion: {{ mostrarSelectorPosicion }}</li>
+                      <li>archivoSeleccionado: {{ archivoSeleccionado ? 'SÍ' : 'NO' }}</li>
+                      <li>userSignature: {{ userSignature ? 'SÍ' : 'NO' }}</li>
+                      <li>tieneFirma: {{ tieneFirma }}</li>
+                    </ul>
+                  </div>
+                  <!-- SELECTOR DE POSICIÓN DE FIRMA -->
+                  <app-signature-position *ngIf="mostrarSelectorPosicion && archivoSeleccionado && userSignature"
+                    [pdfFile]="archivoSeleccionado" [signatureName]="userSignature?.name || 'Firma'"
+                    (positionChange)="onPositionSelected($event)" (onClose)="cerrarSelectorPosicion()">
+                  </app-signature-position>
+
                   <!-- Vista previa si es imagen -->
                   <div *ngIf="esImagen(archivoSeleccionado) && urlPrevisualizacion" class="mt-4 text-center">
                     <img [src]="urlPrevisualizacion" class="img-fluid rounded shadow" alt="Vista previa"
@@ -186,7 +231,7 @@
                   </div>
                 </div>
 
-                <!-- CAMPO: Observaciones -->
+                <!-- Observaciones -->
                 <div class="col-12">
                   <label class="form-label fw-bold">
                     <i class="fas fa-comment-dots me-1"></i>

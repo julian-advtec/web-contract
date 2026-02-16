@@ -217,4 +217,12 @@ export class TesoreriaService {
       }
     );
   }
+
+  verArchivoPago(id: string): Observable<Blob> {
+  return this.http.get(`/api/tesoreria/pago/${id}/ver`, { responseType: 'blob' });
+}
+
+descargarArchivoPago(id: string): Observable<Blob> {
+  return this.http.get(`/api/tesoreria/pago/${id}/descargar`, { responseType: 'blob' });
+}
 }

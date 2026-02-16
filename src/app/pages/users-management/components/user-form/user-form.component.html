@@ -275,6 +275,102 @@
                   </div>
                 </div>
 
+                <!-- SECCIÓN DE FIRMA DIGITAL -->
+                <div class="form-section" *ngIf="canHaveSignature">
+                  <div class="section-title">
+                    <h5><i class="fas fa-signature me-2"></i>Firma Digital</h5>
+                    <div class="section-divider"></div>
+                  </div>
+
+                  <!-- SIN FIRMA -->
+                  <div *ngIf="!currentSignature" class="form-field horizontal-field">
+                    <label class="form-label">
+                      Subir Firma
+                    </label>
+                    <div class="field-input-container">
+                      <div class="mb-3">
+                        <input type="text" class="form-control" formControlName="signatureName"
+                          placeholder="Nombre de la firma (ej: Firma principal)"
+                          [class.is-invalid]="userForm.get('signatureName')?.touched && !userForm.get('signatureName')?.value">
+                        <small class="text-muted">*La firma se guardará al crear/actualizar el usuario</small>
+                      </div>
+
+                      <div class="mb-3">
+                        <input type="file" class="form-control" id="signatureFile" (change)="onSignatureFileSelected($event)"
+                          accept=".png,.jpg,.jpeg,.gif,.pdf">
+                        <small class="text-muted">Formatos: PNG, JPG, GIF, PDF. Máx. 2MB</small>
+                      </div>
+
+                      <div *ngIf="previewUrl" class="mb-3 text-center">
+                        <img *ngIf="previewUrl !== 'pdf-icon'" [src]="previewUrl" alt="Preview"
+                          style="max-width: 200px; max-height: 100px; border: 1px solid #dee2e6; border-radius: 4px; padding: 5px;">
+                        <div *ngIf="previewUrl === 'pdf-icon'" class="text-center p-3 bg-light rounded">
+                          <i class="fas fa-file-pdf fa-2x text-danger"></i>
+                          <p class="mb-0 mt-2">PDF seleccionado: {{ selectedFile?.name }}</p>
+                        </div>
+                      </div>
+
+                      <div class="field-hint mt-2">
+                        <i class="fas fa-info-circle me-1"></i>
+                        La firma se guardará automáticamente al hacer clic en "{{ isEditMode ? 'Actualizar Usuario' : 'Crear Usuario' }}"
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- CON FIRMA EXISTENTE -->
+                  <div *ngIf="currentSignature" class="form-field horizontal-field">
+                    <label class="form-label">
+                      Firma Actual
+                    </label>
+                    <div class="field-input-container">
+                      <div class="card p-3">
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                          <i class="fas fa-3x" [class]="getFileIcon(currentSignature.type)"
+                            [ngClass]="getFileColor(currentSignature.type)"></i>
+                          <div>
+                            <h6 class="mb-1">{{ currentSignature.name }}</h6>
+                            <small class="text-muted">
+                              <i class="fas fa-calendar me-1"></i>{{ currentSignature.createdAt | date:'dd/MM/yyyy' }}
+                              <span class="mx-2">|</span>
+                              <i class="fas fa-database me-1"></i>{{ formatFileSize(currentSignature.fileSize) }}
+                            </small>
+                          </div>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                          <button type="button" class="btn btn-outline-info btn-sm" (click)="viewSignature()">
+                            <i class="fas fa-eye me-1"></i>
+                            Ver Firma
+                          </button>
+                          
+                          <button type="button" class="btn btn-outline-danger btn-sm" (click)="deleteSignature()">
+                            <i class="fas fa-trash me-1"></i>
+                            Eliminar Firma
+                          </button>
+                        </div>
+
+                        <small class="text-muted d-block mt-2">
+                          <i class="fas fa-info-circle me-1"></i>
+                          Para cambiar la firma, elimina la actual y sube una nueva al editar el usuario.
+                        </small>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Mensaje para roles SIN PERMISO -->
+                <div class="form-section" *ngIf="!canHaveSignature && isEditMode">
+                  <div class="section-title">
+                    <h5><i class="fas fa-signature me-2"></i>Firma Digital</h5>
+                    <div class="section-divider"></div>
+                  </div>
+                  <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Este rol no tiene permitido tener firma digital.
+                    <small class="d-block mt-1">Roles permitidos: ADMIN, ASESOR_GERENCIA, RENDICION_CUENTAS, TESORERIA</small>
+                  </div>
+                </div>
+
                 <!-- Nota para creación -->
                 <div class="form-section" *ngIf="!isEditMode">
                   <div class="row">
@@ -293,10 +389,9 @@
                   <button type="button" class="btn btn-secondary" (click)="onCancel()" [disabled]="isLoading">
                     <i class="fas fa-times me-1"></i> Cancelar
                   </button>
-                  <button type="submit" class="btn btn-primary" [disabled]="userForm.invalid || isLoading">
+                  <button type="submit" class="btn btn-primary" [disabled]="!canSubmit">
                     <span *ngIf="isLoading" class="spinner-border spinner-border-sm me-2"></span>
-                    <i *ngIf="!isLoading" class="fas" [class.fa-save]="isEditMode"
-                      [class.fa-user-plus]="!isEditMode"></i>
+                    <i *ngIf="!isLoading" class="fas" [class.fa-save]="isEditMode" [class.fa-user-plus]="!isEditMode"></i>
                     {{ isEditMode ? ' Actualizar Usuario' : ' Crear Usuario' }}
                   </button>
                 </div>
@@ -304,7 +399,7 @@
             </div>
           </div>
 
-          <!-- Imagen lateral (ocupa 40%) - SOLO EN PANTALLAS GRANDES -->
+          <!-- Imagen lateral -->
           <div class="form-side-image">
             <div class="image-container">
               <img src="/assets/images/GDU2.jpg" alt="Gestión de Usuarios" class="side-image">
@@ -314,4 +409,53 @@
       </div>
     </div>
   </main>
+</div>
+
+<!-- MODAL PARA VER LA FIRMA (SOLO UNO) -->
+<div class="modal fade" id="signatureModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fas fa-signature me-2 text-primary"></i>
+          {{ signatureToView?.name }}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" (click)="closeModal()"></button>
+      </div>
+      <div class="modal-body text-center p-3">
+        <!-- Para imágenes -->
+        <img *ngIf="signatureToView?.type === 'image' && signatureUrl" 
+             [src]="signatureUrl" 
+             alt="Firma" 
+             class="img-fluid signature-modal-image"
+             style="max-height: 500px; border: 1px solid #dee2e6; border-radius: 8px; padding: 10px; background: white;">
+        
+        <!-- Para PDF con iframe -->
+        <div *ngIf="signatureToView?.type === 'pdf' && signatureUrl" class="pdf-viewer">
+          <iframe [src]="signatureUrl" 
+                  width="100%" 
+                  height="500px" 
+                  style="border: 1px solid #dee2e6; border-radius: 8px;">
+          </iframe>
+        </div>
+
+        <!-- Metadatos -->
+        <hr class="my-3">
+        <div class="signature-metadata text-start row">
+          <div class="col-md-6">
+            <p class="mb-1"><strong>Tipo:</strong> {{ signatureToView?.type === 'pdf' ? 'PDF' : 'Imagen' }}</p>
+          </div>
+          <div class="col-md-6">
+            <p class="mb-1"><strong>Tamaño:</strong> {{ signatureToView ? formatFileSize(signatureToView.fileSize) : '' }}</p>
+          </div>
+          <div class="col-12">
+            <p class="mb-1"><strong>Subida:</strong> {{ signatureToView?.createdAt | date:'dd/MM/yyyy HH:mm' }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" (click)="closeModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
 </div>

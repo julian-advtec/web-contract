@@ -17,31 +17,24 @@ import { Documento } from '../../../../core/models/documento.model';
   imports: [CommonModule, RouterModule, FormsModule]
 })
 export class SupervisorPendingListComponent implements OnInit, OnDestroy {
-  // Lista de documentos RADICADOS
   documentos: Documento[] = [];
   filteredDocumentos: Documento[] = [];
   paginatedDocumentos: Documento[] = [];
 
-  // Estados de carga
   isLoading = false;
   isProcessing = false;
 
-  // Mensajes
   errorMessage = '';
   successMessage = '';
   infoMessage = '';
 
-  // Búsqueda y paginación
   searchTerm = '';
   currentPage = 1;
   pageSize = 10;
   totalPages = 0;
   pages: number[] = [];
 
-  // Sidebar
   sidebarCollapsed = false;
-
-  // Usuario actual
   usuarioActual = '';
 
   private destroy$ = new Subject<void>();
@@ -53,7 +46,7 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
   ) { }
 
   ngOnInit(): void {
-    console.log('🚀 Supervisor: Inicializando lista de documentos RADICADOS...');
+    console.log('🚀 Supervisor Pending: Inicializando componente...');
     this.cargarUsuarioActual();
     this.cargarDocumentosRadicados();
   }
@@ -69,9 +62,8 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
       try {
         const user = JSON.parse(userStr);
         this.usuarioActual = user.fullName || user.username || 'Supervisor';
-        console.log('👤 Supervisor actual:', this.usuarioActual);
-      } catch (error) {
-        console.error('Error parseando usuario:', error);
+        console.log('👤 Usuario actual detectado:', this.usuarioActual);
+      } catch {
         this.usuarioActual = 'Supervisor';
       }
     }
@@ -81,52 +73,246 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.errorMessage = '';
     this.successMessage = '';
+    this.infoMessage = '';
 
-    console.log('📋 Supervisor: Solicitando documentos RADICADOS...');
+    console.log('📋 Solicitando documentos RADICADOS disponibles...');
 
     this.supervisorService.obtenerDocumentosDisponibles()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (documentosArray: Documento[]) => {
-          console.log('✅ Documentos RADICADOS recibidos:', documentosArray);
+        next: (docs: Documento[]) => {
+          console.log('[SUPERVISOR] Documentos recibidos del backend:', docs.length, docs);
 
-          if (documentosArray.length > 0) {
-            // Filtrar solo documentos con estado RADICADO
-            const documentosRadicados = documentosArray.filter(doc => {
-              const estado = doc.estado?.toUpperCase() || '';
-              return estado.includes('RADICADO');
-            });
+          // Filtrar solo los que realmente están en RADICADO
+          this.documentos = docs.filter(doc => {
+            const estado = (doc.estado || '').toUpperCase();
+            return estado.includes('RADICADO');
+          });
 
-            console.log(`📊 Documentos con estado RADICADO: ${documentosRadicados.length}`);
-            this.documentos = documentosRadicados;
+          console.log(`📊 Filtrados ${this.documentos.length} documentos en estado RADICADO`);
+
+          if (this.documentos.length > 0) {
+            this.successMessage = `Se encontraron ${this.documentos.length} documentos RADICADOS`;
+            setTimeout(() => this.successMessage = '', 4000);
           } else {
-            this.documentos = [];
+            this.infoMessage = 'No hay documentos en estado RADICADO disponibles';
           }
 
           this.filteredDocumentos = [...this.documentos];
           this.updatePagination();
-
-          console.log(`✅ ${this.documentos.length} documentos RADICADOS cargados`);
           this.isLoading = false;
-
-          if (this.documentos.length === 0) {
-            this.infoMessage = 'No hay documentos en estado RADICADO disponibles para revisión';
-          } else {
-            this.successMessage = `Se encontraron ${this.documentos.length} documentos RADICADOS`;
-            setTimeout(() => {
-              this.successMessage = '';
-            }, 3000);
-          }
         },
-        error: (error) => {
-          console.error('❌ Error al cargar documentos RADICADOS:', error);
-          this.errorMessage = 'Error al cargar documentos: ' + (error.message || 'Error desconocido');
-          this.isLoading = false;
+        error: (err: any) => {
+          console.error('[SUPERVISOR] Error cargando documentos:', err);
+          this.errorMessage = err.error?.message || err.message || 'Error al cargar documentos RADICADOS';
           this.notificationService.error('Error', this.errorMessage);
-          this.infoMessage = 'Intenta usar "Asignar RADICADOS"';
+          this.isLoading = false;
         }
       });
   }
+
+  // ───────────────────────────────────────────────────────────────
+  // Métodos corregidos: tomar y continuar (los más importantes)
+  // ───────────────────────────────────────────────────────────────
+
+  puedeTomarDocumento(doc: Documento): boolean {
+    const estado = (doc.estado || '').toUpperCase();
+    const esRadicado = estado.includes('RADICADO');
+
+    // Si ya está en revisión, solo puede continuar quien ya lo tiene asignado
+    const enRevision = estado.includes('EN_REVISION_SUPERVISOR') ||
+      estado.includes('EN_REVISION');
+
+    const soyYo = (doc.supervisorAsignado || doc['asignacion']?.['supervisorActual'] || '') === this.usuarioActual;
+
+    return esRadicado && (!enRevision || (enRevision && soyYo));
+  }
+
+  getTextoBoton(doc: Documento): string {
+    const enRevision = (doc.estado || '').toUpperCase().includes('EN_REVISION');
+    const soyYo = (doc.supervisorAsignado || doc['asignacion']?.['supervisorActual'] || '') === this.usuarioActual;
+
+    if (enRevision && soyYo) return 'Continuar';
+    return 'Tomar';
+  }
+
+  tomarParaRevision(doc: Documento): void {
+    if (!doc?.id) {
+      this.notificationService.error('Error', 'ID de documento no válido');
+      return;
+    }
+
+    console.log(`🤝 Intentando tomar/continuar documento: ${doc.numeroRadicado} (${doc.id})`);
+
+    const enRevision = (doc.estado || '').toUpperCase().includes('EN_REVISION');
+    const soyYo = (doc.supervisorAsignado || doc['asignacion']?.['supervisorActual'] || '') === this.usuarioActual;
+
+    if (enRevision && soyYo) {
+      console.log('[CONTINUAR] Ya es mío → redirigiendo directamente');
+      this.continuarRevision(doc);
+      return;
+    }
+
+    if (enRevision && !soyYo) {
+      const otroSupervisor = doc.supervisorAsignado || doc['asignacion']?.['supervisorActual'] || 'otro usuario';
+      this.notificationService.warning('En revisión', `Ya está siendo revisado por ${otroSupervisor}`);
+      return;
+    }
+
+    // Confirmación para tomar nuevo
+    const confirmar = confirm(
+      `¿Tomar el documento ${doc.numeroRadicado || 'sin radicado'} para revisión?\n\n` +
+      `Esto lo asignará a ti y cambiará el estado a "EN REVISIÓN SUPERVISOR".`
+    );
+
+    if (!confirmar) return;
+
+    this.isProcessing = true;
+
+    this.supervisorService.tomarDocumentoParaRevision(doc.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res: any) => {
+          console.log('[TOMAR] Respuesta completa del backend:', JSON.stringify(res, null, 2));
+
+          // Criterios amplios de éxito
+          const exito =
+            res?.success === true ||
+            res?.ok === true ||
+            res?.message?.toLowerCase().includes('tomado') ||
+            res?.message?.toLowerCase().includes('éxito') ||
+            res?.message?.toLowerCase().includes('asignado') ||
+            res?.documento?.estado?.includes('EN_REVISION') ||
+            res?.status === 200 || res?.status === 201;
+
+          if (exito) {
+            console.log('[TOMAR] Éxito detectado');
+
+            // Actualizar localmente
+            const idx = this.documentos.findIndex(d => d.id === doc.id);
+            if (idx !== -1) {
+              this.documentos[idx] = {
+                ...this.documentos[idx],
+                estado: 'EN_REVISION_SUPERVISOR',
+                supervisorAsignado: this.usuarioActual,
+                fechaAsignacion: new Date().toISOString(),
+                ultimoUsuario: this.usuarioActual
+              };
+
+              // Si usa asignacion como objeto
+              if (this.documentos[idx]['asignacion']) {
+                this.documentos[idx]['asignacion'] = {
+                  ...this.documentos[idx]['asignacion'],
+                  supervisorActual: this.usuarioActual,
+                  enRevision: true,
+                  fechaAsignacion: new Date().toISOString()
+                };
+              }
+
+              this.filteredDocumentos = [...this.documentos];
+              this.updatePagination();
+
+              console.log('[TOMAR] Lista local actualizada');
+            }
+
+            this.notificationService.success(
+              '¡Documento tomado!',
+              `Redirigiendo a revisión de ${doc.numeroRadicado || doc.id}...`
+            );
+
+            // Navegación con depuración
+            setTimeout(() => {
+              console.log('[NAVEGACIÓN] Intentando ir a /supervisor/revisar/' + doc.id);
+              this.router.navigate(['/supervisor/revisar', doc.id], {
+                queryParams: {
+                  desde: 'pendientes',
+                  refresh: Date.now().toString()
+                }
+              }).then(navOk => {
+                console.log('[NAVEGACIÓN] Resultado:', navOk ? 'ÉXITO' : 'FALLÓ');
+                if (!navOk) {
+                  this.notificationService.warning('Redirección fallida', 'Intenta ingresar manualmente');
+                }
+              }).catch(err => {
+                console.error('[NAVEGACIÓN] Error:', err);
+                this.notificationService.error('Redirección fallida', 'Verifica la ruta o permisos');
+              });
+            }, 1800);
+          } else {
+            console.warn('[TOMAR] Respuesta no considerada exitosa');
+            this.notificationService.error(
+              'Problema al tomar',
+              res?.message || 'No se pudo asignar el documento. Intenta refrescar la lista.'
+            );
+          }
+
+          this.isProcessing = false;
+        },
+        error: (err: any) => {
+          console.error('[TOMAR] Error completo:', err);
+
+          let msg = 'No se pudo tomar el documento';
+          if (err.status === 409) msg = err.error?.message || 'Ya está siendo revisado por otro supervisor';
+          if (err.status === 403) msg = 'No tienes permisos para tomar este documento';
+          if (err.status === 404) msg = 'Documento no encontrado o no disponible';
+          if (err.status === 500) msg = 'Error interno del servidor';
+
+          this.notificationService.error('Error', msg);
+          this.isProcessing = false;
+        }
+      });
+  }
+
+  continuarRevision(doc: Documento): void {
+    console.log(`▶️ Continuando revisión de ${doc.numeroRadicado || doc.id}`);
+
+    this.router.navigate(['/supervisor/revisar', doc.id], {
+      queryParams: { desde: 'pendientes' }
+    }).then(ok => {
+      console.log('[CONTINUAR] Navegación:', ok ? 'exitosa' : 'fallida');
+    }).catch(err => {
+      console.error('[CONTINUAR] Error:', err);
+      this.notificationService.error('Redirección fallida', 'Intenta ingresar manualmente');
+    });
+  }
+
+  // ───────────────────────────────────────────────────────────────
+  // Resto de métodos (sin cambios críticos)
+  // ───────────────────────────────────────────────────────────────
+
+  // ... (onSearch, refreshData, updatePagination, formatDate, etc.)
+  // Mantén los que ya tienes, solo asegúrate de que updatePagination() refresque correctamente
+
+  refreshData(): void {
+    console.log('🔄 Refrescando lista de pendientes...');
+    this.cargarDocumentosRadicados();
+  }
+
+  // Ejemplo rápido de updatePagination (ajústalo si ya lo tienes diferente)
+  updatePagination(): void {
+    this.totalPages = Math.ceil(this.filteredDocumentos.length / this.pageSize);
+    this.pages = [];
+
+    const maxPages = 5;
+    let start = Math.max(1, this.currentPage - Math.floor(maxPages / 2));
+    let end = Math.min(this.totalPages, start + maxPages - 1);
+
+    if (end - start + 1 < maxPages) {
+      start = Math.max(1, end - maxPages + 1);
+    }
+
+    for (let i = start; i <= end; i++) {
+      this.pages.push(i);
+    }
+
+    const startIdx = (this.currentPage - 1) * this.pageSize;
+    this.paginatedDocumentos = this.filteredDocumentos.slice(startIdx, startIdx + this.pageSize);
+  }
+
+
+
+
+
 
   // ✅ NUEVOS MÉTODOS HELPER
   getSupervisorEstado(doc: Documento): string {
@@ -141,27 +327,9 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
     return doc['supervisorEstado'] === 'EN_REVISION' || doc['asignacion']?.['enRevision'] === true;
   }
 
-puedeTomarDocumento(doc: Documento): boolean {
-  const esRadicado = doc.estado === 'RADICADO';
-  const estaEnRevision = this.estaEnRevision(doc);
-  const soyElAsignado = doc['supervisorAsignado'] === this.usuarioActual ||
-    doc['asignacion']?.['supervisorActual'] === this.usuarioActual;  // ← CORRECCIÓN AQUÍ
-
-  if (!esRadicado) return false;
-  if (!estaEnRevision) return true;
-  return estaEnRevision && soyElAsignado;
-}
 
 
 
-  getTextoBoton(doc: Documento): string {
-    if (this.estaEnRevision(doc) &&
-      (doc.supervisorAsignado === this.usuarioActual ||
-        doc['asignacion']?.['supervisorActual'] === this.usuarioActual)) {
-      return 'Continuar';
-    }
-    return 'Tomar';
-  }
 
 
   forzarAsignacion(): void {
@@ -193,100 +361,7 @@ puedeTomarDocumento(doc: Documento): boolean {
       });
   }
 
-  tomarParaRevision(doc: Documento): void {
-    console.log(`🤝 Supervisor: Tomando documento ${doc.numeroRadicado} para revisión...`);
 
-    // Verificar estado actual
-    const estado = doc.estado?.toUpperCase() || '';
-    const estaEnRevision = estado.includes('EN_REVISION') ||
-      estado.includes('EN REVISIÓN') ||
-      estado.includes('EN_REVISION_SUPERVISOR');
-
-    if (estaEnRevision) {
-      // Si ya está en revisión, verificar si soy yo
-      const supervisorAsignado = doc.supervisorAsignado || doc['asignacion']?.['supervisorActual'] || '';
-      const usuarioActual = this.usuarioActual;
-
-      if (supervisorAsignado === usuarioActual) {
-        // Ya soy el revisor, continuar
-        this.continuarRevision(doc);
-        return;
-      } else {
-        // Está siendo revisado por otro supervisor
-        this.notificationService.warning('Documento en revisión',
-          `Este documento ya está siendo revisado por ${supervisorAsignado}`);
-        return;
-      }
-    }
-
-    this.isProcessing = true;
-
-    const confirmar = confirm(`¿Tomar el documento ${doc.numeroRadicado} para revisión?\n\nEsto cambiará el estado a "EN REVISIÓN" y otros supervisores no podrán acceder a él.`);
-
-    if (!confirmar) {
-      this.isProcessing = false;
-      return;
-    }
-
-    this.supervisorService.tomarDocumentoParaRevision(doc.id)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (resultado: any) => {
-          console.log('✅ Respuesta de tomar documento:', resultado);
-
-          // ✅ ACTUALIZACIÓN: Asignar información de supervisor y fecha
-          const index = this.documentos.findIndex(d => d.id === doc.id);
-          if (index !== -1) {
-            this.documentos[index]['estado'] = 'EN_REVISION_SUPERVISOR';
-            this.documentos[index]['supervisorAsignado'] = this.usuarioActual;
-            this.documentos[index]['fechaAsignacion'] = new Date();
-            this.documentos[index]['supervisorEstado'] = 'EN_REVISION';
-            this.documentos[index]['ultimoUsuario'] = this.usuarioActual;
-            this.documentos[index]['fechaActualizacion'] = new Date();
-
-            if (this.documentos[index]['asignacion']) {
-              this.documentos[index]['asignacion'] = {
-                ...this.documentos[index]['asignacion'],
-                enRevision: true,
-                supervisorActual: this.usuarioActual,
-                usuarioAsignado: this.usuarioActual
-              };
-            }
-
-
-            console.log('✅ Documento actualizado localmente con asignación:', this.documentos[index]);
-          }
-
-          this.notificationService.success('Éxito', 'Documento tomado para revisión. Estado actualizado.');
-          this.isProcessing = false;
-
-          // ✅ NUEVO: Actualizar la lista filtrada y paginada
-          this.filteredDocumentos = [...this.documentos];
-          this.updatePagination();
-
-          // Esperar un momento para mostrar la actualización antes de navegar
-          setTimeout(() => {
-            // Navegar al formulario de revisión
-            this.router.navigate(['/supervisor/revisar', doc.id]);
-          }, 500);
-        },
-        error: (error: any) => {
-          console.error('❌ Error tomando documento:', error);
-          this.notificationService.error('Error', error.message || 'No se pudo tomar el documento');
-          this.isProcessing = false;
-        }
-      });
-  }
-
-  /**
-   * ✅ Continuar con una revisión ya iniciada
-   */
-  continuarRevision(doc: Documento): void {
-    console.log(`▶️ Continuando revisión del documento ${doc.numeroRadicado}...`);
-
-    // Navegar directamente al formulario
-    this.router.navigate(['/supervisor/revisar', doc.id]);
-  }
 
   // Resto de los métodos existentes (formatDate, getDuracionContrato, etc.)...
   formatDate(fecha: Date | string): string {
@@ -430,33 +505,7 @@ puedeTomarDocumento(doc: Documento): boolean {
     this.updatePagination();
   }
 
-  refreshData(): void {
-    console.log('🔄 Supervisor: Recargando datos...');
-    this.cargarDocumentosRadicados();
-  }
-
-  updatePagination(): void {
-    this.totalPages = Math.ceil(this.filteredDocumentos.length / this.pageSize);
-
-    // Calcular páginas a mostrar
-    this.pages = [];
-    const maxPagesToShow = 5;
-    let startPage = Math.max(1, this.currentPage - Math.floor(maxPagesToShow / 2));
-    let endPage = Math.min(this.totalPages, startPage + maxPagesToShow - 1);
-
-    if (endPage - startPage + 1 < maxPagesToShow) {
-      startPage = Math.max(1, endPage - maxPagesToShow + 1);
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-      this.pages.push(i);
-    }
-
-    // Actualizar documentos paginados
-    const startIndex = (this.currentPage - 1) * this.pageSize;
-    const endIndex = Math.min(startIndex + this.pageSize, this.filteredDocumentos.length);
-    this.paginatedDocumentos = this.filteredDocumentos.slice(startIndex, endIndex);
-  }
+ 
 
   changePage(page: number): void {
     if (page >= 1 && page <= this.totalPages && page !== this.currentPage) {

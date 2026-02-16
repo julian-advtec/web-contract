@@ -1,4 +1,4 @@
-// user-form.component.ts - VERSIÓN CORREGIDA
+// features/users/pages/user-form/user-form.component.ts
 import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
@@ -7,10 +7,15 @@ import { Subject, takeUntil } from 'rxjs';
 import { NavbarComponent } from '../../../../layout/navbar/navbar.component';
 import { SidebarComponent } from '../../../../layout/sidebar/sidebar.component';
 import { AuthService } from '../../../../core/services/auth.service';
-import { UsersService, ApiResponse, CreateUserData } from '../../../../core/services/users.service';
 import { User, UserRole } from '../../../../core/models/user.types';
 import { ModulesService, AppModule } from '../../../../core/services/modules.service';
 import { NotificationService } from '../../../../core/services/notification.service';
+import { SignatureService, Signature } from '../../../../core/services/signature.service';
+import { UsersService, ApiResponse, CreateUserData, UserWithSignature, UserResponseData } from '../../../../core/services/users.service';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { ChangeDetectorRef } from '@angular/core';
+declare var bootstrap: any;
+
 
 @Component({
   selector: 'app-user-form',
@@ -25,6 +30,7 @@ import { NotificationService } from '../../../../core/services/notification.serv
     SidebarComponent
   ]
 })
+
 export class UserFormComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
   private usersService = inject(UsersService);
@@ -33,8 +39,10 @@ export class UserFormComponent implements OnInit, OnDestroy {
   private auth = inject(AuthService);
   private modulesService = inject(ModulesService);
   private notificationService = inject(NotificationService);
+  private signatureService = inject(SignatureService);
   private destroy$ = new Subject<void>();
-
+signatureUrl: SafeResourceUrl | null = null;
+isPdf = false;
   // Layout properties
   currentUser: User | null = null;
   sidebarCollapsed = false;
@@ -50,7 +58,7 @@ export class UserFormComponent implements OnInit, OnDestroy {
   isEditMode = false;
   userId: string | null = null;
   formErrors: string[] = [];
-  
+
   passwordStrength = {
     score: 0,
     text: '',
@@ -63,10 +71,27 @@ export class UserFormComponent implements OnInit, OnDestroy {
     }
   };
 
-  // IMPORTANTE: Regex simplificado para coincidir con el backend (NO requiere caracteres especiales)
+  // Signature properties
+  currentSignature: Signature | null = null;
+  selectedFile: File | null = null;
+  previewUrl: string | null = null;
+  isUploadingSignature = false;
+  canHaveSignature = false;
+  hasSignatureChanges = false; // 👈 NUEVO: detectar cambios en firma
+  
+
+  // Modal properties
+  signatureToView: Signature | null = null;
+  signatureImageUrl: string | null = null;
+  signatureModal: any = null;
+
   private readonly PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
 
-  constructor() {
+constructor(
+  private sanitizer: DomSanitizer,
+  private cdr: ChangeDetectorRef // 👈 Inyectar aquí
+) {
+    
     this.userForm = this.fb.group({
       username: ['', [
         Validators.required,
@@ -88,18 +113,47 @@ export class UserFormComponent implements OnInit, OnDestroy {
       role: ['', Validators.required],
       password: [''],
       confirmPassword: [''],
-      isActive: [true]
+      isActive: [true],
+      signatureName: ['']
     }, { validators: [this.passwordMatchValidator] });
-  }
 
-  ngOnInit() {
-    this.initializeComponent();
-    this.initializeForm();
-    this.setupPasswordValidation();
-    this.setupRealTimeValidation();
+    // 👇 DETECTAR CAMBIOS EN EL FORMULARIO PARA HABILITAR BOTÓN
+    this.userForm.valueChanges.subscribe(() => {
+      if (this.isEditMode) {
+        this.checkFormChanges();
+      }
+    });
+    setTimeout(() => {
+      const token = localStorage.getItem('access_token');
+      console.log('🔑 Token en localStorage al iniciar:', token);
+      console.log('🔑 Token presente?', !!token);
+    }, 1000);
+    
   }
+  
+
+ngOnInit() {
+  this.initializeComponent();
+  this.initializeForm();
+  this.setupPasswordValidation();
+  this.setupRealTimeValidation();
+  this.checkSignaturePermission();
+  
+  // Inicializar modal
+  setTimeout(() => {
+    const modalElement = document.getElementById('signatureModal');
+    if (modalElement) {
+      this.signatureModal = new bootstrap.Modal(modalElement);
+    }
+  }, 500); // Pequeño delay para asegurar que el DOM esté listo
+}
+
+
 
   ngOnDestroy() {
+    if (this.signatureImageUrl) {
+      URL.revokeObjectURL(this.signatureImageUrl);
+    }
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -125,9 +179,15 @@ export class UserFormComponent implements OnInit, OnDestroy {
     }
   }
 
+  private checkSignaturePermission(): void {
+    if (this.currentUser?.role) {
+      this.canHaveSignature = this.signatureService.canRoleHaveSignature(this.currentUser.role);
+    }
+  }
+
   private initializeForm(): void {
     const id = this.route.snapshot.paramMap.get('id');
-    
+
     if (id) {
       this.isEditMode = true;
       this.userId = id;
@@ -138,33 +198,53 @@ export class UserFormComponent implements OnInit, OnDestroy {
     this.setNavbarTitle();
   }
 
-  private setupCreateMode(): void {
-    console.log('Configurando modo creación - Contraseña requerida');
-    const passwordControl = this.userForm.get('password');
-    const confirmControl = this.userForm.get('confirmPassword');
-    
-    if (passwordControl && confirmControl) {
-      passwordControl.setValidators([
-        Validators.required,
-        Validators.minLength(6),
-        Validators.pattern(this.PASSWORD_REGEX)
-      ]);
-      confirmControl.setValidators([Validators.required]);
-      passwordControl.updateValueAndValidity();
-      confirmControl.updateValueAndValidity();
-    }
-  }
+  // features/users/pages/user-form/user-form.component.ts
+  // SOLO REEMPLAZA ESTE MÉTODO:
+
+  // features/users/pages/user-form/user-form.component.ts
+  // REEMPLAZA COMPLETAMENTE este método:
+
+  // features/users/pages/user-form/user-form.component.ts
+
+  // features/users/pages/user-form/user-form.component.ts
+  // REEMPLAZA SOLO ESTE MÉTODO:
 
   private loadUserData(id: string): void {
     this.isLoading = true;
-    
+
     this.usersService.getUserById(id)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (response: ApiResponse<any>) => {
-          console.log('Datos del usuario cargados:', response.data);
-          if (response.data) {
-            this.populateForm(response.data);
+        next: (response: ApiResponse<UserResponseData>) => {
+          console.log('Datos del usuario cargados:', response);
+
+          // ✅ Acceder a response.data?.data
+          const userData = response.data?.data;
+
+          if (userData) {
+            console.log('UserData extraído:', userData);
+
+            // POBLAR EL FORMULARIO CON userData
+            this.populateForm(userData);
+
+            // CARGAR LA FIRMA SI EXISTE
+            if (userData.signature) {
+              console.log('Firma encontrada:', userData.signature);
+              this.currentSignature = userData.signature;
+              this.userForm.patchValue({
+                signatureName: userData.signature.name
+              });
+            }
+
+            // MARCA EL FORMULARIO COMO "PRISTINE" DESPUÉS DE CARGAR
+            setTimeout(() => {
+              this.userForm.markAsPristine();
+              this.hasSignatureChanges = false;
+              console.log('Form marcado como pristine');
+            });
+          } else {
+            console.error('No se encontraron datos de usuario en la respuesta');
+            this.notificationService.error('Error al cargar datos del usuario');
           }
           this.isLoading = false;
         },
@@ -177,23 +257,33 @@ export class UserFormComponent implements OnInit, OnDestroy {
       });
   }
 
-  private populateForm(userData: any): void {
+  // features/users/pages/user-form/user-form.component.ts
+  // REEMPLAZA ESTE MÉTODO:
+
+  // features/users/pages/user-form/user-form.component.ts
+
+  private populateForm(userData: UserWithSignature): void {  // 👈 UserWithSignature, no any
     console.log('Rellenando formulario con datos:', userData);
-    this.userForm.patchValue({
-      username: userData.username,
-      email: userData.email,
+
+    const formValues = {
+      username: userData.username || '',
+      email: userData.email || '',
       fullName: userData.fullName || '',
-      role: userData.role,
+      role: userData.role || '',
       isActive: userData.isActive !== undefined ? userData.isActive : true,
       password: '',
       confirmPassword: ''
-    });
+    };
+
+    console.log('Valores a asignar al formulario:', formValues);
+
+    this.userForm.patchValue(formValues);
 
     if (this.isEditMode) {
       console.log('Modo edición - Contraseña opcional');
       const passwordControl = this.userForm.get('password');
       const confirmControl = this.userForm.get('confirmPassword');
-      
+
       if (passwordControl && confirmControl) {
         passwordControl.setValidators([
           Validators.minLength(6),
@@ -203,6 +293,38 @@ export class UserFormComponent implements OnInit, OnDestroy {
         passwordControl.updateValueAndValidity();
         confirmControl.updateValueAndValidity();
       }
+    }
+  }
+
+  // 👇 NUEVO MÉTODO: Verificar si hay cambios en el formulario
+  private checkFormChanges(): void {
+    // El botón se habilita si:
+    // 1. Hay cambios en los campos del formulario O
+    // 2. Hay un archivo de firma seleccionado
+    const hasFormChanges = this.userForm.dirty;
+    const hasFileSelected = this.selectedFile !== null;
+
+    // También puedes verificar campos específicos si es necesario
+    this.hasSignatureChanges = hasFileSelected;
+
+    // Para debug
+    console.log('Form dirty:', hasFormChanges, 'File selected:', hasFileSelected);
+  }
+
+  private setupCreateMode(): void {
+    console.log('Configurando modo creación - Contraseña requerida');
+    const passwordControl = this.userForm.get('password');
+    const confirmControl = this.userForm.get('confirmPassword');
+
+    if (passwordControl && confirmControl) {
+      passwordControl.setValidators([
+        Validators.required,
+        Validators.minLength(6),
+        Validators.pattern(this.PASSWORD_REGEX)
+      ]);
+      confirmControl.setValidators([Validators.required]);
+      passwordControl.updateValueAndValidity();
+      confirmControl.updateValueAndValidity();
     }
   }
 
@@ -227,7 +349,7 @@ export class UserFormComponent implements OnInit, OnDestroy {
 
     const passwordControl = this.userForm.get('password');
     const confirmControl = this.userForm.get('confirmPassword');
-    
+
     if (passwordControl && confirmControl) {
       passwordControl.valueChanges.subscribe(() => {
         if (confirmControl.value) {
@@ -235,6 +357,99 @@ export class UserFormComponent implements OnInit, OnDestroy {
         }
       });
     }
+  }
+
+  // =============================
+  // SIGNATURE METHODS
+  // =============================
+  onSignatureFileSelected(event: any): void {
+    this.selectedFile = event.target.files[0];
+
+    if (this.selectedFile) {
+      // Validar tamaño (2MB)
+      if (this.selectedFile.size > 2 * 1024 * 1024) {
+        this.notificationService.error('El archivo no puede ser mayor a 2MB');
+        this.selectedFile = null;
+        event.target.value = ''; // Limpiar input
+        return;
+      }
+
+      // Validar tipo
+      const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'application/pdf'];
+      if (!allowedTypes.includes(this.selectedFile.type)) {
+        this.notificationService.error('Tipo de archivo no permitido. Usa PNG, JPG, GIF o PDF');
+        this.selectedFile = null;
+        event.target.value = ''; // Limpiar input
+        return;
+      }
+
+      // Crear preview solo para imágenes
+      if (this.selectedFile.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          this.previewUrl = e.target?.result as string;
+        };
+        reader.readAsDataURL(this.selectedFile);
+      } else {
+        this.previewUrl = 'pdf-icon';
+      }
+
+      // 👇 MARCAR QUE HAY CAMBIOS EN LA FIRMA
+      this.hasSignatureChanges = true;
+      this.userForm.markAsDirty();
+    }
+  }
+
+  deleteSignature(): void {
+    this.notificationService.confirm(
+      'Eliminar Firma',
+      '¿Estás seguro de eliminar tu firma? Esta acción no se puede deshacer.',
+      () => {
+        this.signatureService.deleteSignature().subscribe({
+          next: () => {
+            this.currentSignature = null;
+            this.selectedFile = null;
+            this.previewUrl = null;
+            this.userForm.patchValue({
+              signatureName: ''
+            });
+            // Limpiar el input file
+            const fileInput = document.getElementById('signatureFile') as HTMLInputElement;
+            if (fileInput) fileInput.value = '';
+
+            // 👇 MARCAR QUE HAY CAMBIOS
+            this.hasSignatureChanges = true;
+            this.userForm.markAsDirty();
+
+            this.notificationService.success('Firma eliminada correctamente');
+          },
+          error: (error) => {
+            console.error('Error deleting signature:', error);
+            this.notificationService.error('Error al eliminar la firma');
+          }
+        });
+      }
+    );
+  }
+
+
+
+
+
+  getFileIcon(type: string): string {
+    return type === 'pdf' ? 'fa-file-pdf' : 'fa-file-image';
+  }
+
+  getFileColor(type: string): string {
+    return type === 'pdf' ? 'text-danger' : 'text-primary';
+  }
+
+  formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
   // =============================
@@ -274,12 +489,12 @@ export class UserFormComponent implements OnInit, OnDestroy {
   passwordMatchValidator(form: AbstractControl): ValidationErrors | null {
     const password = form.get('password')?.value;
     const confirmPassword = form.get('confirmPassword')?.value;
-    
+
     if (password && confirmPassword && password !== confirmPassword) {
       form.get('confirmPassword')?.setErrors({ mismatch: true });
       return { mismatch: true };
     }
-    
+
     return null;
   }
 
@@ -344,19 +559,40 @@ export class UserFormComponent implements OnInit, OnDestroy {
       [UserRole.ASESOR_GERENCIA]: 'Asesor de Gerencia',
       [UserRole.RENDICION_CUENTAS]: 'Rendición de Cuentas'
     };
-    
+
     return roleNames[role] || role;
   }
 
   // =============================
-  // FORM SUBMISSION - CON CONFIRMACIÓN
+  // FORM SUBMISSION
   // =============================
   onSubmit(): void {
     console.log('Formulario enviado. Válido:', this.userForm.valid);
-    
+    console.log('Form dirty:', this.userForm.dirty);
+    console.log('Has signature changes:', this.hasSignatureChanges);
+    console.log('Selected file:', this.selectedFile);
+
+    // 👇 VERIFICAR SI HAY CAMBIOS PARA HABILITAR EL BOTÓN
+    const hasChanges = this.userForm.dirty || this.hasSignatureChanges;
+
+    if (!hasChanges && this.isEditMode) {
+      this.notificationService.info('No hay cambios para guardar');
+      return;
+    }
+
     if (this.userForm.valid) {
-      // Mostrar confirmación antes de proceder
-      this.confirmBeforeSubmit();
+      // Si hay un archivo de firma seleccionado, primero subir la firma
+      if (this.selectedFile && this.canHaveSignature) {
+        const signatureName = this.userForm.get('signatureName')?.value;
+        if (!signatureName) {
+          this.notificationService.error('Por favor, ingresa un nombre para la firma');
+          return;
+        }
+        this.uploadSignatureAndSubmit();
+      } else {
+        // Si no hay firma, proceder normalmente
+        this.confirmBeforeSubmit();
+      }
     } else {
       console.log('Formulario inválido. Errores:', this.getFormErrors());
       this.markFormGroupTouched(this.userForm);
@@ -364,21 +600,58 @@ export class UserFormComponent implements OnInit, OnDestroy {
     }
   }
 
-  // NUEVO MÉTODO: Confirmación antes de enviar
+  private uploadSignatureAndSubmit(): void {
+    const signatureName = this.userForm.get('signatureName')?.value;
+
+    if (!signatureName && this.selectedFile) {
+      this.notificationService.error('Por favor, ingresa un nombre para la firma');
+      return;
+    }
+
+    if (!this.selectedFile) return;
+
+    this.isUploadingSignature = true;
+    this.isLoading = true;
+
+    this.signatureService.uploadSignature(this.selectedFile, signatureName).subscribe({
+      next: (signature) => {
+        this.isUploadingSignature = false;
+        this.currentSignature = signature;
+        this.selectedFile = null;
+        this.previewUrl = null;
+        this.hasSignatureChanges = false;
+
+        // Limpiar el input file
+        const fileInput = document.getElementById('signatureFile') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+
+        // Ahora proceder con el envío del formulario
+        this.confirmBeforeSubmit();
+      },
+      error: (error) => {
+        this.isUploadingSignature = false;
+        this.isLoading = false;
+        if (error.status === 403) {
+          this.notificationService.error('Tu rol no tiene permitido tener firma');
+        } else {
+          this.notificationService.error('Error al guardar la firma');
+        }
+      }
+    });
+  }
+
   private confirmBeforeSubmit(): void {
     const title = this.isEditMode ? 'Confirmar Actualización' : 'Confirmar Creación';
-    const message = this.isEditMode 
+    const message = this.isEditMode
       ? '¿Está seguro de que desea actualizar los datos del usuario?'
       : '¿Está seguro de que desea crear el nuevo usuario?';
-    
+
     this.notificationService.confirm(
       title,
       message,
       () => {
-        // Si el usuario confirma, proceder con la operación
         this.isEditMode ? this.updateUser() : this.createUser();
       }
-      // Los textos de los botones por defecto son 'Aceptar' y 'Cancelar'
     );
   }
 
@@ -386,16 +659,16 @@ export class UserFormComponent implements OnInit, OnDestroy {
     console.log('Iniciando creación de usuario...');
     this.isLoading = true;
     this.clearFormErrors();
-    
+
     const formData = this.prepareFormData();
-    
+
     if (!formData) {
       this.isLoading = false;
       return;
     }
-    
+
     console.log('Datos a enviar (creación):', formData);
-    
+
     this.usersService.createUser(formData)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
@@ -412,20 +685,20 @@ export class UserFormComponent implements OnInit, OnDestroy {
 
   private updateUser(): void {
     if (!this.userId) return;
-    
+
     console.log('Iniciando actualización de usuario:', this.userId);
     this.isLoading = true;
     this.clearFormErrors();
-    
+
     const formData = this.prepareFormData();
-    
+
     if (!formData) {
       this.isLoading = false;
       return;
     }
-    
+
     console.log('Datos a enviar (actualización):', formData);
-    
+
     this.usersService.updateUser(this.userId, formData)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
@@ -443,58 +716,54 @@ export class UserFormComponent implements OnInit, OnDestroy {
   private prepareFormData(): CreateUserData | null {
     const formValue = this.userForm.value;
     console.log('Valores del formulario:', formValue);
-    
+
     if (!this.isEditMode) {
       if (!formValue.password || formValue.password.trim() === '') {
         this.addFormError('La contraseña es requerida para crear un nuevo usuario');
         this.notificationService.error('La contraseña es requerida para crear un nuevo usuario');
         return null;
       }
-      
+
       if (formValue.password.length < 6) {
         this.addFormError('La contraseña debe tener al menos 6 caracteres');
         this.notificationService.error('La contraseña debe tener al menos 6 caracteres');
         return null;
       }
-      
+
       if (!this.PASSWORD_REGEX.test(formValue.password)) {
         this.addFormError('La contraseña debe contener al menos una mayúscula, una minúscula y un número');
         this.notificationService.error('La contraseña debe contener al menos una mayúscula, una minúscula y un número');
         return null;
       }
     }
-    
+
     if (formValue.password && formValue.password !== formValue.confirmPassword) {
       this.addFormError('Las contraseñas no coinciden');
       this.notificationService.error('Las contraseñas no coinciden');
       return null;
     }
-    
+
     const formData: CreateUserData = {
       username: formValue.username,
       email: formValue.email,
       fullName: formValue.fullName,
       role: formValue.role
     };
-    
+
     if (formValue.password && formValue.password.trim() !== '') {
       formData.password = formValue.password;
     }
-    
+
     formData.isActive = this.isEditMode ? formValue.isActive : true;
-    
+
     console.log('Datos preparados para enviar:', formData);
     return formData;
   }
 
   private handleCreateSuccess(response: ApiResponse<any>): void {
     this.isLoading = false;
-    // ✅ ELIMINADA LA NOTIFICACIÓN DE ÉXITO
-    // this.notificationService.success('Usuario creado exitosamente');
-    
     console.log('Usuario creado exitosamente');
-    
-    // ✅ AGREGAR DELAY DE 1 SEGUNDO ANTES DE NAVEGAR
+
     setTimeout(() => {
       this.router.navigate(['/gestion-usuarios']);
     }, 1000);
@@ -502,16 +771,14 @@ export class UserFormComponent implements OnInit, OnDestroy {
 
   private handleCreateError(error: any): void {
     this.isLoading = false;
-    
-    // Manejo específico para errores de duplicado
+
     if (error.status === 409) {
       this.notificationService.confirm(
         'Usuario/Email ya existe',
         'El nombre de usuario o email ya está registrado. ¿Desea intentar con otros datos?',
         () => {
-          // Enfocar el campo correspondiente
-          const control = error.field === 'email' 
-            ? this.userForm.get('email') 
+          const control = error.field === 'email'
+            ? this.userForm.get('email')
             : this.userForm.get('username');
           control?.markAsTouched();
           control?.setErrors({ 'duplicate': true });
@@ -524,12 +791,8 @@ export class UserFormComponent implements OnInit, OnDestroy {
 
   private handleUpdateSuccess(response: ApiResponse<any>): void {
     this.isLoading = false;
-    // ✅ ELIMINADA LA NOTIFICACIÓN DE ÉXITO
-    // this.notificationService.success('Usuario actualizado exitosamente');
-    
     console.log('Usuario actualizado exitosamente');
-    
-    // ✅ AGREGAR DELAY DE 1 SEGUNDO ANTES DE NAVEGAR
+
     setTimeout(() => {
       this.router.navigate(['/gestion-usuarios']);
     }, 1000);
@@ -537,15 +800,14 @@ export class UserFormComponent implements OnInit, OnDestroy {
 
   private handleUpdateError(error: any): void {
     this.isLoading = false;
-    
-    // Manejo específico para errores de duplicado
+
     if (error.status === 409) {
       this.notificationService.confirm(
         'Usuario/Email ya existe',
         'El nombre de usuario o email ya está registrado por otro usuario. ¿Desea intentar con otros datos?',
         () => {
-          const control = error.field === 'email' 
-            ? this.userForm.get('email') 
+          const control = error.field === 'email'
+            ? this.userForm.get('email')
             : this.userForm.get('username');
           control?.markAsTouched();
           control?.setErrors({ 'duplicate': true });
@@ -557,13 +819,13 @@ export class UserFormComponent implements OnInit, OnDestroy {
   }
 
   // =============================
-  // ERROR HANDLING (PRIORIDAD BACKEND) CON DELAYS
+  // ERROR HANDLING
   // =============================
   private handleBackendError(error: any, defaultMessage: string): void {
     this.clearFormErrors();
-    
+
     console.error('Error del backend completo:', error);
-    
+
     if (error.errors && Array.isArray(error.errors)) {
       error.errors.forEach((err: any) => {
         this.addFormError(err);
@@ -598,8 +860,7 @@ export class UserFormComponent implements OnInit, OnDestroy {
       const errorMessage = 'Su sesión ha expirado. Por favor, inicie sesión nuevamente';
       this.addFormError(errorMessage);
       this.notificationService.error(errorMessage);
-      
-      // ✅ AGREGAR DELAY DE 1.5 SEGUNDOS ANTES DE REDIRIGIR AL LOGIN
+
       setTimeout(() => {
         this.router.navigate(['/auth/login']);
       }, 1500);
@@ -619,8 +880,7 @@ export class UserFormComponent implements OnInit, OnDestroy {
   // UI METHODS
   // =============================
   onCancel(): void {
-    // Verificar si hay cambios sin guardar
-    if (this.userForm.dirty) {
+    if (this.userForm.dirty || this.hasSignatureChanges) {
       this.notificationService.confirm(
         '¿Descartar cambios?',
         'Tiene cambios sin guardar. ¿Está seguro de que desea salir?',
@@ -683,11 +943,11 @@ export class UserFormComponent implements OnInit, OnDestroy {
 
   getErrorMessage(controlName: string): string {
     const control = this.getFormControl(controlName);
-    
+
     if (!control || !control.errors) return '';
-    
+
     const errors = control.errors;
-    
+
     if (errors['required']) return 'Este campo es requerido';
     if (errors['email']) return 'Ingrese un email válido';
     if (errors['minlength']) return `Mínimo ${errors['minlength'].requiredLength} caracteres`;
@@ -699,7 +959,7 @@ export class UserFormComponent implements OnInit, OnDestroy {
     }
     if (errors['mismatch']) return 'Las contraseñas no coinciden';
     if (errors['duplicate']) return 'Este valor ya está registrado en el sistema';
-    
+
     return 'Campo inválido';
   }
 
@@ -711,4 +971,73 @@ export class UserFormComponent implements OnInit, OnDestroy {
       { key: 'number', text: 'Un número', met: this.passwordStrength.requirements.number }
     ];
   }
+
+  // 👇 Getter para habilitar/deshabilitar botón de submit
+  get canSubmit(): boolean {
+    if (this.isEditMode) {
+      return (this.userForm.dirty || this.hasSignatureChanges) && this.userForm.valid && !this.isLoading;
+    }
+    return this.userForm.valid && !this.isLoading;
+  }
+
+// user-form.component.ts
+
+// user-form.component.ts
+viewSignature(): void {
+  if (!this.currentSignature) return;
+  
+  this.signatureToView = this.currentSignature;
+  this.isPdf = this.currentSignature.type === 'pdf';
+  
+  console.log('🔍 Iniciando carga de firma...');
+  
+  this.signatureService.getSignatureBlob().subscribe({
+    next: (blob) => {
+      console.log('✅ Firma cargada, tamaño:', blob.size);
+      console.log('✅ Tipo MIME:', blob.type);
+      
+      // Limpiar URL anterior si existe
+      if (this.signatureUrl) {
+        URL.revokeObjectURL(this.signatureUrl as string);
+      }
+      
+      // Crear nueva URL del blob
+      const url = URL.createObjectURL(blob);
+      console.log('🔗 URL creada:', url);
+      
+      this.signatureUrl = this.sanitizer.bypassSecurityTrustResourceUrl(url);
+      
+      // Forzar detección de cambios
+      this.cdr.detectChanges();
+      
+      // Mostrar modal
+      setTimeout(() => {
+        const modalElement = document.getElementById('signatureModal');
+        if (modalElement) {
+          if (!this.signatureModal) {
+            this.signatureModal = new bootstrap.Modal(modalElement);
+          }
+          this.signatureModal.show();
+          console.log('✅ Modal mostrado');
+        } else {
+          console.error('❌ Elemento modal no encontrado en el DOM');
+        }
+      }, 100);
+    },
+    error: (error) => {
+      console.error('❌ Error al cargar la firma:', error);
+      this.notificationService.error('Error al cargar la firma');
+    }
+  });
+}
+
+// Asegúrate de tener el método closeModal
+closeModal(): void {
+  if (this.signatureModal) {
+    this.signatureModal.hide();
+  }
+  this.signatureUrl = null;
+}
+
+  // Elimina closeModal() si no lo usas
 }

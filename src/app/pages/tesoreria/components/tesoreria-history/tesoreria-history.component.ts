@@ -127,38 +127,61 @@ export class TesoreriaHistoryComponent implements OnInit, OnDestroy {
     }
 
     verDetallePago(item: any): void {
-        let pagoId = item.id || item.pagoId;
-        if (!pagoId) {
-            this.notificationService.error('Error', 'ID de pago no disponible');
-            return;
-        }
+  const pagoId = item.id || item.pagoId || item.documento?.id;
+  
+  if (!pagoId) {
+    console.error('[HISTORIAL] No se encontró ID válido en item:', item);
+    this.notificationService.error('Error', 'No se pudo identificar el pago');
+    return;
+  }
 
-        const queryParams = {
-            desdeHistorial: 'true',
-            soloLectura: 'true',
-            modo: 'consulta',
-            origen: 'historial-tesoreria'
-        };
+  console.log('[HISTORIAL] Ver detalle pago ID:', pagoId);
 
-        this.router.navigate(['/tesoreria/pago', pagoId], { queryParams });
+  this.router.navigate(['/tesoreria/procesar', pagoId], {
+    queryParams: {
+      desdeHistorial: 'true',
+      soloLectura: 'true',
+      modo: 'consulta',
+      origen: 'historial-tesoreria'
     }
-
-    continuarPago(item: any): void {
-        let pagoId = item.id || item.pagoId;
-        if (!pagoId) {
-            this.notificationService.error('Error', 'ID de pago no disponible');
-            return;
-        }
-
-        const queryParams = {
-            desdeHistorial: 'true',
-            soloLectura: 'false',
-            modo: 'edicion',
-            origen: 'historial-tesoreria'
-        };
-
-        this.router.navigate(['/tesoreria/pagar', pagoId], { queryParams });
+  }).then(success => {
+    if (!success) {
+      console.error('[HISTORIAL] Falló navegación a detalle');
+      this.notificationService.error('Error de ruta', 'No se pudo abrir el detalle');
     }
+  });
+}
+
+continuarPago(item: any): void {
+  const pagoId = item.id || item.pagoId || item.documento?.id;
+  
+  if (!pagoId) {
+    console.error('[HISTORIAL] No se encontró ID válido para continuar:', item);
+    this.notificationService.error('Error', 'No se pudo identificar el pago');
+    return;
+  }
+
+  if (item.estadoPago !== 'EN_PROCESO' || !this.esMiPago(item)) {
+    this.notificationService.warning('No permitido', 'Solo puedes continuar pagos en proceso y asignados a ti');
+    return;
+  }
+
+  console.log('[HISTORIAL] Continuar pago ID:', pagoId);
+
+  this.router.navigate(['/tesoreria/procesar', pagoId], {
+    queryParams: {
+      desdeHistorial: 'true',
+      soloLectura: 'false',
+      modo: 'edicion',
+      origen: 'historial-tesoreria'
+    }
+  }).then(success => {
+    if (!success) {
+      console.error('[HISTORIAL] Falló navegación para continuar');
+      this.notificationService.error('Error', 'No se pudo abrir el formulario');
+    }
+  });
+}
 
     generarComprobante(item: any): void {
         this.isProcessing = true;

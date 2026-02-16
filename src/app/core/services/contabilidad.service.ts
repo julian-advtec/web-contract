@@ -17,7 +17,7 @@ export interface ApiResponse<T = any> {
 export class ContabilidadService {
   private apiUrl = `${environment.apiUrl}/contabilidad`;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   private getHeaders(): HttpHeaders {
     const token = localStorage.getItem('token');
@@ -82,8 +82,8 @@ export class ContabilidadService {
 
   // 7. Definir si tiene glosa
   definirGlosa(documentoId: string, tieneGlosa: boolean): Observable<ApiResponse> {
-    return this.http.post<ApiResponse>(`${this.apiUrl}/documentos/${documentoId}/definir-glosa`, 
-      { tieneGlosa }, 
+    return this.http.post<ApiResponse>(`${this.apiUrl}/documentos/${documentoId}/definir-glosa`,
+      { tieneGlosa },
       { headers: this.getHeaders() }
     ).pipe(
       tap(res => console.log(`Glosa definida: ${tieneGlosa}`)),
@@ -140,8 +140,8 @@ export class ContabilidadService {
     estado: string,
     observaciones: string = ''
   ): Observable<ApiResponse> {
-    return this.http.put<ApiResponse>(`${this.apiUrl}/documentos/${documentoId}/finalizar`, 
-      { estado, observaciones }, 
+    return this.http.put<ApiResponse>(`${this.apiUrl}/documentos/${documentoId}/finalizar`,
+      { estado, observaciones },
       { headers: this.getHeaders() }
     ).pipe(
       tap(res => console.log(`Finalizado: ${estado}`)),
@@ -162,13 +162,13 @@ export class ContabilidadService {
   // 12. Historial
   getHistorial(): Observable<any[]> {
     console.log('📊 [CONTABILIDAD] Solicitando historial...');
-    
-    return this.http.get<any>(`${this.apiUrl}/historial`, { 
-      headers: this.getHeaders() 
+
+    return this.http.get<any>(`${this.apiUrl}/historial`, {
+      headers: this.getHeaders()
     }).pipe(
       map(response => {
         console.log('[CONTABILIDAD] Respuesta historial RAW:', response);
-        
+
         if (response && response.ok === true && response.data) {
           if (Array.isArray(response.data)) {
             return response.data;
@@ -176,19 +176,19 @@ export class ContabilidadService {
             return response.data.data;
           }
         }
-        
+
         if (response && response.success === true && Array.isArray(response.data)) {
           return response.data;
         }
-        
+
         if (Array.isArray(response)) {
           return response;
         }
-        
+
         if (response && response.data && Array.isArray(response.data)) {
           return response.data;
         }
-        
+
         return [];
       }),
       tap(hist => console.log(`Historial: ${hist.length} registros`)),
@@ -210,25 +210,7 @@ export class ContabilidadService {
     );
   }
 
-  // 15. Descargar archivo contabilidad
-  descargarArchivoContabilidad(documentoId: string, tipo: string): Observable<Blob> {
-    return this.http.get(`${this.apiUrl}/documentos/${documentoId}/descargar/${tipo}`, {
-      responseType: 'blob',
-      headers: this.getHeaders()
-    }).pipe(
-      catchError(err => throwError(() => new Error('No se pudo descargar')))
-    );
-  }
 
-  // 16. Previsualizar archivo contabilidad
-  previsualizarArchivoContabilidad(documentoId: string, tipo: string): Observable<Blob> {
-    return this.http.get(`${this.apiUrl}/documentos/${documentoId}/archivo/${tipo}`, {
-      responseType: 'blob',
-      headers: this.getHeaders()
-    }).pipe(
-      catchError(err => throwError(() => new Error('No se pudo previsualizar')))
-    );
-  }
 
   // 17. Descargar archivo radicado
   descargarArchivoRadicado(documentoId: string, numeroArchivo: number): Observable<Blob> {
@@ -276,5 +258,29 @@ export class ContabilidadService {
     if (response?.documentos && Array.isArray(response.documentos)) return response.documentos;
     if (response?.success && Array.isArray(response.data)) return response.data;
     return [];
+  }
+
+  descargarArchivoContabilidad(documentoId: string, tipo: string): Observable<Blob> {
+    return this.http.get(
+      `${this.apiUrl}/documentos/${documentoId}/descargar-contable/${tipo}`,
+      { responseType: 'blob', headers: this.getHeaders() }
+    ).pipe(
+      catchError(err => {
+        console.error(`Error descargando ${tipo}:`, err);
+        return throwError(() => new Error('No se pudo descargar el archivo'));
+      })
+    );
+  }
+
+  previsualizarArchivoContabilidad(documentoId: string, tipo: string): Observable<Blob> {
+    return this.http.get(
+      `${this.apiUrl}/documentos/${documentoId}/preview-contable/${tipo}`,
+      { responseType: 'blob', headers: this.getHeaders() }
+    ).pipe(
+      catchError(err => {
+        console.error(`Error previsualizando ${tipo}:`, err);
+        return throwError(() => new Error('No se pudo previsualizar'));
+      })
+    );
   }
 }

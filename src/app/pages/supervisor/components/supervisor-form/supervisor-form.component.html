@@ -8,7 +8,8 @@
   </div>
 
   <div *ngIf="soloLectura && !esModoAuditor" class="alert-message info mb-3">
-    <i class="fas fa-eye"></i> <strong>Modo consulta (solo lectura)</strong> - Este documento ya fue revisado y no se puede modificar.
+    <i class="fas fa-eye"></i> <strong>Modo consulta (solo lectura)</strong> - Este documento ya fue revisado y no se
+    puede modificar.
   </div>
 
   <div *ngIf="!soloLectura" class="alert-message success mb-3">
@@ -19,8 +20,8 @@
     <div class="revision-header">
       <h2>
         <i class="fas fa-clipboard-check me-2"></i>
-        {{ esModoAuditor ? 'Vista de Auditoría' : 
-           (soloLectura ? 'Consulta de Supervisión' : 'Revisión de Documento Radicado') }}
+        {{ esModoAuditor ? 'Vista de Auditoría' :
+        (soloLectura ? 'Consulta de Supervisión' : 'Revisión de Documento Radicado') }}
       </h2>
       <div class="header-info">
         <span class="badge bg-primary me-2">
@@ -32,18 +33,18 @@
         <span class="badge me-2" [ngClass]="getEstadoBadgeClass(revisionForm.get('estadoRevision')?.value)">
           <i class="fas fa-flag me-1"></i>{{ revisionForm.get('estadoRevision')?.value || 'SIN REVISAR' }}
         </span>
-        
+
         <span *ngIf="esModoAuditor" class="badge bg-warning text-dark me-2">
           <i class="fas fa-search me-1"></i>Auditoría
         </span>
-        
+
         <span *ngIf="soloLectura && !esModoAuditor" class="badge bg-info me-2">
           <i class="fas fa-eye me-1"></i>Solo lectura
         </span>
         <span *ngIf="!soloLectura" class="badge bg-success me-2">
           <i class="fas fa-edit me-1"></i>Modo edición
         </span>
-        
+
         <span *ngIf="esModoAuditor && primerRadicadoDelAno" class="badge bg-warning text-dark">
           <i class="fas fa-star me-1"></i>PRIMER RADICADO DEL AÑO
         </span>
@@ -313,12 +314,10 @@
                     </small>
                   </p>
                   <div class="d-grid gap-2">
-                    <button class="btn btn-outline-warning btn-sm"
-                            (click)="verArchivoAuditor(archivo.tipo)">
+                    <button class="btn btn-outline-warning btn-sm" (click)="verArchivoAuditor(archivo.tipo)">
                       <i class="fas fa-eye me-1"></i>Ver
                     </button>
-                    <button class="btn btn-outline-dark btn-sm"
-                            (click)="descargarArchivoAuditor(archivo.tipo)">
+                    <button class="btn btn-outline-dark btn-sm" (click)="descargarArchivoAuditor(archivo.tipo)">
                       <i class="fas fa-download me-1"></i>Descargar
                     </button>
                   </div>
@@ -334,13 +333,29 @@
         Este es el primer radicado del año, pero no se han cargado archivos de auditoría.
       </div>
 
-      <div class="revision-section">
+      <div class="revision-section mt-5">
         <h4 class="section-title">
           <i class="fas fa-clipboard-check text-warning"></i>
           Revisión del Supervisor
           <small *ngIf="soloLectura || esModoAuditor" class="text-info ms-2">(modo consulta)</small>
           <small *ngIf="!soloLectura && !esModoAuditor" class="text-success ms-2">(modo edición)</small>
         </h4>
+
+        <!-- Mensaje claro del modo actual -->
+        <div class="alert mb-4" [ngClass]="{
+    'alert-success': !soloLectura && !esModoAuditor,
+    'alert-info': soloLectura || esModoAuditor
+  }">
+          <strong>
+            <ng-container *ngIf="!soloLectura && !esModoAuditor">
+              <i class="fas fa-edit me-2"></i> Modo edición — Puedes modificar y guardar la revisión
+            </ng-container>
+            <ng-container *ngIf="soloLectura || esModoAuditor">
+              <i class="fas fa-eye me-2"></i> Modo consulta — No puedes modificar este documento
+              <ng-container *ngIf="esModoAuditor"> (Vista de auditoría)</ng-container>
+            </ng-container>
+          </strong>
+        </div>
 
         <div class="form-row">
           <div class="form-group">
@@ -357,14 +372,15 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label"><i class="fas fa-flag"></i> Estado de Revisión</label>
-            <select *ngIf="!esModoAuditor" class="form-control" formControlName="estadoRevision" [disabled]="soloLectura">
+            <select *ngIf="!soloLectura && !esModoAuditor" class="form-control" formControlName="estadoRevision">
               <option value="">Seleccionar estado</option>
               <option value="APROBADO">APROBADO</option>
               <option value="OBSERVADO">OBSERVADO</option>
               <option value="RECHAZADO">RECHAZADO</option>
               <option value="PENDIENTE_CORRECCIONES">PENDIENTE CORRECCIONES</option>
             </select>
-            <input *ngIf="esModoAuditor" type="text" class="form-control" [value]="revisionForm.get('estadoRevision')?.value || 'No revisado'" readonly>
+            <input *ngIf="soloLectura || esModoAuditor" type="text" class="form-control"
+              [value]="revisionForm.get('estadoRevision')?.value || 'No revisado'" readonly>
             <small *ngIf="!soloLectura && !esModoAuditor" class="text-muted">
               Seleccione el estado resultante de su revisión
             </small>
@@ -399,7 +415,8 @@
               </div>
             </div>
 
-            <div *ngIf="!nombreArchivoAprobacionExistente && (soloLectura || esModoAuditor)" class="alert alert-secondary small">
+            <div *ngIf="!nombreArchivoAprobacionExistente && (soloLectura || esModoAuditor)"
+              class="alert alert-secondary small">
               No se adjuntó documento de aprobación en esta revisión.
             </div>
 
@@ -440,19 +457,16 @@
                 <strong>Este documento fue marcado como el ÚLTIMO RADICADO del contratista</strong>
               </div>
             </div>
-
-            <ng-template #noUltimoRadicadoLectura>
-              <div class="alert alert-secondary">
-                <i class="fas fa-info-circle me-2"></i>
-                Este documento <strong>NO</strong> fue marcado como último radicado del contratista.
-              </div>
-            </ng-template>
+            <div *ngIf="!revisionForm.get('esUltimoRadicado')?.value" class="alert alert-secondary">
+              <i class="fas fa-info-circle me-2"></i>
+              Este documento <strong>NO</strong> fue marcado como último radicado.
+            </div>
           </div>
 
           <div *ngIf="!soloLectura && !esModoAuditor">
             <div class="form-check">
-              <input class="form-check-input" type="checkbox" formControlName="esUltimoRadicado" 
-                     id="esUltimoRadicado" [disabled]="soloLectura">
+              <input class="form-check-input" type="checkbox" formControlName="esUltimoRadicado" id="esUltimoRadicado"
+                [disabled]="soloLectura">
               <label class="form-check-label fw-bold" for="esUltimoRadicado">
                 <i class="fas fa-check-circle me-2"></i>
                 Este es el <strong>ÚLTIMO RADICADO</strong> del contratista
@@ -539,12 +553,13 @@
         <div class="form-row mt-4">
           <div class="form-group full-width">
             <label class="form-label"><i class="fas fa-comment"></i> Observación del Supervisor</label>
-            <textarea class="form-control" formControlName="observacionSupervisor" rows="4" 
-                      [readonly]="soloLectura || esModoAuditor"
-                      placeholder="{{ !revisionForm.get('observacionSupervisor')?.value && !esModoAuditor ? 'Ingrese sus observaciones sobre el documento (mínimo 10 caracteres)' : '' }}">
-              {{ revisionForm.get('observacionSupervisor')?.value || '' }}
-            </textarea>
-            <small *ngIf="revisionForm.get('observacionSupervisor')?.value && (soloLectura || esModoAuditor)" class="text-muted">
+            <textarea class="form-control" formControlName="observacionSupervisor" rows="4"
+              [readonly]="soloLectura || esModoAuditor"
+              placeholder="{{ !revisionForm.get('observacionSupervisor')?.value && !esModoAuditor ? 'Ingrese sus observaciones (mínimo 10 caracteres)' : '' }}">
+        {{ revisionForm.get('observacionSupervisor')?.value || '' }}
+      </textarea>
+            <small *ngIf="revisionForm.get('observacionSupervisor')?.value && (soloLectura || esModoAuditor)"
+              class="text-muted">
               Observación registrada por {{ supervisorInfo.supervisorRevisorNombre || 'Supervisor' }}
             </small>
             <small *ngIf="!soloLectura && !esModoAuditor" class="text-muted">
@@ -561,11 +576,11 @@
                 {{ contarLineasCorrecciones() }} punto(s)
               </span>
             </label>
-            <textarea class="form-control" formControlName="correcciones" rows="3" 
-                      [readonly]="soloLectura || esModoAuditor"
-                      placeholder="{{ !revisionForm.get('correcciones')?.value && !esModoAuditor ? 'Ingrese las correcciones que el contratista debe realizar (opcional)' : '' }}">
-              {{ revisionForm.get('correcciones')?.value || '' }}
-            </textarea>
+            <textarea class="form-control" formControlName="correcciones" rows="3"
+              [readonly]="soloLectura || esModoAuditor"
+              placeholder="{{ !revisionForm.get('correcciones')?.value && !esModoAuditor ? 'Ingrese las correcciones que el contratista debe realizar (opcional)' : '' }}">
+        {{ revisionForm.get('correcciones')?.value || '' }}
+      </textarea>
             <small *ngIf="!soloLectura && !esModoAuditor" class="text-muted">
               Ingrese las correcciones requeridas. Cada punto debe ir en una nueva línea.
             </small>
@@ -575,29 +590,30 @@
           </div>
         </div>
 
-        <div class="form-actions mt-4" *ngIf="!esModoAuditor">
+        <!-- Botones de acción -->
+        <div class="form-actions mt-5 text-end" *ngIf="!esModoAuditor">
           <ng-container *ngIf="!soloLectura; else soloLecturaButtons">
-            <button type="button" class="btn btn-secondary" (click)="cancelarRevision()" [disabled]="isProcessing">
-              <i class="fas fa-times"></i> Cancelar
+            <button type="button" class="btn btn-outline-danger btn-lg px-4 me-3" (click)="cancelarRevision()"
+              [disabled]="isProcessing">
+              <i class="fas fa-times me-1"></i> Cancelar
             </button>
-            <button type="submit" class="btn btn-primary" [disabled]="isProcessing || revisionForm.invalid || !puedeGuardar()">
+            <button type="submit" class="btn btn-primary btn-lg px-5"
+              [disabled]="isProcessing || revisionForm.invalid || !puedeGuardar()">
               <ng-container *ngIf="!isProcessing">
-                <i class="fas fa-save"></i> Guardar Revisión
+                <i class="fas fa-save me-1"></i> Guardar Revisión
               </ng-container>
               <ng-container *ngIf="isProcessing">
-                <i class="fas fa-spinner fa-spin"></i> Procesando...
+                <i class="fas fa-spinner fa-spin me-1"></i> Procesando...
               </ng-container>
             </button>
           </ng-container>
 
           <ng-template #soloLecturaButtons>
-            <button type="button" class="btn btn-secondary" (click)="volverALista()">
-              <i class="fas fa-arrow-left"></i> Volver al listado
+            <button type="button" class="btn btn-outline-primary btn-lg px-5" (click)="volverALista()">
+              <i class="fas fa-arrow-left me-1"></i> Volver al listado
             </button>
           </ng-template>
         </div>
-
-        
       </div>
     </div>
   </form>

@@ -1,4 +1,5 @@
 // src/app/core/models/user.types.ts
+import { Signature } from '../services/signature.service';
 
 // ENUM de roles
 export enum UserRole {
@@ -19,12 +20,10 @@ export function getUserRoleValue(role: UserRole): string {
 
 // Función auxiliar para obtener el nombre del rol
 export function getUserRoleName(role: UserRole | string): string {
-  // Convertir a string primero
   let roleStr: string;
   if (typeof role === 'string') {
     roleStr = role;
   } else {
-    // Para un enum, usar el valor directamente
     roleStr = getUserRoleValue(role);
   }
   
@@ -80,16 +79,15 @@ export function stringToUserRole(roleStr: string): UserRole {
     case 'rendición_cuentas':
       return UserRole.RENDICION_CUENTAS;
     default:
-      // Verificar si es un valor válido del enum
       const validValues = Object.values(UserRole) as string[];
       if (validValues.includes(lowerRole)) {
         return lowerRole as UserRole;
       }
-      return UserRole.RADICADOR; // Valor por defecto
+      return UserRole.RADICADOR;
   }
 }
 
-// INTERFAZ User
+// 👇 INTERFAZ User ACTUALIZADA CON SIGNATURE
 export interface User {
   id: string;
   username: string;
@@ -101,6 +99,7 @@ export interface User {
   updatedAt?: Date | string;
   lastLogin?: Date | string;
   profileImage?: string;
+  signature?: Signature | null; // 👈 NUEVO
 }
 
 // INTERFAZ CreateUserRequest

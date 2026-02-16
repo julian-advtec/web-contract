@@ -38,7 +38,7 @@ export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
 
-  constructor(
+constructor(
     private contabilidadService: ContabilidadService,
     private notificationService: NotificationService,
     private router: Router
@@ -54,7 +54,7 @@ export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  cargarUsuarioActual(): void {
+ cargarUsuarioActual(): void {
     const userStr = localStorage.getItem('user');
     if (userStr) {
       try {
@@ -77,8 +77,7 @@ export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (docs: DocumentoContable[]) => {
           this.documentos = docs || [];
-          
-          console.log('[PENDIENTES] Documentos cargados:', this.documentos.length);
+          console.log('[PENDIENTES] Documentos cargados:', this.documentos.length, this.documentos);
           
           if (this.documentos.length > 0) {
             this.successMessage = `Se encontraron ${this.documentos.length} documentos pendientes`;
@@ -95,15 +94,12 @@ export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
           console.error('[PENDIENTES] Error cargando:', err);
           this.errorMessage = err.error?.message || err.message || 'Error al cargar documentos pendientes';
           this.notificationService.error('Error', this.errorMessage);
-          this.documentos = [];
-          this.filteredDocumentos = [];
-          this.updatePagination();
           this.isLoading = false;
         }
       });
   }
 
-  puedeTomarDocumento(doc: DocumentoContable): boolean {
+ puedeTomarDocumento(doc: DocumentoContable): boolean {
     const estado = (doc.estado || '').toUpperCase();
     const estadosPermitidos = ['APROBADO_AUDITOR', 'COMPLETADO_AUDITOR'];
     return estadosPermitidos.some(e => estado.includes(e)) && doc.disponible !== false;
@@ -111,12 +107,13 @@ export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
 
   esMiDocumentoEnRevision(doc: DocumentoContable): boolean {
     const estado = (doc.estado || '').toUpperCase();
-    const estadosRevision = ['EN_REVISION_CONTABILIDAD', 'EN_PROCESO_CONTABILIDAD'];
-    return estadosRevision.some(e => estado.includes(e));
+    return estado.includes('EN_REVISION_CONTABILIDAD') || 
+           estado.includes('EN_PROCESO_CONTABILIDAD') ||
+           estado.includes('EN_REVISION');
   }
 
   tomarParaContabilidad(doc: DocumentoContable): void {
-    if (!doc.id) {
+    if (!doc?.id) {
       this.notificationService.error('Error', 'ID de documento no válido');
       return;
     }
@@ -126,7 +123,7 @@ export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
     if (yaEsMio) {
       this.notificationService.showModal({
         title: 'Continuar proceso',
-        message: `El documento ${doc.numeroRadicado} ya está en revisión.\n\n¿Quieres continuar ahora?`,
+        message: `El documento ${doc.numeroRadicado || 'sin radicado'} ya está en revisión.\n\n¿Quieres continuar ahora?`,
         type: 'confirm',
         confirmText: 'Sí, continuar',
         cancelText: 'Cancelar',
@@ -145,8 +142,7 @@ export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
 
     this.notificationService.showModal({
       title: 'Tomar documento',
-      message: `¿Deseas tomar el documento ${doc.numeroRadicado} (${doc.nombreContratista || 'sin nombre'})?\n\n` +
-               `Se asignará a ti para revisión contable.`,
+      message: `¿Deseas tomar el documento ${doc.numeroRadicado || 'sin radicado'} (${doc.nombreContratista || 'sin nombre'})?\n\nSe asignará a ti para revisión contable.`,
       type: 'confirm',
       confirmText: 'Sí, tomar',
       cancelText: 'No, cancelar',
@@ -156,13 +152,27 @@ export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
 
   private procederTomarDocumento(doc: DocumentoContable): void {
     this.isProcessing = true;
+    console.log('[TOMAR] Intentando tomar documento:', doc.id, doc.numeroRadicado);
 
     this.contabilidadService.tomarDocumentoParaRevision(doc.id!)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (res: any) => {
-          if (res?.success) {
-            // Actualizar el documento en la lista
+          console.log('[TOMAR] Respuesta completa del backend:', JSON.stringify(res, null, 2));
+
+          // Criterios más amplios para considerar éxito
+          const exito = 
+            res?.success === true ||
+            res?.ok === true ||
+            res?.message?.toLowerCase().includes('tomado') ||
+            res?.message?.toLowerCase().includes('éxito') ||
+            res?.documento?.estado?.includes('EN_REVISION') ||
+            res?.status === 201 || res?.status === 200;
+
+          if (exito) {
+            console.log('[TOMAR] Éxito detectado → actualizando lista local');
+
+            // Actualizar en la lista visible
             const idx = this.documentos.findIndex(d => d.id === doc.id);
             if (idx !== -1) {
               this.documentos[idx] = {
@@ -175,25 +185,42 @@ export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
             }
 
             this.notificationService.success(
-              '¡Documento tomado!',
-              `Redirigiendo al procesamiento de ${doc.numeroRadicado}...`
+              '¡Documento tomado exitosamente!',
+              `Redirigiendo al procesamiento de ${doc.numeroRadicado || doc.id}...`
             );
 
+            // Navegación con depuración
             setTimeout(() => {
+              console.log('[NAVEGACIÓN] Redirigiendo a:', ['/contabilidad/procesar', doc.id]);
               this.router.navigate(['/contabilidad/procesar', doc.id], {
-                queryParams: { modo: 'edicion', soloLectura: 'false' }
+                queryParams: { 
+                  desde: 'pendientes',
+                  refresh: Date.now().toString()  // evita caché
+                }
+              }).then(navSuccess => {
+                console.log('[NAVEGACIÓN] Resultado:', navSuccess ? 'ÉXITO' : 'FALLÓ');
+              }).catch(navError => {
+                console.error('[NAVEGACIÓN] Error al redirigir:', navError);
+                this.notificationService.error('Redirección fallida', 'Intenta ingresar manualmente al documento');
               });
-            }, 1500);
+            }, 1800); // un poco más de tiempo para que el usuario vea el mensaje
           } else {
-            this.notificationService.error('Error', res?.message || 'No se pudo tomar el documento');
+            console.warn('[TOMAR] No se detectó éxito claro en la respuesta');
+            this.notificationService.error(
+              'Problema al tomar',
+              res?.message || 'El documento no se pudo asignar correctamente. Intenta refrescar.'
+            );
           }
           this.isProcessing = false;
         },
         error: (err: any) => {
+          console.error('[TOMAR] Error HTTP:', err);
           let msg = 'No se pudo tomar el documento';
-          if (err.status === 404) msg = 'Endpoint no encontrado o documento inválido';
-          if (err.status === 409) msg = err.error?.message || 'El documento ya está siendo revisado';
-          if (err.status === 403) msg = 'No tienes permisos para realizar esta acción';
+          
+          if (err.status === 409) msg = err.error?.message || 'El documento ya está siendo revisado por otro usuario';
+          if (err.status === 403) msg = 'No tienes permisos para tomar este documento';
+          if (err.status === 404) msg = 'Documento no encontrado o ya procesado';
+          if (err.status === 500) msg = 'Error interno en el servidor. Contacta soporte si persiste';
 
           this.notificationService.error('Error', msg);
           this.isProcessing = false;
@@ -201,13 +228,21 @@ export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
       });
   }
 
-  continuarProceso(doc: DocumentoContable): void {
+continuarProceso(doc: DocumentoContable): void {
+    console.log('[CONTINUAR] Redirigiendo directamente a procesamiento:', doc.id);
     this.router.navigate(['/contabilidad/procesar', doc.id], {
-      queryParams: { modo: 'edicion', soloLectura: 'false' }
+      queryParams: { desde: 'pendientes' }
+    }).then(success => {
+      console.log('[CONTINUAR] Navegación:', success ? 'exitosa' : 'fallida');
+    }).catch(err => {
+      console.error('[CONTINUAR] Error navegación:', err);
     });
   }
 
-  getTextoBoton(doc: DocumentoContable): string {
+
+  
+
+getTextoBoton(doc: DocumentoContable): string {
     return this.esMiDocumentoEnRevision(doc) ? 'Continuar' : 'Procesar';
   }
 

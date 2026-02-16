@@ -136,49 +136,64 @@ export class TesoreriaPendingListComponent implements OnInit, OnDestroy {
     });
   }
 
-  private procederTomarDocumento(doc: TesoreriaProceso): void {
-    this.isProcessing = true;
-    console.log('[TOMAR] Intentando tomar documento ID:', doc.id);
+private procederTomarDocumento(doc: TesoreriaProceso): void {
+  this.isProcessing = true;
+  console.log('[TOMAR] Iniciando toma del documento ID:', doc.id);
 
-    this.tesoreriaService.tomarDocumentoParaRevision(doc.id!)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (response: any) => {
-          console.log('[TOMAR] Respuesta del backend:', response);
+  this.tesoreriaService.tomarDocumentoParaRevision(doc.id!)
+    .pipe(takeUntil(this.destroy$))
+    .subscribe({
+      next: (response: any) => {
+        console.log('[TOMAR] Respuesta exitosa del backend:', response);
 
-          if (response?.success) {
-            // Eliminar de pendientes
-            const index = this.documentos.findIndex(d => d.id === doc.id);
-            if (index !== -1) {
-              this.documentos.splice(index, 1);
-              this.filteredDocumentos = [...this.documentos];
-              this.updatePagination();
-            }
+        if (response?.success || response?.data?.success) {
+          // Mensaje de éxito
+          this.notificationService.success(
+            '¡Documento tomado!',
+            `Asignado a ti. Redirigiendo al formulario de procesamiento...`
+          );
 
-            this.notificationService.success(
-              '¡Tomado!',
-              `Documento asignado a ti. Redirigiendo al formulario...`
-            );
-
-            // Redirigir SOLO si el backend confirmó
-            setTimeout(() => {
-              this.router.navigate(['/tesoreria/procesar', doc.id]);
-            }, 1200);
-          } else {
-            this.notificationService.error('Error', response?.message || 'Respuesta no confirmada');
+          // Eliminar de la lista local (opcional pero recomendado)
+          const index = this.documentos.findIndex(d => d.id === doc.id);
+          if (index !== -1) {
+            this.documentos.splice(index, 1);
+            this.filteredDocumentos = [...this.documentos];
+            this.updatePagination();
           }
 
-          this.isProcessing = false;
-        },
-        error: (err: any) => {
-          console.error('[TOMAR] Error completo:', err);
-          const msg = err.error?.message || err.message || 'No se pudo tomar el documento';
-          this.notificationService.error('Error al tomar', msg);
-          this.isProcessing = false;
+          // Redirección con delay para que el usuario vea el mensaje
+          setTimeout(() => {
+            console.log('[TOMAR] Redirigiendo a /tesoreria/procesar/' + doc.id);
+            this.router.navigate(['/tesoreria/procesar', doc.id])
+              .then(success => {
+                if (!success) {
+                  console.error('[TOMAR] Falló la navegación. Verifica que la ruta exista.');
+                  this.notificationService.error('Error de navegación', 'No se pudo redirigir al formulario');
+                }
+              })
+              .catch(err => {
+                console.error('[TOMAR] Error en router.navigate:', err);
+                this.notificationService.error('Error', 'Fallo al redirigir');
+              });
+          }, 1500); // 1.5 segundos para ver el mensaje
+        } else {
+          console.warn('[TOMAR] Respuesta sin success:', response);
+          this.notificationService.warning('Advertencia', response?.message || 'Toma confirmada pero con advertencia');
         }
-      });
-  }
 
+        this.isProcessing = false;
+      },
+      error: (err: any) => {
+        console.error('[TOMAR] Error completo al tomar documento:', err);
+        const msg = err.error?.message || err.message || 'No se pudo tomar el documento';
+        this.notificationService.error('Error al tomar', msg);
+        this.isProcessing = false;
+      },
+      complete: () => {
+        console.log('[TOMAR] Proceso de toma finalizado');
+      }
+    });
+}
   getTextoBoton(doc: TesoreriaProceso): string {
     if (this.esMiDocumentoEnRevision(doc)) {
       return 'Continuar';

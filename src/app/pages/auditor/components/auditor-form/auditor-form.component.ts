@@ -105,57 +105,95 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef
   ) { }
 
-  ngOnInit(): void {
+ngOnInit(): void {
+  console.log('AUDITOR - Iniciando ngOnInit...');
+  console.log('Inputs recibidos:', {
+    documentoIdExterno: this.documentoIdExterno,
+    modo: this.modo,
+    soloLectura: this.soloLectura
+  });
 
-    console.log('Valor de soloLectura al iniciar:', this.soloLectura);
-    console.log('EstadoDocumento:', this.estadoDocumento);
-    console.log('esModoSoloLectura() devuelve:', this.esModoSoloLectura());
-    this.esModoContabilidad = this.modo === 'contabilidad';
-    this.esModoGeneral = this.modo === 'general';
+  // Determinar modo contabilidad/general
+  this.esModoContabilidad = this.modo === 'contabilidad';
+  this.esModoGeneral = this.modo === 'general';
 
-    if ((this.esModoContabilidad || this.esModoGeneral) && this.documentoIdExterno) {
-      this.documentoId = this.documentoIdExterno;
-      this.soloLectura = true;
-      this.cargarDocumentoParaAuditor(this.documentoId);
-    } else {
-      this.route.params.subscribe(params => {
-        this.documentoId = params['id'];
-        this.cargarDocumentoParaAuditor(this.documentoId);
-      });
-
-this.route.queryParams.subscribe(qp => {
-  // Solo aplicar soloLectura de la URL si NO estamos en revisión activa
-  if (qp['soloLectura'] === 'true' && this.estadoDocumento !== 'EN_REVISION_AUDITOR') {
+  // FORZAR solo lectura TOTAL cuando:
+  // - Viene explícitamente con soloLectura=true (desde contabilidad)
+  // - Está en modo contabilidad
+  // - Está en modo general
+  if (this.soloLectura === true || this.esModoContabilidad || this.esModoGeneral) {
     this.soloLectura = true;
-    console.log('[QUERY PARAM] Forzado soloLectura = true desde URL');
+    console.log('[AUDITOR] Forzado soloLectura = true (input explícito o modo contabilidad/general)');
+  }
+
+  // Obtener ID del documento
+  if (this.documentoIdExterno) {
+    this.documentoId = this.documentoIdExterno;
+    console.log('[AUDITOR] Usando documentoIdExterno:', this.documentoId);
   } else {
-    console.log('[QUERY PARAM] Ignorado soloLectura=true porque está en revisión');
+    // Si no viene por input, obtener de la ruta
+    this.route.params.subscribe(params => {
+      this.documentoId = params['id'];
+      console.log('[AUDITOR] ID desde ruta:', this.documentoId);
+      this.cargarDocumentoParaAuditor(this.documentoId);
+    });
   }
-});
+
+  // Query params: forzar solo lectura desde URL (solo si NO está en revisión activa del auditor)
+  this.route.queryParams.subscribe(qp => {
+    const forzadoPorUrl = qp['soloLectura'] === 'true' ||
+                          qp['modo'] === 'consulta' ||
+                          qp['view'] === 'readonly';
+
+    if (forzadoPorUrl && this.estadoDocumento !== 'EN_REVISION_AUDITOR') {
+      this.soloLectura = true;
+      console.log('[AUDITOR] Forzado soloLectura = true desde query params');
+    } else if (forzadoPorUrl) {
+      console.log('[AUDITOR] Ignorado soloLectura desde URL porque está EN_REVISION_AUDITOR');
     }
+  });
+
+  // Cargar el documento si ya tenemos ID
+  if (this.documentoId) {
+    this.cargarDocumentoParaAuditor(this.documentoId);
   }
+
+  // Log final para verificar el estado
+  console.log('[AUDITOR] Estado final después de forzado:', {
+    soloLectura: this.soloLectura,
+    esModoSoloLectura: this.esModoSoloLectura(),
+    modoActual: this.modo
+  });
+}
 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
 
-  esModoSoloLectura(): boolean {
-    // Prioridad #1: si está en revisión del auditor → SIEMPRE permitir edición
-    // (salvo que sea modo contabilidad o general)
-    if (this.estadoDocumento === 'EN_REVISION_AUDITOR') {
-      return this.esModoContabilidad || this.esModoGeneral;
-    }
-
-    // Para los demás casos: solo lectura si ya fue decidido o viene forzado
-    return (
-      this.soloLectura ||
-      this.esModoContabilidad ||
-      this.esModoGeneral ||
-      ['APROBADO_AUDITOR', 'COMPLETADO_AUDITOR', 'RECHAZADO_AUDITOR', 'OBSERVADO_AUDITOR']
-        .includes(this.estadoDocumento)
-    );
+esModoSoloLectura(): boolean {
+  // Prioridad máxima: si viene de contabilidad/general o con soloLectura=true → SIEMPRE solo lectura
+  if (this.esModoContabilidad || this.esModoGeneral || this.soloLectura === true) {
+  
   }
+
+  // Si está en revisión activa del auditor → permitir edición (solo aquí)
+  if (this.estadoDocumento === 'EN_REVISION_AUDITOR') {
+    console.log('[AUDITOR] esModoSoloLectura → false (en revisión activa del auditor)');
+    return false;
+  }
+
+  // Para todos los demás casos: solo lectura si ya fue decidido o viene forzado
+  const esEstadoFinal = [
+    'APROBADO_AUDITOR',
+    'COMPLETADO_AUDITOR',
+    'RECHAZADO_AUDITOR',
+    'OBSERVADO_AUDITOR'
+  ].includes(this.estadoDocumento);
+
+ 
+  return esEstadoFinal || this.soloLectura;
+}
 
   getClaseEstado(estado: string): string {
     if (!estado) return 'bg-secondary text-white';

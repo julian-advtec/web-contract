@@ -1,0 +1,18 @@
+<div class="signature-pad" *ngIf="signatureService.canRoleHaveSignature(currentUserRole)">
+  <div class="signature-status" [class.firmado]="tieneFirma">
+    <div class="status-icon">
+      <i class="fas" [class.fa-signature]="!tieneFirma" [class.fa-check-circle]="tieneFirma"></i>
+    </div>
+    <div class="status-info">
+      <div class="status-title">
+        {{ tieneFirma ? 'Firma digital cargada' : 'Firma digital' }}
+      </div>
+      <div class="status-description">
+        {{ tieneFirma ? 'Tu firma se aplicará al documento' : 'Tienes permisos para firmar digitalmente' }}
+      </div>
+    </div>
+    <div class="status-badge" *ngIf="tieneFirma">
+      <i class="fas fa-check"></i>
+    </div>
+  </div>
+</div>

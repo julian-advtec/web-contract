@@ -21,7 +21,7 @@ import { AuditorService } from '../../../../core/services/auditor.service'; // �
 export class SupervisorFormComponent implements OnInit, OnDestroy {
 
   @Input() documentoId!: string;           // Recibe el ID desde afuera
-  @Input() modo: 'supervisor' | 'auditoria' = 'supervisor';
+  @Input() modo: 'supervisor' | 'auditoria' | 'contabilidad' = 'supervisor';
   @Input() soloLectura: boolean = false;
 
   // ← Output opcional para que el hijo avise al padre (ej: botón volver)
@@ -147,6 +147,28 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
           this.verificarConsistenciaDatos();
         }, 100);
       });
+
+    const vieneDeContabilidad = this.modo === 'contabilidad' || this.soloLectura === true;
+
+    if (vieneDeContabilidad) {
+      console.log('[SUPERVISOR] Detectado modo CONTABILIDAD o soloLectura=true → BLOQUEO TOTAL');
+
+      this.soloLectura = true;
+      this.modoEdicion = false;
+      this.esModoAuditor = true;  // simula auditor para ocultar edición
+
+      // Bloqueo completo
+      this.revisionForm.disable({ emitEvent: false });
+      this.mostrarCampoArchivo = false;
+      this.archivoAprobacion = null;
+      this.archivoPazSalvo = null;
+
+      // Bloqueo manual extra por si acaso
+      ['estadoRevision', 'observacionSupervisor', 'correcciones', 'esUltimoRadicado']
+        .forEach(campo => this.revisionForm.get(campo)?.disable({ emitEvent: false }));
+
+      this.cdr.detectChanges();
+    }
   }
 
   ngOnDestroy(): void {
@@ -357,50 +379,47 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
    * ✅ Determinar modo basado en el documento (solo si no hay parámetros explícitos)
    */
   private determinarModoDesdeDocumento(documentoData: any): void {
-    const estado = documentoData.estado?.toUpperCase() || '';
-    const usuarioActual = this.getCurrentUser();
-    const supervisorAsignado = documentoData.supervisorAsignado ||
-      documentoData.asignacion?.supervisorActual;
+    const vieneDeContabilidad = this.modo === 'contabilidad' || this.soloLectura === true;
 
-    console.log('🔍 Determinando modo desde documento:', {
-      estado,
-      usuarioActual,
-      supervisorAsignado,
-      desdeHistorial: this.desdeHistorial,
-      esModoAuditor: this.esModoAuditor
-    });
+    if (vieneDeContabilidad) {
+      console.log('[determinarModoDesdeDocumento] IGNORADO: viene de Contabilidad o soloLectura=true');
+      return;  // ← NO EJECUTA NADA MÁS → no sobrescribe
+    }
 
-    // ✅ REGLA PRINCIPAL: Estados APROBADO y RECHAZADO → SIEMPRE solo lectura
-    const estadosSoloLectura = ['APROBADO', 'RECHAZADO'];
+
+    // Solo llega aquí si NO está forzado (modo normal de supervisor)
+    const estado = (documentoData.estado || '').toUpperCase().trim();
+    const usuarioActual = this.getCurrentUser().trim();
+
+    let supervisorAsignado =
+      documentoData.supervisorAsignado ||
+      documentoData.asignacion?.supervisorActual ||
+      documentoData.asignadoA ||
+      documentoData.supervisorRevisor ||
+      '';
+
+    supervisorAsignado = supervisorAsignado.trim();
+
+    console.log('🔍 Determinando modo (modo normal):', { estado, soyYo: this.compararNombres(supervisorAsignado, usuarioActual) });
+
+    const estadosSoloLectura = ['APROBADO', 'RECHAZADO', 'GLOSADO', 'PROCESADO', 'COMPLETADO', 'PAGADO', 'FINALIZADO'];
     const esEstadoFinal = estadosSoloLectura.some(e => estado.includes(e));
 
-    // ✅ Comparar nombres de forma flexible
-    const soyElSupervisor = this.compararNombres(supervisorAsignado, usuarioActual);
+    const estadosEditables = ['RADICADO', 'EN_REVISION_SUPERVISOR', 'EN_REVISION', 'PENDIENTE', 'PENDIENTE_CORRECCIONES', 'OBSERVADO'];
 
-    console.log('🔍 Resultados de verificación:', {
-      esEstadoFinal,
-      soyElSupervisor,
-      supervisorAsignado,
-      usuarioActual
-    });
+    const soyElSupervisor = this.compararNombres(supervisorAsignado, usuarioActual) ||
+      usuarioActual.includes('Administrador') ||
+      !supervisorAsignado;
 
-    // ✅ REGLA 1: Estados APROBADO y RECHAZADO → SOLO LECTURA
     if (esEstadoFinal) {
       this.soloLectura = true;
       this.modoEdicion = false;
-      console.log('✅ Modo: SOLO LECTURA (documento en estado final: APROBADO/RECHAZADO)');
-    }
-    // ✅ REGLA 2: Estados pendientes + soy el supervisor → EDICIÓN
-    else if (soyElSupervisor) {
+    } else if (soyElSupervisor && estadosEditables.some(e => estado.includes(e))) {
       this.soloLectura = false;
       this.modoEdicion = true;
-      console.log('✅ Modo: EDICIÓN (soy el supervisor asignado)');
-    }
-    // ✅ REGLA 3: Estados pendientes pero NO soy el supervisor → SOLO LECTURA
-    else {
+    } else {
       this.soloLectura = true;
       this.modoEdicion = false;
-      console.log('✅ Modo: SOLO LECTURA (NO soy el supervisor asignado)');
     }
   }
 
@@ -429,16 +448,6 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     return esIgual;
   }
 
-  /**
-   * ✅ Configurar formulario según el modo final
-   */
-  private configurarFormularioSegunModo(): void {
-    if (this.soloLectura) {
-      this.configurarModoSoloLectura();
-    } else {
-      this.configurarModoEdicion();
-    }
-  }
 
   /**
    * ✅ Configurar formulario para modo edición
@@ -1125,104 +1134,7 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     });
   }
 
-  guardarRevision(): void {
-    if (this.soloLectura) {
-      this.notificationService.error('Error', 'No puede guardar en modo solo lectura');
-      return;
-    }
 
-    if (this.revisionForm.invalid) {
-      this.notificationService.warning('Formulario incompleto',
-        'Por favor completa todos los campos requeridos');
-      return;
-    }
-
-    const estado = this.revisionForm.get('estadoRevision')?.value;
-    const esUltimoRadicado = this.revisionForm.get('esUltimoRadicado')?.value;
-
-    console.log('📋 Validación para guardar:', {
-      estado,
-      esUltimoRadicado,
-      archivoAprobacion: !!this.archivoAprobacion,
-      archivoPazSalvo: !!this.archivoPazSalvo,
-      tieneAprobacionExistente: this.tieneAprobacionExistente(),
-      tienePazSalvoExistente: this.tienePazSalvoExistente()
-    });
-
-    if (estado === 'APROBADO') {
-      if (!this.archivoAprobacion && !this.tieneAprobacionExistente()) {
-        this.notificationService.error('Error',
-          'Debe adjuntar un archivo de aprobación cuando el estado es APROBADO');
-        return;
-      }
-
-      if (esUltimoRadicado && !this.archivoPazSalvo && !this.tienePazSalvoExistente()) {
-        this.notificationService.error('Error',
-          'Debe adjuntar un archivo de paz y salvo ya que este es el último radicado del contratista');
-        return;
-      }
-    }
-
-    const mensajeConfirmacion = this.desdeHistorial
-      ? '¿Estás seguro de guardar los cambios? Esta acción actualizará la supervisión anterior.'
-      : '¿Estás seguro de guardar la revisión? Esta acción cambiará el estado del documento.';
-
-    const confirmar = confirm(mensajeConfirmacion);
-    if (!confirmar) return;
-
-    this.isProcessing = true;
-    const formData = this.revisionForm.getRawValue();
-
-    const datosRevision = {
-      estado: estado,
-      observacion: formData.observacionSupervisor,
-      correcciones: formData.correcciones || '',
-      requierePazSalvo: esUltimoRadicado,
-      esUltimoRadicado: Boolean(esUltimoRadicado),
-      modoEdicion: this.modoEdicion
-    };
-
-    console.log('📤 Enviando revisión del supervisor:', datosRevision);
-
-    let requestObservable: Observable<any>;
-
-    if (estado === 'APROBADO' && (this.archivoAprobacion || this.archivoPazSalvo)) {
-      requestObservable = this.supervisorService.guardarRevisionConArchivo(
-        this.documentoId,
-        datosRevision,
-        this.archivoAprobacion,
-        esUltimoRadicado ? this.archivoPazSalvo : null
-      );
-    } else {
-      requestObservable = this.supervisorService.guardarRevision(
-        this.documentoId,
-        datosRevision
-      );
-    }
-
-    requestObservable.subscribe({
-      next: (resultado: any) => {
-        console.log('✅ Revisión guardada exitosamente:', resultado);
-
-        const mensajeExito = this.desdeHistorial
-          ? 'Supervisión actualizada correctamente'
-          : 'Revisión guardada correctamente';
-
-        this.notificationService.success('Éxito', mensajeExito);
-        this.isProcessing = false;
-
-        setTimeout(() => {
-          this.volverALista();
-        }, 2000);
-      },
-      error: (error: any) => {
-        console.error('❌ Error guardando revisión:', error);
-        const errorMsg = error.error?.message || error.message || 'Error desconocido';
-        this.notificationService.error('Error', `No se pudo guardar la revisión: ${errorMsg}`);
-        this.isProcessing = false;
-      }
-    });
-  }
 
   cancelarRevision(): void {
     const mensaje = this.desdeHistorial
@@ -1553,6 +1465,17 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
       this.historialEstados = docData.historialEstados;
       console.log(`📋 Historial de estados guardado: ${this.historialEstados.length} registros`);
     }
+
+    if (this.revisionForm.get('estadoRevision')?.value &&
+      this.revisionForm.get('estadoRevision')?.value !== 'RADICADO' &&
+      this.revisionForm.get('estadoRevision')?.value !== 'PENDIENTE') {
+      this.soloLectura = true;
+      this.modoEdicion = false;
+      console.log('[SUPERVISOR] Bloqueo adicional: ya tiene revisión previa');
+    }
+
+    this.configurarFormularioSegunModo();
+
   }
 
   private cargarDocumentosExistentes(documento: any): void {
@@ -1585,5 +1508,152 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     };
 
     console.log('📁 Documentos existentes cargados:', this.documentosExistentes);
+
+
+
   }
+
+
+
+
+  private determinarModoFinal(data: any): void {
+    const estado = (data.estado || '').toUpperCase().trim();
+    const supervisorAsignado = (data.supervisorAsignado || data.asignacion?.supervisorActual || '').trim();
+    const soyYo = this.compararNombres(supervisorAsignado, this.getCurrentUser());
+
+    const estadosFinales = [
+      'APROBADO', 'APROBADO_SUPERVISOR', 'RECHAZADO', 'RECHAZADO_SUPERVISOR',
+      'GLOSADO', 'PROCESADO', 'COMPLETADO', 'PAGADO', 'FINALIZADO'
+    ];
+    const esEstadoFinal = estadosFinales.some(e => estado.includes(e));
+
+    const estadosEditables = [
+      'RADICADO', 'EN_REVISION_SUPERVISOR', 'EN_REVISION',
+      'PENDIENTE', 'PENDIENTE_CORRECCIONES', 'OBSERVADO'
+    ];
+
+    // Lógica normal...
+    if (esEstadoFinal) {
+      this.soloLectura = true;
+      this.modoEdicion = false;
+    } else if (estadosEditables.some(e => estado.includes(e)) && soyYo) {
+      this.soloLectura = false;
+      this.modoEdicion = true;
+    } else {
+      this.soloLectura = true;
+      this.modoEdicion = false;
+    }
+
+    // FORZADO FINAL: si el input dice soloLectura=true, NO importa nada más
+    if (this.soloLectura === true) {
+      this.soloLectura = true;
+      this.modoEdicion = false;
+      console.log('[SUPERVISOR] Input soloLectura=true → BLOQUEO FINAL (sobrescribe todo)');
+    }
+
+    this.configurarFormularioSegunModo();
+  }
+
+  private configurarFormularioSegunModo(): void {
+    console.log('[configurarFormularioSegunModo] Ejecutando... soloLectura =', this.soloLectura);
+
+    if (this.soloLectura === true) {
+      console.log('[configurarFormularioSegunModo] BLOQUEO TOTAL por soloLectura=true (Contabilidad)');
+
+      this.revisionForm.disable({ emitEvent: false });
+      this.mostrarCampoArchivo = false;
+      this.archivoAprobacion = null;
+      this.archivoPazSalvo = null;
+
+      this.cdr.detectChanges();
+      return;
+    }
+
+    // Solo si NO está forzado → modo normal de supervisor
+    const camposEditables = [
+      'estadoRevision',
+      'observacionSupervisor',
+      'correcciones',
+      'esUltimoRadicado'
+    ];
+
+    if (this.modoEdicion) {
+      camposEditables.forEach(campo => {
+        this.revisionForm.get(campo)?.enable({ emitEvent: false });
+      });
+      this.mostrarCampoArchivo = this.revisionForm.get('estadoRevision')?.value === 'APROBADO';
+    } else {
+      camposEditables.forEach(campo => {
+        this.revisionForm.get(campo)?.disable({ emitEvent: false });
+      });
+      this.mostrarCampoArchivo = false;
+    }
+
+    this.cdr.detectChanges();
+  }
+
+  guardarRevision(): void {
+    if (this.soloLectura || this.esModoAuditor) {
+      this.notificationService.warning('Acción bloqueada', 'No puedes guardar en modo consulta o auditoría.');
+      return;
+    }
+
+    if (this.revisionForm.invalid) {
+      this.notificationService.warning('Formulario incompleto', 'Completa los campos requeridos');
+      return;
+    }
+
+    const estado = this.revisionForm.get('estadoRevision')?.value;
+    const esUltimo = this.revisionForm.get('esUltimoRadicado')?.value;
+
+    if (estado === 'APROBADO') {
+      if (!this.archivoAprobacion && !this.tieneAprobacionExistente()) {
+        this.notificationService.error('Error', 'Debe adjuntar documento de aprobación');
+        return;
+      }
+      if (esUltimo && !this.archivoPazSalvo && !this.tienePazSalvoExistente()) {
+        this.notificationService.error('Error', 'Debe adjuntar paz y salvo para último radicado');
+        return;
+      }
+    }
+
+    if (!confirm('¿Guardar revisión? Esto cambiará el estado del documento.')) return;
+
+    this.isProcessing = true;
+    const valores = this.revisionForm.getRawValue();
+
+    const payload = {
+      estado,
+      observacion: valores.observacionSupervisor,
+      correcciones: valores.correcciones || '',
+      requierePazSalvo: esUltimo,
+      esUltimoRadicado: Boolean(esUltimo)
+    };
+
+    let request: Observable<any>;
+
+    if (estado === 'APROBADO' && (this.archivoAprobacion || this.archivoPazSalvo)) {
+      request = this.supervisorService.guardarRevisionConArchivo(
+        this.documentoId,
+        payload,
+        this.archivoAprobacion,
+        esUltimo ? this.archivoPazSalvo : null
+      );
+    } else {
+      request = this.supervisorService.guardarRevision(this.documentoId, payload);
+    }
+
+    request.subscribe({
+      next: () => {
+        this.notificationService.success('Éxito', 'Revisión guardada correctamente');
+        this.isProcessing = false;
+        setTimeout(() => this.volverALista(), 1500);
+      },
+      error: () => {
+        this.notificationService.error('Error', 'No se pudo guardar la revisión');
+        this.isProcessing = false;
+      }
+    });
+  }
+
 }

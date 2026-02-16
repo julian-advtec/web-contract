@@ -31,7 +31,7 @@
     </button>
   </div>
 
-  <!-- Contenido -->
+  <!-- Contenido principal -->
   <ng-container *ngIf="documento && !isLoading">
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
       <h3 class="mb-0">
@@ -51,7 +51,7 @@
       </div>
     </div>
 
-    <!-- Alerta de estado - CORREGIDA -->
+    <!-- Alerta de estado -->
     <div class="alert mb-4" [ngClass]="{
       'alert-info': estaEnRevision,
       'alert-secondary': esDocumentoDeOtroRol,
@@ -75,6 +75,24 @@
       </strong>
     </div>
 
+<!-- Supervisor -->
+<section class="mb-5">
+  <div class="card shadow border-info">
+    <div class="card-header bg-info text-white">
+      <h5 class="mb-0">
+        <i class="fas fa-user-tie me-2"></i>
+        Revisión de Supervisor (solo lectura)
+      </h5>
+    </div>
+    <div class="card-body p-0 force-readonly-wrapper">  
+<app-supervisor-form
+  [documentoId]="documento?.id"
+  [modo]="'contabilidad'"         
+  [soloLectura]="true">
+</app-supervisor-form>
+    </div>
+  </div>
+</section>
     <!-- Auditoría (solo lectura) -->
     <section class="mb-5">
       <div class="card shadow border-warning">
@@ -84,7 +102,11 @@
           </h5>
         </div>
         <div class="card-body p-0">
-          <app-auditor-form [documentoIdExterno]="documento?.id" [soloLectura]="true"></app-auditor-form>
+<app-auditor-form 
+        [documentoIdExterno]="documento?.id"
+        [soloLectura]="true"
+        [modo]="'contabilidad'">
+      </app-auditor-form>
         </div>
       </div>
     </section>
@@ -100,8 +122,9 @@
         </div>
 
         <div class="card-body">
-          <!-- Formulario solo si está en revisión Y es de contabilidad Y no es solo lectura -->
-          <form [formGroup]="form" (ngSubmit)="onSubmit()" *ngIf="estaEnRevision && !esDocumentoDeOtroRol && !esSoloLectura; else vistaSoloLectura">
+          <!-- Formulario de edición (solo cuando se puede modificar) -->
+          <form [formGroup]="form" (ngSubmit)="onSubmit()" 
+                *ngIf="estaEnRevision && !esDocumentoDeOtroRol && !esSoloLectura; else vistaSoloLectura">
             <div class="row g-4">
               <div class="col-md-6">
                 <label class="form-label fw-bold required">Decisión final</label>
@@ -133,13 +156,13 @@
               </div>
             </div>
 
-            <!-- Archivos -->
+            <!-- Archivos (subida) -->
             <div class="mt-5">
               <h5><i class="fas fa-upload me-2"></i> Adjuntar documentos</h5>
               <p class="text-muted small mb-4">Los archivos deben ser PDF, DOC o DOCX (máx 15MB)</p>
               
               <div class="row g-4">
-                <!-- Comprobante de Egreso (siempre visible) -->
+                <!-- Comprobante de Egreso -->
                 <div class="col-lg-6">
                   <div class="card border-primary h-100">
                     <div class="card-header bg-primary text-white">Comprobante de Egreso</div>
@@ -160,7 +183,7 @@
                   </div>
                 </div>
 
-                <!-- Extracto (visible si hay tipo de proceso) -->
+                <!-- Extracto Bancario -->
                 <div class="col-lg-6" *ngIf="form.get('tipoProceso')?.value && form.get('tipoProceso')?.value !== 'nada'">
                   <div class="card border-info h-100">
                     <div class="card-header bg-info text-white">Extracto Bancario</div>
@@ -225,7 +248,7 @@
               </div>
             </div>
 
-            <!-- Botones -->
+            <!-- Botones de acción (edición) -->
             <div class="mt-5 d-flex gap-3 justify-content-end flex-wrap">
               <button type="button" class="btn btn-outline-danger btn-lg px-4"
                       (click)="liberarDocumento()" 
@@ -246,68 +269,95 @@
             </div>
           </form>
 
-          <!-- Vista solo lectura MEJORADA -->
+          <!-- VISTA SOLO LECTURA - CON AMBOS BOTONES (VER + DESCARGAR) -->
           <ng-template #vistaSoloLectura>
             <div class="p-4 bg-light rounded border mt-4">
-              <div class="row g-4">
+              <!-- Información principal del documento -->
+              <div class="row g-4 mb-4">
                 <div class="col-md-4">
-                  <label class="text-muted small fw-bold">Decisión</label>
-                  <div class="fs-4 fw-bold" [ngClass]="getEstadoBadgeClass(documento.estado)">
+                  <label class="text-muted small fw-bold">Decisión final</label>
+                  <div class="fs-4 fw-bold" [ngClass]="getEstadoBadgeClass(documento.estadoFinal || documento.estado)">
                     {{ documento.estadoFinal || documento.estado || 'No definido' | uppercase }}
                   </div>
                 </div>
 
                 <div class="col-md-4">
-                  <label class="text-muted small fw-bold">Tipo proceso</label>
+                  <label class="text-muted small fw-bold">Tipo de proceso</label>
                   <div class="fs-5">
                     {{ documento.tipoProceso === 'glosa' ? 'Con Glosa' :
-                       documento.tipoProceso === 'causacion' ? 'Con Causación' : 'Sin glosa/causación' }}
+                       documento.tipoProceso === 'causacion' ? 'Con Causación' : 
+                       'Sin glosa ni causación' }}
                   </div>
                 </div>
 
                 <div class="col-md-4">
-                  <label class="text-muted small fw-bold">Observaciones</label>
+                  <label class="text-muted small fw-bold">Observaciones contables</label>
                   <div class="p-3 bg-white border rounded">
                     {{ documento.observacionesContabilidad || documento.observaciones || 'Sin observaciones' }}
                   </div>
                 </div>
               </div>
 
-              <!-- Mostrar archivos adjuntos si existen -->
-              <div class="mt-4" *ngIf="archivosPrevios.length > 0">
-                <h6 class="mb-3"><i class="fas fa-paperclip me-2"></i> Documentos adjuntos</h6>
-                <div class="row g-3">
-                  <div class="col-md-6 col-lg-4" *ngFor="let arch of archivosPrevios">
-                    <div class="card border-secondary h-100">
-                      <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                          <div class="text-truncate" style="max-width: 200px;">
-                            <i class="fas fa-file me-2"></i>
-                            <span class="small">{{ arch.nombre }}</span>
-                          </div>
-                          <button class="btn btn-sm btn-outline-primary ms-2" 
+              <!-- Archivos subidos por contabilidad -->
+              <div class="mt-5">
+                <h5 class="section-title mb-4">
+                  <i class="fas fa-paperclip me-2 text-primary"></i>
+                  Documentos subidos por Contabilidad
+                  <span class="badge bg-secondary ms-2">
+                    {{ archivosPrevios.length }} archivo(s)
+                  </span>
+                </h5>
+
+                <div *ngIf="archivosPrevios.length > 0" class="row g-4">
+                  <div class="col-lg-6 col-xl-4" *ngFor="let arch of archivosPrevios">
+                    <div class="card h-100 shadow-sm border">
+                      <div class="card-header d-flex align-items-center" 
+                           [ngClass]="getCardHeaderClass(arch.tipo)">
+                        <i class="fas fa-2x me-3" [ngClass]="getIconoPorTipo(arch.tipo)"></i>
+                        <div>
+                          <h6 class="mb-0">{{ getTituloPorTipo(arch.tipo) }}</h6>
+                          <small class="text-muted text-truncate d-block" style="max-width: 220px;">
+                            {{ arch.nombre }}
+                          </small>
+                        </div>
+                      </div>
+                      <div class="card-body d-flex flex-column justify-content-between">
+                        <div class="mt-auto d-grid gap-2">
+                          <!-- Botón Ver / Previsualizar -->
+                          <button class="btn btn-outline-primary btn-sm"
                                   (click)="previsualizarArchivo(arch.tipo)"
-                                  title="Ver archivo">
-                            <i class="fas fa-eye"></i>
+                                  [disabled]="!arch.path || isProcessing"
+                                  title="Previsualizar archivo">
+                            <i class="fas fa-eye me-1"></i> Ver / Previsualizar
+                          </button>
+                          
+                          <!-- Botón Descargar -->
+                          <button class="btn btn-outline-success btn-sm"
+                                  (click)="descargarArchivoContabilidad(arch.tipo, arch.nombre)"
+                                  [disabled]="!arch.path || isProcessing"
+                                  title="Descargar archivo">
+                            <i class="fas fa-download me-1"></i> Descargar
                           </button>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
+
+                <!-- Mensaje cuando no hay archivos subidos -->
+                <div *ngIf="archivosPrevios.length === 0" class="text-center py-5 text-muted">
+                  <i class="fas fa-folder-open fa-3x mb-3"></i>
+                  <p class="lead">No se han subido documentos contables para este registro</p>
+                  <small>Los archivos aparecerán aquí una vez procesados y guardados</small>
+                </div>
               </div>
 
-              <!-- Mensaje si no hay archivos -->
-              <div class="mt-4 text-center text-muted" *ngIf="archivosPrevios.length === 0">
-                <i class="fas fa-folder-open fa-2x mb-2"></i>
-                <p>No hay documentos adjuntos</p>
+              <!-- Botón volver al listado -->
+              <div class="text-center mt-5">
+                <button class="btn btn-outline-primary btn-lg px-5" (click)="volverALista()">
+                  <i class="fas fa-arrow-left me-2"></i> Volver al listado
+                </button>
               </div>
-            </div>
-
-            <div class="text-center mt-5">
-              <button class="btn btn-outline-primary btn-lg px-5" (click)="volverALista()">
-                <i class="fas fa-arrow-left me-2"></i> Volver al listado
-              </button>
             </div>
           </ng-template>
         </div>

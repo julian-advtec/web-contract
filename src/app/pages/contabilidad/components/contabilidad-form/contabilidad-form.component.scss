@@ -267,3 +267,38 @@ textarea.form-control {
     .btn { width: 100%; }
   }
 }
+
+.force-readonly-wrapper,
+.force-readonly {
+  /* Deshabilita interacción con todos los elementos editables */
+  input,
+  select,
+  textarea,
+  button,
+  .btn,
+  .form-control,
+  .input-group,
+  input[type="file"] {
+    pointer-events: none !important;
+    user-select: none !important;
+    opacity: 0.65 !important;
+    cursor: not-allowed !important;
+  }
+
+  /* Oculta completamente inputs de archivo (subida) */
+  input[type="file"],
+  label[for*="file"],
+  .file-upload-area,
+  .upload-btn {
+    display: none !important;
+  }
+
+  /* Desactiva botones de acción que puedan existir */
+  .btn-primary,
+  .btn-success,
+  .btn-warning,
+  .btn-danger {
+    pointer-events: none !important;
+    opacity: 0.6 !important;
+  }
+}

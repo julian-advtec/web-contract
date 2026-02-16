@@ -111,24 +111,25 @@ export class ContabilidadHistoryComponent implements OnInit, OnDestroy {
       });
   }
 
-  consultarDocumento(item: any): void {
-    let documentoId = item.documento?.id || item.id || item.documentoId;
-    if (!documentoId) {
-      this.notificationService.error('Error', 'ID de documento no disponible');
-      return;
-    }
-
-    const esEnRevision = item.estado === 'EN_REVISION';
-
-    const queryParams = {
-      desdeHistorial: 'true',
-      soloLectura: esEnRevision ? 'false' : 'true',
-      modo: esEnRevision ? 'edicion' : 'consulta',
-      origen: 'historial-contabilidad'
-    };
-
-    this.router.navigate(['/contabilidad/procesar', documentoId], { queryParams });
+consultarDocumento(item: any): void {
+  const documentoId = item.documento?.id || item.id || item.documentoId;
+  
+  if (!documentoId) {
+    this.notificationService.error('Error', 'ID de documento no disponible');
+    return;
   }
+
+  // Solo enviamos metadatos útiles, sin forzar modo
+  const queryParams = {
+    desdeHistorial: 'true',
+    origen: 'historial-contabilidad'
+    // ← NO enviamos soloLectura ni modo → el formulario decide basado en el estado real
+  };
+
+  console.log('[consultarDocumento] Navegando sin forzar modo:', { documentoId, queryParams });
+
+  this.router.navigate(['/contabilidad/procesar', documentoId], { queryParams });
+}
 
   getContadorRevisor(item: any): string {
     return item.contadorRevisor ||

@@ -4,14 +4,20 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 
-// Componentes de flujo - TODOS los que se muestran
+// Componentes de flujo
 import { SupervisorFormComponent } from '../../../supervisor/components/supervisor-form/supervisor-form.component';
 import { AuditorFormComponent } from '../../../auditor/components/auditor-form/auditor-form.component';
-import { ContabilidadFormComponent } from '../../../contabilidad/components/contabilidad-form/contabilidad-form.component'; // ✅ IMPORTADO
+import { ContabilidadFormComponent } from '../../../contabilidad/components/contabilidad-form/contabilidad-form.component';
 
 // Servicios
 import { TesoreriaService } from '../../../../core/services/tesoreria.service';
 import { NotificationService } from '../../../../core/services/notification.service';
+import { AuthService } from '../../../../core/services/auth.service';
+import { SignatureService, Signature } from '../../../../core/services/signature.service';
+
+// Componentes de firma
+import { SignaturePadComponent } from '../../../signature/components/signature-pad/signature-pad.component';
+import { SignaturePositionComponent, SignaturePosition } from '../../../signature/components/signature-position/signature-position.component';
 
 @Component({
   selector: 'app-tesoreria-form',
@@ -21,7 +27,9 @@ import { NotificationService } from '../../../../core/services/notification.serv
     ReactiveFormsModule,
     SupervisorFormComponent,
     AuditorFormComponent,
-    ContabilidadFormComponent, // ✅ AGREGADO
+    ContabilidadFormComponent,
+    SignaturePadComponent,
+    SignaturePositionComponent
   ],
   templateUrl: './tesoreria-form.component.html',
   styleUrls: ['./tesoreria-form.component.scss']
@@ -54,22 +62,46 @@ export class TesoreriaFormComponent implements OnInit {
   puedeGuardar = false;
   puedeLiberar = false;
 
+  // Propiedades para firma digital
+  currentUserRole: string = '';
+  userSignature: Signature | null = null;
+  mostrarSelectorPosicion = false;
+  firmaPosicion: SignaturePosition | null = null;
+  tieneFirma = false;
+
   constructor(
     private fb: FormBuilder,
     private route: ActivatedRoute,
     private router: Router,
     private tesoreriaService: TesoreriaService,
     private notificationService: NotificationService,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private authService: AuthService,
+    public signatureService: SignatureService
   ) {
     this.form.valueChanges.subscribe(() => this.actualizarEstadoBotones());
+    this.form.get('estadoFinal')?.valueChanges.subscribe(() => {
+    console.log('🎯 valueChanges detectado');
+    this.onEstadoFinalChange();
+  });
   }
 
   ngOnInit(): void {
+    this.cargarFirmaUsuario();
+    
     const id = this.route.snapshot.paramMap.get('id');
     const modo = this.route.snapshot.queryParamMap.get('modo') || 'edicion';
+    const soloLecturaParam = this.route.snapshot.queryParamMap.get('soloLectura') === 'true';
+    const desdeHistorial = this.route.snapshot.queryParamMap.get('desdeHistorial') === 'true';
 
-    this.esModoLectura = ['vista', 'lectura', 'consulta'].includes(modo.toLowerCase());
+    console.log('[TESORERIA FORM] Inicializando con params:', { id, modo, soloLecturaParam, desdeHistorial });
+
+    // Forzar modo lectura si viene del historial o está procesado
+    this.esModoLectura = soloLecturaParam || 
+                         this.estaProcesado || 
+                         modo === 'consulta' || 
+                         modo === 'lectura' || 
+                         modo === 'vista';
 
     if (id) {
       this.cargarDocumento(id);
@@ -77,13 +109,65 @@ export class TesoreriaFormComponent implements OnInit {
       this.mostrarMensaje('No se recibió ID del documento', 'error');
       this.isLoading = false;
     }
+
+    // Si viene desde historial y modo lectura → deshabilitar todo
+    if (desdeHistorial && this.esModoLectura) {
+      this.form.disable();
+      this.esModoLectura = true;
+      console.log('[TESORERIA FORM] Modo SOLO LECTURA forzado desde historial');
+    }
+
+    // Escuchar cambios en estadoFinal
+    this.form.get('estadoFinal')?.valueChanges.subscribe(() => {
+      this.onEstadoFinalChange();
+    });
   }
+
+  /**
+   * Cargar firma del usuario
+   */
+  cargarFirmaUsuario(): void {
+    const currentUser = this.authService.getCurrentUser();
+    if (currentUser) {
+      this.currentUserRole = currentUser.role;
+      if (this.signatureService.canRoleHaveSignature(currentUser.role)) {
+        this.signatureService.getMySignature().subscribe({
+          next: (signature) => {
+            this.userSignature = signature;
+            this.tieneFirma = !!signature;
+            console.log('✅ Firma cargada para tesorería:', signature?.name);
+          },
+          error: (error) => console.error('Error cargando firma:', error)
+        });
+      }
+    }
+  }
+
+  /**
+   * Cuando cambia el estado final
+   */
+onEstadoFinalChange(): void {
+  const estado = this.form.get('estadoFinal')?.value;
+  console.log('📝 Estado final cambiado a:', estado);
+  console.log('📁 archivoSeleccionado:', !!this.archivoSeleccionado);
+  console.log('🔏 tieneFirma:', this.tieneFirma);
+  console.log('👤 userSignature:', this.userSignature);
+  
+  if (estado === 'PAGADO' && this.archivoSeleccionado && this.tieneFirma) {
+    console.log('✅ Mostrando selector de posición');
+    this.mostrarSelectorPosicion = true;
+  } else {
+    console.log('❌ Ocultando selector de posición');
+    this.mostrarSelectorPosicion = false;
+    this.firmaPosicion = null;
+  }
+}
 
   async cargarDocumento(id: string): Promise<void> {
     this.isLoading = true;
     try {
       const respuesta = await this.tesoreriaService.obtenerDetallePago(id).toPromise();
-      
+
       this.documento = respuesta?.documento || respuesta?.data?.documento || respuesta || null;
 
       if (!this.documento) {
@@ -106,13 +190,13 @@ export class TesoreriaFormComponent implements OnInit {
 
       this.form.patchValue({
         estadoFinal,
-        observaciones: this.documento.observacionesTesoreria || 
-                       this.documento.observaciones || 
-                       this.documento.observacion || ''
+        observaciones: this.documento.observacionesTesoreria ||
+          this.documento.observaciones ||
+          this.documento.observacion || ''
       });
 
       this.actualizarEstadoBotones();
-      
+
     } catch (err: any) {
       console.error('❌ Error cargando documento:', err);
       const msg = err.error?.message || err.message || 'No se pudo cargar el documento';
@@ -129,7 +213,10 @@ export class TesoreriaFormComponent implements OnInit {
   onFileSelected(event: any): void {
     if (this.esModoLectura || this.estaProcesado) return;
     const file = event.target.files?.[0];
-    if (file) this.procesarArchivo(file);
+    if (file) {
+      this.procesarArchivo(file);
+      this.onEstadoFinalChange();
+    }
   }
 
   onDragOver(event: DragEvent): void {
@@ -142,10 +229,14 @@ export class TesoreriaFormComponent implements OnInit {
     event.stopPropagation();
     if (this.esModoLectura || this.estaProcesado) return;
     const file = event.dataTransfer?.files?.[0];
-    if (file) this.procesarArchivo(file);
+    if (file) {
+      this.procesarArchivo(file);
+      this.onEstadoFinalChange();
+    }
   }
 
   procesarArchivo(file: File): void {
+    console.log('📁 Procesando archivo:', file.name, file.type);
     if (file.size > 15 * 1024 * 1024) {
       this.mostrarMensaje('Archivo muy grande (máximo 15MB)', 'error');
       return;
@@ -175,13 +266,15 @@ export class TesoreriaFormComponent implements OnInit {
     } else {
       this.urlPrevisualizacion = null;
     }
-
+ this.onEstadoFinalChange();
     this.actualizarEstadoBotones();
   }
 
   eliminarArchivo(): void {
     this.archivoSeleccionado = null;
     this.urlPrevisualizacion = null;
+    this.firmaPosicion = null;
+    this.mostrarSelectorPosicion = false;
     this.actualizarEstadoBotones();
   }
 
@@ -195,6 +288,22 @@ export class TesoreriaFormComponent implements OnInit {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  /**
+   * Guardar posición seleccionada
+   */
+  onPositionSelected(position: SignaturePosition): void {
+    this.firmaPosicion = position;
+    console.log('📍 Posición de firma seleccionada:', position);
+  }
+
+  /**
+   * Cerrar selector de posición
+   */
+  cerrarSelectorPosicion(): void {
+    this.mostrarSelectorPosicion = false;
+    this.firmaPosicion = null;
   }
 
   onSubmit(): void {
@@ -215,36 +324,55 @@ export class TesoreriaFormComponent implements OnInit {
       return;
     }
 
+    // Verificar firma para PAGADO
+    if (estadoFinal === 'PAGADO' && this.tieneFirma && !this.firmaPosicion) {
+      this.mostrarMensaje('Debe seleccionar la posición de la firma en el documento', 'warning');
+      return;
+    }
+
     if ((estadoFinal === 'OBSERVADO' || estadoFinal === 'RECHAZADO') &&
-        (!this.form.value.observaciones?.trim() || 
-         this.form.value.observaciones.trim().length < 10)) {
+      (!this.form.value.observaciones?.trim() ||
+        this.form.value.observaciones.trim().length < 10)) {
       this.mostrarMensaje('Justificación mínima de 10 caracteres requerida', 'error');
       return;
     }
 
     this.isProcessing = true;
 
-    const formData = new FormData();
-    if (this.archivoSeleccionado) {
-      formData.append('pagoRealizado', this.archivoSeleccionado);
-    }
-    formData.append('observaciones', this.form.value.observaciones?.trim() || '');
-    formData.append('estadoFinal', estadoFinal);
 
-    this.tesoreriaService.procesarPago(this.documento.id, formData)
-      .subscribe({
-        next: (response) => {
-          console.log('✅ Pago procesado:', response);
-          this.mostrarMensaje(`Documento marcado como ${estadoFinal} correctamente`, 'success');
-          this.isProcessing = false;
-          setTimeout(() => this.volverALista(), 2000);
-        },
-        error: (err) => {
-          console.error('❌ Error al procesar pago:', err);
-          this.mostrarMensaje(err.error?.message || err.message || 'Error al procesar', 'error');
-          this.isProcessing = false;
-        }
-      });
+      this.isProcessing = true;
+
+  const formData = new FormData();
+  if (this.archivoSeleccionado) {
+    formData.append('pagoRealizado', this.archivoSeleccionado);
+  }
+  formData.append('observaciones', this.form.value.observaciones?.trim() || '');
+  formData.append('estadoFinal', estadoFinal);
+  
+  // 👇 ESTO ES CRÍTICO - DEBE ESTAR AQUÍ
+  if (this.userSignature && this.firmaPosicion) {
+    formData.append('signatureId', this.userSignature.id);
+    formData.append('signaturePosition', JSON.stringify(this.firmaPosicion));
+    console.log('📤 Enviando firma:', {
+      signatureId: this.userSignature.id,
+      position: this.firmaPosicion
+    });
+  }
+
+  this.tesoreriaService.procesarPago(this.documento.id, formData)
+    .subscribe({
+      next: (response) => {
+        console.log('✅ Pago procesado con firma:', response);
+        this.mostrarMensaje(`Documento marcado como ${estadoFinal} correctamente`, 'success');
+        this.isProcessing = false;
+        setTimeout(() => this.volverALista(), 2000);
+      },
+      error: (err) => {
+        console.error('❌ Error al procesar pago:', err);
+        this.mostrarMensaje(err.error?.message || err.message || 'Error al procesar', 'error');
+        this.isProcessing = false;
+      }
+    });
   }
 
   liberarDocumento(): void {
@@ -296,7 +424,8 @@ export class TesoreriaFormComponent implements OnInit {
 
     this.puedeGuardar = !!estadoFinal &&
       (estadoFinal !== 'PAGADO' || !!this.archivoSeleccionado) &&
-      ((estadoFinal === 'OBSERVADO' || estadoFinal === 'RECHAZADO') ? obs.length >= 10 : true);
+      ((estadoFinal === 'OBSERVADO' || estadoFinal === 'RECHAZADO') ? obs.length >= 10 : true) &&
+      (estadoFinal !== 'PAGADO' || !this.tieneFirma || !!this.firmaPosicion);
 
     this.puedeLiberar = !!this.documento && !this.isProcessing;
   }
@@ -315,5 +444,115 @@ export class TesoreriaFormComponent implements OnInit {
     if (u.includes('OBSERVADO_TESORERIA')) return 'OBSERVADO';
     if (u.includes('RECHAZADO_TESORERIA')) return 'RECHAZADO';
     return 'PENDIENTE';
+  }
+
+  verComprobantePago(): void {
+    if (!this.documento?.id) return;
+
+    this.isProcessing = true;
+    const path = this.documento.pagoRealizadoPath || this.documento.comprobantePagoPath;
+
+    if (!path) {
+      this.notificationService.warning('Sin archivo', 'No hay comprobante de pago registrado');
+      this.isProcessing = false;
+      return;
+    }
+
+    this.tesoreriaService.verArchivoPago(this.documento.id)
+      .subscribe({
+        next: (blob: Blob) => {
+          const url = window.URL.createObjectURL(blob);
+          window.open(url, '_blank');
+          setTimeout(() => window.URL.revokeObjectURL(url), 120000);
+          this.isProcessing = false;
+        },
+        error: (err) => {
+          console.error('Error al ver comprobante:', err);
+          this.notificationService.error('Error', 'No se pudo abrir el comprobante');
+          this.isProcessing = false;
+        }
+      });
+  }
+
+  descargarComprobantePago(): void {
+    if (!this.documento?.id) return;
+
+    this.isProcessing = true;
+    const path = this.documento.pagoRealizadoPath || this.documento.comprobantePagoPath;
+    const nombre = path?.split('/').pop() || 'comprobante_pago.pdf';
+
+    this.tesoreriaService.descargarArchivoPago(this.documento.id)
+      .subscribe({
+        next: (blob: Blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = nombre;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+          this.isProcessing = false;
+          this.notificationService.success('Descargado', 'Comprobante descargado');
+        },
+        error: (err) => {
+          console.error('Error al descargar comprobante:', err);
+          this.notificationService.error('Error', 'No se pudo descargar el comprobante');
+          this.isProcessing = false;
+        }
+      });
+  }
+
+  verArchivoPago(): void {
+    if (!this.documento?.id) {
+      this.notificationService.warning('Sin documento', 'No hay ID para consultar');
+      return;
+    }
+
+    this.isProcessing = true;
+
+    this.tesoreriaService.verArchivoPago(this.documento.id)
+      .subscribe({
+        next: (blob: Blob) => {
+          const url = window.URL.createObjectURL(blob);
+          window.open(url, '_blank');
+          setTimeout(() => window.URL.revokeObjectURL(url), 120000);
+          this.isProcessing = false;
+        },
+        error: (err) => {
+          console.error('Error al ver pago:', err);
+          this.notificationService.error('Error', 'No se pudo abrir el comprobante');
+          this.isProcessing = false;
+        }
+      });
+  }
+
+  descargarArchivoPago(): void {
+    if (!this.documento?.id) return;
+
+    this.isProcessing = true;
+
+    const nombre = this.documento.pagoRealizadoPath?.split('/').pop() || 'comprobante_pago.pdf';
+
+    this.tesoreriaService.descargarArchivoPago(this.documento.id)
+      .subscribe({
+        next: (blob: Blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = nombre;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+          this.notificationService.success('Descargado', 'Archivo descargado');
+          this.isProcessing = false;
+        },
+        error: (err) => {
+          console.error('Error al descargar pago:', err);
+          this.notificationService.error('Error', 'No se pudo descargar');
+          this.isProcessing = false;
+        }
+      });
   }
 }

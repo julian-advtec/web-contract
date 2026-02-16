@@ -1,0 +1,115 @@
+<div class="signature-position-container">
+  <div class="position-header">
+    <h6>
+      <i class="fas fa-arrows-alt text-primary me-2"></i>
+      Posición de la Firma Digital
+    </h6>
+    <button type="button" class="btn-close" (click)="close()" aria-label="Close"></button>
+  </div>
+
+  <div *ngIf="isLoading" class="text-center py-4">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Cargando PDF...</span>
+    </div>
+    <p class="mt-2">Cargando PDF...</p>
+  </div>
+
+  <div *ngIf="errorMessage" class="alert alert-danger">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    {{ errorMessage }}
+  </div>
+
+  <ng-container *ngIf="!isLoading && !errorMessage && pdfDoc">
+    <!-- Selector de página -->
+    <div class="page-selector mb-3" *ngIf="pages.length > 1">
+      <label class="form-label">Página</label>
+      <select class="form-select" [(ngModel)]="selectedPage" (change)="onPageChange()">
+        <option *ngFor="let page of pages" [value]="page">
+          Página {{ page }} de {{ pages.length }}
+        </option>
+      </select>
+    </div>
+
+
+
+    <!-- Vista previa del PDF -->
+    <div class="pdf-preview-container position-relative" 
+         style="min-height: 400px; background: #f8f9fa; border: 2px solid #007bff; border-radius: 4px; overflow: auto;">
+      
+      <canvas 
+        #pdfCanvas
+        class="pdf-canvas"
+        style="display: block; width: 100%; height: auto; min-width: 100%; border: 2px solid red;"
+        (click)="onCanvasClick($event)"
+        (mousemove)="onCanvasMouseMove($event)"
+        (mouseleave)="showGuide = false">
+      </canvas>
+      
+      <!-- Mensaje de carga superpuesto -->
+      <div *ngIf="isLoading" class="position-absolute top-50 start-50 translate-middle bg-white p-3 rounded shadow" style="z-index: 1000;">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Cargando...</span>
+        </div>
+        <p class="mt-2 mb-0">Cargando PDF...</p>
+      </div>
+      
+      <!-- Guías de posición -->
+      <div class="position-guide" 
+           *ngIf="showGuide"
+           [style.left.px]="mouseX"
+           [style.top.px]="mouseY"
+           style="z-index: 100;">
+        <div class="guide-line horizontal"></div>
+        <div class="guide-line vertical"></div>
+        <div class="coordinates-badge">
+          X: {{ mouseX | number:'1.0-0' }}, Y: {{ mouseY | number:'1.0-0' }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Controles de posición -->
+    <div class="position-controls row g-3 mt-3">
+      <div class="col-md-3">
+        <label class="form-label">Posición X</label>
+        <input 
+          type="number" 
+          class="form-control" 
+          [(ngModel)]="selectedPosition.x" 
+          (change)="updatePosition()">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Posición Y</label>
+        <input 
+          type="number" 
+          class="form-control" 
+          [(ngModel)]="selectedPosition.y" 
+          (change)="updatePosition()">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Ancho (px)</label>
+        <input 
+          type="number" 
+          class="form-control" 
+          [(ngModel)]="signatureWidth" 
+          (change)="updatePosition()">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Alto (px)</label>
+        <input 
+          type="number" 
+          class="form-control" 
+          [(ngModel)]="signatureHeight" 
+          (change)="updatePosition()">
+      </div>
+    </div>
+
+    <div class="alert alert-info mt-3 small">
+      <i class="fas fa-info-circle me-2"></i>
+      Haz clic en el PDF para colocar la firma. Puedes ajustar las coordenadas manualmente.
+    </div>
+  </ng-container>
+  
+  <div *ngIf="!isLoading && !errorMessage && !pdfDoc" class="text-center py-4">
+    <p class="text-muted">No hay PDF para visualizar</p>
+  </div>
+</div>
