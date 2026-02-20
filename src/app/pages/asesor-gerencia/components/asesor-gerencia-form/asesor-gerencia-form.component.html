@@ -1,0 +1,205 @@
+<div class="asesor-gerencia-form-container">
+  <div class="container-fluid py-4">
+    <!-- Loading -->
+    <div *ngIf="isLoading" class="text-center py-5">
+      <div class="spinner-border text-primary spinner-border-lg" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+      <h5 class="mt-3 text-muted">Cargando información del documento...</h5>
+    </div>
+
+    <!-- Error -->
+    <div *ngIf="!isLoading && !documento" class="alert alert-danger text-center py-5 shadow">
+      <i class="fas fa-exclamation-triangle fa-4x mb-3 text-danger"></i>
+      <h4>No se pudo cargar el documento</h4>
+      <p>Es posible que no esté asignado a ti, ya haya sido procesado o no tengas permisos.</p>
+      <button class="btn btn-outline-primary btn-lg mt-3" (click)="volverALista()">
+        <i class="fas fa-arrow-left me-2"></i>Volver al listado
+      </button>
+    </div>
+
+    <ng-container *ngIf="documento && !isLoading">
+      <!-- Cabecera -->
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+        <div>
+          <h3 class="mb-1">
+            <i class="fas fa-user-check me-2 text-primary"></i>Revisión Asesor Gerencia
+          </h3>
+          <div class="d-flex align-items-center gap-3 flex-wrap">
+            <span class="badge bg-primary fs-6 px-3 py-2">
+              {{ documento.numeroRadicado || 'Sin radicado' }}
+            </span>
+            <span class="badge" [ngClass]="getEstadoBadgeClass(documento.estado)">
+              {{ getEstadoTexto(documento.estado) }}
+            </span>
+          </div>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+          <span class="badge bg-secondary">{{ documento.nombreContratista || 'N/A' }}</span>
+          <span class="badge bg-dark">{{ documento.numeroContrato || 'N/A' }}</span>
+        </div>
+      </div>
+
+      <!-- Revisión Contabilidad (solo lectura) -->
+      <section class="flow-views mb-5">
+        <div class="card shadow border-info h-100">
+          <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-calculator me-2"></i>Revisión Contabilidad</h5>
+          </div>
+          <div class="card-body p-0">
+            <app-contabilidad-form [documentoId]="documento?.id" [forceReadOnly]="true"></app-contabilidad-form>
+          </div>
+        </div>
+      </section>
+
+      <!-- Área de Firma (siempre visible si hay comprobante) -->
+      <div class="card shadow mb-5 border-success" *ngIf="comprobanteBlob">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0">
+            <i class="fas fa-file-invoice-dollar me-2"></i>
+            Comprobante de Pago Realizado (Tesoreria) - Firma Obligatoria para Aprobar
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="border rounded p-4 bg-light shadow-sm">
+            <h5 class="mb-3 text-primary">
+              <i class="fas fa-mouse-pointer me-2"></i>Selecciona dónde colocar tu firma
+              <span class="text-danger ms-2">*</span>
+            </h5>
+            <small class="text-muted d-block mb-3">
+              Debes seleccionar una posición para poder marcar como APROBADO
+            </small>
+
+            <app-signature-position
+              [pdfFile]="comprobanteFile"
+              (positionChange)="onPositionSelected($event)">
+            </app-signature-position>
+          </div>
+
+          <div *ngIf="!firmaPosicion && form.get('estadoFinal')?.value === 'APROBADO'" class="alert alert-danger mt-3">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Debes seleccionar la posición de la firma para aprobar
+          </div>
+        </div>
+      </div>
+
+      <!-- Alerta modo lectura -->
+      <div class="alert alert-info shadow mb-5" *ngIf="esModoLectura || estaProcesado">
+        <i class="fas fa-info-circle me-2 fa-lg"></i>
+        <strong>Modo consulta:</strong> 
+        {{ estaProcesado ? 'Este documento ya fue procesado por gerencia.' : 'Solo puedes revisar la información (no editar).' }}
+      </div>
+
+      <!-- Formulario de decisión -->
+      <section class="gerencia-decision">
+        <div class="card shadow border-primary">
+          <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">
+              <i class="fas fa-gavel me-2"></i>Tu Decisión como Asesor Gerencia
+            </h4>
+            <div *ngIf="tieneFirma" class="d-flex align-items-center gap-2">
+              <i class="fas fa-signature text-light"></i>
+              <small>Firma registrada</small>
+            </div>
+          </div>
+
+          <div class="card-body">
+            <form [formGroup]="form" (ngSubmit)="onSubmit()">
+              <div class="row g-4">
+                <div class="col-md-6">
+                  <label class="form-label fw-bold required">
+                    <i class="fas fa-flag-checkered me-1 text-primary"></i>Decisión final
+                  </label>
+                  <select class="form-select form-select-lg" formControlName="estadoFinal"
+                          [disabled]="esModoLectura || estaProcesado || isProcessing">
+                    <option value="">-- Seleccione una opción --</option>
+                    <option value="APROBADO">APROBADO - Firmar y finalizar proceso</option>
+                    <option value="OBSERVADO">OBSERVADO - Requiere correcciones</option>
+                    <option value="RECHAZADO">RECHAZADO - No procede</option>
+                  </select>
+
+                  <div class="mt-2 small" [ngClass]="{
+                    'text-success': form.get('estadoFinal')?.value === 'APROBADO',
+                    'text-warning': form.get('estadoFinal')?.value === 'OBSERVADO',
+                    'text-danger': form.get('estadoFinal')?.value === 'RECHAZADO'
+                  }">
+                    <ng-container [ngSwitch]="form.get('estadoFinal')?.value">
+                      <div *ngSwitchCase="'APROBADO'">
+                        <i class="fas fa-check-circle me-1"></i>Requiere selección de posición de firma
+                      </div>
+                      <div *ngSwitchCase="'OBSERVADO'">
+                        <i class="fas fa-exclamation-triangle me-1"></i>Indica qué debe corregirse
+                      </div>
+                      <div *ngSwitchCase="'RECHAZADO'">
+                        <i class="fas fa-times-circle me-1"></i>Justifica por qué no procede
+                      </div>
+                    </ng-container>
+                  </div>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label fw-bold" [class.text-danger]="(form.get('estadoFinal')?.value === 'OBSERVADO' || form.get('estadoFinal')?.value === 'RECHAZADO')">
+                    <i class="fas fa-comment-dots me-1 text-primary"></i>Observaciones / Justificación
+                    <span class="text-danger" *ngIf="form.get('estadoFinal')?.value === 'OBSERVADO' || form.get('estadoFinal')?.value === 'RECHAZADO'">*</span>
+                  </label>
+                  <textarea class="form-control" rows="6" formControlName="observaciones"
+                            [disabled]="esModoLectura || estaProcesado || isProcessing"
+                            placeholder="Detalla motivos, correcciones necesarias o razones de rechazo..."></textarea>
+
+                  <small class="form-text mt-2 d-block" *ngIf="form.get('estadoFinal')?.value">
+                    <ng-container [ngSwitch]="form.get('estadoFinal')?.value">
+                      <span *ngSwitchCase="'APROBADO'" class="text-muted">Opcional</span>
+                      <span *ngSwitchCase="'OBSERVADO'" class="text-warning">Mínimo 10 caracteres</span>
+                      <span *ngSwitchCase="'RECHAZADO'" class="text-danger">Mínimo 10 caracteres</span>
+                    </ng-container>
+                  </small>
+                </div>
+              </div>
+
+              <div class="d-flex flex-wrap justify-content-end gap-3 mt-5" *ngIf="!esModoLectura && !estaProcesado">
+                <button type="button" class="btn btn-outline-danger btn-lg px-4" 
+                        (click)="liberarDocumento()" [disabled]="isProcessing || !puedeLiberar">
+                  <i class="fas fa-unlock me-2"></i>Liberar documento
+                </button>
+
+                <button type="button" class="btn btn-outline-secondary btn-lg px-4" 
+                        (click)="volverALista()" [disabled]="isProcessing">
+                  <i class="fas fa-times me-2"></i>Cancelar
+                </button>
+
+                <button type="submit" class="btn btn-primary btn-lg px-5" 
+                        [disabled]="isProcessing || !puedeGuardar">
+                  <span *ngIf="!isProcessing">
+                    <i class="fas fa-save me-2"></i>Guardar y Finalizar
+                  </span>
+                  <span *ngIf="isProcessing">
+                    <i class="fas fa-spinner fa-spin me-2"></i>Procesando...
+                  </span>
+                </button>
+              </div>
+
+              <div class="text-center mt-5" *ngIf="esModoLectura || estaProcesado">
+                <button type="button" class="btn btn-outline-primary btn-lg px-5" (click)="volverALista()">
+                  <i class="fas fa-arrow-left me-2"></i>Volver al listado
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+    </ng-container>
+  </div>
+
+  <!-- Mensaje flotante -->
+  <div *ngIf="mensaje" class="position-fixed bottom-0 end-0 m-4 shadow-lg" style="z-index: 1050; max-width: 400px;">
+    <div class="alert alert-dismissible fade show mb-0" [ngClass]="{
+      'alert-success': tipoMensaje === 'success',
+      'alert-danger': tipoMensaje === 'error',
+      'alert-warning': tipoMensaje === 'warning',
+      'alert-info': tipoMensaje === 'info'
+    }">
+      {{ mensaje }}
+      <button type="button" class="btn-close" (click)="mensaje = ''"></button>
+    </div>
+  </div>
+</div>

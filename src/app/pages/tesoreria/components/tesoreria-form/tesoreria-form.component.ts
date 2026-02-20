@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -43,6 +43,9 @@ export class TesoreriaFormComponent implements OnInit {
     observaciones: ['', [Validators.minLength(10)]],
     estadoFinal: ['', Validators.required]
   });
+
+  @Input() documentoId: string | null = null;
+  @Input() forceReadOnly: boolean = false;
 
   isProcessing = false;
   isLoading = true;

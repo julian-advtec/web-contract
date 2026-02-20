@@ -7,12 +7,13 @@ import { TesoreriaStatsComponent } from './components/tesoreria-stats/tesoreria-
 
 @NgModule({
   declarations: [
-    TesoreriaStatsComponent
+    
   ],
   imports: [
     CommonModule,
     FormsModule,
-    TesoreriaRoutingModule
+    TesoreriaRoutingModule,
+    TesoreriaStatsComponent
   ]
 })
 export class TesoreriaModule { }

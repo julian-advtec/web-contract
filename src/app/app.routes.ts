@@ -79,6 +79,13 @@ export const routes: Routes = [
     data: { roles: [UserRole.TESORERIA, UserRole.ADMIN] }  // ← usa el enum si lo tienes
   },
   {
+    path: 'asesor-gerencia',
+    loadChildren: () => import('./pages/asesor-gerencia/asesor-gerencia-routing.module')
+      .then(m => m.AsesorGerenciaComponentRoutes),
+    canActivate: [AuthGuard, RoleGuard],
+    data: { roles: [UserRole.ASESOR_GERENCIA, UserRole.ADMIN] }  // ← usa el enum si lo tienes
+  },
+  {
     path: '',
     redirectTo: '/dashboard',
     pathMatch: 'full'

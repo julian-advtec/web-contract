@@ -1,0 +1,591 @@
+@import '../../../../shared/layout-styles.scss';
+
+/* ===== VARIABLES ESPECÍFICAS DE ASESOR GERENCIA ===== */
+$color-gerencia: #10B981;                // Verde esmeralda (diferente a tesorería)
+$color-gerencia-light: rgba(16, 185, 129, 0.1);
+$color-gerencia-medium: rgba(16, 185, 129, 0.2);
+$color-gerencia-dark: #059669;
+$color-warning: #F59E0B;
+$color-warning-light: rgba(245, 158, 11, 0.1);
+$color-success: #10B981;
+$color-success-light: rgba(16, 185, 129, 0.1);
+$color-danger: #EF4444;
+$color-danger-light: rgba(239, 68, 68, 0.1);
+$color-info: #3B82F6;
+$color-info-light: rgba(59, 130, 246, 0.1);
+$color-pending: #6B7280;
+$color-pending-light: rgba(107, 114, 128, 0.1);
+
+/* ===== CONTENEDOR PRINCIPAL ===== */
+.asesor-gerencia-pending-container {
+  width: 100%;
+  height: 100%;
+  min-height: calc(100vh - 80px);
+  background-color: #f8f9fa;
+  overflow-y: auto;
+  
+  &.sidebar-collapsed {
+    margin-left: 0;
+  }
+
+  .asesor-gerencia-pending-inner {
+    padding: 15px;
+    max-width: 1600px;
+    margin: 0 auto;
+    width: 100%;
+    min-height: 100%;
+  }
+}
+
+/* ===== BARRA DE BÚSQUEDA ===== */
+.search-container {
+  width: 100%;
+  margin: 0 auto 20px;
+  max-width: 800px;
+  
+  .search-group {
+    width: 100%;
+    border: 4px solid rgba(16, 185, 129, 0.4);
+    border-radius: 12px;
+    overflow: hidden;
+    background: white;
+    display: flex;
+    align-items: stretch;
+    
+    .input-group-text {
+      background-color: rgba(16, 185, 129, 0.08);
+      border: none;
+      margin: 0;
+      color: $color-gerencia;
+      padding: 0.7rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+    
+    .form-control {
+      border: none;
+      margin: 0;
+      width: 100%;
+      padding: 0.7rem 1rem;
+      font-size: 0.9rem;
+      box-shadow: none;
+      text-align: center;
+      flex: 1;
+      
+      &:focus {
+        outline: none;
+        box-shadow: none;
+      }
+      
+      &::placeholder {
+        color: rgba(16, 185, 129, 0.6);
+        font-size: 0.9rem;
+      }
+    }
+  }
+}
+
+/* ===== TARJETA PRINCIPAL ===== */
+.main-card {
+  border: none;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+  border: 2px solid $color-gerencia-light;
+
+  .card-body {
+    padding: 0;
+  }
+}
+
+/* ===== CONTENEDOR DE DOCUMENTOS ===== */
+.documentos-container {
+  padding: 20px;
+  width: 100%;
+}
+
+/* ===== ENCABEZADOS DE TABLA ===== */
+.documentos-header {
+  display: grid;
+  grid-template-columns: 1.5fr 1.5fr 1fr 1fr 1.5fr 1.5fr;
+  gap: 1.2rem;
+  padding: 1rem 1.2rem;
+  margin-bottom: 0.8rem;
+  border-bottom: 2px solid $color-gerencia-medium;
+  font-weight: 700;
+  color: $color-gerencia-dark;
+  text-align: center;
+  width: 100%;
+  font-size: 0.85rem;
+
+  .header-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .acciones-header {
+    text-align: center;
+  }
+}
+
+/* ===== LISTA DE DOCUMENTOS ===== */
+.documentos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  width: 100%;
+}
+
+/* ===== TARJETA DE DOCUMENTO ===== */
+.documento-card {
+  display: grid;
+  grid-template-columns: 1.5fr 1.5fr 1fr 1fr 1.5fr 1.5fr;
+  gap: 1.2rem;
+  padding: 1rem;
+  background: $color-gerencia-light !important;
+  border-radius: 10px;
+  border: 1px solid $color-gerencia-medium;
+  transition: all 0.3s ease;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  cursor: default;
+  position: relative;
+
+  &:hover {
+    background-color: $color-gerencia-medium !important;
+    border-color: $color-gerencia;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(16, 185, 129, 0.15);
+  }
+
+  &.reciente {
+    background: linear-gradient(90deg, $color-info-light 0%, $color-gerencia-light 100%) !important;
+    border-left: 4px solid $color-info;
+    
+    .reciente-badge {
+      background: $color-info;
+      color: white;
+      font-size: 0.7rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 10px;
+      margin-left: 0.5rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+    }
+  }
+
+  & > * {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-width: 0;
+    overflow: hidden;
+  }
+}
+
+/* ===== INFORMACIÓN DEL DOCUMENTO ===== */
+.documento-info {
+  .documento-details {
+    width: 100%;
+    text-align: center;
+
+    .documento-numero {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: $color-gerencia-dark;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 0.3rem;
+      line-height: 1.3;
+    }
+
+    .documento-fecha {
+      margin: 0.25rem 0 0 0;
+      font-size: 0.8rem;
+      color: $color-gerencia-dark;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    small {
+      font-size: 0.75rem;
+      color: #059669;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+  }
+}
+
+/* ===== CONTRATISTA ===== */
+.documento-contratista {
+  .contratista-text {
+    margin: 0;
+    color: $color-gerencia-dark;
+    font-size: 0.85rem;
+    text-align: center;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+    line-height: 1.3;
+    
+    strong {
+      display: block;
+      margin-bottom: 0.2rem;
+    }
+  }
+
+  .text-muted {
+    font-size: 0.75rem;
+    margin-top: 0.2rem;
+    color: #6B7280;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+}
+
+/* ===== CONTRATO ===== */
+.documento-contrato {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  .contrato-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.3em 0.7em;
+    border-radius: 50px;
+    font-size: 0.8em;
+    font-weight: 500;
+    background-color: white !important;
+    color: $color-gerencia-dark !important;
+    border: 1px solid $color-gerencia;
+    white-space: nowrap;
+    min-width: 80px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  small {
+    font-size: 0.7rem;
+    line-height: 1.2;
+    color: #6B7280;
+    margin-top: 0.3rem;
+    text-align: center;
+  }
+}
+
+/* ===== ESTADO ===== */
+.documento-estado {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+
+  .estado-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    padding: 0.3em 0.7em;
+    border-radius: 50px;
+    font-size: 0.8em;
+    font-weight: 500;
+    white-space: nowrap;
+    background-color: white;
+    border: 1px solid;
+    min-width: 100px;
+    max-width: 100%;
+
+    &.badge-primary {
+      color: $color-gerencia;
+      border-color: $color-gerencia;
+      background-color: $color-gerencia-light;
+    }
+
+    &.badge-warning {
+      color: $color-warning;
+      border-color: $color-warning;
+      background-color: $color-warning-light;
+    }
+
+    &.badge-success {
+      color: $color-success;
+      border-color: $color-success;
+      background-color: $color-success-light;
+    }
+
+    &.badge-danger {
+      color: $color-danger;
+      border-color: $color-danger;
+      background-color: $color-danger-light;
+    }
+
+    &.badge-info {
+      color: $color-info;
+      border-color: $color-info;
+      background-color: $color-info-light;
+    }
+
+    &.badge-secondary {
+      color: #6B7280;
+      border-color: #6B7280;
+      background-color: rgba(107, 114, 128, 0.1);
+    }
+  }
+
+  .dias-transcurridos {
+    small {
+      font-size: 0.7rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      
+      &.text-success {
+        color: $color-success !important;
+      }
+      
+      &.text-warning {
+        color: $color-warning !important;
+      }
+      
+      &.text-danger {
+        color: $color-danger !important;
+      }
+      
+      &.text-primary {
+        color: $color-gerencia !important;
+      }
+    }
+  }
+}
+
+/* ===== TESORERO Y FECHAS ===== */
+.documento-contador-fechas {
+  .contador-info {
+    margin-bottom: 0.5rem;
+    width: 100%;
+    
+    small {
+      font-size: 0.8rem;
+      line-height: 1.4;
+      color: $color-gerencia-dark !important;
+      font-weight: 500;
+      text-align: left;
+      display: block;
+      margin-bottom: 0.2rem;
+    }
+  }
+
+  .fechas-container {
+    width: 100%;
+    
+    .fecha-line {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.2rem;
+      font-size: 0.8rem;
+      
+      .fecha-label {
+        font-weight: 500;
+        color: #6B7280;
+        flex-shrink: 0;
+        margin-right: 0.5rem;
+      }
+      
+      .fecha-value {
+        color: $color-gerencia-dark;
+        font-weight: 600;
+        text-align: right;
+        flex: 1;
+        min-width: 0;
+      }
+    }
+  }
+}
+
+/* ===== ACCIONES ===== */
+.documento-acciones {
+  .acciones-buttons {
+    width: 100%;
+    
+    .d-flex {
+      width: 100%;
+      gap: 0.4rem;
+
+      .btn-primary {
+        background-color: $color-gerencia !important;
+        color: white !important;
+        border: 1px solid $color-gerencia !important;
+        padding: 0.4rem 0.8rem !important;
+        font-size: 0.8rem !important;
+        border-radius: 6px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        transition: all 0.3s ease !important;
+        min-width: 140px;
+        width: 100%;
+        white-space: nowrap;
+        
+        &:hover:not(:disabled) {
+          background-color: $color-gerencia-dark !important;
+          border-color: $color-gerencia-dark !important;
+          transform: translateY(-2px) !important;
+          box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3) !important;
+        }
+        
+        &:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        
+        i {
+          margin-right: 0.4rem !important;
+          font-size: 0.8rem !important;
+        }
+      }
+
+      .btn-outline-info,
+      .btn-outline-success {
+        font-size: 0.75rem !important;
+        padding: 0.3rem 0.6rem !important;
+        white-space: nowrap;
+      }
+    }
+  }
+}
+
+/* ===== PAGINACIÓN ===== */
+.documentos-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  margin-top: 1.2rem;
+  border-top: 1px solid $color-gerencia-light;
+  flex-wrap: wrap;
+  
+  .pagination-info {
+    font-size: 0.9rem;
+    color: #6B7280;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    width: 100%;
+    text-align: center;
+  }
+
+  .pagination-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8rem;
+    width: 100%;
+    flex-wrap: wrap;
+
+    .btn {
+      border-radius: 8px;
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      min-width: 100px;
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+      
+      &:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+      
+      &.btn-outline-primary {
+        color: $color-gerencia;
+        border-color: $color-gerencia;
+        
+        &:hover {
+          background-color: $color-gerencia;
+          color: white;
+        }
+      }
+      
+      &.btn-primary {
+        background-color: $color-gerencia;
+        border-color: $color-gerencia;
+        box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2);
+      }
+      
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
+
+    .page-numbers {
+      display: flex;
+      gap: 0.3rem;
+      flex-wrap: wrap;
+      justify-content: center;
+
+      .btn {
+        min-width: 36px;
+        height: 36px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+  }
+}
+
+/* ===== RESPONSIVE ===== */
+/* (mismo responsive que tesorería, solo cambia variables de color) */
+@media (max-width: 1024px) {
+  .asesor-gerencia-pending-inner {
+    padding: 10px;
+  }
+  
+  .documentos-container {
+    padding: 15px;
+  }
+  
+  .documento-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: 
+      "info info"
+      "contratista contrato"
+      "estado tesorero"
+      "acciones acciones";
+    gap: 1rem;
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .documento-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    padding: 1rem;
+  }
+}

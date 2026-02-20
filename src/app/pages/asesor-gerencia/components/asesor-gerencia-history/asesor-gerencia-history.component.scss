@@ -1,0 +1,590 @@
+@import '../../../../shared/layout-styles.scss';
+
+/* ===== VARIABLES DE ASESOR GERENCIA ===== */
+$color-gerencia: #10B981;
+$color-gerencia-light: rgba(16, 185, 129, 0.1);
+$color-gerencia-medium: rgba(16, 185, 129, 0.2);
+$color-gerencia-dark: #059669;
+
+$color-primario: #10B981;
+$color-primario-light: rgba(16, 185, 129, 0.1);
+$color-primario-medium: rgba(16, 185, 129, 0.2);
+$color-primario-dark: #059669;
+$color-primario-gradient: linear-gradient(135deg, #10B981 0%, #059669 100%);
+
+$color-aprobado: #10B981;
+$color-aprobado-light: rgba(16, 185, 129, 0.15);
+$color-aprobado-medium: rgba(16, 185, 129, 0.25);
+$color-aprobado-dark: #059669;
+
+$color-observado: #F59E0B;
+$color-observado-light: rgba(245, 158, 11, 0.15);
+
+$color-rechazado: #EF4444;
+$color-rechazado-light: rgba(239, 68, 68, 0.15);
+
+$color-completado: #10B981;
+$color-completado-light: rgba(16, 185, 129, 0.15);
+
+$color-en-revision: #F59E0B;
+$color-en-revision-light: rgba(245, 158, 11, 0.15);
+
+$color-pendiente: #6B7280;
+$color-pendiente-light: rgba(107, 114, 128, 0.15);
+
+$color-info: #3B82F6;
+$color-info-light: rgba(59, 130, 246, 0.1);
+
+$color-warning: #F59E0B;
+$color-warning-light: rgba(245, 158, 11, 0.1);
+
+$color-danger: #EF4444;
+$color-danger-light: rgba(239, 68, 68, 0.1);
+
+/* ===== CONTENEDOR PRINCIPAL ===== */
+.asesor-gerencia-history-container {
+  width: 100%;
+  height: 100%;
+  min-height: calc(100vh - 80px);
+  background-color: #f8f9fa;
+  overflow-y: auto;
+
+  &.sidebar-collapsed {
+    margin-left: 0;
+  }
+
+  .asesor-gerencia-history-inner {
+    padding: 15px;
+    max-width: 1600px;
+    margin: 0 auto;
+    width: 100%;
+    min-height: 100%;
+  }
+}
+
+/* ===== BARRA DE BÚSQUEDA ===== */
+.search-container {
+  width: 100%;
+  margin: 0 auto 45px;
+  max-width: 800px;
+
+  .search-group {
+    width: 100%;
+    border: 4px solid $color-gerencia-light;
+    border-radius: 12px;
+    overflow: hidden;
+    background: white;
+    display: flex;
+    align-items: stretch;
+
+    .input-group-text {
+      background-color: $color-gerencia-light;
+      border: none;
+      margin: 0;
+      color: $color-gerencia;
+      padding: 0.7rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+
+    .form-control {
+      border: none;
+      margin: 0;
+      width: 100%;
+      padding: 0.7rem 1rem;
+      font-size: 0.9rem;
+      box-shadow: none;
+      text-align: center;
+      flex: 1;
+
+      &:focus {
+        outline: none;
+        box-shadow: none;
+      }
+
+      &::placeholder {
+        color: rgba(16, 185, 129, 0.6);
+        font-size: 0.9rem;
+      }
+    }
+  }
+}
+
+/* ===== TARJETA PRINCIPAL ===== */
+.main-card {
+  border: none;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+  border: 2px solid $color-gerencia-light;
+
+  .card-body {
+    padding: 0;
+  }
+}
+
+/* ===== CONTENEDOR DE PAGOS/HISTORIAL ===== */
+.pagos-container {
+  padding: 20px;
+  width: 100%;
+}
+
+/* ===== ENCABEZADOS ===== */
+.pagos-header {
+  display: grid;
+  grid-template-columns: 1.5fr 2fr 1.2fr 1.5fr 1.5fr;
+  gap: 1.2rem;
+  padding: 1rem 1.2rem;
+  margin-bottom: 0.8rem;
+  border-bottom: 2px solid $color-gerencia-medium;
+  font-weight: 700;
+  color: $color-gerencia-dark;
+  text-align: center;
+  width: 100%;
+  font-size: 0.85rem;
+
+  .header-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* ===== LISTA ===== */
+.pagos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  width: 100%;
+}
+
+/* ===== TARJETA DE PAGO ===== */
+.pago-card {
+  display: grid;
+  grid-template-columns: 1.5fr 2fr 1.2fr 1.5fr 1.5fr;
+  gap: 1.2rem;
+  padding: 1rem;
+  background: $color-gerencia-light !important;
+  border-radius: 10px;
+  border: 1px solid $color-gerencia-medium;
+  transition: all 0.3s ease;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  cursor: default;
+  position: relative;
+
+  &:hover {
+    background-color: $color-gerencia-medium !important;
+    border-color: $color-gerencia;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(16, 185, 129, 0.15);
+  }
+
+  &.reciente {
+    background: $color-gerencia-light !important;
+    border: 4px solid $color-gerencia;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+
+    &:hover {
+      background: $color-gerencia-medium !important;
+      border-color: $color-gerencia-dark;
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(16, 185, 129, 0.35);
+    }
+
+    .reciente-badge {
+      background: $color-gerencia;
+      color: white;
+      font-size: 0.7rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 10px;
+      margin-left: 0.5rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid $color-gerencia-dark;
+    }
+
+    .pago-numero,
+    .pago-fecha {
+      color: $color-gerencia-dark;
+    }
+
+    .contratista-nombre {
+      color: $color-gerencia-dark !important;
+      font-weight: 700;
+    }
+
+    .contrato-badge {
+      border-color: $color-gerencia;
+      color: $color-gerencia-dark !important;
+    }
+
+    .estado-badge {
+      border-color: $color-gerencia;
+      color: $color-gerencia-dark !important;
+    }
+  }
+
+  & > * {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-width: 0;
+  }
+}
+
+/* ===== INFORMACIÓN ===== */
+.pago-info {
+  .pago-details {
+    text-align: center;
+    width: 100%;
+
+    .pago-numero {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: $color-gerencia-dark;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0.3rem;
+    }
+
+    .pago-fecha {
+      margin: 0;
+      font-size: 0.8rem;
+      color: $color-gerencia-dark;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0.2rem;
+    }
+
+    small {
+      font-size: 0.75rem;
+      color: $color-gerencia-dark;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+}
+
+/* ===== CONTRATISTA ===== */
+.pago-contratista {
+  .contratista-info {
+    text-align: center;
+    width: 100%;
+
+    .contratista-nombre {
+      margin: 0 0 0.3rem 0;
+      color: $color-gerencia-dark;
+      font-size: 0.85rem;
+      font-weight: 600;
+      word-break: break-word;
+      max-width: 100%;
+      line-height: 1.3;
+    }
+
+    .contratista-documento {
+      font-size: 0.75rem;
+      color: #6B7280;
+      font-weight: 500;
+    }
+  }
+}
+
+/* ===== CONTRATO ===== */
+.pago-contrato {
+  .contrato-info {
+    .contrato-badge {
+      padding: 0.3em 0.7em;
+      border-radius: 50px;
+      font-size: 0.8em;
+      font-weight: 500;
+      background-color: white !important;
+      color: $color-gerencia-dark !important;
+      border: 1px solid $color-gerencia;
+      white-space: nowrap;
+      min-width: 80px;
+    }
+  }
+}
+
+/* ===== ESTADO ===== */
+.pago-estado {
+  .estado-info {
+    .estado-badge {
+      padding: 0.3em 0.8em;
+      border-radius: 50px;
+      font-size: 0.8em;
+      font-weight: 500;
+      white-space: nowrap;
+      background-color: white;
+      border: 1px solid;
+      width: fit-content;
+
+      &.badge-completado {
+        color: $color-completado;
+        border-color: $color-completado;
+        background-color: $color-completado-light;
+      }
+
+      &.badge-en-revision {
+        color: $color-en-revision;
+        border-color: $color-en-revision;
+        background-color: $color-en-revision-light;
+      }
+
+      &.badge-observado {
+        color: $color-observado;
+        border-color: $color-observado;
+        background-color: $color-observado-light;
+      }
+
+      &.badge-rechazado {
+        color: $color-rechazado;
+        border-color: $color-rechazado;
+        background-color: $color-rechazado-light;
+      }
+    }
+
+    .fecha-revision {
+      font-size: 0.75rem;
+      color: #6B7280;
+      font-weight: 500;
+    }
+  }
+}
+
+/* ===== ACCIONES ===== */
+.pago-acciones {
+  .acciones-buttons {
+    .btn-group-vertical {
+      width: 100%;
+      gap: 0.4rem;
+
+      .btn {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8rem;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+        min-width: 140px;
+
+        &.btn-info {
+          background-color: $color-gerencia !important;
+          color: white !important;
+          border: 1px solid $color-gerencia !important;
+
+          &:hover {
+            background-color: $color-gerencia-dark !important;
+            border-color: $color-gerencia-dark !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+          }
+        }
+
+        &.btn-warning {
+          background-color: $color-observado !important;
+          color: white !important;
+          border: 1px solid $color-observado !important;
+
+          &:hover {
+            background-color: darken($color-observado, 10%) !important;
+            border-color: darken($color-observado, 10%) !important;
+          }
+        }
+
+        &.btn-success {
+          background-color: $color-completado !important;
+          color: white !important;
+          border: 1px solid $color-completado !important;
+
+          &:hover {
+            background-color: darken($color-completado, 10%) !important;
+            border-color: darken($color-completado, 10%) !important;
+          }
+        }
+      }
+    }
+  }
+}
+
+/* ===== PAGINACIÓN ===== */
+.pagos-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  margin-top: 1.2rem;
+  border-top: 1px solid $color-gerencia-light;
+
+  .pagination-info {
+    font-size: 0.9rem;
+    color: #6B7280;
+    font-weight: 500;
+  }
+
+  .pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+
+    .btn {
+      border-radius: 8px;
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      min-width: 100px;
+      transition: all 0.3s ease;
+
+      &.btn-outline-primary {
+        color: $color-gerencia;
+        border-color: $color-gerencia;
+
+        &:hover {
+          background-color: $color-gerencia;
+          color: white;
+        }
+      }
+
+      &.btn-primary {
+        background-color: $color-gerencia;
+        border-color: $color-gerencia;
+        box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2);
+      }
+    }
+
+    .page-numbers {
+      display: flex;
+      gap: 0.3rem;
+
+      .btn {
+        min-width: 36px;
+        height: 36px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+  }
+}
+
+/* ===== LOADING Y EMPTY STATE ===== */
+.text-center {
+  text-align: center;
+}
+
+.spinner-border {
+  width: 3rem;
+  height: 3rem;
+}
+
+@keyframes spinner-border {
+  to { transform: rotate(360deg); }
+}
+
+.empty-state {
+  padding: 3rem 1rem;
+
+  i {
+    font-size: 4rem;
+    color: $color-gerencia;
+    opacity: 0.3;
+  }
+
+  h4 {
+    font-size: 1.2rem;
+    margin-bottom: 0.5rem;
+    color: $color-gerencia-dark;
+  }
+
+  p {
+    font-size: 0.95rem;
+    color: $color-gerencia-dark;
+    opacity: 0.8;
+  }
+
+  ul {
+    max-width: 400px;
+    margin: 0 auto;
+    text-align: left;
+
+    li {
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+      color: $color-gerencia-dark;
+    }
+  }
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 992px) {
+  .pagos-header {
+    display: none;
+  }
+
+  .pago-card {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "info info"
+      "contratista contrato"
+      "estado acciones";
+    gap: 1rem;
+
+    .pago-info { grid-area: info; }
+    .pago-contratista { grid-area: contratista; }
+    .pago-contrato { grid-area: contrato; }
+    .pago-estado { grid-area: estado; }
+    .pago-acciones { grid-area: acciones; }
+  }
+}
+
+@media (max-width: 768px) {
+  .pago-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+
+    > * {
+      width: 100%;
+      border-bottom: 1px solid $color-gerencia-light;
+      padding-bottom: 0.8rem;
+
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+  }
+
+  .pagos-pagination {
+    flex-direction: column;
+    gap: 1rem;
+  }
+}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: $color-gerencia;
+  border-radius: 4px;
+
+  &:hover {
+    background: $color-gerencia-dark;
+  }
+}
