@@ -1,7 +1,7 @@
-// src/app/pages/rendicion-cuentas/rendicion-history/rendicion-history.component.ts
+// src/app/pages/rendicion-cuentas/components/rendicion-history/rendicion-history.component.ts
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule, Router } from '@angular/router';
+import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -23,7 +23,6 @@ export class RendicionHistoryComponent implements OnInit, OnDestroy {
   paginatedHistorial: RendicionCuentasHistorialItem[] = [];
 
   loading = false;
-  isProcessing = false;
   error = '';
   successMessage = '';
   infoMessage = '';
@@ -34,20 +33,32 @@ export class RendicionHistoryComponent implements OnInit, OnDestroy {
   totalPages = 0;
   pages: number[] = [];
 
+  documentoId: string | null = null;
+  numeroRadicado: string = '—';
   usuarioActual = '';
   sidebarCollapsed = false;
 
   private destroy$ = new Subject<void>();
 
   constructor(
+    private route: ActivatedRoute,
+    private router: Router,
     private rendicionService: RendicionCuentasService,
-    private notificationService: NotificationService,
-    private router: Router
-  ) { }
+    private notificationService: NotificationService
+  ) {}
 
   ngOnInit(): void {
     this.cargarUsuarioActual();
-    this.loadHistorial();
+    this.documentoId = this.route.snapshot.paramMap.get('id');
+
+    if (!this.documentoId) {
+      this.error = 'No se recibió ID del documento en la URL';
+      this.notificationService.error('Error', this.error);
+      this.router.navigate(['/rendicion-cuentas']);
+      return;
+    }
+
+    this.loadHistorial(this.documentoId);
   }
 
   ngOnDestroy(): void {
@@ -67,16 +78,16 @@ export class RendicionHistoryComponent implements OnInit, OnDestroy {
     }
   }
 
-  loadHistorial(): void {
+  loadHistorial(id: string): void {
     this.loading = true;
     this.error = '';
 
-    this.rendicionService.getHistorial()
+    this.rendicionService.getHistorial(id)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (data) => {
           this.historial = data.sort((a, b) => 
-            b.fechaCreacion.getTime() - a.fechaCreacion.getTime()
+            new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
           );
           this.filteredHistorial = [...this.historial];
           this.updatePagination();
@@ -87,19 +98,20 @@ export class RendicionHistoryComponent implements OnInit, OnDestroy {
             ).length;
             this.successMessage = `${this.filteredHistorial.length} registros (${completados} completados)`;
           } else {
-            this.infoMessage = 'No hay historial disponible';
+            this.infoMessage = 'No hay historial disponible para este documento';
           }
           this.loading = false;
         },
         error: (err) => {
-          this.error = 'Error al cargar el historial';
+          this.error = err.message || 'Error al cargar el historial';
+          this.notificationService.error('Error', this.error);
           this.loading = false;
-          console.error('Error cargando historial:', err);
         }
       });
   }
 
   verDetalle(item: RendicionCuentasHistorialItem): void {
+    if (!item.documentoId) return;
     this.router.navigate(['/rendicion-cuentas/procesar', item.documentoId], {
       queryParams: {
         desdeHistorial: 'true',
@@ -146,13 +158,13 @@ export class RendicionHistoryComponent implements OnInit, OnDestroy {
     } else {
       const term = this.searchTerm.toLowerCase();
       this.filteredHistorial = this.historial.filter(item => 
-        (item.documento?.numeroRadicado?.toLowerCase().includes(term)) ||
-        (item.documento?.nombreContratista?.toLowerCase().includes(term)) ||
-        (item.documento?.numeroContrato?.toLowerCase().includes(term)) ||
-        (item.usuarioNombre?.toLowerCase().includes(term)) ||
-        (item.estadoNuevo?.toLowerCase().includes(term)) ||
-        (item.accion?.toLowerCase().includes(term)) ||
-        (item.observacion?.toLowerCase().includes(term))
+        (item.documento?.numeroRadicado?.toLowerCase()?.includes(term) ?? false) ||
+        (item.documento?.nombreContratista?.toLowerCase()?.includes(term) ?? false) ||
+        (item.documento?.numeroContrato?.toLowerCase()?.includes(term) ?? false) ||
+        (item.usuarioNombre?.toLowerCase()?.includes(term) ?? false) ||
+        (item.estadoNuevo?.toLowerCase()?.includes(term) ?? false) ||
+        (item.accion?.toLowerCase()?.includes(term) ?? false) ||
+        (item.observacion?.toLowerCase()?.includes(term) ?? false)
       );
     }
     this.currentPage = 1;
@@ -188,17 +200,14 @@ export class RendicionHistoryComponent implements OnInit, OnDestroy {
   }
 
   formatDate(fecha: Date): string {
-    return fecha.toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(fecha).toLocaleString('es-CO', {
+      dateStyle: 'medium',
+      timeStyle: 'short'
     });
   }
 
   formatDateOnly(fecha: Date): string {
-    return fecha.toLocaleDateString('es-ES', {
+    return new Date(fecha).toLocaleDateString('es-ES', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit'
@@ -206,6 +215,8 @@ export class RendicionHistoryComponent implements OnInit, OnDestroy {
   }
 
   refreshData(): void {
-    this.loadHistorial();
+    if (this.documentoId) {
+      this.loadHistorial(this.documentoId);
+    }
   }
 }

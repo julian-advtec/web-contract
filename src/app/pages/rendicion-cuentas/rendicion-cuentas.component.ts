@@ -2,11 +2,11 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule, RouterOutlet } from '@angular/router';
-import { AuthService } from '../../../core/services/auth.service';
-import { SidebarComponent } from '../../../layout/sidebar/sidebar.component';
-import { NavbarComponent } from '../../../layout/navbar/navbar.component';
-import { User, UserRole } from '../../../core/models/user.types';
-import { ModulesService, AppModule } from '../../../core/services/modules.service';
+import { AuthService } from '../../core/services/auth.service';
+import { SidebarComponent } from '../../layout/sidebar/sidebar.component';
+import { NavbarComponent } from '../../layout/navbar/navbar.component';
+import { User, UserRole } from '../../core/models/user.types';
+import { ModulesService, AppModule } from '../../core/services/modules.service';
 
 @Component({
   selector: 'app-rendicion-cuentas',

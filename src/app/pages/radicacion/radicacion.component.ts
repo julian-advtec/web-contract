@@ -157,6 +157,16 @@ export class RadicacionComponent implements OnInit {
         isActive: true
       },
       {
+        id: 'nuevo-radicado',
+        title: 'Nuevo Radicado',
+        description: 'Crear nuevo radicado',
+        path: '/radicacion/nuevo',
+        route: '/radicacion/nuevo',
+        icon: 'lista-radicacion',
+        requiredRole: UserRole.RADICADOR,
+        isActive: true
+      },
+      {
         id: 'lista-radicacion',
         title: 'Lista General',
         description: 'Ver todos los documentos radicados',
@@ -176,16 +186,16 @@ export class RadicacionComponent implements OnInit {
         requiredRole: UserRole.RADICADOR,
         isActive: true
       },
- {
-      id: 'rechazados',
-      title: 'Documentos Rechazados',
-      description: 'Ver documentos con estado rechazado',
-      path: '/radicacion/rechazados', // <-- CORRECTO
-      route: '/radicacion/rechazados',
-      icon: 'rechazados',
-      requiredRole: UserRole.RADICADOR,
-      isActive: true
-    }
+      {
+        id: 'rechazados',
+        title: 'Documentos Rechazados',
+        description: 'Ver documentos con estado rechazado',
+        path: '/radicacion/rechazados', // <-- CORRECTO
+        route: '/radicacion/rechazados',
+        icon: 'rechazados',
+        requiredRole: UserRole.RADICADOR,
+        isActive: true
+      }
     ];
 
     console.log('📋 Módulos disponibles (manual):', this.availableModules);

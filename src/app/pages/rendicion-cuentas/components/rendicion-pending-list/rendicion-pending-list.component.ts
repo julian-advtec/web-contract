@@ -73,14 +73,12 @@ export class RendicionPendingListComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (docs: RendicionCuentasProceso[]) => {
-          console.log('[Pendientes] Documentos cargados:', docs?.length || 0);
           this.documentos = docs || [];
           this.filteredDocumentos = [...this.documentos];
           this.updatePagination();
           this.isLoading = false;
         },
         error: (err) => {
-          console.error('[Pendientes] Error al cargar:', err);
           this.errorMessage = err.message || 'No se pudieron cargar los documentos pendientes';
           this.notificationService.error('Error', this.errorMessage);
           this.documentos = [];
@@ -93,18 +91,12 @@ export class RendicionPendingListComponent implements OnInit, OnDestroy {
 
   puedeTomarDocumento(doc: RendicionCuentasProceso): boolean {
     const estado = (doc.estado || '').toString().toUpperCase();
-    return (
-      estado === 'PENDIENTE' &&
-      !doc.responsableId
-    );
+    return estado === RendicionCuentasEstado.PENDIENTE && !doc.responsableId;
   }
 
   esMiDocumentoEnRevision(doc: RendicionCuentasProceso): boolean {
     const estado = (doc.estado || '').toString().toUpperCase();
-    return (
-      estado === 'EN_REVISION' &&
-      doc.responsableId === this.usuarioActual
-    );
+    return estado === RendicionCuentasEstado.EN_REVISION && doc.responsableId === this.usuarioActual;
   }
 
   tomarParaRevision(doc: RendicionCuentasProceso): void {
@@ -138,19 +130,13 @@ export class RendicionPendingListComponent implements OnInit, OnDestroy {
 
   private procederTomarDocumento(doc: RendicionCuentasProceso): void {
     this.isProcessing = true;
-    console.log('[TOMAR] Iniciando toma del documento ID:', doc.id);
 
     this.rendicionService.tomarDocumentoParaRevision(doc.id!)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response: any) => {
-          console.log('[TOMAR] Respuesta exitosa del backend:', response);
-
           if (response?.ok || response?.success) {
-            this.notificationService.success(
-              '¡Documento tomado!',
-              `Asignado a ti. Redirigiendo al formulario...`
-            );
+            this.notificationService.success('¡Documento tomado!', 'Asignado a ti. Redirigiendo...');
 
             const index = this.documentos.findIndex(d => d.id === doc.id);
             if (index !== -1) {
@@ -160,28 +146,14 @@ export class RendicionPendingListComponent implements OnInit, OnDestroy {
             }
 
             setTimeout(() => {
-              console.log('[TOMAR] Redirigiendo a /rendicion-cuentas/procesar/' + doc.id);
-              this.router.navigate(['/rendicion-cuentas/procesar', doc.id])
-                .then(success => {
-                  if (!success) {
-                    console.error('[TOMAR] Falló la navegación');
-                    this.notificationService.error('Error de navegación', 'No se pudo redirigir al formulario');
-                  }
-                })
-                .catch(err => {
-                  console.error('[TOMAR] Error en router.navigate:', err);
-                  this.notificationService.error('Error', 'Fallo al redirigir');
-                });
+              this.router.navigate(['/rendicion-cuentas/procesar', doc.id]);
             }, 1500);
           } else {
-            console.warn('[TOMAR] Respuesta sin éxito:', response);
             this.notificationService.warning('Advertencia', response?.message || 'Toma confirmada pero con advertencia');
           }
-
           this.isProcessing = false;
         },
         error: (err: any) => {
-          console.error('[TOMAR] Error completo al tomar documento:', err);
           const msg = err.error?.message || err.message || 'No se pudo tomar el documento';
           this.notificationService.error('Error al tomar', msg);
           this.isProcessing = false;
@@ -190,9 +162,7 @@ export class RendicionPendingListComponent implements OnInit, OnDestroy {
   }
 
   getTextoBoton(doc: RendicionCuentasProceso): string {
-    if (this.esMiDocumentoEnRevision(doc)) {
-      return 'Continuar';
-    }
+    if (this.esMiDocumentoEnRevision(doc)) return 'Continuar';
     return this.puedeTomarDocumento(doc) ? 'Tomar para Revisión' : 'No disponible';
   }
 
@@ -202,10 +172,10 @@ export class RendicionPendingListComponent implements OnInit, OnDestroy {
     } else {
       const term = this.searchTerm.toLowerCase();
       this.filteredDocumentos = this.documentos.filter(doc =>
-        (doc.numeroRadicado?.toLowerCase().includes(term) || false) ||
-        (doc.nombreContratista?.toLowerCase().includes(term) || false) ||
-        (doc.numeroContrato?.toLowerCase().includes(term) || false) ||
-        (doc.documentoContratista?.toLowerCase().includes(term) || false)
+        (doc.numeroRadicado?.toLowerCase()?.includes(term) ?? false) ||
+        (doc.nombreContratista?.toLowerCase()?.includes(term) ?? false) ||
+        (doc.numeroContrato?.toLowerCase()?.includes(term) ?? false) ||
+        (doc.documentoContratista?.toLowerCase()?.includes(term) ?? false)
       );
     }
     this.currentPage = 1;
@@ -269,8 +239,8 @@ export class RendicionPendingListComponent implements OnInit, OnDestroy {
     let info = '';
     if (doc.numeroRadicado) info += `Radicado: ${doc.numeroRadicado}\n`;
     if (doc.nombreContratista) info += `Contratista: ${doc.nombreContratista}\n`;
-    if (doc.responsableAsignado) info += `Responsable: ${doc.responsableAsignado}\n`;
-    const dias = this.getDiasTranscurridos(doc.fechaCompletadoContabilidad || doc.fechaCreacion);
+    if (doc.responsableId) info += `Responsable ID: ${doc.responsableId}\n`;
+    const dias = this.getDiasTranscurridos(doc.fechaCreacion);
     info += `Días desde creación: ${dias}\n`;
     if (doc.observaciones) info += `Observación: ${doc.observaciones.substring(0, 100)}...\n`;
     return info;

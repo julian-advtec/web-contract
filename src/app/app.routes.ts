@@ -55,7 +55,6 @@ export const routes: Routes = [
     canActivate: [AuthGuard, RoleGuard],
     data: { roles: ['supervisor', 'admin'] }
   },
-
   // ── MÓDULO DE AUDITOR ───────────────────────────────────────────────
   {
     path: 'auditor',
@@ -69,22 +68,31 @@ export const routes: Routes = [
     loadChildren: () => import('./pages/contabilidad/contabilidad-routing.module')
       .then(m => m.ContabilidadRoutingModule),
     canActivate: [AuthGuard, RoleGuard],
-    data: { roles: [UserRole.CONTABILIDAD, UserRole.ADMIN] }  // ← usa el enum si lo tienes
+    data: { roles: [UserRole.CONTABILIDAD, UserRole.ADMIN] }
   },
   {
     path: 'tesoreria',
     loadChildren: () => import('./pages/tesoreria/tesoreria-routing.module')
       .then(m => m.TesoreriaRoutingModule),
     canActivate: [AuthGuard, RoleGuard],
-    data: { roles: [UserRole.TESORERIA, UserRole.ADMIN] }  // ← usa el enum si lo tienes
+    data: { roles: [UserRole.TESORERIA, UserRole.ADMIN] }
   },
   {
     path: 'asesor-gerencia',
     loadChildren: () => import('./pages/asesor-gerencia/asesor-gerencia-routing.module')
       .then(m => m.AsesorGerenciaComponentRoutes),
     canActivate: [AuthGuard, RoleGuard],
-    data: { roles: [UserRole.ASESOR_GERENCIA, UserRole.ADMIN] }  // ← usa el enum si lo tienes
+    data: { roles: [UserRole.ASESOR_GERENCIA, UserRole.ADMIN] }
   },
+  // ── NUEVO MÓDULO DE RENDICIÓN DE CUENTAS ────────────────────────────
+ {
+  path: 'rendicion-cuentas',
+  loadChildren: () => import('./pages/rendicion-cuentas/rendicion-cuentas-routing.module')
+    .then(m => m.RendicionCuentasRoutingModule),
+  canActivate: [AuthGuard, RoleGuard],
+  data: { roles: [UserRole.RENDICION_CUENTAS, UserRole.ADMIN] }
+},
+  // ────────────────────────────────────────────────────────────────────
   {
     path: '',
     redirectTo: '/dashboard',

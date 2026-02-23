@@ -1,16 +1,8 @@
-// main.ts - VERSIÓN SIMPLIFICADA
+// src/main.ts
 import 'zone.js';
 import { bootstrapApplication } from '@angular/platform-browser';
-import { provideRouter } from '@angular/router';
-import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
-import { provideAnimations } from '@angular/platform-browser/animations';
 import { AppComponent } from './app/app.component';
-import { routes } from './app/app.routes';
+import { appConfig } from './app/app.config';  // ← ¡IMPORTAR appConfig!
 
-bootstrapApplication(AppComponent, {
-  providers: [
-    provideRouter(routes),
-    provideHttpClient(withInterceptorsFromDi()),
-    provideAnimations()
-  ],
-}).catch(err => console.error(err));
+bootstrapApplication(AppComponent, appConfig)  // ← ¡USAR appConfig!
+  .catch(err => console.error(err));

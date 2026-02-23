@@ -1,4 +1,3 @@
-<!-- src/app/pages/rendicion-cuentas/rendicion-list/rendicion-list.component.html -->
 <div class="rendicion-list-container">
 
   <!-- Filtros rápidos -->
@@ -47,15 +46,16 @@
         <i class="fas fa-search"></i>
       </span>
       <input type="text" class="form-control" placeholder="Buscar radicado, contratista, contrato, estado..."
-        [(ngModel)]="searchTerm" (input)="onSearch()" [disabled]="loading" />
-      <button class="btn btn-outline-primary" (click)="limpiarFiltros()" *ngIf="searchTerm || filtroEstado !== 'todos' || filtroAsignacion !== 'todos' || filtroFecha !== 'todos'">
+        [(ngModel)]="searchTerm" (input)="onSearch()" [disabled]="isLoading" />
+      <button class="btn btn-outline-primary" (click)="limpiarFiltros()"
+        *ngIf="searchTerm || filtroEstado !== 'todos' || filtroAsignacion !== 'todos' || filtroFecha !== 'todos'">
         <i class="fas fa-times"></i> Limpiar
       </button>
     </div>
   </div>
 
   <!-- Resumen rápido -->
-  <div class="row mb-4" *ngIf="!loading && todosDocumentos.length > 0">
+  <div class="row mb-4" *ngIf="!isLoading && documentos.length > 0">
     <div class="col-md-3">
       <div class="card bg-primary text-white">
         <div class="card-body d-flex align-items-center justify-content-between">
@@ -94,7 +94,7 @@
         <div class="card-body d-flex align-items-center justify-content-between">
           <div>
             <h6 class="mb-0">Total</h6>
-            <h3 class="mb-0">{{ todosDocumentos.length }}</h3>
+            <h3 class="mb-0">{{ documentos.length }}</h3>
           </div>
           <i class="fas fa-file-invoice fa-2x opacity-50"></i>
         </div>
@@ -103,8 +103,8 @@
   </div>
 
   <!-- Mensajes -->
-  <div *ngIf="error" class="alert alert-danger alert-dismissible fade show" role="alert">
-    <i class="fas fa-exclamation-triangle me-2"></i>{{ error }}
+  <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-triangle me-2"></i>{{ errorMessage }}
     <button type="button" class="btn-close" (click)="dismissError()"></button>
   </div>
 
@@ -119,7 +119,7 @@
   </div>
 
   <!-- Loading -->
-  <div *ngIf="loading" class="text-center py-5">
+  <div *ngIf="isLoading" class="text-center py-5">
     <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
       <span class="visually-hidden">Cargando...</span>
     </div>
@@ -127,12 +127,12 @@
   </div>
 
   <!-- Sin datos -->
-  <div *ngIf="!loading && filteredDocumentos.length === 0" class="text-center py-5">
+  <div *ngIf="!isLoading && filteredDocumentos.length === 0" class="text-center py-5">
     <i class="fas fa-file-invoice fa-4x text-secondary mb-4"></i>
     <h4 class="text-muted mb-2">No hay documentos</h4>
     <p class="text-muted mb-3">No se encontraron documentos con los filtros aplicados</p>
     <div class="d-flex justify-content-center gap-2 mt-4 flex-wrap">
-      <button class="btn btn-primary" (click)="refreshData()" [disabled]="loading">
+      <button class="btn btn-primary" (click)="refreshData()" [disabled]="isLoading">
         <i class="fas fa-sync-alt me-1"></i> Refrescar
       </button>
       <button class="btn btn-outline-primary" (click)="limpiarFiltros()">
@@ -142,7 +142,7 @@
   </div>
 
   <!-- Lista -->
-  <div *ngIf="!loading && filteredDocumentos.length > 0" class="documentos-container">
+  <div *ngIf="!isLoading && filteredDocumentos.length > 0" class="documentos-container">
     <div class="documentos-header">
       <div class="header-item">Radicado</div>
       <div class="header-item">Contratista</div>
@@ -153,10 +153,8 @@
     </div>
 
     <div class="documentos-list">
-      <div *ngFor="let documento of paginatedDocumentos"
-           class="documento-card"
-           [class.reciente]="esDocumentoReciente(documento)"
-           [class.mi-documento]="esMiDocumento(documento)">
+      <div *ngFor="let documento of paginatedDocumentos" class="documento-card"
+        [class.reciente]="esDocumentoReciente(documento)" [class.mi-documento]="esMiDocumento(documento)">
 
         <!-- Radicado -->
         <div class="documento-info">
@@ -204,62 +202,53 @@
 
         <!-- Acciones -->
         <div class="documento-acciones">
-          <div class="acciones-buttons">
-            <!-- Si está disponible, botón para tomar -->
-            <button *ngIf="documento.tipo === 'disponible'"
-                    class="btn btn-sm btn-primary"
-                    (click)="tomarDocumento(documento)"
-                    [disabled]="isProcessing">
-              <i class="fas fa-hand-paper me-1"></i> Tomar
-            </button>
+          <!-- Para disponible -->
+          <button *ngIf="documento.estado === 'PENDIENTE' && !documento.responsableId" class="btn btn-sm btn-primary"
+            (click)="tomarDocumento(documento)" [disabled]="isProcessing">
+            <i class="fas fa-hand-paper me-1"></i> Tomar
+          </button>
 
-            <!-- Si está en revisión por mí, botón para procesar revisión -->
-            <button *ngIf="documento.tipo === 'en_revision_mio'"
-                    class="btn btn-sm btn-success"
-                    (click)="revisarDocumento(documento)">
-              <i class="fas fa-user-check me-1"></i> Procesar Revisión
-            </button>
+          <!-- Para en revisión mío -->
+          <button *ngIf="documento.estado === 'EN_REVISION' && documento.responsableId === usuarioActual"
+            class="btn btn-sm btn-success" (click)="revisarDocumento(documento)">
+            <i class="fas fa-user-check me-1"></i> Procesar Revisión
+          </button>
 
-            <!-- Si está procesado o es de otro, botón para consultar -->
-            <button *ngIf="esConsultable(documento)"
-                    class="btn btn-sm btn-info"
-                    (click)="revisarDocumento(documento)">
-              <i class="fas fa-eye me-1"></i> Consultar
-            </button>
+          <!-- Si está procesado o es de otro, botón para consultar -->
+          <button *ngIf="esConsultable(documento)" class="btn btn-sm btn-info" (click)="revisarDocumento(documento)">
+            <i class="fas fa-eye me-1"></i> Consultar
+          </button>
 
-            <!-- Info adicional -->
-            <div class="mt-1">
-              <small><i class="fas fa-file me-1"></i>Docs: {{ getDocumentCount(documento) }}</small>
-            </div>
+          <!-- Info adicional -->
+          <div class="mt-1">
+            <small><i class="fas fa-file me-1"></i>Docs: {{ getDocumentCount(documento) }}</small>
           </div>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- Paginación -->
-    <div class="documentos-pagination" *ngIf="totalPages > 1">
-      <div class="pagination-info">
-        Mostrando {{ paginatedDocumentos.length }} de {{ filteredDocumentos.length }} documentos
-        (Página {{ currentPage }} de {{ totalPages }})
-      </div>
-      <div class="pagination-controls">
-        <button class="btn btn-outline-primary btn-sm" [disabled]="currentPage === 1"
-                (click)="changePage(currentPage - 1)">
-          <i class="fas fa-chevron-left"></i> Anterior
-        </button>
-        <div class="page-numbers">
-          <button *ngFor="let page of pages" class="btn btn-sm"
-                  [class.btn-primary]="page === currentPage"
-                  [class.btn-outline-primary]="page !== currentPage"
-                  (click)="changePage(page)">
-            {{ page }}
-          </button>
-        </div>
-        <button class="btn btn-outline-primary btn-sm" [disabled]="currentPage === totalPages"
-                (click)="changePage(currentPage + 1)">
-          Siguiente <i class="fas fa-chevron-right"></i>
+  <!-- Paginación -->
+  <div class="documentos-pagination" *ngIf="totalPages > 1">
+    <div class="pagination-info">
+      Mostrando {{ paginatedDocumentos.length }} de {{ filteredDocumentos.length }} documentos
+      (Página {{ currentPage }} de {{ totalPages }})
+    </div>
+    <div class="pagination-controls">
+      <button class="btn btn-outline-primary btn-sm" [disabled]="currentPage === 1"
+        (click)="changePage(currentPage - 1)">
+        <i class="fas fa-chevron-left"></i> Anterior
+      </button>
+      <div class="page-numbers">
+        <button *ngFor="let page of pages" class="btn btn-sm" [class.btn-primary]="page === currentPage"
+          [class.btn-outline-primary]="page !== currentPage" (click)="changePage(page)">
+          {{ page }}
         </button>
       </div>
+      <button class="btn btn-outline-primary btn-sm" [disabled]="currentPage === totalPages"
+        (click)="changePage(currentPage + 1)">
+        Siguiente <i class="fas fa-chevron-right"></i>
+      </button>
     </div>
   </div>
 </div>

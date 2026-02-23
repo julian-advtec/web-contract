@@ -135,37 +135,8 @@
         </div>
       </div>
 
-      <!-- Decisión de Asesor Gerencia (vista) -->
-      <div class="card shadow border-primary mb-5">
-        <div class="card-header bg-primary text-white">
-          <h4 class="mb-0">
-            <i class="fas fa-gavel me-2"></i>Decisión de Asesor Gerencia
-          </h4>
-        </div>
-        <div class="card-body">
-          <div class="row g-4">
-            <div class="col-md-6">
-              <label class="form-label fw-bold">Estado final</label>
-              <p class="form-control-static fw-bold fs-5" [ngClass]="{
-                'text-success': documento.estado === 'COMPLETADO_ASESOR_GERENCIA',
-                'text-warning': documento.estado === 'OBSERVADO_ASESOR_GERENCIA',
-                'text-danger': documento.estado === 'RECHAZADO_ASESOR_GERENCIA'
-              }">
-                {{ getEstadoTexto(documento.estado) }}
-              </p>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label fw-bold">Observaciones de Gerencia</label>
-              <p class="form-control-static pre-wrap">
-                {{ documento.observacionesGerencia || documento.observaciones || documento.observacion || 'Sin observaciones registradas por gerencia' }}
-              </p>
-            </div>
-          </div>
-          <small class="text-muted d-block mt-3">
-            Procesado el: {{ documento.fechaFinRevision || documento.fechaActualizacion | date:'dd/MM/yyyy HH:mm' || 'No disponible' }}
-          </small>
-        </div>
-      </div>
+    
+      
 
       <!-- Alerta modo -->
       <div class="alert alert-info shadow mb-5">

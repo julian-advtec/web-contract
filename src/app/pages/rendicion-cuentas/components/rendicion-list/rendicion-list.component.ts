@@ -1,7 +1,7 @@
-// src/app/pages/rendicion-cuentas/rendicion-list/rendicion-list.component.ts
+// src/app/pages/rendicion-cuentas/components/rendicion-list/rendicion-list.component.ts
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule, Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -18,30 +18,29 @@ import { RendicionCuentasProceso, RendicionCuentasEstado } from '../../../../cor
   styleUrls: ['./rendicion-list.component.scss']
 })
 export class RendicionListComponent implements OnInit, OnDestroy {
-  // Lista completa de TODOS los documentos de rendición de cuentas
-  todosDocumentos: RendicionCuentasProceso[] = [];
+  documentos: RendicionCuentasProceso[] = [];
   filteredDocumentos: RendicionCuentasProceso[] = [];
   paginatedDocumentos: RendicionCuentasProceso[] = [];
 
-  loading = false;
+  isLoading = false;
   isProcessing = false;
-  error = '';
+  errorMessage = '';
   successMessage = '';
   infoMessage = '';
 
+  // Filtros usados en el HTML
+  filtroEstado = 'todos';
+  filtroAsignacion = 'todos';
+  filtroFecha = 'todos';
   searchTerm = '';
+
   currentPage = 1;
   pageSize = 10;
   totalPages = 0;
   pages: number[] = [];
 
-  usuarioActual = '';
   sidebarCollapsed = false;
-
-  // Filtros
-  filtroEstado = 'todos'; // 'todos', 'pendientes', 'en_revision', 'aprobados', 'observados', 'rechazados', 'completados'
-  filtroAsignacion = 'todos'; // 'todos', 'mios', 'sin_asignar', 'de_otros'
-  filtroFecha = 'todos'; // 'todos', 'hoy', 'semana', 'mes'
+  usuarioActual = '';
 
   private destroy$ = new Subject<void>();
 
@@ -49,231 +48,181 @@ export class RendicionListComponent implements OnInit, OnDestroy {
     private rendicionService: RendicionCuentasService,
     private notificationService: NotificationService,
     private router: Router
-  ) { }
+  ) {}
 
   ngOnInit(): void {
     this.cargarUsuarioActual();
-    this.loadTodosDocumentos();
+    this.cargarDocumentos();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   cargarUsuarioActual(): void {
     const userStr = localStorage.getItem('user');
     if (userStr) {
-      const user = JSON.parse(userStr);
-      this.usuarioActual = user.fullName || user.username || 'Usuario';
+      try {
+        const user = JSON.parse(userStr);
+        this.usuarioActual = user.fullName || user.username || 'Usuario';
+      } catch {
+        this.usuarioActual = 'Usuario';
+      }
     }
   }
 
-  // Cargar TODOS los documentos de rendición de cuentas
-  loadTodosDocumentos(): void {
-    this.loading = true;
-    this.error = '';
-    this.successMessage = '';
-    this.infoMessage = '';
+  cargarDocumentos(): void {
+    this.isLoading = true;
+    this.errorMessage = '';
 
-    console.log('[RENDICIÓN - LISTA COMPLETA] Solicitando TODOS los documentos...');
-
-    // Primero obtenemos los disponibles (PENDIENTE)
-    this.rendicionService.obtenerDocumentosDisponibles()
+    this.rendicionService.obtenerDocumentosPendientes()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (disponibles: RendicionCuentasProceso[]) => {
-          console.log('[RENDICIÓN] Disponibles recibidos:', disponibles?.length || 0);
-
-          // Luego obtenemos los que están en revisión (mis documentos)
-          this.rendicionService.obtenerMisDocumentos()
-            .pipe(takeUntil(this.destroy$))
-            .subscribe({
-              next: (enRevision: RendicionCuentasProceso[]) => {
-                console.log('[RENDICIÓN] En revisión recibidos:', enRevision?.length || 0);
-
-                // Finalmente obtenemos el historial (documentos procesados)
-                this.rendicionService.getHistorial()
-                  .pipe(takeUntil(this.destroy$))
-                  .subscribe({
-                    next: (historial: any[]) => {
-                      console.log('[RENDICIÓN] Historial recibido:', historial?.length || 0);
-
-                      // Combinar TODOS los documentos
-                      this.combinarTodosDocumentos(disponibles || [], enRevision || [], historial || []);
-
-                      this.loading = false;
-                    },
-                    error: (err: any) => {
-                      console.error('[RENDICIÓN] Error cargando historial:', err);
-                      this.combinarTodosDocumentos(disponibles || [], enRevision || [], []);
-                      this.loading = false;
-                    }
-                  });
-              },
-              error: (err: any) => {
-                console.error('[RENDICIÓN] Error cargando documentos en revisión:', err);
-                this.combinarTodosDocumentos(disponibles || [], [], []);
-                this.loading = false;
-              }
-            });
+        next: ({ data }) => {
+          this.documentos = data || [];
+          this.filteredDocumentos = [...this.documentos];
+          this.aplicarFiltros();
+          this.isLoading = false;
         },
-        error: (err: any) => {
-          console.error('[RENDICIÓN] Error cargando documentos disponibles:', err);
-          this.error = 'Error de conexión con el servidor: ' + (err.message || 'Desconocido');
-          this.loading = false;
-          this.notificationService.error('Error', this.error);
+        error: (err) => {
+          this.errorMessage = err.message || 'No se pudieron cargar los documentos';
+          this.notificationService.error('Error', this.errorMessage);
+          this.isLoading = false;
         }
       });
   }
 
-  // Combinar todos los documentos en una sola lista
-  combinarTodosDocumentos(disponibles: RendicionCuentasProceso[], enRevision: RendicionCuentasProceso[], historial: any[]): void {
-    const todos: RendicionCuentasProceso[] = [];
-    const idsProcesados = new Set<string>();
+  aplicarFiltros(): void {
+    let docs = [...this.documentos];
 
-    // 1. Agregar documentos disponibles (PENDIENTE)
-    disponibles.forEach(doc => {
-      if (!idsProcesados.has(doc.id)) {
-        todos.push({
-          ...doc,
-          tipo: 'disponible',
-          estadoRendicion: 'DISPONIBLE'
-        } as any);
-        idsProcesados.add(doc.id);
+    // Filtro por estado
+    if (this.filtroEstado !== 'todos') {
+      const estadoBuscado = this.filtroEstado.toUpperCase();
+      docs = docs.filter(d => (d.estado || '').toString().toUpperCase().includes(estadoBuscado));
+    }
+
+    // Filtro por asignación
+    if (this.filtroAsignacion !== 'todos') {
+      if (this.filtroAsignacion === 'mios') {
+        docs = docs.filter(d => d.responsableId === this.usuarioActual);
+      } else if (this.filtroAsignacion === 'sin_asignar') {
+        docs = docs.filter(d => !d.responsableId);
+      } else if (this.filtroAsignacion === 'de_otros') {
+        docs = docs.filter(d => d.responsableId && d.responsableId !== this.usuarioActual);
       }
-    });
+    }
 
-    // 2. Agregar documentos en revisión por mí
-    enRevision.forEach(doc => {
-      if (!idsProcesados.has(doc.id)) {
-        todos.push({
-          ...doc,
-          tipo: 'en_revision_mio',
-          estadoRendicion: 'EN_REVISION'
-        } as any);
-        idsProcesados.add(doc.id);
+    // Filtro por fecha
+    if (this.filtroFecha !== 'todos') {
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+
+      if (this.filtroFecha === 'hoy') {
+        docs = docs.filter(d => new Date(d.fechaCreacion || 0).toDateString() === hoy.toDateString());
+      } else if (this.filtroFecha === 'semana') {
+        const semana = new Date(hoy);
+        semana.setDate(semana.getDate() - 7);
+        docs = docs.filter(d => new Date(d.fechaCreacion || 0) >= semana);
+      } else if (this.filtroFecha === 'mes') {
+        const mes = new Date(hoy);
+        mes.setMonth(mes.getMonth() - 1);
+        docs = docs.filter(d => new Date(d.fechaCreacion || 0) >= mes);
       }
-    });
+    }
 
-    // 3. Agregar documentos del historial (ya procesados)
-    historial.forEach(item => {
-      const doc = item.documento || item;
-      if (!idsProcesados.has(doc.id)) {
-        todos.push({
-          ...doc,
-          tipo: 'procesado',
-          estadoRendicion: item.estadoNuevo || doc.estado,
-          observaciones: item.observacion,
-          fechaInicioRevision: item.fechaInicioRevision,
-          fechaDecision: item.fechaDecision,
-          responsableAsignado: item.usuarioNombre,
-          fechaFin: item.fechaCreacion
-        } as any);
-        idsProcesados.add(doc.id);
-      }
-    });
+    // Búsqueda por texto
+    if (this.searchTerm.trim()) {
+      const term = this.searchTerm.toLowerCase();
+      docs = docs.filter(d =>
+        (d.numeroRadicado?.toLowerCase()?.includes(term) ?? false) ||
+        (d.nombreContratista?.toLowerCase()?.includes(term) ?? false) ||
+        (d.numeroContrato?.toLowerCase()?.includes(term) ?? false) ||
+        (d.estado?.toString().toLowerCase()?.includes(term) ?? false)
+      );
+    }
 
-    console.log('[RENDICIÓN] Total documentos combinados:', todos.length);
-    this.todosDocumentos = todos;
-
-    // Aplicar filtros iniciales
-    this.aplicarFiltros();
+    this.filteredDocumentos = docs;
+    this.currentPage = 1;
     this.updatePagination();
-
-    if (this.filteredDocumentos.length > 0) {
-      const disponiblesCount = this.filteredDocumentos.filter(d => (d as any).tipo === 'disponible').length;
-      const enRevisionCount = this.filteredDocumentos.filter(d => (d as any).tipo === 'en_revision_mio').length;
-      const procesadosCount = this.filteredDocumentos.filter(d => (d as any).tipo === 'procesado').length;
-
-      this.successMessage = `Se encontraron ${this.filteredDocumentos.length} documentos totales (${disponiblesCount} disponibles, ${enRevisionCount} en revisión, ${procesadosCount} procesados)`;
-    } else {
-      this.infoMessage = 'No hay documentos en el sistema';
-    }
   }
 
-  // Tomar documento para revisión
-  tomarDocumento(documento: any): void {
-    if (this.isProcessing) return;
-
-    if (documento.tipo !== 'disponible') {
-      this.notificationService.warning('Advertencia', 'Este documento no está disponible para tomar');
-      return;
-    }
-
-    this.isProcessing = true;
-    const documentoId = documento.id;
-
-    console.log(`[RENDICIÓN] Tomando documento ${documentoId}...`);
-
-    this.rendicionService.tomarDocumentoParaRevision(documentoId)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (response: any) => {
-          console.log('[RENDICIÓN] Documento tomado:', response);
-          this.notificationService.success('Éxito', 'Documento tomado para revisión');
-
-          // Actualizar el documento en la lista
-          const index = this.todosDocumentos.findIndex(d => d.id === documentoId);
-          if (index !== -1) {
-            (this.todosDocumentos[index] as any).tipo = 'en_revision_mio';
-            (this.todosDocumentos[index] as any).estadoRendicion = 'EN_REVISION';
-            this.aplicarFiltros();
-            this.updatePagination();
-          }
-
-          this.isProcessing = false;
-        },
-        error: (err: any) => {
-          console.error('[RENDICIÓN] Error tomando documento:', err);
-          this.notificationService.error('Error', err.message || 'No se pudo tomar el documento');
-          this.isProcessing = false;
-        }
-      });
+  limpiarFiltros(): void {
+    this.filtroEstado = 'todos';
+    this.filtroAsignacion = 'todos';
+    this.filtroFecha = 'todos';
+    this.searchTerm = '';
+    this.aplicarFiltros();
   }
 
-  // Ir a procesar/revisar documento
-  revisarDocumento(documento: any): void {
-    const documentoId = documento.id;
-    const soyElResponsable = documento.tipo === 'en_revision_mio' ||
-      (documento.responsableAsignado && 
-        this.compararNombres(documento.responsableAsignado, this.usuarioActual));
-
-    const queryParams: any = { desdeLista: 'true' };
-
-    // Si está en revisión y soy yo el asignado, permitir edición
-    if (documento.estadoRendicion?.includes('EN_REVISION') && soyElResponsable) {
-      queryParams.soloLectura = 'false';
-      queryParams.modo = 'edicion';
-    } else {
-      // En cualquier otro caso, solo lectura
-      queryParams.soloLectura = 'true';
-      queryParams.modo = 'consulta';
-    }
-
-    this.router.navigate(['/rendicion-cuentas/procesar', documentoId], { queryParams });
+  onFiltroChange(): void {
+    this.aplicarFiltros();
   }
 
-  // Ver detalle del documento
-  verDetalle(documento: any): void {
-    const documentoId = documento.id;
-    this.router.navigate(['/rendicion-cuentas/documento', documentoId], { queryParams: { modo: 'consulta' } });
+  onSearch(): void {
+    this.aplicarFiltros();
   }
 
-  // Métodos auxiliares
-  esMiDocumento(item: any): boolean {
-    const responsableAsignado = item.responsableAsignado || item.responsable?.nombreCompleto || '';
-    return this.compararNombres(responsableAsignado, this.usuarioActual);
+  refreshData(): void {
+    this.cargarDocumentos();
   }
 
-  compararNombres(nombre1: string, nombre2: string): boolean {
-    if (!nombre1 || !nombre2) return false;
-    const normalizar = (nombre: string) => nombre.toLowerCase().trim().replace(/\s+/g, ' ');
-    const n1 = normalizar(nombre1);
-    const n2 = normalizar(nombre2);
-    return n1 === n2 || n1.includes(n2) || n2.includes(n1);
+  // Métodos requeridos por el template
+  getDisponiblesCount(): number {
+    return this.documentos.filter(d => d.estado === RendicionCuentasEstado.PENDIENTE && !d.responsableId).length;
   }
 
-  esDocumentoReciente(item: any): boolean {
-    const fecha = item.fechaCreacion || item.fechaActualizacion;
+  getEnRevisionCount(): number {
+    return this.documentos.filter(d => d.estado === RendicionCuentasEstado.EN_REVISION).length;
+  }
+
+  getProcesadosCount(): number {
+    return this.documentos.filter(d => 
+      d.estado === RendicionCuentasEstado.APROBADO || d.estado === RendicionCuentasEstado.COMPLETADO
+    ).length;
+  }
+
+  esDocumentoReciente(doc: RendicionCuentasProceso): boolean {
+    const fecha = doc.fechaCompletadoContabilidad || doc.fechaCreacion;
     if (!fecha) return false;
-    const dias = Math.floor((new Date().getTime() - new Date(fecha).getTime()) / (1000 * 60 * 60 * 24));
-    return dias <= 7;
+    return this.getDiasTranscurridos(fecha) < 1;
+  }
+
+  esMiDocumento(doc: RendicionCuentasProceso): boolean {
+    return doc.responsableId === this.usuarioActual;
+  }
+
+  getNumeroRadicado(doc: RendicionCuentasProceso): string {
+    return doc.numeroRadicado || '—';
+  }
+
+  getFechaRadicacion(doc: RendicionCuentasProceso): Date | string {
+    return doc.fechaCreacion || 'N/A';
+  }
+
+  getNombreContratista(doc: RendicionCuentasProceso): string {
+    return doc.nombreContratista || 'Sin contratista';
+  }
+
+  getDocumentoContratista(doc: RendicionCuentasProceso): string {
+    return doc.documentoContratista || '—';
+  }
+
+  getNumeroContrato(doc: RendicionCuentasProceso): string {
+    return doc.numeroContrato || '—';
+  }
+
+  getEstado(doc: RendicionCuentasProceso): string {
+    return doc.estado?.toString() || 'DESCONOCIDO';
+  }
+
+  getObservacion(doc: RendicionCuentasProceso): string | null {
+    return doc.observaciones || null;
+  }
+
+  getObservacionCorta(doc: RendicionCuentasProceso): string {
+    const obs = doc.observaciones || '';
+    return obs.length > 50 ? obs.substring(0, 47) + '...' : obs;
   }
 
   getEstadoBadgeClass(estado: string): string {
@@ -284,203 +233,39 @@ export class RendicionListComponent implements OnInit, OnDestroy {
     return this.rendicionService.getEstadoTexto(estado);
   }
 
-  getTipoDocumentoTexto(documento: any): string {
-    switch (documento.tipo) {
-      case 'disponible': return 'Disponible';
-      case 'en_revision_mio': return 'En Proceso (Mío)';
-      case 'procesado': return 'Procesado';
-      default: return 'Desconocido';
-    }
+  getTipoDocumentoBadgeClass(doc: RendicionCuentasProceso): string {
+    const e = (doc.estado || '').toString().toUpperCase();
+    if (e.includes('PENDIENTE')) return 'bg-warning text-dark';
+    if (e.includes('EN_REVISION')) return 'bg-info';
+    if (e.includes('APROBADO') || e.includes('COMPLETADO')) return 'bg-success';
+    if (e.includes('OBSERVADO')) return 'bg-warning';
+    if (e.includes('RECHAZADO')) return 'bg-danger';
+    return 'bg-secondary';
   }
 
-  getTipoDocumentoBadgeClass(documento: any): string {
-    switch (documento.tipo) {
-      case 'disponible': return 'badge bg-primary';
-      case 'en_revision_mio': return 'badge bg-success';
-      case 'procesado':
-        const estado = documento.estadoRendicion || '';
-        if (estado.includes('APROBADO') || estado.includes('COMPLETADO')) return 'badge bg-info';
-        if (estado.includes('OBSERVADO')) return 'badge bg-warning';
-        if (estado.includes('RECHAZADO')) return 'badge bg-danger';
-        return 'badge bg-secondary';
-      default: return 'badge bg-light text-dark';
-    }
+  getTipoDocumentoTexto(doc: RendicionCuentasProceso): string {
+    return doc.estado?.toString() || 'Sin tipo';
   }
 
-  formatDate(fecha: Date | string): string {
-    if (!fecha) return 'N/A';
-    try {
-      return new Date(fecha).toLocaleDateString('es-ES', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch {
-      return 'Fecha inválida';
-    }
+  esConsultable(doc: RendicionCuentasProceso): boolean {
+    return !!doc.id && doc.estado !== RendicionCuentasEstado.PENDIENTE;
   }
 
-  formatDateOnly(fecha: Date | string): string {
-    if (!fecha) return 'N/A';
-    try {
-      return new Date(fecha).toLocaleDateString('es-ES', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      });
-    } catch {
-      return 'Fecha inválida';
-    }
+  getDocumentCount(doc: RendicionCuentasProceso): number {
+    return (doc.documentosAdjuntos?.length || 0) + (doc.informesPresentados?.length || 0);
   }
 
-  formatDateShort(fecha: Date | string): string {
-    if (!fecha) return 'N/A';
-    try {
-      return new Date(fecha).toLocaleDateString('es-ES', {
-        month: 'short',
-        day: 'numeric'
-      });
-    } catch {
-      return 'Fecha inválida';
-    }
+  tomarDocumento(doc: RendicionCuentasProceso): void {
+    this.tomarParaRevision(doc);
   }
 
-  getDocumentCount(item: any): number {
-    return item.informesPresentados?.length || item.documentosAdjuntos?.length || 0;
-  }
-
-  // Aplicar filtros
-  aplicarFiltros(): void {
-    let filtered = [...this.todosDocumentos];
-
-    // Filtro por estado de rendición
-    if (this.filtroEstado !== 'todos') {
-      switch (this.filtroEstado) {
-        case 'pendientes':
-          filtered = filtered.filter(doc => 
-            doc.estado === 'PENDIENTE' || (doc as any).tipo === 'disponible'
-          );
-          break;
-        case 'en_revision':
-          filtered = filtered.filter(doc => 
-            doc.estado === 'EN_REVISION' || (doc as any).tipo === 'en_revision_mio'
-          );
-          break;
-        case 'aprobados':
-          filtered = filtered.filter(doc => 
-            doc.estado === 'APROBADO'
-          );
-          break;
-        case 'observados':
-          filtered = filtered.filter(doc => 
-            doc.estado === 'OBSERVADO'
-          );
-          break;
-        case 'rechazados':
-          filtered = filtered.filter(doc => 
-            doc.estado === 'RECHAZADO'
-          );
-          break;
-        case 'completados':
-          filtered = filtered.filter(doc => 
-            doc.estado === 'COMPLETADO'
-          );
-          break;
-      }
-    }
-
-    // Filtro por asignación
-    if (this.filtroAsignacion !== 'todos') {
-      switch (this.filtroAsignacion) {
-        case 'mios':
-          filtered = filtered.filter(doc => this.esMiDocumento(doc));
-          break;
-        case 'sin_asignar':
-          filtered = filtered.filter(doc => (doc as any).tipo === 'disponible');
-          break;
-        case 'de_otros':
-          filtered = filtered.filter(doc => 
-            (doc as any).tipo === 'en_revision_mio' && !this.esMiDocumento(doc)
-          );
-          break;
-      }
-    }
-
-    // Filtro por fecha
-    if (this.filtroFecha !== 'todos') {
-      const ahora = new Date();
-      filtered = filtered.filter(doc => {
-        const fechaDoc = doc.fechaCreacion || doc.fechaActualizacion;
-        if (!fechaDoc) return true;
-
-        const fecha = new Date(fechaDoc);
-        const diffDias = Math.floor((ahora.getTime() - fecha.getTime()) / (1000 * 60 * 60 * 24));
-
-        switch (this.filtroFecha) {
-          case 'hoy': return diffDias === 0;
-          case 'semana': return diffDias <= 7;
-          case 'mes': return diffDias <= 30;
-          default: return true;
-        }
-      });
-    }
-
-    // Filtro por búsqueda
-    if (this.searchTerm.trim()) {
-      const term = this.searchTerm.toLowerCase();
-      filtered = filtered.filter(item => {
-        return (
-          (item.numeroRadicado?.toLowerCase().includes(term)) ||
-          (item.nombreContratista?.toLowerCase().includes(term)) ||
-          (item.numeroContrato?.toLowerCase().includes(term)) ||
-          (item.estado?.toLowerCase().includes(term)) ||
-          (item.observaciones?.toLowerCase().includes(term))
-        );
-      });
-    }
-
-    this.filteredDocumentos = filtered;
-    this.currentPage = 1;
-  }
-
-  onSearch(): void {
-    this.aplicarFiltros();
-    this.updatePagination();
-  }
-
-  onFiltroChange(): void {
-    this.aplicarFiltros();
-    this.updatePagination();
-  }
-
-  updatePagination(): void {
-    this.totalPages = Math.ceil(this.filteredDocumentos.length / this.pageSize);
-    this.pages = [];
-    const maxPagesToShow = 5;
-    let startPage = Math.max(1, this.currentPage - Math.floor(maxPagesToShow / 2));
-    let endPage = Math.min(this.totalPages, startPage + maxPagesToShow - 1);
-    if (endPage - startPage + 1 < maxPagesToShow) {
-      startPage = Math.max(1, endPage - maxPagesToShow + 1);
-    }
-    for (let i = startPage; i <= endPage; i++) {
-      this.pages.push(i);
-    }
-    const startIndex = (this.currentPage - 1) * this.pageSize;
-    const endIndex = Math.min(startIndex + this.pageSize, this.filteredDocumentos.length);
-    this.paginatedDocumentos = this.filteredDocumentos.slice(startIndex, endIndex);
-  }
-
-  changePage(page: number): void {
-    if (page >= 1 && page <= this.totalPages && page !== this.currentPage) {
-      this.currentPage = page;
-      this.updatePagination();
-    }
+  revisarDocumento(doc: RendicionCuentasProceso): void {
+    if (!doc.id) return;
+    this.router.navigate(['/rendicion-cuentas/procesar', doc.id]);
   }
 
   dismissError(): void {
-    this.error = '';
+    this.errorMessage = '';
   }
 
   dismissSuccess(): void {
@@ -491,81 +276,111 @@ export class RendicionListComponent implements OnInit, OnDestroy {
     this.infoMessage = '';
   }
 
-  refreshData(): void {
-    this.loadTodosDocumentos();
+  // Métodos de acción (ya existentes)
+  puedeTomarDocumento(doc: RendicionCuentasProceso): boolean {
+    return doc.estado === RendicionCuentasEstado.PENDIENTE && !doc.responsableId;
   }
 
-  limpiarFiltros(): void {
-    this.filtroEstado = 'todos';
-    this.filtroAsignacion = 'todos';
-    this.filtroFecha = 'todos';
-    this.searchTerm = '';
-    this.onFiltroChange();
+  esMiDocumentoEnRevision(doc: RendicionCuentasProceso): boolean {
+    return doc.estado === RendicionCuentasEstado.EN_REVISION && doc.responsableId === this.usuarioActual;
   }
 
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+  tomarParaRevision(doc: RendicionCuentasProceso): void {
+    if (!doc?.id) {
+      this.notificationService.error('Error', 'Documento sin ID válido');
+      return;
+    }
+
+    const yaEsMio = this.esMiDocumentoEnRevision(doc);
+
+    if (yaEsMio) {
+      this.router.navigate(['/rendicion-cuentas/procesar', doc.id]);
+      return;
+    }
+
+    if (!this.puedeTomarDocumento(doc)) {
+      this.notificationService.warning('No disponible', 'Documento no disponible para tomar');
+      return;
+    }
+
+    this.notificationService.showModal({
+      title: 'Tomar documento',
+      message: `¿Tomar el radicado ${doc.numeroRadicado || 'sin radicado'}?`,
+      type: 'confirm',
+      confirmText: 'Sí, tomar',
+      cancelText: 'Cancelar',
+      onConfirm: () => this.procederTomarDocumento(doc)
+    });
   }
 
-  // Métodos auxiliares para el template
-  getDisponiblesCount(): number {
-    return this.todosDocumentos.filter(d => (d as any).tipo === 'disponible').length;
+  private procederTomarDocumento(doc: RendicionCuentasProceso): void {
+    this.isProcessing = true;
+
+    this.rendicionService.tomarDocumentoParaRevision(doc.id!)
+      .subscribe({
+        next: () => {
+          this.notificationService.success('Éxito', 'Documento tomado');
+          this.cargarDocumentos(); // refrescar
+          this.isProcessing = false;
+        },
+        error: (err) => {
+          this.notificationService.error('Error', err.message || 'No se pudo tomar');
+          this.isProcessing = false;
+        }
+      });
   }
 
-  getEnRevisionCount(): number {
-    return this.todosDocumentos.filter(d => (d as any).tipo === 'en_revision_mio').length;
+  updatePagination(): void {
+    this.totalPages = Math.ceil(this.filteredDocumentos.length / this.pageSize);
+    this.pages = [];
+
+    const maxPages = 5;
+    let start = Math.max(1, this.currentPage - Math.floor(maxPages / 2));
+    let end = Math.min(this.totalPages, start + maxPages - 1);
+
+    if (end - start + 1 < maxPages) {
+      start = Math.max(1, end - maxPages + 1);
+    }
+
+    for (let i = start; i <= end; i++) {
+      this.pages.push(i);
+    }
+
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    this.paginatedDocumentos = this.filteredDocumentos.slice(startIndex, startIndex + this.pageSize);
   }
 
-  getProcesadosCount(): number {
-    return this.todosDocumentos.filter(d => (d as any).tipo === 'procesado').length;
+  changePage(page: number): void {
+    if (page >= 1 && page <= this.totalPages && page !== this.currentPage) {
+      this.currentPage = page;
+      this.updatePagination();
+    }
   }
 
-  getNumeroRadicado(documento: any): string {
-    return documento.numeroRadicado || 'N/A';
+  formatDate(fecha: Date | string | undefined): string {
+    if (!fecha) return 'N/A';
+    return new Date(fecha).toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
   }
 
-  getFechaRadicacion(documento: any): string | Date {
-    return documento.fechaCreacion;
+  formatDateOnly(fecha: Date | string | undefined): string {
+    if (!fecha) return 'N/A';
+    return new Date(fecha).toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
   }
 
-  getNombreContratista(documento: any): string {
-    return documento.nombreContratista || 'Sin nombre';
+  getDiasTranscurridos(fecha: Date | string | undefined): number {
+    if (!fecha) return 0;
+    return Math.floor((new Date().getTime() - new Date(fecha).getTime()) / (1000 * 60 * 60 * 24));
   }
 
-  getDocumentoContratista(documento: any): string {
-    return documento.documentoContratista || 'Sin documento';
+  getDiasClass(doc: RendicionCuentasProceso): string {
+    const dias = this.getDiasTranscurridos(doc.fechaCreacion);
+    if (dias < 1) return 'text-success';
+    if (dias <= 3) return 'text-primary';
+    if (dias <= 7) return 'text-warning';
+    return 'text-danger';
   }
 
-  getNumeroContrato(documento: any): string {
-    return documento.numeroContrato || 'Sin contrato';
-  }
-
-  getFechaInicio(documento: any): string | Date {
-    return documento.fechaInicio;
-  }
-
-  getFechaFin(documento: any): string | Date {
-    return documento.fechaFin;
-  }
-
-  getEstado(documento: any): string {
-    return documento.estado;
-  }
-
-  getObservacion(documento: any): string {
-    return documento.observaciones;
-  }
-
-  getObservacionCorta(documento: any): string {
-    const observacion = documento.observaciones;
-    return observacion && observacion.length > 25 ?
-      observacion.substring(0, 25) + '...' :
-      observacion || '';
-  }
-
-  esConsultable(documento: any): boolean {
-    return documento.tipo === 'procesado' ||
-      (documento.tipo === 'en_revision_mio' && !this.esMiDocumento(documento));
+  trackById(index: number, doc: RendicionCuentasProceso): string {
+    return doc.id || index.toString();
   }
 }

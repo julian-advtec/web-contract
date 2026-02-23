@@ -69,7 +69,7 @@
                   </h5>
                   <p class="documento-fecha mb-1">
                     <i class="far fa-calendar me-1"></i>
-                    {{ formatDate(doc.fechaRechazo) }}
+                   {{ formatDate(getFechaRechazo(doc)) }}
                   </p>
                 </div>
               </div>
@@ -94,14 +94,14 @@
                 <div class="dias-transcurridos mt-1">
                   <small [ngClass]="getDiasClass(doc)">
                     <i class="far fa-clock me-1"></i>
-                    {{ getDiasTranscurridos(doc.fechaRechazo) }} días
+                  {{ getDiasTranscurridos(getFechaRechazo(doc)) }}
                   </small>
                 </div>
               </div>
 
               <div class="documento-rechazado-por">
                 <span class="rechazado-badge" [ngClass]="getRechazadoClass(doc.estado)">
-                  <i class="fas fa-user me-1"></i> {{ doc.rechazadoPor || getRechazadoPor(doc.estado) }}
+                  <i class="fas fa-user me-1"></i> {{ getRechazadoPorNombre(doc) }}
                 </span>
               </div>
 

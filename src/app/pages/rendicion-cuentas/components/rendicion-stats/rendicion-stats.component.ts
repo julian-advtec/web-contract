@@ -1,25 +1,57 @@
-// src/app/pages/rendicion-cuentas/rendicion-stats/rendicion-stats.component.ts
+// src/app/pages/rendicion-cuentas/components/rendicion-stats/rendicion-stats.component.ts
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { debounceTime, Subject } from 'rxjs';
 
-import { RendicionCuentasService } from '../../../../core/services/rendicion-cuentas.service';
+// Cambia esta importación
+import { EstadisticasRendicionCuentasService } from '../../../../core/services/estadisticas-rendicion-cuentas.service';
 import { AuthService } from '../../../../core/services/auth.service';
-import { EstadisticasRendicionCuentas } from '../../../../core/models/rendicion-cuentas.model';
 import Chart from 'chart.js/auto';
 
+// Define los tipos localmente
 export enum PeriodoStats {
   HOY = 'hoy',
   SEMANA = 'semana',
   MES = 'mes',
-  TRIMESTRE = 'trimestre'
+  TRIMESTRE = 'trimestre',
+  SEMESTRE = 'semestre',
+  ANIO = 'anio'
 }
 
 export interface FiltrosStats {
   periodo: PeriodoStats;
   soloMios: boolean;
+  estado?: string;
+  fechaInicio?: string;
+  fechaFin?: string;
+  tipoDocumento?: string;
+}
+
+export interface DistribucionEstado {
+  estado: string;
+  cantidad: number;
+  monto: number;
+  color: string;
+}
+
+export interface EstadisticasRendicionCuentas {
+  documentos: any;
+  montos: any;
+  distribucion: DistribucionEstado[];
+  actividadReciente: any[];
+  pendientes: any[];
+  procesados: any[];
+  fechaCalculo: Date;
+  desde: Date;
+  hasta: Date;
+  resumen?: any;
+  metricas?: any;
+  tiempos?: any;
+  misMetricas?: any;
+  documentosPendientes?: any[];
+  documentosProcesados?: any[];
 }
 
 @Component({
@@ -59,7 +91,8 @@ export class RendicionStatsComponent implements OnInit, OnDestroy, AfterViewInit
   private chartInstance: any = null;
 
   constructor(
-    private rendicionService: RendicionCuentasService,
+    // Cambia esto para usar el servicio correcto
+    private estadisticasService: EstadisticasRendicionCuentasService,
     private authService: AuthService,
     private currencyPipe: CurrencyPipe,
     private datePipe: DatePipe,
@@ -107,13 +140,9 @@ export class RendicionStatsComponent implements OnInit, OnDestroy, AfterViewInit
     this.estadisticas = null;
     this.cdr.detectChanges();
 
-    const params: any = { periodo: this.filtros.periodo };
-    if (this.filtros.soloMios) {
-      params.soloMios = true;
-    }
-
-    this.rendicionService.obtenerEstadisticas(params).subscribe({
-      next: (data) => {
+    // Usa el método del servicio correcto
+    this.estadisticasService.obtenerEstadisticas(this.filtros).subscribe({
+      next: (data: any) => {
         this.estadisticas = data;
         this.isLoading = false;
         this.cdr.detectChanges();
@@ -124,7 +153,7 @@ export class RendicionStatsComponent implements OnInit, OnDestroy, AfterViewInit
           }
         }, 500);
       },
-      error: (err) => {
+      error: (err: any) => {
         console.error('Error:', err);
         this.errorMessage = 'Error al cargar estadísticas';
         this.isLoading = false;
@@ -165,7 +194,22 @@ export class RendicionStatsComponent implements OnInit, OnDestroy, AfterViewInit
   }
 
   getBadgeClass(estado: string | null | undefined): string {
-    return this.rendicionService.getEstadoClass(estado || '');
+    // Necesitarás inyectar RendicionCuentasService para esto o mover la lógica
+    return this.getEstadoClass(estado || '');
+  }
+
+  // Método auxiliar para clases de estado
+  private getEstadoClass(estado: string): string {
+    const estadoMap: { [key: string]: string } = {
+      'PENDIENTE': 'badge-warning',
+      'EN_REVISION': 'badge-info',
+      'APROBADO': 'badge-success',
+      'OBSERVADO': 'badge-secondary',
+      'RECHAZADO': 'badge-danger',
+      'RECHAZADO_RENDICION': 'badge-danger',
+      'COMPLETADO': 'badge-primary'
+    };
+    return estadoMap[estado] || 'badge-light';
   }
 
   getResumenPeriodo(): string {
@@ -194,10 +238,10 @@ export class RendicionStatsComponent implements OnInit, OnDestroy, AfterViewInit
       this.chartInstance = new Chart(canvas, {
         type: 'doughnut',
         data: {
-          labels: this.estadisticas!.distribucion.map(d => d.estado),
+          labels: this.estadisticas!.distribucion.map((d: DistribucionEstado) => d.estado),
           datasets: [{
-            data: this.estadisticas!.distribucion.map(d => d.cantidad),
-            backgroundColor: this.estadisticas!.distribucion.map(d => d.color),
+            data: this.estadisticas!.distribucion.map((d: DistribucionEstado) => d.cantidad),
+            backgroundColor: this.estadisticas!.distribucion.map((d: DistribucionEstado) => d.color),
             borderWidth: 1,
             borderColor: '#ffffff'
           }]
