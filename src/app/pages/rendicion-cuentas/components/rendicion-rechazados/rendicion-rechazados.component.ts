@@ -1,22 +1,25 @@
+// src/app/pages/rendicion-cuentas/rendicion-rechazados/rendicion-rechazados.component.ts
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { AsesorGerenciaService } from '../../../../core/services/asesor-gerencia.service';
+
+import { RendicionCuentasService } from '../../../../core/services/rendicion-cuentas.service';
 import { NotificationService } from '../../../../core/services/notification.service';
+import { RendicionCuentasProceso } from '../../../../core/models/rendicion-cuentas.model';
 
 @Component({
-  selector: 'app-asesor-gerencia-rechazados',
+  selector: 'app-rendicion-rechazados',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  templateUrl: './asesor-gerencia-rechazados.component.html',
-  styleUrls: ['./asesor-gerencia-rechazados.component.scss']
+  templateUrl: './rendicion-rechazados.component.html',
+  styleUrls: ['./rendicion-rechazados.component.scss']
 })
-export class AsesorGerenciaRechazadosComponent implements OnInit, OnDestroy {
-  documentos: any[] = [];
-  filteredDocumentos: any[] = [];
+export class RendicionRechazadosComponent implements OnInit, OnDestroy {
+  documentos: RendicionCuentasProceso[] = [];
+  filteredDocumentos: RendicionCuentasProceso[] = [];
   isLoading = true;
   error: string | null = null;
   searchTerm = '';
@@ -31,7 +34,7 @@ export class AsesorGerenciaRechazadosComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
   constructor(
-    private asesorGerenciaService: AsesorGerenciaService,
+    private rendicionService: RendicionCuentasService,
     public notificationService: NotificationService,
     private router: Router
   ) {}
@@ -49,25 +52,33 @@ export class AsesorGerenciaRechazadosComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.error = null;
 
-    this.asesorGerenciaService.getRechazadosVisibles()
+    // Obtener documentos rechazados del historial
+    this.rendicionService.getHistorial()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (response: any) => {
-          let docsArray = [];
-          
-          if (Array.isArray(response)) {
-            docsArray = response;
-          } else if (response?.data && Array.isArray(response.data)) {
-            docsArray = response.data;
-          } else if (response?.documentos && Array.isArray(response.documentos)) {
-            docsArray = response.documentos;
-          } else if (response?.success && response?.data && Array.isArray(response.data)) {
-            docsArray = response.data;
-          } else {
-            docsArray = [];
-          }
-          
-          this.documentos = Array.isArray(docsArray) ? docsArray : [];
+        next: (historial: any[]) => {
+          // Filtrar solo los rechazados
+          const rechazados = historial
+            .filter(item => 
+              item.estadoNuevo?.toUpperCase().includes('RECHAZADO') ||
+              item.estadoNuevo?.toUpperCase().includes('RECHAZADO_RENDICION') ||
+              item.estadoNuevo?.toUpperCase() === 'RECHAZADO'
+            )
+            .map(item => ({
+              id: item.documentoId,
+              documentoId: item.documentoId,
+              numeroRadicado: item.documento?.numeroRadicado,
+              nombreContratista: item.documento?.nombreContratista,
+              documentoContratista: item.documento?.documentoContratista,
+              numeroContrato: item.documento?.numeroContrato,
+              estado: item.estadoNuevo,
+              fechaRechazo: item.fechaCreacion,
+              fechaActualizacion: item.fechaCreacion,
+              observacion: item.observacion,
+              rechazadoPor: item.usuarioNombre || 'Sistema'
+            }));
+
+          this.documentos = rechazados;
           this.filteredDocumentos = [...this.documentos];
           this.updatePagination();
           this.isLoading = false;
@@ -92,7 +103,8 @@ export class AsesorGerenciaRechazadosComponent implements OnInit, OnDestroy {
         (doc.numeroRadicado?.toLowerCase() || '').includes(term) ||
         (doc.nombreContratista?.toLowerCase() || '').includes(term) ||
         (doc.numeroContrato?.toLowerCase() || '').includes(term) ||
-        (doc.estado?.toLowerCase() || '').includes(term)
+        (doc.estado?.toLowerCase() || '').includes(term) ||
+        (doc.rechazadoPor?.toLowerCase() || '').includes(term)
       );
     }
     this.currentPage = 1;
@@ -120,7 +132,7 @@ export class AsesorGerenciaRechazadosComponent implements OnInit, OnDestroy {
     }
   }
 
-  get paginatedDocumentos(): any[] {
+  get paginatedDocumentos(): RendicionCuentasProceso[] {
     const docs = this.filteredDocumentos || [];
     const start = (this.currentPage - 1) * this.pageSize;
     return docs.slice(start, start + this.pageSize);
@@ -128,7 +140,7 @@ export class AsesorGerenciaRechazadosComponent implements OnInit, OnDestroy {
 
   verDetalle(id: string): void {
     if (!id) return;
-    this.router.navigate(['/asesor-gerencia/documento', id], { 
+    this.router.navigate(['/rendicion-cuentas/procesar', id], { 
       queryParams: { 
         modo: 'consulta',
         origen: 'rechazados'
@@ -137,32 +149,20 @@ export class AsesorGerenciaRechazadosComponent implements OnInit, OnDestroy {
   }
 
   getEstadoClass(estado?: string): string {
-    if (!estado) return 'bg-secondary';
-    const e = estado.toUpperCase();
-    if (e.includes('RECHAZADO') || e.includes('OBSERVADO')) return 'bg-danger';
-    if (e.includes('TESORERIA')) return 'bg-warning';
-    if (e.includes('CONTABILIDAD')) return 'bg-info';
-    if (e.includes('RENDICION')) return 'bg-dark';
-    return 'bg-secondary';
+    return this.rendicionService.getEstadoClass(estado || '');
   }
 
   getEstadoTexto(estado?: string): string {
-    if (!estado) return 'Desconocido';
-    const e = estado.toUpperCase();
-    if (e.includes('RECHAZADO_GERENCIA')) return 'Rechazado Gerencia';
-    if (e.includes('OBSERVADO_GERENCIA')) return 'Observado Gerencia';
-    if (e.includes('RECHAZADO_TESORERIA')) return 'Rechazado Tesorería';
-    if (e.includes('RECHAZADO_CONTABILIDAD')) return 'Rechazado Contabilidad';
-    return estado;
+    return this.rendicionService.getEstadoTexto(estado || '');
   }
 
   getRechazadoPor(estado?: string): string {
     if (!estado) return 'Sistema';
     const e = estado.toUpperCase();
+    if (e.includes('RENDICION')) return 'Rendición de Cuentas';
+    if (e.includes('GERENCIA')) return 'Gerencia';
     if (e.includes('TESORERIA')) return 'Tesorería';
     if (e.includes('CONTABILIDAD')) return 'Contabilidad';
-    if (e.includes('RENDICION')) return 'Rendición Cuentas';
-    if (e.includes('GERENCIA')) return 'Asesor Gerencia';
     return 'Sistema';
   }
 
@@ -198,19 +198,19 @@ export class AsesorGerenciaRechazadosComponent implements OnInit, OnDestroy {
   }
 
   mostrarInfoRechazo(doc: any): void {
-    const motivo = doc.observacion || doc.motivoRechazo || doc.observaciones || 'Sin detalle';
+    const motivo = doc.observacion || doc.motivoRechazo || 'Sin detalle del motivo de rechazo';
     this.notificationService.info('Motivo del Rechazo', motivo);
   }
 
   esReciente(doc: any): boolean {
-    const fecha = doc.fechaRadicacion || doc.fechaActualizacion;
+    const fecha = doc.fechaRechazo || doc.fechaActualizacion;
     if (!fecha) return false;
     const dias = Math.floor((new Date().getTime() - new Date(fecha).getTime()) / (1000 * 60 * 60 * 24));
     return dias <= 7;
   }
 
   getTooltipInfo(doc: any): string {
-    return `${doc.numeroRadicado} - ${doc.nombreContratista} - ${doc.estado}`;
+    return `${doc.numeroRadicado} - ${doc.nombreContratista} - Rechazado por ${doc.rechazadoPor}`;
   }
 
   getDiasTranscurridos(fecha?: string): number {
@@ -228,10 +228,10 @@ export class AsesorGerenciaRechazadosComponent implements OnInit, OnDestroy {
   getRechazadoClass(estado?: string): string {
     if (!estado) return 'badge-sistema';
     const e = estado.toUpperCase();
-    if (e.includes('TESORERIA')) return 'badge-tesoreria';
-    if (e.includes('CONTABILIDAD')) return 'badge-contabilidad';
     if (e.includes('RENDICION')) return 'badge-rendicion';
     if (e.includes('GERENCIA')) return 'badge-gerencia';
+    if (e.includes('TESORERIA')) return 'badge-tesoreria';
+    if (e.includes('CONTABILIDAD')) return 'badge-contabilidad';
     return 'badge-sistema';
   }
 }

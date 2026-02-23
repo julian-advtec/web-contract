@@ -10,7 +10,7 @@ import { environment } from '../../../environments/environment';
 export class AsesorGerenciaService {
   private apiUrl = `${environment.apiUrl}/asesor-gerencia`;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   private getAuthHeaders(): HttpHeaders {
     const token = localStorage.getItem('token') || localStorage.getItem('access_token');
@@ -25,67 +25,28 @@ export class AsesorGerenciaService {
 
   private handleArrayResponse(response: any): any[] {
     if (Array.isArray(response)) return response;
-    if (response?.data && Array.isArray(response.data)) return response.data;
+
+    if (response?.ok && response?.data) {
+      if (Array.isArray(response.data)) return response.data;
+      if (response.data?.success && Array.isArray(response.data.data)) {
+        return response.data.data;
+      }
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        return response.data.data;
+      }
+    }
+
+    if (response?.success && response?.data) {
+      if (Array.isArray(response.data)) return response.data;
+    }
+
     if (response?.documentos && Array.isArray(response.documentos)) return response.documentos;
-    console.warn('Respuesta no es array esperado:', response);
+    if (response?.historial && Array.isArray(response.historial)) return response.historial;
+    if (response?.items && Array.isArray(response.items)) return response.items;
+
     return [];
   }
 
-  // Listado de documentos disponibles para tomar
-  getDocumentosDisponibles(): Observable<any[]> {
-    return this.http.get<any>(`${this.apiUrl}/documentos/disponibles`, { headers: this.getAuthHeaders() }).pipe(
-      map(res => this.handleArrayResponse(res)),
-      catchError(err => {
-        console.error('[AsesorGerenciaService] Error al obtener documentos disponibles:', err);
-        return throwError(() => new Error('No se pudieron cargar los documentos disponibles'));
-      })
-    );
-  }
-
-  // Mis documentos en revisión
-  getMisDocumentos(): Observable<any[]> {
-    return this.http.get<any>(`${this.apiUrl}/mis-documentos`, { headers: this.getAuthHeaders() }).pipe(
-      map(res => this.handleArrayResponse(res)),
-      catchError(err => {
-        console.error('[AsesorGerenciaService] Error al obtener mis documentos:', err);
-        return throwError(() => new Error('No se pudieron cargar tus documentos en revisión'));
-      })
-    );
-  }
-
-  // Tomar documento para revisión
-  tomarDocumento(documentoId: string): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/documentos/${documentoId}/tomar`, {}, { headers: this.getAuthHeaders() }).pipe(
-      catchError(err => {
-        console.error(`[AsesorGerenciaService] Error al tomar documento ${documentoId}:`, err);
-        return throwError(() => new Error(err.error?.message || 'No se pudo tomar el documento'));
-      })
-    );
-  }
-
-  // Finalizar revisión (APROBADO / OBSERVADO / RECHAZADO)
-  finalizarRevision(documentoId: string, formData: FormData): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/documentos/${documentoId}/finalizar`, formData, { headers: this.getAuthHeaders() }).pipe(
-      map(res => res),
-      catchError(err => {
-        console.error(`[AsesorGerenciaService] Error al finalizar revisión de ${documentoId}:`, err);
-        const mensaje = err.error?.message || err.message || 'Error al procesar la decisión final';
-        return throwError(() => new Error(mensaje));
-      })
-    );
-  }
-
-  // Liberar documento (volver a disponibles)
-  liberarDocumento(documentoId: string): Observable<any> {
-    return this.http.delete<any>(`${this.apiUrl}/documentos/${documentoId}/liberar`, { headers: this.getAuthHeaders() }).pipe(
-      catchError(err => {
-        console.error(`[AsesorGerenciaService] Error al liberar documento ${documentoId}:`, err);
-        return throwError(() => new Error(err.error?.message || 'No se pudo liberar el documento'));
-      })
-    );
-  }
-
-  // Historial del asesor
   getHistorial(): Observable<any[]> {
     return this.http.get<any>(`${this.apiUrl}/historial`, { headers: this.getAuthHeaders() }).pipe(
       map(res => this.handleArrayResponse(res)),
@@ -96,7 +57,6 @@ export class AsesorGerenciaService {
     );
   }
 
-  // Documentos rechazados/observados visibles
   getRechazadosVisibles(): Observable<any[]> {
     return this.http.get<any>(`${this.apiUrl}/rechazados-visibles`, { headers: this.getAuthHeaders() }).pipe(
       map(res => this.handleArrayResponse(res)),
@@ -107,8 +67,45 @@ export class AsesorGerenciaService {
     );
   }
 
-  // Ver archivo (blob) - usado para comprobante de pago
-  verArchivo(documentoId: string, tipo: 'pagoRealizado' | 'aprobacion'): Observable<Blob> {
+  getDocumentosDisponibles(): Observable<any[]> {
+    return this.http.get<any>(`${this.apiUrl}/documentos/disponibles`, { headers: this.getAuthHeaders() }).pipe(
+      map(res => this.handleArrayResponse(res)),
+      catchError(err => {
+        console.error('[AsesorGerenciaService] Error al obtener documentos disponibles:', err);
+        return throwError(() => new Error('No se pudieron cargar los documentos disponibles'));
+      })
+    );
+  }
+
+  getMisDocumentos(): Observable<any[]> {
+    return this.http.get<any>(`${this.apiUrl}/mis-documentos`, { headers: this.getAuthHeaders() }).pipe(
+      map(res => this.handleArrayResponse(res)),
+      catchError(err => {
+        console.error('[AsesorGerenciaService] Error al obtener mis documentos:', err);
+        return throwError(() => new Error('No se pudieron cargar tus documentos en revisión'));
+      })
+    );
+  }
+
+  tomarDocumento(documentoId: string): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/documentos/${documentoId}/tomar`, {}, { headers: this.getAuthHeaders() }).pipe(
+      catchError(err => {
+        console.error(`[AsesorGerenciaService] Error al tomar documento ${documentoId}:`, err);
+        return throwError(() => new Error(err.error?.message || 'No se pudo tomar el documento'));
+      })
+    );
+  }
+
+  liberarDocumento(documentoId: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/documentos/${documentoId}/liberar`, { headers: this.getAuthHeaders() }).pipe(
+      catchError(err => {
+        console.error(`[AsesorGerenciaService] Error al liberar documento ${documentoId}:`, err);
+        return throwError(() => new Error(err.error?.message || 'No se pudo liberar el documento'));
+      })
+    );
+  }
+
+  verArchivo(documentoId: string, tipo: 'pagoRealizado' | 'aprobacion' | 'comprobanteFirmado'): Observable<Blob> {
     return this.http.get(`${this.apiUrl}/documentos/${documentoId}/archivo/${tipo}`, {
       responseType: 'blob',
       headers: this.getAuthHeaders()
@@ -120,8 +117,7 @@ export class AsesorGerenciaService {
     );
   }
 
-  // Descargar archivo (si en algún momento lo necesitas de nuevo)
-  descargarArchivo(documentoId: string, tipo: 'pagoRealizado' | 'aprobacion'): Observable<Blob> {
+  descargarArchivo(documentoId: string, tipo: 'pagoRealizado' | 'aprobacion' | 'comprobanteFirmado'): Observable<Blob> {
     return this.http.get(`${this.apiUrl}/documentos/${documentoId}/descargar/${tipo}`, {
       responseType: 'blob',
       headers: this.getAuthHeaders()
@@ -133,7 +129,6 @@ export class AsesorGerenciaService {
     );
   }
 
-  // Detalle de revisión
   obtenerDetalleRevision(documentoId: string): Observable<any> {
     return this.http.get<any>(`${this.apiUrl}/documentos/${documentoId}/detalle`, { headers: this.getAuthHeaders() }).pipe(
       map(res => res?.data || res || null),
@@ -143,4 +138,36 @@ export class AsesorGerenciaService {
       })
     );
   }
+
+  finalizarRevision(documentoId: string, payload: {
+    estadoFinal: string;
+    observaciones?: string;
+    signatureId?: string;
+    signaturePosition?: any;
+  }): Observable<any> {
+    return this.http.post<any>(
+      `${this.apiUrl}/documentos/${documentoId}/finalizar`,
+      payload,
+      { headers: this.getAuthHeadersWithJson() }
+    ).pipe(
+      map(res => res),
+      catchError(err => {
+        console.error(`[AsesorGerenciaService] Error al finalizar revisión de ${documentoId}:`, err);
+        const mensaje = err.error?.message || err.message || 'Error al procesar la decisión final';
+        return throwError(() => new Error(mensaje));
+      })
+    );
+  }
+
+obtenerComprobanteFirmado(documentoId: string): Observable<Blob> {
+  return this.http.get(`${this.apiUrl}/documentos/${documentoId}/comprobante-firmado`, {
+    responseType: 'blob',
+    headers: this.getAuthHeaders()
+  }).pipe(
+    catchError(err => {
+      console.error('[obtenerComprobanteFirmado] Error:', err);
+      return throwError(() => err);
+    })
+  );
+}
 }

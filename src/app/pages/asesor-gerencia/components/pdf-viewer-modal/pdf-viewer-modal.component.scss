@@ -1,130 +1,49 @@
-@import '../../../../shared/layout-styles.scss';
-
-/* ===== VARIABLES ===== */
-$modal-zindex: 9999;
-$primary: #10B981;           // Verde gerencia
-$primary-dark: #059669;
-$danger: #EF4444;
-
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.65);
-  z-index: $modal-zindex;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 1060;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
-  overflow-y: auto;
 }
 
 .modal-dialog {
   margin: 0 auto;
-  max-width: 95%;
+  max-width: 95vw;
   width: 100%;
-
-  &.modal-xl {
-    @media (min-width: 1200px) {
-      max-width: 90vw;
-    }
-    @media (min-width: 1400px) {
-      max-width: 1300px;
-    }
-  }
 }
 
 .modal-content {
-  border: none;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  max-height: 95vh;
 }
 
 .modal-header {
-  background: linear-gradient(135deg, $primary 0%, $primary-dark 100%);
   padding: 1rem 1.5rem;
   border-bottom: none;
-
-  .modal-title {
-    font-size: 1.35rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-  }
-
-  .btn-close {
-    filter: brightness(0) invert(1);
-    opacity: 0.8;
-
-    &:hover {
-      opacity: 1;
-    }
-  }
 }
 
 .modal-body {
-  height: 75vh;
-  min-height: 400px;
-  background: #f8f9fa;
-  position: relative;
+  background: #f1f3f5;
   overflow: hidden;
-
-  @media (min-height: 800px) {
-    height: 80vh;
-  }
-}
-
-.pdf-container {
-  width: 100%;
-  height: 100%;
 }
 
 .pdf-embed {
   border: none;
+  display: block;
   width: 100%;
   height: 100%;
-  display: block;
-  pointer-events: auto;
-  user-select: none;
-  -webkit-user-select: none;
 }
 
 .protection-overlay {
   position: absolute;
   inset: 0;
-  background: transparent;
-  z-index: 10;
-  pointer-events: none;           // Permite interacción con PDF
+  pointer-events: none;
   user-select: none;
-}
-
-.loading-overlay,
-.error-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255,255,255,0.9);
-  z-index: 20;
 }
 
 .modal-footer {
   padding: 1rem 1.5rem;
-  background: #f8f9fa;
-  border-top: 1px solid #dee2e6;
-  justify-content: flex-end;
-}
-
-// Responsive
-@media (max-width: 768px) {
-  .modal-dialog {
-    margin: 0.5rem;
-  }
-  
-  .modal-body {
-    height: 60vh;
-    min-height: 300px;
-  }
 }

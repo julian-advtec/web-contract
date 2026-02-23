@@ -8,10 +8,7 @@ import { AsesorGerenciaRoutingModule } from './asesor-gerencia-routing.module';
 
 @NgModule({
   declarations: [
-    // Aquí irán los componentes que declares más adelante
-    // AsesorGerenciaPendingListComponent,
-    // AsesorGerenciaListComponent,
-    // etc.
+
   ],
   imports: [
     CommonModule,

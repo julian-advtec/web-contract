@@ -1,0 +1,121 @@
+// src/app/pages/rendicion-cuentas/rendicion-cuentas.component.scss
+@import '../../../shared/layout-styles.scss';
+
+/* ===== VARIABLES ESPECÍFICAS DE RENDICIÓN DE CUENTAS ===== */
+$color-rendicion: #10B981;                // verde esmeralda
+$color-rendicion-light: rgba(16, 185, 129, 0.1);
+$color-rendicion-medium: rgba(16, 185, 129, 0.2);
+$color-rendicion-dark: #059669;
+$color-rendicion-gradient: linear-gradient(135deg, #10B981 0%, #059669 100%);
+
+/* Estados */
+$color-completado: #10B981;
+$color-en-revision: #10B981;
+$color-observado: #059669;
+$color-rechazado: #047857;
+$color-pendiente: #6B7280;
+
+/* Fondos */
+$bg-completado: rgba(16, 185, 129, 0.08);
+$bg-en-revision: rgba(16, 185, 129, 0.12);
+$bg-observado: rgba(5, 150, 105, 0.1);
+$bg-rechazado: rgba(4, 120, 87, 0.1);
+$bg-pendiente: rgba(107, 114, 128, 0.08);
+
+/* ===== CONTENEDOR PRINCIPAL ===== */
+:host {
+  display: block;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.drawer-fixed {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  z-index: 1030;
+  width: 260px;
+  transition: width 0.3s ease;
+
+  &.collapsed {
+    width: 70px;
+  }
+}
+
+.main-with-margin {
+  margin-left: 260px;
+  margin-top: 60px;
+  transition: margin-left 0.3s ease;
+  height: calc(100vh - 60px);
+  overflow-y: auto;
+  background-color: #f8f9fa;
+
+  &.sidebar-collapsed {
+    margin-left: 70px;
+  }
+
+  .container-fluid {
+    width: 100%;
+    padding-right: 15px;
+    padding-left: 15px;
+    margin-right: auto;
+    margin-left: auto;
+  }
+}
+
+/* ===== ALERTAS ===== */
+.alert {
+  margin-bottom: 1.5rem;
+  border-left-width: 4px;
+  border-left-style: solid;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+
+  &.alert-danger {
+    background: rgba(220, 53, 69, 0.1);
+    border-left-color: #dc3545;
+    color: #721c24;
+  }
+
+  &.alert-success {
+    background: rgba(16, 185, 129, 0.1);
+    border-left-color: #10B981;
+    color: #0a5c4e;
+  }
+
+  .btn-close {
+    float: right;
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1;
+    color: #000;
+    text-shadow: 0 1px 0 #fff;
+    opacity: 0.5;
+    padding: 0;
+    background-color: transparent;
+    border: 0;
+    appearance: none;
+
+    &:hover {
+      opacity: 0.75;
+    }
+  }
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .drawer-fixed {
+    width: 70px;
+  }
+
+  .main-with-margin {
+    margin-left: 70px;
+  }
+}

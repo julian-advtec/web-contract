@@ -43,7 +43,6 @@ export class AsesorGerenciaHistoryComponent implements OnInit, OnDestroy {
   ) { }
 
   ngOnInit(): void {
-    console.log('🚀 Asesor Gerencia: Inicializando historial de revisiones...');
     this.cargarUsuarioActual();
     this.loadHistorial();
   }
@@ -59,12 +58,31 @@ export class AsesorGerenciaHistoryComponent implements OnInit, OnDestroy {
       try {
         const user = JSON.parse(userStr);
         this.usuarioActual = user.fullName || user.username || 'Asesor Gerencia';
-        console.log('👤 Usuario actual de asesor gerencia:', this.usuarioActual);
       } catch (error) {
-        console.error('Error parseando usuario:', error);
         this.usuarioActual = 'Asesor Gerencia';
       }
     }
+  }
+
+  private normalizarEstado(estadoRaw: string | undefined): string {
+    if (!estadoRaw) return 'DESCONOCIDO';
+    
+    const upper = estadoRaw.toUpperCase().trim();
+    
+    if (upper.includes('COMPLETADO') || upper.includes('APROBADO')) {
+      return 'COMPLETADO_ASESOR_GERENCIA';
+    }
+    if (upper.includes('EN_REVISION') || upper.includes('PENDIENTE') || upper.includes('EN PROCESO')) {
+      return 'EN_REVISION_ASESOR_GERENCIA';
+    }
+    if (upper.includes('OBSERVADO')) {
+      return 'OBSERVADO_ASESOR_GERENCIA';
+    }
+    if (upper.includes('RECHAZADO')) {
+      return 'RECHAZADO_ASESOR_GERENCIA';
+    }
+    
+    return upper.replace(/_/g, ' ');
   }
 
   loadHistorial(): void {
@@ -77,50 +95,66 @@ export class AsesorGerenciaHistoryComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response: any) => {
-          console.log('📊 Respuesta del historial de revisiones:', response);
+          let dataArray = [];
+          if (Array.isArray(response)) {
+            dataArray = response;
+          } else if (response?.data && Array.isArray(response.data)) {
+            dataArray = response.data;
+          } else if (response?.historial && Array.isArray(response.historial)) {
+            dataArray = response.historial;
+          } else if (response?.ok && response?.data && Array.isArray(response.data)) {
+            dataArray = response.data;
+          } else if (response?.success && response?.data && Array.isArray(response.data)) {
+            dataArray = response.data;
+          }
 
-          if (response.success) {
-            this.historial = response.data || [];
-            console.log('✅ Historial cargado con', this.historial.length, 'revisiones');
+          this.historial = Array.isArray(dataArray) ? dataArray.map(item => {
+            const estadoNormal = this.normalizarEstado(
+              item.estado || 
+              item.estadoGerencia || 
+              item.estadoDocumento || 
+              item.estadoRevision
+            );
+            return {
+              ...item,
+              estado: estadoNormal
+            };
+          }) : [];
 
-            // Ordenar por fecha más reciente primero
-            this.historial.sort((a, b) => {
-              const fechaA = new Date(a.fechaFinRevision || a.fechaActualizacion || a.createdAt);
-              const fechaB = new Date(b.fechaFinRevision || b.fechaActualizacion || b.createdAt);
-              return fechaB.getTime() - fechaA.getTime();
-            });
+          this.historial.sort((a, b) => {
+            const fechaA = new Date(a.fechaFinRevision || a.fechaActualizacion || a.fechaCreacion || 0);
+            const fechaB = new Date(b.fechaFinRevision || b.fechaActualizacion || b.fechaCreacion || 0);
+            return fechaB.getTime() - fechaA.getTime();
+          });
 
-            this.filteredHistorial = [...this.historial];
-            this.updatePagination();
+          this.filteredHistorial = [...this.historial];
+          this.updatePagination();
 
-            if (this.filteredHistorial.length > 0) {
-              const recientes = this.filteredHistorial.filter(item => this.esRevisionReciente(item));
-              const completados = this.filteredHistorial.filter(item => item.estado === 'COMPLETADO_ASESOR_GERENCIA').length;
-              const enRevision = this.filteredHistorial.filter(item => item.estado === 'EN_REVISION_ASESOR_GERENCIA').length;
-              const observados = this.filteredHistorial.filter(item => item.estado === 'OBSERVADO_ASESOR_GERENCIA').length;
-              const rechazados = this.filteredHistorial.filter(item => item.estado === 'RECHAZADO_ASESOR_GERENCIA').length;
-              
-              this.successMessage = `${this.filteredHistorial.length} revisiones (${completados} completadas, ${enRevision} en proceso, ${observados} observadas, ${rechazados} rechazadas, ${recientes.length} recientes)`;
-            } else {
-              this.infoMessage = 'No hay revisiones en el historial';
-            }
+          if (this.filteredHistorial.length > 0) {
+            const recientes = this.filteredHistorial.filter(item => this.esRevisionReciente(item));
+            const completados = this.filteredHistorial.filter(item => 
+              item.estado === 'COMPLETADO_ASESOR_GERENCIA'
+            ).length;
+            const enRevision = this.filteredHistorial.filter(item => 
+              item.estado === 'EN_REVISION_ASESOR_GERENCIA'
+            ).length;
+            const observados = this.filteredHistorial.filter(item => 
+              item.estado === 'OBSERVADO_ASESOR_GERENCIA'
+            ).length;
+            const rechazados = this.filteredHistorial.filter(item => 
+              item.estado === 'RECHAZADO_ASESOR_GERENCIA'
+            ).length;
+            
+            this.successMessage = `${this.filteredHistorial.length} revisiones (${completados} completadas, ${enRevision} en proceso, ${observados} observadas, ${rechazados} rechazadas, ${recientes.length} recientes)`;
           } else {
-            this.error = response.message || 'Error al cargar el historial de revisiones';
-            this.notificationService.error('Error', this.error);
+            this.infoMessage = 'No hay revisiones en el historial';
           }
           this.loading = false;
         },
         error: (err: any) => {
-          this.error = 'Error de conexión con el servidor: ' + err.message;
+          this.error = 'Error de conexión con el servidor';
           this.loading = false;
-          console.error('Error:', err);
-
-          if (err.status === 404 || err.status === 0) {
-            this.infoMessage = 'El servicio de historial no está disponible temporalmente';
-            this.historial = [];
-            this.filteredHistorial = [];
-            this.updatePagination();
-          } else {
+          if (err.status !== 404 && err.status !== 0) {
             this.notificationService.error('Error', this.error);
           }
         }
@@ -129,76 +163,57 @@ export class AsesorGerenciaHistoryComponent implements OnInit, OnDestroy {
 
   verDetalleRevision(item: any): void {
     const documentoId = item.documentoId || item.documento?.id;
-    
-    if (!documentoId) {
-      this.notificationService.error('Error', 'No se pudo identificar el documento');
-      return;
-    }
+    if (!documentoId) return;
 
-    const esSoloLectura = item.estado === 'COMPLETADO_ASESOR_GERENCIA' || 
-                         item.estado === 'RECHAZADO_ASESOR_GERENCIA' || 
-                         item.estado === 'OBSERVADO_ASESOR_GERENCIA';
+    const esEnRevision = item.estado === 'EN_REVISION_ASESOR_GERENCIA';
+    const esMiRevision = this.esMiRevision(item);
+    const esEditable = esEnRevision && esMiRevision;
 
     this.router.navigate(['/asesor-gerencia/procesar', documentoId], {
       queryParams: {
         desdeHistorial: 'true',
-        soloLectura: esSoloLectura ? 'true' : 'false',
-        modo: esSoloLectura ? 'consulta' : 'edicion',
+        soloLectura: esEditable ? 'false' : 'true',
+        modo: esEditable ? 'edicion' : 'consulta',
         origen: 'historial-gerencia'
       }
     });
   }
 
-  continuarRevision(item: any): void {
-    const documentoId = item.documentoId || item.documento?.id;
-    
-    if (!documentoId) {
-      this.notificationService.error('Error', 'No se pudo identificar el documento');
-      return;
-    }
+continuarRevision(item: any): void {
+  const documentoId = item.documentoId || item.documento?.id;
+  if (!documentoId) return;
 
-    if (item.estado !== 'EN_REVISION_ASESOR_GERENCIA' || !this.esMiRevision(item)) {
-      this.notificationService.warning('No permitido', 'Solo puedes continuar revisiones en proceso y asignadas a ti');
-      return;
-    }
-
-    this.router.navigate(['/asesor-gerencia/procesar', documentoId], {
-      queryParams: {
-        desdeHistorial: 'true',
-        soloLectura: 'false',
-        modo: 'edicion',
-        origen: 'historial-gerencia'
-      }
-    });
+  if (item.estado !== 'EN_REVISION_ASESOR_GERENCIA' || !this.esMiRevision(item)) {
+    this.notificationService.warning('No permitido', 'Este documento no está en revisión o no te pertenece');
+    return;
   }
+
+  // Siempre forzar edición cuando es continuar revisión
+  this.router.navigate(['/asesor-gerencia/procesar', documentoId], {
+    queryParams: {
+      desdeHistorial: 'true',
+      soloLectura: 'false',          // Forzado a edición
+      modo: 'edicion',               // Explícito
+      origen: 'historial-gerencia-continuar',
+      forceEdit: 'true'              // Parámetro extra para que el form lo respete
+    }
+  });
+}
 
   verAprobacion(item: any): void {
     const documentoId = item.documentoId || item.documento?.id;
-    
-    if (!documentoId) {
-      this.notificationService.error('Error', 'No se pudo identificar el documento');
-      return;
-    }
+    if (!documentoId) return;
 
-    // Asumiendo que tienes un método para descargar/ver aprobación
-    this.asesorGerenciaService.descargarArchivo(documentoId, 'aprobacion')
-      .subscribe({
-        next: (blob: Blob) => {
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `aprobacion_${item.documento?.numeroRadicado || 'revision'}.pdf`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          window.URL.revokeObjectURL(url);
-          
-          this.notificationService.success('Éxito', 'Aprobación descargada correctamente');
-        },
-        error: (err) => {
-          this.notificationService.error('Error', 'No se pudo descargar la aprobación');
-        }
-      });
+    // Solo ver en modal (sin descargar)
+    this.router.navigate(['/asesor-gerencia/procesar', documentoId], {
+      queryParams: {
+        desdeHistorial: 'true',
+        soloLectura: 'true',
+        modo: 'consulta',
+        verAprobacion: 'true',
+        origen: 'historial-gerencia'
+      }
+    });
   }
 
   getResponsableRevision(item: any): string {
@@ -210,85 +225,82 @@ export class AsesorGerenciaHistoryComponent implements OnInit, OnDestroy {
            'Asesor Gerencia';
   }
 
-  getEstadoRevisionBadgeClass(estado: string): string {
-    if (!estado) return 'badge-default';
-
-    const upper = estado.toUpperCase();
-
-    if (upper === 'COMPLETADO_ASESOR_GERENCIA') return 'badge-completado';
-    if (upper === 'EN_REVISION_ASESOR_GERENCIA') return 'badge-en-revision';
-    if (upper === 'OBSERVADO_ASESOR_GERENCIA') return 'badge-warning';
-    if (upper === 'RECHAZADO_ASESOR_GERENCIA') return 'badge-rechazado';
-    return 'badge-default';
+  getEstadoRevisionBadgeClass(estado: string | undefined): string {
+    const estadoNormal = this.normalizarEstado(estado);
+    
+    switch (estadoNormal) {
+      case 'COMPLETADO_ASESOR_GERENCIA':
+        return 'badge-completado bg-success text-white';
+      case 'EN_REVISION_ASESOR_GERENCIA':
+        return 'badge-en-revision bg-warning text-dark';
+      case 'OBSERVADO_ASESOR_GERENCIA':
+        return 'badge-observado bg-warning text-dark';
+      case 'RECHAZADO_ASESOR_GERENCIA':
+        return 'badge-rechazado bg-danger text-white';
+      default:
+        return 'badge-default bg-secondary text-white';
+    }
   }
 
-  getEstadoRevisionTexto(estado: string): string {
-    if (!estado) return 'Desconocido';
+  getEstadoRevisionTexto(estado: string | undefined): string {
+    const estadoNormal = this.normalizarEstado(estado);
     
-    switch (estado.toUpperCase()) {
-      case 'COMPLETADO_ASESOR_GERENCIA': return 'Completado Gerencia';
-      case 'EN_REVISION_ASESOR_GERENCIA': return 'En Revisión';
-      case 'OBSERVADO_ASESOR_GERENCIA': return 'Observado';
-      case 'RECHAZADO_ASESOR_GERENCIA': return 'Rechazado';
-      default: return estado;
+    switch (estadoNormal) {
+      case 'COMPLETADO_ASESOR_GERENCIA':
+        return 'Completado Gerencia';
+      case 'EN_REVISION_ASESOR_GERENCIA':
+        return 'En Revisión';
+      case 'OBSERVADO_ASESOR_GERENCIA':
+        return 'Observado';
+      case 'RECHAZADO_ASESOR_GERENCIA':
+        return 'Rechazado';
+      default:
+        return estadoNormal;
     }
   }
 
   getAccesoTexto(item: any): string {
-    switch (item.estado?.toUpperCase()) {
+    const estado = this.normalizarEstado(item.estado);
+    switch (estado) {
       case 'COMPLETADO_ASESOR_GERENCIA':
       case 'RECHAZADO_ASESOR_GERENCIA':
         return 'Solo lectura';
       case 'EN_REVISION_ASESOR_GERENCIA':
-        return 'Editable';
+        return this.esMiRevision(item) ? 'Editable' : 'Solo lectura';
       default:
         return 'Acceso limitado';
     }
   }
 
   esMiRevision(item: any): boolean {
-    const responsable = this.getResponsableRevision(item);
-    return responsable === this.usuarioActual;
+    return this.getResponsableRevision(item) === this.usuarioActual;
   }
 
   esRevisionReciente(item: any): boolean {
     const fecha = item.fechaFinRevision || item.fechaActualizacion || item.updatedAt;
     if (!fecha) return false;
-
     try {
       const fechaObj = new Date(fecha);
       const ahora = new Date();
-      const diferenciaDias = Math.floor((ahora.getTime() - fechaObj.getTime()) / (1000 * 60 * 60 * 24));
-      return diferenciaDias <= 7;
+      return Math.floor((ahora.getTime() - fechaObj.getTime()) / (1000 * 60 * 60 * 24)) <= 7;
     } catch {
       return false;
     }
   }
 
   getDuracionProceso(item: any): string {
-    const fechaInicio = item.fechaInicioRevision || item.fechaCreacion;
-    const fechaFin = item.fechaFinRevision || item.fechaActualizacion || new Date();
-
-    if (!fechaInicio) return 'N/A';
-
+    const inicio = item.fechaInicioRevision || item.fechaCreacion;
+    const fin = item.fechaFinRevision || item.fechaActualizacion || new Date();
+    if (!inicio) return 'N/A';
     try {
-      const inicio = new Date(fechaInicio);
-      const fin = new Date(fechaFin);
-      const diffMs = fin.getTime() - inicio.getTime();
+      const diffMs = new Date(fin).getTime() - new Date(inicio).getTime();
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
       if (diffDays === 0) {
         const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-        if (diffHours === 0) {
-          const diffMinutes = Math.floor(diffMs / (1000 * 60));
-          return `${diffMinutes} min`;
-        }
+        if (diffHours === 0) return `${Math.floor(diffMs / (1000 * 60))} min`;
         return `${diffHours} h`;
-      } else if (diffDays === 1) {
-        return '1 día';
-      } else {
-        return `${diffDays} días`;
-      }
+      } else if (diffDays === 1) return '1 día';
+      return `${diffDays} días`;
     } catch {
       return 'N/A';
     }
@@ -297,8 +309,7 @@ export class AsesorGerenciaHistoryComponent implements OnInit, OnDestroy {
   formatDate(fecha: Date | string): string {
     if (!fecha) return 'N/A';
     try {
-      const date = new Date(fecha);
-      return date.toLocaleDateString('es-ES', {
+      return new Date(fecha).toLocaleDateString('es-ES', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
@@ -313,8 +324,7 @@ export class AsesorGerenciaHistoryComponent implements OnInit, OnDestroy {
   formatDateOnly(fecha: Date | string): string {
     if (!fecha) return 'N/A';
     try {
-      const date = new Date(fecha);
-      return date.toLocaleDateString('es-ES', {
+      return new Date(fecha).toLocaleDateString('es-ES', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit'
@@ -325,27 +335,19 @@ export class AsesorGerenciaHistoryComponent implements OnInit, OnDestroy {
   }
 
   getNumeroRadicado(item: any): string {
-    return item.documento?.numeroRadicado || 
-           item.numeroRadicado || 
-           'N/A';
+    return item.documento?.numeroRadicado || item.numeroRadicado || 'N/A';
   }
 
   getNombreContratista(item: any): string {
-    return item.documento?.nombreContratista || 
-           item.nombreContratista || 
-           'N/A';
+    return item.documento?.nombreContratista || item.nombreContratista || 'N/A';
   }
 
   getDocumentoContratista(item: any): string {
-    return item.documento?.documentoContratista || 
-           item.documentoContratista || 
-           'N/A';
+    return item.documento?.documentoContratista || item.documentoContratista || 'N/A';
   }
 
   getNumeroContrato(item: any): string {
-    return item.documento?.numeroContrato || 
-           item.numeroContrato || 
-           'N/A';
+    return item.documento?.numeroContrato || item.numeroContrato || 'N/A';
   }
 
   onSearch(): void {

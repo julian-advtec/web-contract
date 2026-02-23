@@ -1,5 +1,6 @@
-<div class="asesor-gerencia-rechazados-container" [class.sidebar-collapsed]="sidebarCollapsed">
-  <div class="asesor-gerencia-rechazados-inner">
+<!-- src/app/pages/rendicion-cuentas/rendicion-rechazados/rendicion-rechazados.component.html -->
+<div class="rendicion-rechazados-container" [class.sidebar-collapsed]="sidebarCollapsed">
+  <div class="rendicion-rechazados-inner">
 
     <div class="search-container mt-3 mb-4">
       <div class="input-group search-group flex-grow-1">
@@ -23,14 +24,13 @@
           <div class="empty-state">
             <i class="fas fa-ban fa-4x text-secondary mb-4"></i>
             <h4 class="text-muted mb-2">No hay documentos rechazados</h4>
-            <p class="text-muted mb-3">Los documentos rechazados por niveles superiores aparecerán aquí</p>
+            <p class="text-muted mb-3">Los documentos rechazados aparecerán aquí</p>
 
             <div class="mt-4">
               <p class="text-start"><strong>¿Por qué no hay documentos?</strong></p>
               <ul class="list-unstyled text-start">
-                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Verifica que hay documentos rechazados por Tesorería, Contabilidad o Rendición</li>
-                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Los documentos deben estar visibles según reglas de seguridad</li>
-                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Asegúrate de estar autenticado como asesor gerencia o admin</li>
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Verifica que hay documentos rechazados por Rendición de Cuentas</li>
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Asegúrate de estar autenticado correctamente</li>
               </ul>
             </div>
           </div>
@@ -69,7 +69,7 @@
                   </h5>
                   <p class="documento-fecha mb-1">
                     <i class="far fa-calendar me-1"></i>
-                    {{ formatDate(doc.fechaRadicacion) }}
+                    {{ formatDate(doc.fechaRechazo) }}
                   </p>
                 </div>
               </div>
@@ -94,14 +94,14 @@
                 <div class="dias-transcurridos mt-1">
                   <small [ngClass]="getDiasClass(doc)">
                     <i class="far fa-clock me-1"></i>
-                    {{ getDiasTranscurridos(doc.fechaRechazo || doc.fechaActualizacion) }} días
+                    {{ getDiasTranscurridos(doc.fechaRechazo) }} días
                   </small>
                 </div>
               </div>
 
               <div class="documento-rechazado-por">
                 <span class="rechazado-badge" [ngClass]="getRechazadoClass(doc.estado)">
-                  <i class="fas fa-ban me-1"></i> {{ getRechazadoPor(doc.estado) }}
+                  <i class="fas fa-user me-1"></i> {{ doc.rechazadoPor || getRechazadoPor(doc.estado) }}
                 </span>
               </div>
 

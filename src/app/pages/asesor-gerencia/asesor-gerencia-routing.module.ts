@@ -9,7 +9,7 @@ import { AsesorGerenciaHistoryComponent } from './components/asesor-gerencia-his
 import { AsesorGerenciaFormComponent } from './components/asesor-gerencia-form/asesor-gerencia-form.component';
 import { AsesorGerenciaListComponent } from './components/asesor-gerencia-list/asesor-gerencia-list.component';
 import { AsesorGerenciaRechazadosComponent } from './components/asesor-gerencia-rechazados/asesor-gerencia-rechazados.component';
-
+import { AsesorGerenciaStatsComponent} from './components/asesor-gerencia-stats/asesor-gerencia-stats';
 
 const routes: Routes = [
   {
@@ -58,13 +58,13 @@ const routes: Routes = [
         component: AsesorGerenciaRechazadosComponent,
         data: { title: 'Documentos Rechazados' }
       },
-     /*
+     
       {
         path: 'estadisticas',
         component: AsesorGerenciaStatsComponent,
         data: { title: 'Mis Estadísticas' }
       } 
-       */ 
+       
     ]
   }
 ];

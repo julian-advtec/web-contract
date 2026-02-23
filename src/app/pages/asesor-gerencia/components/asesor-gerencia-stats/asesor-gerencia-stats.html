@@ -1,0 +1,258 @@
+<!-- src/app/pages/asesor-gerencia/components/asesor-gerencia-stats/asesor-gerencia-stats.component.html -->
+<div class="stats-container p-3">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">
+      <i class="fas fa-chart-pie me-2 text-primary"></i>
+      Estadísticas de Asesor Gerencia
+      <small class="text-muted fs-6 ms-2" *ngIf="estadisticas">
+        {{ getResumenPeriodo() }}
+      </small>
+    </h4>
+    <button class="btn btn-sm btn-outline-primary" (click)="recargar()" [disabled]="isLoading">
+      <i class="fas fa-sync-alt me-1" [class.fa-spin]="isLoading"></i>
+      Actualizar
+    </button>
+  </div>
+
+  <!-- Filtros -->
+  <div class="card mb-3 shadow-sm">
+    <div class="card-body py-2">
+      <div class="row align-items-center g-3">
+        <div class="col-md-4 col-sm-6">
+          <select class="form-select form-select-sm" [(ngModel)]="filtros.periodo" (ngModelChange)="aplicarFiltros()">
+            <option *ngFor="let p of periodos" [value]="p.value">{{ p.label }}</option>
+          </select>
+        </div>
+
+        <div class="col-md-4 col-sm-6" *ngIf="currentUserRole === 'asesor_gerencia' || currentUserRole === 'admin'">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="soloMisStats" [(ngModel)]="filtros.soloMios"
+              (ngModelChange)="toggleMisEstadisticas()">
+            <label class="form-check-label" for="soloMisStats">Solo mis documentos</label>
+          </div>
+        </div>
+
+        <div class="col-md-4 text-end text-muted small" *ngIf="estadisticas?.documentos">
+          <i class="fas fa-file-alt me-1"></i>
+          {{ estadisticas?.documentos?.total ?? 0 }} documentos
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mensaje de error -->
+  <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
+    {{ errorMessage }}
+    <button type="button" class="btn-close" (click)="errorMessage = null; recargar()"></button>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="isLoading" class="text-center py-5 my-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+    <p class="mt-3 text-muted">Cargando estadísticas de asesor gerencia...</p>
+  </div>
+
+  <!-- Contenido principal -->
+  <ng-container *ngIf="!isLoading && !errorMessage && estadisticas as stats; else noDataBlock">
+
+    <!-- KPIs -->
+    <div class="row g-3 mb-4">
+      <div class="col-lg-3 col-md-6">
+        <div class="card border-warning shadow-sm h-100">
+          <div class="card-body text-center">
+            <h6 class="text-warning mb-1">Pendientes</h6>
+            <h3 class="mb-1">{{ stats.documentos.pendientes }}</h3>
+            <div class="text-warning fw-bold">{{ formatearMoneda(stats.montos.pendiente) }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-3 col-md-6">
+        <div class="card border-success shadow-sm h-100">
+          <div class="card-body text-center">
+            <h6 class="text-success mb-1">Aprobados</h6>
+            <h3 class="mb-1">{{ stats.documentos.aprobados }}</h3>
+            <div class="text-success fw-bold">{{ formatearMoneda(stats.montos.aprobado) }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-3 col-md-6">
+        <div class="card border-warning shadow-sm h-100">
+          <div class="card-body text-center">
+            <h6 class="text-warning mb-1">Observados</h6>
+            <h3 class="mb-1">{{ stats.documentos.observados }}</h3>
+            <div class="text-warning fw-bold">{{ formatearMoneda(stats.montos.observado) }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-3 col-md-6">
+        <div class="card border-danger shadow-sm h-100">
+          <div class="card-body text-center">
+            <h6 class="text-danger mb-1">Rechazados</h6>
+            <h3 class="mb-1">{{ stats.documentos.rechazados }}</h3>
+            <div class="text-danger fw-bold">{{ formatearMoneda(stats.montos.rechazado) }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-4">
+      <li class="nav-item">
+        <button class="nav-link" [class.active]="activeTab === 'resumen'" (click)="setActiveTab('resumen')">
+          Resumen
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" [class.active]="activeTab === 'pendientes'" (click)="setActiveTab('pendientes')">
+          Pendientes <span class="badge bg-secondary ms-1">{{ stats.pendientes.length }}</span>
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" [class.active]="activeTab === 'procesados'" (click)="setActiveTab('procesados')">
+          Procesados <span class="badge bg-secondary ms-1">{{ stats.procesados.length }}</span>
+        </button>
+      </li>
+    </ul>
+
+    <!-- Contenido según pestaña -->
+    <div [ngSwitch]="activeTab">
+
+      <!-- RESUMEN -->
+      <div *ngSwitchCase="'resumen'">
+        <div class="row g-3">
+          <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-header bg-light py-2">
+                <h6 class="mb-0">Distribución por estado</h6>
+              </div>
+              <div class="card-body p-3" style="height: 280px;">
+                <canvas id="chart-estados" width="400" height="260"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-header bg-light py-2">
+                <h6 class="mb-0">Últimas actividades</h6>
+              </div>
+              <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                  <ng-container *ngFor="let act of stats.actividadReciente || []">
+                    <div class="list-group-item px-3 py-2">
+                      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                          <span class="badge me-2" [ngClass]="getBadgeClass(act.tipo)">{{ act.tipo }}</span>
+                          <strong>{{ act.numeroRadicado }}</strong>
+                          <small class="text-muted ms-2 d-block d-sm-inline">
+                            {{ act.contratista | slice:0:28 }}{{ act.contratista.length > 28 ? '...' : '' }}
+                          </small>
+                        </div>
+                        <div class="text-end">
+                          <div class="small text-muted">{{ formatearFechaCorta(act.fecha) }}</div>
+                          <strong class="d-block">{{ formatearMoneda(act.monto) }}</strong>
+                        </div>
+                      </div>
+                    </div>
+                  </ng-container>
+                  <div *ngIf="stats.actividadReciente.length === 0" class="text-center py-5 text-muted">
+                    Sin actividad reciente en este período
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PENDIENTES -->
+      <div *ngSwitchCase="'pendientes'">
+        <div class="card shadow-sm">
+          <div class="list-group list-group-flush">
+            <ng-container *ngFor="let doc of stats.pendientes || []">
+              <div class="list-group-item px-3 py-3">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                  <div>
+                    <div class="mb-1">
+                      <strong>{{ doc.numeroRadicado }}</strong>
+                      <span class="badge ms-2" [ngClass]="getBadgeClass(doc.estado)">{{ doc.estado }}</span>
+                    </div>
+                    <small class="text-muted d-block mb-1">
+                      {{ doc.contratista | slice:0:40 }}{{ doc.contratista.length > 40 ? '...' : '' }}
+                    </small>
+                    <div class="small text-muted">
+                      Asignado: {{ formatearFechaCorta(doc.fechaAsignacion) }}
+                      <span *ngIf="doc.asesorAsignado"> • {{ doc.asesorAsignado }}</span>
+                    </div>
+                  </div>
+                  <div class="text-end">
+                    <div class="fw-bold fs-5 mb-2">{{ formatearMoneda(doc.monto) }}</div>
+                    <button class="btn btn-sm btn-outline-primary" (click)="verDocumento(doc.id)">
+                      <i class="fas fa-eye me-1"></i> Ver
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </ng-container>
+
+            <div *ngIf="stats.pendientes.length === 0" class="text-center py-5 text-muted">
+              No hay documentos pendientes en este período
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROCESADOS -->
+      <div *ngSwitchCase="'procesados'">
+        <div class="card shadow-sm">
+          <div class="list-group list-group-flush">
+            <ng-container *ngFor="let doc of stats.procesados || []">
+              <div class="list-group-item px-3 py-3">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                  <div>
+                    <div class="mb-1">
+                      <strong>{{ doc.numeroRadicado }}</strong>
+                      <span class="badge ms-2" [ngClass]="getBadgeClass(doc.estado)">{{ doc.estado }}</span>
+                    </div>
+                    <small class="text-muted d-block mb-1">
+                      {{ doc.contratista | slice:0:40 }}{{ doc.contratista.length > 40 ? '...' : '' }}
+                    </small>
+                    <div class="small text-muted">
+                      Procesado: {{ formatearFechaCorta(doc.fechaProcesamiento) }}
+                      <span *ngIf="doc.asesorAsignado"> • {{ doc.asesorAsignado }}</span>
+                    </div>
+                  </div>
+                  <div class="text-end">
+                    <div class="fw-bold fs-5 mb-2">{{ formatearMoneda(doc.monto) }}</div>
+                    <button class="btn btn-sm btn-outline-primary" (click)="verDocumento(doc.id)">
+                      <i class="fas fa-eye me-1"></i> Ver
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </ng-container>
+
+            <div *ngIf="stats.procesados.length === 0" class="text-center py-5 text-muted">
+              No hay documentos procesados en este período
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </ng-container>
+
+  <!-- Bloque cuando no hay datos -->
+  <ng-template #noDataBlock>
+    <div class="alert alert-info text-center py-5 my-5">
+      <h5>No hay datos para mostrar en este período</h5>
+      <p>Intenta cambiar el filtro o actualizar.</p>
+    </div>
+  </ng-template>
+
+</div>

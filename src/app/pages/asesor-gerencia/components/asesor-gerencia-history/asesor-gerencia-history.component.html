@@ -1,7 +1,6 @@
 <div class="asesor-gerencia-history-container" [class.sidebar-collapsed]="sidebarCollapsed">
   <div class="asesor-gerencia-history-inner">
 
-    <!-- Barra de búsqueda -->
     <div class="search-container mt-3 mb-5">
       <div class="d-flex flex-wrap gap-2 align-items-center">
         <div class="input-group search-group flex-grow-1">
@@ -15,17 +14,14 @@
       </div>
     </div>
 
-    <!-- Contenido principal -->
     <div class="card shadow main-card">
       <div class="card-body p-0">
 
-        <!-- Loading -->
         <div *ngIf="loading" class="text-center py-5">
           <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
           <p class="mt-3 text-muted">Cargando historial de revisiones gerenciales...</p>
         </div>
 
-        <!-- Empty State -->
         <div *ngIf="!loading && filteredHistorial.length === 0" class="text-center py-5">
           <div class="empty-state">
             <i class="fas fa-user-tie fa-4x text-secondary mb-4"></i>
@@ -49,7 +45,6 @@
           </div>
         </div>
 
-        <!-- Tabla de revisiones -->
         <div *ngIf="!loading && filteredHistorial.length > 0" class="pagos-container">
 
           <div class="pagos-header">
@@ -63,7 +58,6 @@
           <div class="pagos-list">
             <div *ngFor="let item of paginatedHistorial" class="pago-card" [class.reciente]="esRevisionReciente(item)">
 
-              <!-- Radicado -->
               <div class="pago-info">
                 <div class="pago-details">
                   <h5 class="pago-numero mb-1">
@@ -82,7 +76,6 @@
                 </div>
               </div>
 
-              <!-- Contratista -->
               <div class="pago-contratista">
                 <p class="contratista-nombre mb-1">{{ getNombreContratista(item) || 'Sin nombre' }}</p>
                 <p class="contratista-documento mb-0">
@@ -90,7 +83,6 @@
                 </p>
               </div>
 
-              <!-- Contrato -->
               <div class="pago-contrato">
                 <span class="contrato-badge">
                   <i class="fas fa-file-contract me-1"></i>
@@ -98,7 +90,6 @@
                 </span>
               </div>
 
-              <!-- Estado Revisión -->
               <div class="pago-estado">
                 <span class="estado-badge" [ngClass]="getEstadoRevisionBadgeClass(item.estado)">
                   <i class="fas fa-flag me-1"></i>
@@ -110,10 +101,8 @@
                 </div>
               </div>
 
-              <!-- Acciones -->
               <div class="pago-acciones">
                 <div class="d-flex flex-column gap-2 align-items-start">
-                  <!-- Ver detalles de la revisión -->
                   <button class="btn btn-sm w-100 btn-info" 
                           (click)="verDetalleRevision(item)" 
                           [disabled]="isProcessing || loading">
@@ -121,7 +110,6 @@
                     Ver Detalles
                   </button>
 
-                  <!-- Si está en proceso y soy el responsable, puedo continuar -->
                   <button *ngIf="item.estado === 'EN_REVISION_ASESOR_GERENCIA' && esMiRevision(item)" 
                           class="btn btn-sm w-100 btn-warning" 
                           (click)="continuarRevision(item)">
@@ -129,7 +117,6 @@
                     Continuar Revisión
                   </button>
 
-                  <!-- Botón para ver aprobación si está completado -->
                   <button *ngIf="item.estado === 'COMPLETADO_ASESOR_GERENCIA'" 
                           class="btn btn-sm w-100 btn-success" 
                           (click)="verAprobacion(item)">
@@ -160,7 +147,6 @@
             </div>
           </div>
 
-          <!-- Paginación -->
           <div class="pagos-pagination" *ngIf="totalPages > 1">
             <div class="pagination-info">
               Página {{ currentPage }} de {{ totalPages }}
