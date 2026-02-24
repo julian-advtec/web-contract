@@ -33,7 +33,8 @@ export class RendicionPendingListComponent implements OnInit, OnDestroy {
   pages: number[] = [];
 
   sidebarCollapsed = false;
-  usuarioActual = '';
+  usuarioId = '';
+  usuarioNombre = '';
 
   private destroy$ = new Subject<void>();
 
@@ -58,9 +59,11 @@ export class RendicionPendingListComponent implements OnInit, OnDestroy {
     if (userStr) {
       try {
         const user = JSON.parse(userStr);
-        this.usuarioActual = user.fullName || user.username || 'Usuario';
+        this.usuarioId = user.id;
+        this.usuarioNombre = user.fullName || user.username || 'Usuario';
       } catch {
-        this.usuarioActual = 'Usuario';
+        this.usuarioId = '';
+        this.usuarioNombre = 'Usuario';
       }
     }
   }
@@ -73,6 +76,7 @@ export class RendicionPendingListComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (docs: RendicionCuentasProceso[]) => {
+          console.log('Documentos recibidos:', docs); // ← Para debug
           this.documentos = docs || [];
           this.filteredDocumentos = [...this.documentos];
           this.updatePagination();
@@ -90,82 +94,57 @@ export class RendicionPendingListComponent implements OnInit, OnDestroy {
   }
 
   puedeTomarDocumento(doc: RendicionCuentasProceso): boolean {
-    const estado = (doc.estado || '').toString().toUpperCase();
-    return estado === RendicionCuentasEstado.PENDIENTE && !doc.responsableId;
+    // Usar la propiedad 'disponible' que viene del backend
+    return doc.disponible === true;
   }
 
   esMiDocumentoEnRevision(doc: RendicionCuentasProceso): boolean {
-    const estado = (doc.estado || '').toString().toUpperCase();
-    return estado === RendicionCuentasEstado.EN_REVISION && doc.responsableId === this.usuarioActual;
+    // Verificar que el documento está EN_REVISION y el responsable soy yo
+    return doc.estado === RendicionCuentasEstado.EN_REVISION && 
+           doc.responsableId === this.usuarioId;
   }
 
-  tomarParaRevision(doc: RendicionCuentasProceso): void {
-    if (!doc?.id) {
-      this.notificationService.error('Error', 'Documento sin ID válido');
-      return;
-    }
-
-    const yaEsMio = this.esMiDocumentoEnRevision(doc);
-
-    if (yaEsMio) {
-      this.notificationService.info('Continuar', 'Redirigiendo al formulario...');
-      this.router.navigate(['/rendicion-cuentas/procesar', doc.id]);
-      return;
-    }
-
-    if (!this.puedeTomarDocumento(doc)) {
-      this.notificationService.warning('No disponible', 'Este documento ya está asignado o no está pendiente');
-      return;
-    }
-
-    this.notificationService.showModal({
-      title: 'Tomar para revisión',
-      message: `¿Tomar el radicado ${doc.numeroRadicado || 'sin radicado'} (${doc.nombreContratista || 'sin nombre'})?\n\nSe te asignará y pasarás al formulario.`,
-      type: 'confirm',
-      confirmText: 'Sí, tomar y revisar',
-      cancelText: 'Cancelar',
-      onConfirm: () => this.procederTomarDocumento(doc)
-    });
+tomarParaRevision(doc: RendicionCuentasProceso): void {
+  if (!doc?.id) {
+    this.notificationService.error('Error', 'Documento sin ID válido');
+    return;
   }
 
-  private procederTomarDocumento(doc: RendicionCuentasProceso): void {
-    this.isProcessing = true;
+  console.log('📤 Tomando documento con ID:', doc.id); // Debe ser el ID del documento original
+  
+  this.notificationService.showModal({
+    title: 'Tomar para revisión',
+    message: `¿Tomar el radicado ${doc.numeroRadicado || 'sin radicado'}?`,
+    type: 'confirm',
+    confirmText: 'Sí, tomar',
+    onConfirm: () => this.procederTomarDocumento(doc)
+  });
+}
 
-    this.rendicionService.tomarDocumentoParaRevision(doc.id!)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (response: any) => {
-          if (response?.ok || response?.success) {
-            this.notificationService.success('¡Documento tomado!', 'Asignado a ti. Redirigiendo...');
-
-            const index = this.documentos.findIndex(d => d.id === doc.id);
-            if (index !== -1) {
-              this.documentos.splice(index, 1);
-              this.filteredDocumentos = [...this.documentos];
-              this.updatePagination();
-            }
-
-            setTimeout(() => {
-              this.router.navigate(['/rendicion-cuentas/procesar', doc.id]);
-            }, 1500);
-          } else {
-            this.notificationService.warning('Advertencia', response?.message || 'Toma confirmada pero con advertencia');
-          }
-          this.isProcessing = false;
-        },
-        error: (err: any) => {
-          const msg = err.error?.message || err.message || 'No se pudo tomar el documento';
-          this.notificationService.error('Error al tomar', msg);
-          this.isProcessing = false;
-        }
-      });
-  }
+private procederTomarDocumento(doc: RendicionCuentasProceso): void {
+  this.isProcessing = true;
+  
+  this.rendicionService.tomarDocumentoParaRevision(doc.id).subscribe({
+    next: (response) => {
+      this.notificationService.success('Documento tomado');
+      // Después de tomar, navegar al formulario con el ID de rendición que devuelve el backend
+      if (response.rendicionId) {
+        this.router.navigate(['/rendicion-cuentas/procesar', response.rendicionId]);
+      }
+    },
+    error: (err) => {
+      this.notificationService.error('Error', err.message);
+      this.isProcessing = false;
+    }
+  });
+}
 
   getTextoBoton(doc: RendicionCuentasProceso): string {
     if (this.esMiDocumentoEnRevision(doc)) return 'Continuar';
     return this.puedeTomarDocumento(doc) ? 'Tomar para Revisión' : 'No disponible';
   }
 
+  // ... resto de métodos sin cambios
   onSearch(): void {
     if (!this.searchTerm.trim()) {
       this.filteredDocumentos = [...this.documentos];

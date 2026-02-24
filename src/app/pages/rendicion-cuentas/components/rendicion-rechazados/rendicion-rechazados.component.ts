@@ -1,29 +1,31 @@
 // src/app/pages/rendicion-cuentas/components/rendicion-rechazados/rendicion-rechazados.component.ts
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
 import { RendicionCuentasService } from '../../../../core/services/rendicion-cuentas.service';
+import { RendicionCuentasProceso } from '../../../../core/models/rendicion-cuentas.model';
 import { NotificationService } from '../../../../core/services/notification.service';
-import { RendicionCuentasProceso, RendicionCuentasEstado } from '../../../../core/models/rendicion-cuentas.model';
 
 @Component({
   selector: 'app-rendicion-rechazados',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule],
   templateUrl: './rendicion-rechazados.component.html',
   styleUrls: ['./rendicion-rechazados.component.scss']
 })
 export class RendicionRechazadosComponent implements OnInit, OnDestroy {
   documentos: RendicionCuentasProceso[] = [];
   filteredDocumentos: RendicionCuentasProceso[] = [];
-  isLoading = true;
-  error: string | null = null;
-  searchTerm = '';
+  paginatedDocumentos: RendicionCuentasProceso[] = [];
 
+  isLoading = false;
+  errorMessage = '';
+
+  searchTerm = '';
   currentPage = 1;
   pageSize = 10;
   totalPages = 0;
@@ -31,13 +33,14 @@ export class RendicionRechazadosComponent implements OnInit, OnDestroy {
 
   sidebarCollapsed = false;
 
+  private estadosRechazo = ['RECHAZADO', 'OBSERVADO', 'RECHAZADO_RENDICION_CUENTAS', 'OBSERVADO_RENDICION_CUENTAS'];
   private destroy$ = new Subject<void>();
 
   constructor(
     private rendicionService: RendicionCuentasService,
-    public notificationService: NotificationService,
+    private notificationService: NotificationService,
     private router: Router
-  ) { }
+  ) {}
 
   ngOnInit(): void {
     this.cargarDocumentosRechazados();
@@ -50,55 +53,66 @@ export class RendicionRechazadosComponent implements OnInit, OnDestroy {
 
   cargarDocumentosRechazados(): void {
     this.isLoading = true;
-    this.error = null;
+    this.errorMessage = '';
 
-    this.rendicionService.obtenerDocumentosPendientes().subscribe({
-      next: ({ data }) => {
-        // Filtrar solo rechazados (ajusta según tu lógica real)
-        this.documentos = data.filter(d => 
-          d.estado?.toUpperCase().includes('RECHAZADO') ||
-          d.estado === RendicionCuentasEstado.RECHAZADO
-        );
-        this.filteredDocumentos = [...this.documentos];
-        this.updatePagination();
-        this.isLoading = false;
-      },
-      error: (err) => {
-        this.error = err.message || 'Error al cargar documentos rechazados';
-        this.notificationService.error('Error', this.error || 'Error desconocido');
-        this.isLoading = false;
-      }
-    });
+    this.rendicionService.obtenerDocumentosDisponibles()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (docs: RendicionCuentasProceso[]) => {
+          this.documentos = docs.filter(d => 
+            this.estadosRechazo.includes((d.estado || '').toString().toUpperCase())
+          );
+          this.filteredDocumentos = [...this.documentos];
+          this.updatePagination();
+          this.isLoading = false;
+        },
+        error: (err: any) => {
+          this.errorMessage = err.message || 'No se pudieron cargar los documentos';
+          this.documentos = [];
+          this.filteredDocumentos = [];
+          this.updatePagination();
+          this.isLoading = false;
+        }
+      });
   }
 
   onSearch(): void {
     if (!this.searchTerm.trim()) {
       this.filteredDocumentos = [...this.documentos];
     } else {
-      const term = this.searchTerm.toLowerCase().trim();
+      const term = this.searchTerm.toLowerCase();
       this.filteredDocumentos = this.documentos.filter(doc =>
-        (doc.numeroRadicado?.toLowerCase() || '').includes(term) ||
-        (doc.nombreContratista?.toLowerCase() || '').includes(term) ||
-        (doc.numeroContrato?.toLowerCase() || '').includes(term) ||
-        (doc.estado?.toLowerCase() || '').includes(term)
+        (doc.numeroRadicado?.toLowerCase()?.includes(term) ?? false) ||
+        (doc.nombreContratista?.toLowerCase()?.includes(term) ?? false) ||
+        (doc.numeroContrato?.toLowerCase()?.includes(term) ?? false)
       );
     }
     this.currentPage = 1;
     this.updatePagination();
   }
 
+  refreshData(): void {
+    this.cargarDocumentosRechazados();
+  }
+
   updatePagination(): void {
-    const total = this.filteredDocumentos.length;
-    this.totalPages = Math.ceil(total / this.pageSize);
+    this.totalPages = Math.ceil(this.filteredDocumentos.length / this.pageSize);
     this.pages = [];
 
-    if (this.totalPages > 0) {
-      const maxPages = 5;
-      let start = Math.max(1, this.currentPage - Math.floor(maxPages / 2));
-      let end = Math.min(this.totalPages, start + maxPages - 1);
-      if (end - start + 1 < maxPages) start = Math.max(1, end - maxPages + 1);
-      for (let i = start; i <= end; i++) this.pages.push(i);
+    const maxPages = 5;
+    let start = Math.max(1, this.currentPage - Math.floor(maxPages / 2));
+    let end = Math.min(this.totalPages, start + maxPages - 1);
+
+    if (end - start + 1 < maxPages) {
+      start = Math.max(1, end - maxPages + 1);
     }
+
+    for (let i = start; i <= end; i++) {
+      this.pages.push(i);
+    }
+
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    this.paginatedDocumentos = this.filteredDocumentos.slice(startIndex, startIndex + this.pageSize);
   }
 
   changePage(page: number): void {
@@ -108,27 +122,7 @@ export class RendicionRechazadosComponent implements OnInit, OnDestroy {
     }
   }
 
-  get paginatedDocumentos(): RendicionCuentasProceso[] {
-    const start = (this.currentPage - 1) * this.pageSize;
-    return this.filteredDocumentos.slice(start, start + this.pageSize);
-  }
-
-  verDetalle(id: string): void {
-    if (!id) return;
-    this.router.navigate(['/rendicion-cuentas/procesar', id], {
-      queryParams: { modo: 'consulta', origen: 'rechazados' }
-    });
-  }
-
-  getEstadoClass(estado?: string): string {
-    return this.rendicionService.getEstadoClass(estado || '');
-  }
-
-  getEstadoTexto(estado?: string): string {
-    return this.rendicionService.getEstadoTexto(estado || '');
-  }
-
-  formatDate(fecha?: Date | string): string {
+  formatDate(fecha: Date | string | undefined): string {
     if (!fecha) return 'N/A';
     return new Date(fecha).toLocaleDateString('es-ES', {
       year: 'numeric',
@@ -137,52 +131,74 @@ export class RendicionRechazadosComponent implements OnInit, OnDestroy {
     });
   }
 
-  trackById(index: number, doc: RendicionCuentasProceso): string {
-    return doc.id || index.toString();
+  getEstadoClass(estado: string | undefined): string {
+    return this.rendicionService.getEstadoClass(estado || '');
   }
 
-  // Métodos que faltaban en el componente (llamados desde el template)
+  getEstadoTexto(estado: string | undefined): string {
+    return this.rendicionService.getEstadoTexto(estado || '');
+  }
+
+  getMotivoRechazo(doc: RendicionCuentasProceso): string {
+    return doc.observaciones || doc.observacionesRendicion || 'Sin motivo especificado';
+  }
+
   esReciente(doc: RendicionCuentasProceso): boolean {
-    const fecha = doc.fechaCreacion || doc.fechaActualizacion;
-    if (!fecha) return false;
-    const dias = Math.floor((new Date().getTime() - new Date(fecha).getTime()) / (1000 * 60 * 60 * 24));
-    return dias <= 7;
+    if (!doc.fechaDecision && !doc.fechaCreacion) return false;
+    const fecha = doc.fechaDecision || doc.fechaCreacion;
+    const diffMs = new Date().getTime() - new Date(fecha).getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    return diffDays < 1;
   }
 
-  getTooltipInfo(doc: RendicionCuentasProceso): string {
-    return `${doc.numeroRadicado || 'Sin radicado'} - ${doc.nombreContratista || 'Sin contratista'} - Estado: ${doc.estado || 'Desconocido'}`;
+  getFechaRechazo(doc: RendicionCuentasProceso): Date | undefined {
+    return doc.fechaDecision || doc.fechaCreacion;
   }
 
-  getFechaRechazo(doc: RendicionCuentasProceso): Date | string {
-    return doc.fechaCreacion || doc.fechaActualizacion || 'N/A';
-  }
-
-  getDiasTranscurridos(fecha?: Date | string): number {
+  getDiasTranscurridos(fecha: Date | string | undefined): number {
     if (!fecha) return 0;
-    return Math.floor((new Date().getTime() - new Date(fecha).getTime()) / (1000 * 60 * 60 * 24));
+    const diffMs = new Date().getTime() - new Date(fecha).getTime();
+    return Math.floor(diffMs / (1000 * 60 * 60 * 24));
   }
 
   getDiasClass(doc: RendicionCuentasProceso): string {
     const dias = this.getDiasTranscurridos(this.getFechaRechazo(doc));
-    if (dias <= 7) return 'text-success';
-    if (dias <= 15) return 'text-warning';
+    if (dias < 1) return 'text-success';
+    if (dias <= 3) return 'text-primary';
+    if (dias <= 7) return 'text-warning';
     return 'text-danger';
   }
 
-  getRechazadoClass(estado?: string): string {
-    if (!estado) return 'badge-secondary';
-    const e = estado.toUpperCase();
-    if (e.includes('RECHAZADO')) return 'badge-danger';
-    return 'badge-secondary';
+  getRechazadoPorNombre(doc: RendicionCuentasProceso): string {
+    if (typeof doc.responsable === 'string') {
+      return doc.responsable;
+    }
+    if (doc.responsable && typeof doc.responsable === 'object') {
+      return (doc.responsable as any).nombreCompleto || (doc.responsable as any).fullName || 'Sistema';
+    }
+    return 'Sistema';
   }
 
-  getRechazadoPorNombre(doc: RendicionCuentasProceso): string {
-    // Si tienes campo rechazadoPor, úsalo; si no, usa lógica simple
-    return doc.responsable?.nombreCompleto || 'Sistema';
+  getRechazadoClass(estado: string | undefined): string {
+    const e = (estado || '').toString().toUpperCase();
+    if (e.includes('OBSERVADO')) return 'bg-warning text-dark';
+    if (e.includes('RECHAZADO')) return 'bg-danger';
+    return 'bg-secondary';
+  }
+
+  getTooltipInfo(doc: RendicionCuentasProceso): string {
+    return `Rechazado: ${this.getFechaRechazo(doc)?.toLocaleDateString() || 'N/A'}\nMotivo: ${this.getMotivoRechazo(doc)}`;
+  }
+
+  verDetalle(id: string): void {
+    this.router.navigate(['/rendicion-cuentas/procesar', id, { modo: 'consulta' }]);
   }
 
   mostrarInfoRechazo(doc: RendicionCuentasProceso): void {
-    const motivo = doc.observaciones || 'Sin detalle del motivo de rechazo';
-    this.notificationService.info('Motivo del Rechazo', motivo);
+    this.notificationService.info('Motivo de rechazo', this.getMotivoRechazo(doc));
+  }
+
+  trackById(index: number, doc: RendicionCuentasProceso): string {
+    return doc.id || index.toString();
   }
 }

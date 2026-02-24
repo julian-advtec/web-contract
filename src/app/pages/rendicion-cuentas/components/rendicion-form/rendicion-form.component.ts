@@ -8,11 +8,12 @@ import { RendicionCuentasService } from '../../../../core/services/rendicion-cue
 import { NotificationService } from '../../../../core/services/notification.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { RendicionCuentasProceso, RendicionCuentasEstado } from '../../../../core/models/rendicion-cuentas.model';
+import { AsesorGerenciaFormComponent } from '../../../asesor-gerencia/components/asesor-gerencia-form/asesor-gerencia-form.component';
 
 @Component({
   selector: 'app-rendicion-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, AsesorGerenciaFormComponent],
   templateUrl: './rendicion-form.component.html',
   styleUrls: ['./rendicion-form.component.scss']
 })
@@ -20,6 +21,7 @@ export class RendicionFormComponent implements OnInit {
   form: FormGroup;
 
   isProcessing = false;
+  isDescargando = false;
   isLoading = true;
   documento: RendicionCuentasProceso | null = null;
 
@@ -41,7 +43,6 @@ export class RendicionFormComponent implements OnInit {
 
   puedeGuardar = false;
   puedeLiberar = false;
-
   currentUserRole: string = '';
 
   constructor(
@@ -64,6 +65,9 @@ export class RendicionFormComponent implements OnInit {
     this.cargarUsuarioActual();
 
     const id = this.documentoId || this.route.snapshot.paramMap.get('id');
+    console.log('📌 ID recibido en ngOnInit:', id);
+    console.log('📌 documentoId input:', this.documentoId);
+    
     const modo = this.route.snapshot.queryParamMap.get('modo') || 'edicion';
     const soloLecturaParam = this.route.snapshot.queryParamMap.get('soloLectura') === 'true';
     const desdeHistorial = this.route.snapshot.queryParamMap.get('desdeHistorial') === 'true';
@@ -96,10 +100,19 @@ export class RendicionFormComponent implements OnInit {
   }
 
   cargarDocumento(id: string): void {
+    console.log('📥 ===== INICIANDO CARGA DE DOCUMENTO =====');
+    console.log('📥 ID recibido para cargar:', id);
+    
     this.isLoading = true;
+    
     this.rendicionService.obtenerDetalleRevision(id).subscribe({
       next: (data) => {
+        console.log('✅ ===== DOCUMENTO CARGADO EXITOSAMENTE =====');
+        console.log('✅ ID de rendición (para decisiones):', data?.id);
+        console.log('✅ ID de documento original (para descargas):', data?.documentoId);
+        
         this.documento = data;
+        
         this.estaProcesado = this.estadosProcesados.includes(
           (data.estado || '').toString().toUpperCase()
         );
@@ -123,9 +136,47 @@ export class RendicionFormComponent implements OnInit {
         this.isLoading = false;
       },
       error: (err) => {
+        console.error('❌ Error cargando documento:', err);
         const msg = err.error?.message || err.message || 'No se pudo cargar el documento';
         this.mostrarMensaje(msg, 'error');
         this.isLoading = false;
+      }
+    });
+  }
+
+  descargarCarpeta(): void {
+    console.log('📦 Intentando descargar carpeta');
+    console.log('📦 ID de documento original (para descargar):', this.documento?.documentoId);
+    
+    if (!this.documento?.documentoId) {
+      this.mostrarMensaje('No hay documento para descargar', 'error');
+      return;
+    }
+
+    this.isDescargando = true;
+    this.mostrarMensaje('Preparando descarga...', 'info');
+
+    // Usar documentoId para descargar (ID del documento original)
+    this.rendicionService.descargarCarpeta(this.documento.documentoId).subscribe({
+      next: (blob: Blob) => {
+        console.log('✅ Archivo recibido, tamaño:', blob.size);
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${this.documento?.numeroRadicado || 'documento'}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        this.isDescargando = false;
+        this.mostrarMensaje('Descarga completada', 'success');
+      },
+      error: (err) => {
+        console.error('❌ Error en descarga:', err);
+        const msg = err.error?.message || err.message || 'Error al descargar la carpeta';
+        this.mostrarMensaje(msg, 'error');
+        this.isDescargando = false;
       }
     });
   }
@@ -152,6 +203,10 @@ export class RendicionFormComponent implements OnInit {
       observacion: this.form.value.observaciones?.trim() || ''
     };
 
+    console.log('📤 Enviando decisión:', payload);
+    console.log('📤 ID de rendición (para decisión):', this.documento.id);
+
+    // Usar id para la decisión (ID de la rendición)
     this.rendicionService.tomarDecision(this.documento.id, payload).subscribe({
       next: () => {
         this.mostrarMensaje(`Documento marcado como ${estadoFinal} correctamente`, 'success');
@@ -159,6 +214,7 @@ export class RendicionFormComponent implements OnInit {
         setTimeout(() => this.volverALista(), 1800);
       },
       error: (err) => {
+        console.error('❌ Error en decisión:', err);
         const errorMsg = err.error?.message || err.message || 'Error al procesar la decisión';
         this.mostrarMensaje(errorMsg, 'error');
         this.isProcessing = false;
@@ -175,6 +231,7 @@ export class RendicionFormComponent implements OnInit {
       type: 'confirm',
       confirmText: 'Sí, liberar',
       onConfirm: () => {
+        // Usar id para liberar (ID de la rendición)
         this.rendicionService.liberarDocumento(this.documento!.id).subscribe({
           next: () => {
             this.mostrarMensaje('Documento liberado correctamente', 'success');

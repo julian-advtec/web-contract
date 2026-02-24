@@ -209,7 +209,7 @@
           </button>
 
           <!-- Para en revisión mío -->
-          <button *ngIf="documento.estado === 'EN_REVISION' && documento.responsableId === usuarioActual"
+          <button *ngIf="documento.estado === 'EN_REVISION' && documento.responsableId === usuarioId"
             class="btn btn-sm btn-success" (click)="revisarDocumento(documento)">
             <i class="fas fa-user-check me-1"></i> Procesar Revisión
           </button>

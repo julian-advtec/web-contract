@@ -1,4 +1,3 @@
-<p>rendicion-pending-list works!</p>
 <!-- src/app/pages/rendicion-cuentas/rendicion-pending-list/rendicion-pending-list.component.html -->
 <div class="rendicion-pending-container" [class.sidebar-collapsed]="sidebarCollapsed">
   <div class="rendicion-pending-inner">
@@ -32,8 +31,10 @@
               <ul class="list-unstyled text-start">
                 <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Verifica que hay documentos pendientes
                   por revisar</li>
-                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Los documentos deben estar sin responsable asignado</li>
-                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Asegúrate de estar autenticado como rendición de cuentas</li>
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Los documentos deben estar sin
+                  responsable asignado</li>
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Asegúrate de estar autenticado como
+                  rendición de cuentas</li>
               </ul>
             </div>
 
@@ -127,10 +128,11 @@
               <div class="documento-acciones">
                 <div class="acciones-buttons">
                   <div class="d-flex flex-column gap-1">
+                    <!-- En el botón, asegurar que las condiciones funcionan -->
                     <button class="btn btn-primary btn-sm" (click)="tomarParaRevision(doc)"
                       [disabled]="isProcessing || (!puedeTomarDocumento(doc) && !esMiDocumentoEnRevision(doc))">
                       <i class="fas fa-clipboard-check me-1"></i>
-                      {{ esMiDocumentoEnRevision(doc) ? 'Continuar' : 'Tomar para Revisión' }}
+                      {{ getTextoBoton(doc) }}
                     </button>
                   </div>
                 </div>

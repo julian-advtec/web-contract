@@ -1,14 +1,12 @@
 // src/app/pages/rendicion-cuentas/components/rendicion-history/rendicion-history.component.ts
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule, Router, ActivatedRoute } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
 import { RendicionCuentasService } from '../../../../core/services/rendicion-cuentas.service';
-import { NotificationService } from '../../../../core/services/notification.service';
-import { RendicionCuentasHistorialItem } from '../../../../core/models/rendicion-cuentas.model';
 
 @Component({
   selector: 'app-rendicion-history',
@@ -18,14 +16,12 @@ import { RendicionCuentasHistorialItem } from '../../../../core/models/rendicion
   styleUrls: ['./rendicion-history.component.scss']
 })
 export class RendicionHistoryComponent implements OnInit, OnDestroy {
-  historial: RendicionCuentasHistorialItem[] = [];
-  filteredHistorial: RendicionCuentasHistorialItem[] = [];
-  paginatedHistorial: RendicionCuentasHistorialItem[] = [];
+  historial: any[] = [];
+  filteredHistorial: any[] = [];
+  paginatedHistorial: any[] = [];
 
-  loading = false;
-  error = '';
-  successMessage = '';
-  infoMessage = '';
+  isLoading = false;
+  errorMessage = '';
 
   searchTerm = '';
   currentPage = 1;
@@ -33,32 +29,17 @@ export class RendicionHistoryComponent implements OnInit, OnDestroy {
   totalPages = 0;
   pages: number[] = [];
 
-  documentoId: string | null = null;
-  numeroRadicado: string = '—';
-  usuarioActual = '';
   sidebarCollapsed = false;
 
   private destroy$ = new Subject<void>();
 
   constructor(
-    private route: ActivatedRoute,
-    private router: Router,
     private rendicionService: RendicionCuentasService,
-    private notificationService: NotificationService
+    private router: Router
   ) {}
 
   ngOnInit(): void {
-    this.cargarUsuarioActual();
-    this.documentoId = this.route.snapshot.paramMap.get('id');
-
-    if (!this.documentoId) {
-      this.error = 'No se recibió ID del documento en la URL';
-      this.notificationService.error('Error', this.error);
-      this.router.navigate(['/rendicion-cuentas']);
-      return;
-    }
-
-    this.loadHistorial(this.documentoId);
+    this.cargarHistorial();
   }
 
   ngOnDestroy(): void {
@@ -66,90 +47,32 @@ export class RendicionHistoryComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  cargarUsuarioActual(): void {
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        this.usuarioActual = user.fullName || user.username || 'Usuario';
-      } catch {
-        this.usuarioActual = 'Usuario';
-      }
-    }
-  }
+  cargarHistorial(): void {
+    this.isLoading = true;
+    this.errorMessage = '';
 
-  loadHistorial(id: string): void {
-    this.loading = true;
-    this.error = '';
-
-    this.rendicionService.getHistorial(id)
+    this.rendicionService.obtenerHistorial()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (data) => {
+        next: (data: any[]) => {
+          console.log('📋 Historial recibido:', data);
           this.historial = data.sort((a, b) => 
-            new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
+            new Date(b.fechaCreacion || b.fechaInicioRevision).getTime() - 
+            new Date(a.fechaCreacion || a.fechaInicioRevision).getTime()
           );
           this.filteredHistorial = [...this.historial];
           this.updatePagination();
-
-          if (this.filteredHistorial.length > 0) {
-            const completados = this.filteredHistorial.filter(h => 
-              h.estadoNuevo === 'COMPLETADO' || h.estadoNuevo === 'APROBADO'
-            ).length;
-            this.successMessage = `${this.filteredHistorial.length} registros (${completados} completados)`;
-          } else {
-            this.infoMessage = 'No hay historial disponible para este documento';
-          }
-          this.loading = false;
+          this.isLoading = false;
         },
-        error: (err) => {
-          this.error = err.message || 'Error al cargar el historial';
-          this.notificationService.error('Error', this.error);
-          this.loading = false;
+        error: (err: any) => {
+          console.error('❌ Error cargando historial:', err);
+          this.errorMessage = err.message || 'Error al cargar el historial';
+          this.historial = [];
+          this.filteredHistorial = [];
+          this.updatePagination();
+          this.isLoading = false;
         }
       });
-  }
-
-  verDetalle(item: RendicionCuentasHistorialItem): void {
-    if (!item.documentoId) return;
-    this.router.navigate(['/rendicion-cuentas/procesar', item.documentoId], {
-      queryParams: {
-        desdeHistorial: 'true',
-        soloLectura: 'true',
-        modo: 'consulta',
-        origen: 'historial'
-      }
-    });
-  }
-
-  getEstadoBadgeClass(estado: string): string {
-    return this.rendicionService.getEstadoClass(estado);
-  }
-
-  getEstadoTexto(estado: string): string {
-    return this.rendicionService.getEstadoTexto(estado);
-  }
-
-  getAccionIcon(accion: string): string {
-    switch (accion?.toUpperCase()) {
-      case 'APROBAR':
-      case 'APROBADO':
-        return 'fas fa-check-circle text-success';
-      case 'OBSERVAR':
-      case 'OBSERVADO':
-        return 'fas fa-exclamation-circle text-warning';
-      case 'RECHAZAR':
-      case 'RECHAZADO':
-        return 'fas fa-times-circle text-danger';
-      case 'INICIAR_REVISION':
-        return 'fas fa-play-circle text-info';
-      case 'ASIGNAR':
-        return 'fas fa-user-tag text-primary';
-      case 'CREAR':
-        return 'fas fa-plus-circle text-secondary';
-      default:
-        return 'fas fa-history';
-    }
   }
 
   onSearch(): void {
@@ -157,39 +80,39 @@ export class RendicionHistoryComponent implements OnInit, OnDestroy {
       this.filteredHistorial = [...this.historial];
     } else {
       const term = this.searchTerm.toLowerCase();
-      this.filteredHistorial = this.historial.filter(item => 
-        (item.documento?.numeroRadicado?.toLowerCase()?.includes(term) ?? false) ||
-        (item.documento?.nombreContratista?.toLowerCase()?.includes(term) ?? false) ||
-        (item.documento?.numeroContrato?.toLowerCase()?.includes(term) ?? false) ||
-        (item.usuarioNombre?.toLowerCase()?.includes(term) ?? false) ||
-        (item.estadoNuevo?.toLowerCase()?.includes(term) ?? false) ||
-        (item.accion?.toLowerCase()?.includes(term) ?? false) ||
-        (item.observacion?.toLowerCase()?.includes(term) ?? false)
+      this.filteredHistorial = this.historial.filter(item =>
+        (item.numeroRadicado?.toLowerCase()?.includes(term) ?? false) ||
+        (item.nombreContratista?.toLowerCase()?.includes(term) ?? false) ||
+        (item.estado?.toLowerCase()?.includes(term) ?? false) ||
+        (item.responsableNombre?.toLowerCase()?.includes(term) ?? false)
       );
     }
     this.currentPage = 1;
     this.updatePagination();
   }
 
+  refreshData(): void {
+    this.cargarHistorial();
+  }
+
   updatePagination(): void {
     this.totalPages = Math.ceil(this.filteredHistorial.length / this.pageSize);
-
     this.pages = [];
-    const maxPagesToShow = 5;
-    let startPage = Math.max(1, this.currentPage - Math.floor(maxPagesToShow / 2));
-    let endPage = Math.min(this.totalPages, startPage + maxPagesToShow - 1);
 
-    if (endPage - startPage + 1 < maxPagesToShow) {
-      startPage = Math.max(1, endPage - maxPagesToShow + 1);
+    const maxPages = 5;
+    let start = Math.max(1, this.currentPage - Math.floor(maxPages / 2));
+    let end = Math.min(this.totalPages, start + maxPages - 1);
+
+    if (end - start + 1 < maxPages) {
+      start = Math.max(1, end - maxPages + 1);
     }
 
-    for (let i = startPage; i <= endPage; i++) {
+    for (let i = start; i <= end; i++) {
       this.pages.push(i);
     }
 
     const startIndex = (this.currentPage - 1) * this.pageSize;
-    const endIndex = Math.min(startIndex + this.pageSize, this.filteredHistorial.length);
-    this.paginatedHistorial = this.filteredHistorial.slice(startIndex, endIndex);
+    this.paginatedHistorial = this.filteredHistorial.slice(startIndex, startIndex + this.pageSize);
   }
 
   changePage(page: number): void {
@@ -199,24 +122,92 @@ export class RendicionHistoryComponent implements OnInit, OnDestroy {
     }
   }
 
-  formatDate(fecha: Date): string {
-    return new Date(fecha).toLocaleString('es-CO', {
-      dateStyle: 'medium',
-      timeStyle: 'short'
-    });
-  }
-
-  formatDateOnly(fecha: Date): string {
+  formatDate(fecha: Date | string | undefined): string {
+    if (!fecha) return 'N/A';
     return new Date(fecha).toLocaleDateString('es-ES', {
       year: 'numeric',
       month: '2-digit',
-      day: '2-digit'
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   }
 
-  refreshData(): void {
-    if (this.documentoId) {
-      this.loadHistorial(this.documentoId);
+  getEstadoBadgeClass(estado: string): string {
+    const e = estado?.toUpperCase() || '';
+    if (e.includes('APROBADO') || e.includes('COMPLETADO')) return 'badge-success';
+    if (e.includes('OBSERVADO')) return 'badge-warning';
+    if (e.includes('RECHAZADO')) return 'badge-danger';
+    if (e.includes('EN_REVISION')) return 'badge-info';
+    if (e.includes('PENDIENTE')) return 'badge-secondary';
+    return 'badge-dark';
+  }
+
+  getEstadoTexto(estado: string): string {
+    const e = estado?.toUpperCase() || '';
+    if (e.includes('APROBADO')) return 'Aprobado';
+    if (e.includes('OBSERVADO')) return 'Observado';
+    if (e.includes('RECHAZADO')) return 'Rechazado';
+    if (e.includes('COMPLETADO')) return 'Completado';
+    if (e.includes('EN_REVISION')) return 'En Revisión';
+    if (e.includes('PENDIENTE')) return 'Pendiente';
+    return estado || 'Desconocido';
+  }
+
+  getAccionIcon(accion: string): string {
+    const a = accion?.toUpperCase() || '';
+    if (a.includes('APROBADO')) return 'fa-check-circle';
+    if (a.includes('OBSERVADO')) return 'fa-exclamation-triangle';
+    if (a.includes('RECHAZADO')) return 'fa-times-circle';
+    if (a.includes('TOMAR')) return 'fa-hand-pointer';
+    if (a.includes('INICIAR')) return 'fa-play';
+    if (a.includes('CREAR')) return 'fa-plus-circle';
+    return 'fa-history';
+  }
+
+  verDetalle(item: any): void {
+    const id = item.rendicionId || item.id;
+    if (id) {
+      this.router.navigate(['/rendicion-cuentas/procesar', id, { modo: 'consulta' }]);
     }
+  }
+
+  trackById(index: number, item: any): string {
+    return item.id || index.toString();
+  }
+
+    esReciente(item: any): boolean {
+    const fecha = item.fechaDecision || item.fechaInicioRevision || item.fechaCreacion;
+    if (!fecha) return false;
+    return this.getDiasTranscurridos(fecha) < 1;
+  }
+
+  getDiasTranscurridos(fecha: Date | string | undefined): number {
+    if (!fecha) return 0;
+    const diffMs = new Date().getTime() - new Date(fecha).getTime();
+    return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  }
+
+  getDiasClass(fecha: Date | string | undefined): string {
+    const dias = this.getDiasTranscurridos(fecha);
+    if (dias < 1) return 'text-success';
+    if (dias <= 3) return 'text-primary';
+    if (dias <= 7) return 'text-warning';
+    return 'text-danger';
+  }
+
+  formatDateShort(fecha: Date | string | undefined): string {
+    if (!fecha) return 'N/A';
+    return new Date(fecha).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
+  }
+
+  getEstadoClass(estado: string): string {
+    const e = estado?.toUpperCase() || '';
+    if (e.includes('APROBADO') || e.includes('COMPLETADO')) return 'badge-success';
+    if (e.includes('OBSERVADO')) return 'badge-warning';
+    if (e.includes('EN_REVISION')) return 'badge-info';
+    if (e.includes('RECHAZADO')) return 'badge-danger';
+    if (e.includes('PENDIENTE')) return 'badge-secondary';
+    return 'badge-dark';
   }
 }

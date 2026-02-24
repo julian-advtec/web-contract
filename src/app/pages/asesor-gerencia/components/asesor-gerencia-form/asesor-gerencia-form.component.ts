@@ -452,4 +452,6 @@ export class AsesorGerenciaFormComponent implements OnInit {
     if (u.includes('RECHAZADO_ASESOR_GERENCIA')) return 'RECHAZADO';
     return 'PENDIENTE';
   }
+
+  
 }

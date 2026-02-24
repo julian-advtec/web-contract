@@ -1,12 +1,13 @@
 // src/app/pages/rendicion-cuentas/components/rendicion-list/rendicion-list.component.ts
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
 import { RendicionCuentasService } from '../../../../core/services/rendicion-cuentas.service';
+import { AuthService } from '../../../../core/services/auth.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { RendicionCuentasProceso, RendicionCuentasEstado } from '../../../../core/models/rendicion-cuentas.model';
 
@@ -28,11 +29,10 @@ export class RendicionListComponent implements OnInit, OnDestroy {
   successMessage = '';
   infoMessage = '';
 
-  // Filtros usados en el HTML
+  searchTerm = '';
   filtroEstado = 'todos';
   filtroAsignacion = 'todos';
   filtroFecha = 'todos';
-  searchTerm = '';
 
   currentPage = 1;
   pageSize = 10;
@@ -40,12 +40,15 @@ export class RendicionListComponent implements OnInit, OnDestroy {
   pages: number[] = [];
 
   sidebarCollapsed = false;
+  usuarioId = '';
+  usuarioRol = '';
   usuarioActual = '';
 
   private destroy$ = new Subject<void>();
 
   constructor(
     private rendicionService: RendicionCuentasService,
+    private authService: AuthService,
     private notificationService: NotificationService,
     private router: Router
   ) {}
@@ -61,97 +64,36 @@ export class RendicionListComponent implements OnInit, OnDestroy {
   }
 
   cargarUsuarioActual(): void {
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        this.usuarioActual = user.fullName || user.username || 'Usuario';
-      } catch {
-        this.usuarioActual = 'Usuario';
-      }
-    }
+    const user = this.authService.getCurrentUser();
+    this.usuarioId = user?.id || '';
+    this.usuarioRol = user?.role || '';
+    this.usuarioActual = user?.fullName || user?.username || '';
   }
 
   cargarDocumentos(): void {
     this.isLoading = true;
     this.errorMessage = '';
 
-    this.rendicionService.obtenerDocumentosPendientes()
+    this.rendicionService.obtenerTodosDocumentos()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: ({ data }) => {
-          this.documentos = data || [];
-          this.filteredDocumentos = [...this.documentos];
+        next: (docs: any[]) => {
+          console.log('📋 Documentos cargados:', docs);
+          this.documentos = docs || [];
           this.aplicarFiltros();
           this.isLoading = false;
         },
-        error: (err) => {
+        error: (err: any) => {
           this.errorMessage = err.message || 'No se pudieron cargar los documentos';
-          this.notificationService.error('Error', this.errorMessage);
+          this.documentos = [];
+          this.filteredDocumentos = [];
+          this.updatePagination();
           this.isLoading = false;
         }
       });
   }
 
-  aplicarFiltros(): void {
-    let docs = [...this.documentos];
-
-    // Filtro por estado
-    if (this.filtroEstado !== 'todos') {
-      const estadoBuscado = this.filtroEstado.toUpperCase();
-      docs = docs.filter(d => (d.estado || '').toString().toUpperCase().includes(estadoBuscado));
-    }
-
-    // Filtro por asignación
-    if (this.filtroAsignacion !== 'todos') {
-      if (this.filtroAsignacion === 'mios') {
-        docs = docs.filter(d => d.responsableId === this.usuarioActual);
-      } else if (this.filtroAsignacion === 'sin_asignar') {
-        docs = docs.filter(d => !d.responsableId);
-      } else if (this.filtroAsignacion === 'de_otros') {
-        docs = docs.filter(d => d.responsableId && d.responsableId !== this.usuarioActual);
-      }
-    }
-
-    // Filtro por fecha
-    if (this.filtroFecha !== 'todos') {
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
-
-      if (this.filtroFecha === 'hoy') {
-        docs = docs.filter(d => new Date(d.fechaCreacion || 0).toDateString() === hoy.toDateString());
-      } else if (this.filtroFecha === 'semana') {
-        const semana = new Date(hoy);
-        semana.setDate(semana.getDate() - 7);
-        docs = docs.filter(d => new Date(d.fechaCreacion || 0) >= semana);
-      } else if (this.filtroFecha === 'mes') {
-        const mes = new Date(hoy);
-        mes.setMonth(mes.getMonth() - 1);
-        docs = docs.filter(d => new Date(d.fechaCreacion || 0) >= mes);
-      }
-    }
-
-    // Búsqueda por texto
-    if (this.searchTerm.trim()) {
-      const term = this.searchTerm.toLowerCase();
-      docs = docs.filter(d =>
-        (d.numeroRadicado?.toLowerCase()?.includes(term) ?? false) ||
-        (d.nombreContratista?.toLowerCase()?.includes(term) ?? false) ||
-        (d.numeroContrato?.toLowerCase()?.includes(term) ?? false) ||
-        (d.estado?.toString().toLowerCase()?.includes(term) ?? false)
-      );
-    }
-
-    this.filteredDocumentos = docs;
-    this.currentPage = 1;
-    this.updatePagination();
-  }
-
-  limpiarFiltros(): void {
-    this.filtroEstado = 'todos';
-    this.filtroAsignacion = 'todos';
-    this.filtroFecha = 'todos';
-    this.searchTerm = '';
+  onSearch(): void {
     this.aplicarFiltros();
   }
 
@@ -159,175 +101,93 @@ export class RendicionListComponent implements OnInit, OnDestroy {
     this.aplicarFiltros();
   }
 
-  onSearch(): void {
+  aplicarFiltros(): void {
+    let filtrados = [...this.documentos];
+
+    // Filtro por búsqueda
+    if (this.searchTerm.trim()) {
+      const term = this.searchTerm.toLowerCase();
+      filtrados = filtrados.filter(doc =>
+        (doc.numeroRadicado?.toLowerCase()?.includes(term) ?? false) ||
+        (doc.nombreContratista?.toLowerCase()?.includes(term) ?? false) ||
+        (doc.numeroContrato?.toLowerCase()?.includes(term) ?? false)
+      );
+    }
+
+    // Filtro por estado
+    if (this.filtroEstado !== 'todos') {
+      filtrados = filtrados.filter(doc => {
+        const estado = (doc.estado || '').toString().toLowerCase();
+        switch (this.filtroEstado) {
+          case 'pendientes':
+            return estado === 'pendiente';
+          case 'en_revision':
+            return estado === 'en_revision';
+          case 'aprobados':
+            return estado === 'aprobado' || estado === 'completado';
+          case 'observados':
+            return estado === 'observado';
+          case 'rechazados':
+            return estado === 'rechazado';
+          case 'completados':
+            return estado === 'completado';
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Filtro por asignación
+    if (this.filtroAsignacion !== 'todos') {
+      filtrados = filtrados.filter(doc => {
+        switch (this.filtroAsignacion) {
+          case 'mios':
+            return doc.responsableId === this.usuarioId;
+          case 'sin_asignar':
+            return !doc.responsableId;
+          case 'de_otros':
+            return doc.responsableId && doc.responsableId !== this.usuarioId;
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Filtro por fecha
+    if (this.filtroFecha !== 'todos') {
+      const hoy = new Date();
+      filtrados = filtrados.filter(doc => {
+        const fecha = doc.fechaCreacion ? new Date(doc.fechaCreacion) : new Date();
+        const diffDays = Math.floor((hoy.getTime() - fecha.getTime()) / (1000 * 60 * 60 * 24));
+        
+        switch (this.filtroFecha) {
+          case 'hoy':
+            return diffDays === 0;
+          case 'semana':
+            return diffDays <= 7;
+          case 'mes':
+            return diffDays <= 30;
+          default:
+            return true;
+        }
+      });
+    }
+
+    this.filteredDocumentos = filtrados;
+    this.currentPage = 1;
+    this.updatePagination();
+  }
+
+  limpiarFiltros(): void {
+    this.searchTerm = '';
+    this.filtroEstado = 'todos';
+    this.filtroAsignacion = 'todos';
+    this.filtroFecha = 'todos';
     this.aplicarFiltros();
   }
 
   refreshData(): void {
     this.cargarDocumentos();
-  }
-
-  // Métodos requeridos por el template
-  getDisponiblesCount(): number {
-    return this.documentos.filter(d => d.estado === RendicionCuentasEstado.PENDIENTE && !d.responsableId).length;
-  }
-
-  getEnRevisionCount(): number {
-    return this.documentos.filter(d => d.estado === RendicionCuentasEstado.EN_REVISION).length;
-  }
-
-  getProcesadosCount(): number {
-    return this.documentos.filter(d => 
-      d.estado === RendicionCuentasEstado.APROBADO || d.estado === RendicionCuentasEstado.COMPLETADO
-    ).length;
-  }
-
-  esDocumentoReciente(doc: RendicionCuentasProceso): boolean {
-    const fecha = doc.fechaCompletadoContabilidad || doc.fechaCreacion;
-    if (!fecha) return false;
-    return this.getDiasTranscurridos(fecha) < 1;
-  }
-
-  esMiDocumento(doc: RendicionCuentasProceso): boolean {
-    return doc.responsableId === this.usuarioActual;
-  }
-
-  getNumeroRadicado(doc: RendicionCuentasProceso): string {
-    return doc.numeroRadicado || '—';
-  }
-
-  getFechaRadicacion(doc: RendicionCuentasProceso): Date | string {
-    return doc.fechaCreacion || 'N/A';
-  }
-
-  getNombreContratista(doc: RendicionCuentasProceso): string {
-    return doc.nombreContratista || 'Sin contratista';
-  }
-
-  getDocumentoContratista(doc: RendicionCuentasProceso): string {
-    return doc.documentoContratista || '—';
-  }
-
-  getNumeroContrato(doc: RendicionCuentasProceso): string {
-    return doc.numeroContrato || '—';
-  }
-
-  getEstado(doc: RendicionCuentasProceso): string {
-    return doc.estado?.toString() || 'DESCONOCIDO';
-  }
-
-  getObservacion(doc: RendicionCuentasProceso): string | null {
-    return doc.observaciones || null;
-  }
-
-  getObservacionCorta(doc: RendicionCuentasProceso): string {
-    const obs = doc.observaciones || '';
-    return obs.length > 50 ? obs.substring(0, 47) + '...' : obs;
-  }
-
-  getEstadoBadgeClass(estado: string): string {
-    return this.rendicionService.getEstadoClass(estado);
-  }
-
-  getEstadoTexto(estado: string): string {
-    return this.rendicionService.getEstadoTexto(estado);
-  }
-
-  getTipoDocumentoBadgeClass(doc: RendicionCuentasProceso): string {
-    const e = (doc.estado || '').toString().toUpperCase();
-    if (e.includes('PENDIENTE')) return 'bg-warning text-dark';
-    if (e.includes('EN_REVISION')) return 'bg-info';
-    if (e.includes('APROBADO') || e.includes('COMPLETADO')) return 'bg-success';
-    if (e.includes('OBSERVADO')) return 'bg-warning';
-    if (e.includes('RECHAZADO')) return 'bg-danger';
-    return 'bg-secondary';
-  }
-
-  getTipoDocumentoTexto(doc: RendicionCuentasProceso): string {
-    return doc.estado?.toString() || 'Sin tipo';
-  }
-
-  esConsultable(doc: RendicionCuentasProceso): boolean {
-    return !!doc.id && doc.estado !== RendicionCuentasEstado.PENDIENTE;
-  }
-
-  getDocumentCount(doc: RendicionCuentasProceso): number {
-    return (doc.documentosAdjuntos?.length || 0) + (doc.informesPresentados?.length || 0);
-  }
-
-  tomarDocumento(doc: RendicionCuentasProceso): void {
-    this.tomarParaRevision(doc);
-  }
-
-  revisarDocumento(doc: RendicionCuentasProceso): void {
-    if (!doc.id) return;
-    this.router.navigate(['/rendicion-cuentas/procesar', doc.id]);
-  }
-
-  dismissError(): void {
-    this.errorMessage = '';
-  }
-
-  dismissSuccess(): void {
-    this.successMessage = '';
-  }
-
-  dismissInfo(): void {
-    this.infoMessage = '';
-  }
-
-  // Métodos de acción (ya existentes)
-  puedeTomarDocumento(doc: RendicionCuentasProceso): boolean {
-    return doc.estado === RendicionCuentasEstado.PENDIENTE && !doc.responsableId;
-  }
-
-  esMiDocumentoEnRevision(doc: RendicionCuentasProceso): boolean {
-    return doc.estado === RendicionCuentasEstado.EN_REVISION && doc.responsableId === this.usuarioActual;
-  }
-
-  tomarParaRevision(doc: RendicionCuentasProceso): void {
-    if (!doc?.id) {
-      this.notificationService.error('Error', 'Documento sin ID válido');
-      return;
-    }
-
-    const yaEsMio = this.esMiDocumentoEnRevision(doc);
-
-    if (yaEsMio) {
-      this.router.navigate(['/rendicion-cuentas/procesar', doc.id]);
-      return;
-    }
-
-    if (!this.puedeTomarDocumento(doc)) {
-      this.notificationService.warning('No disponible', 'Documento no disponible para tomar');
-      return;
-    }
-
-    this.notificationService.showModal({
-      title: 'Tomar documento',
-      message: `¿Tomar el radicado ${doc.numeroRadicado || 'sin radicado'}?`,
-      type: 'confirm',
-      confirmText: 'Sí, tomar',
-      cancelText: 'Cancelar',
-      onConfirm: () => this.procederTomarDocumento(doc)
-    });
-  }
-
-  private procederTomarDocumento(doc: RendicionCuentasProceso): void {
-    this.isProcessing = true;
-
-    this.rendicionService.tomarDocumentoParaRevision(doc.id!)
-      .subscribe({
-        next: () => {
-          this.notificationService.success('Éxito', 'Documento tomado');
-          this.cargarDocumentos(); // refrescar
-          this.isProcessing = false;
-        },
-        error: (err) => {
-          this.notificationService.error('Error', err.message || 'No se pudo tomar');
-          this.isProcessing = false;
-        }
-      });
   }
 
   updatePagination(): void {
@@ -357,30 +217,155 @@ export class RendicionListComponent implements OnInit, OnDestroy {
     }
   }
 
-  formatDate(fecha: Date | string | undefined): string {
-    if (!fecha) return 'N/A';
-    return new Date(fecha).toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  // Métodos de conteo para el resumen
+  getDisponiblesCount(): number {
+    return this.documentos.filter(d => 
+      d.estado === RendicionCuentasEstado.PENDIENTE && !d.responsableId
+    ).length;
+  }
+
+  getEnRevisionCount(): number {
+    return this.documentos.filter(d => 
+      d.estado === RendicionCuentasEstado.EN_REVISION
+    ).length;
+  }
+
+  getProcesadosCount(): number {
+    return this.documentos.filter(d => 
+      d.estado === RendicionCuentasEstado.APROBADO ||
+      d.estado === RendicionCuentasEstado.OBSERVADO ||
+      d.estado === RendicionCuentasEstado.RECHAZADO ||
+      d.estado === RendicionCuentasEstado.COMPLETADO
+    ).length;
+  }
+
+  // Métodos de utilidad para el template
+  getNumeroRadicado(doc: any): string {
+    return doc.numeroRadicado || 'N/A';
+  }
+
+  getFechaRadicacion(doc: any): Date | undefined {
+    return doc.fechaCreacion;
+  }
+
+  getNombreContratista(doc: any): string {
+    return doc.nombreContratista || 'N/A';
+  }
+
+  getDocumentoContratista(doc: any): string {
+    return doc.documentoContratista || '';
+  }
+
+  getNumeroContrato(doc: any): string {
+    return doc.numeroContrato || 'N/A';
+  }
+
+  getEstado(doc: any): string {
+    return (doc.estado || '').toString();
+  }
+
+  getObservacion(doc: any): string {
+    return doc.observaciones || doc.observacionesRendicion || '';
+  }
+
+  getObservacionCorta(doc: any): string {
+    const obs = this.getObservacion(doc);
+    return obs.length > 50 ? obs.substring(0, 50) + '...' : obs;
+  }
+
+  getTipoDocumentoBadgeClass(doc: any): string {
+    return 'badge-info';
+  }
+
+  getTipoDocumentoTexto(doc: any): string {
+    return doc.informesPresentados?.length ? 'Con informes' : 'Sin informes';
+  }
+
+  getDocumentCount(doc: any): number {
+    return (doc.informesPresentados?.length || 0) + (doc.documentosAdjuntos?.length || 0);
+  }
+
+  esDocumentoReciente(doc: any): boolean {
+    if (!doc.fechaCreacion) return false;
+    const diffMs = new Date().getTime() - new Date(doc.fechaCreacion).getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    return diffDays < 1;
+  }
+
+  esMiDocumento(doc: any): boolean {
+    return doc.responsableId === this.usuarioId;
+  }
+
+  esConsultable(doc: any): boolean {
+    if (doc.estado !== RendicionCuentasEstado.PENDIENTE) {
+      return true;
+    }
+    if (doc.responsableId && doc.responsableId !== this.usuarioId) {
+      return true;
+    }
+    return false;
   }
 
   formatDateOnly(fecha: Date | string | undefined): string {
     if (!fecha) return 'N/A';
-    return new Date(fecha).toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    return new Date(fecha).toLocaleDateString('es-ES');
   }
 
-  getDiasTranscurridos(fecha: Date | string | undefined): number {
-    if (!fecha) return 0;
-    return Math.floor((new Date().getTime() - new Date(fecha).getTime()) / (1000 * 60 * 60 * 24));
+  formatDate(fecha: Date | string | undefined): string {
+    if (!fecha) return 'N/A';
+    return new Date(fecha).toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
   }
 
-  getDiasClass(doc: RendicionCuentasProceso): string {
-    const dias = this.getDiasTranscurridos(doc.fechaCreacion);
-    if (dias < 1) return 'text-success';
-    if (dias <= 3) return 'text-primary';
-    if (dias <= 7) return 'text-warning';
-    return 'text-danger';
+  getEstadoBadgeClass(estado: string | undefined): string {
+    return this.rendicionService.getEstadoClass(estado || '');
   }
 
-  trackById(index: number, doc: RendicionCuentasProceso): string {
+  getEstadoTexto(estado: string | undefined): string {
+    return this.rendicionService.getEstadoTexto(estado || '');
+  }
+
+  // MÉTODO ÚNICO para tomar documento
+  tomarDocumento(doc: any): void {
+    this.isProcessing = true;
+    this.rendicionService.tomarDocumentoParaRevision(doc.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res) => {
+          this.successMessage = 'Documento tomado correctamente';
+          this.cargarDocumentos();
+          this.isProcessing = false;
+          setTimeout(() => this.router.navigate(['/rendicion-cuentas/procesar', doc.rendicionId]), 1500);
+        },
+        error: (err) => {
+          this.errorMessage = err.message || 'Error al tomar el documento';
+          this.isProcessing = false;
+        }
+      });
+  }
+
+  // MÉTODO ÚNICO para revisar documento
+  revisarDocumento(doc: any): void {
+    const id = doc.rendicionId || doc.id;
+    this.router.navigate(['/rendicion-cuentas/procesar', id]);
+  }
+
+  dismissError(): void {
+    this.errorMessage = '';
+  }
+
+  dismissSuccess(): void {
+    this.successMessage = '';
+  }
+
+  dismissInfo(): void {
+    this.infoMessage = '';
+  }
+
+  trackById(index: number, doc: any): string {
     return doc.id || index.toString();
   }
 }

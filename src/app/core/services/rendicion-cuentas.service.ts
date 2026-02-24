@@ -1,8 +1,8 @@
 // src/app/core/services/rendicion-cuentas.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, throwError, timer } from 'rxjs';
-import { map, catchError, switchMap, retryWhen, delay, take } from 'rxjs/operators';
+import { Observable, throwError } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
 import {
@@ -19,240 +19,279 @@ import {
   providedIn: 'root'
 })
 export class RendicionCuentasService {
-  private apiUrl = `${environment.apiUrl}/rendicion-cuentas`;  // ej: http://localhost:3000/api/rendicion-cuentas
+  private apiUrl = `${environment.apiUrl}/rendicion-cuentas`;
 
   constructor(private http: HttpClient) {}
 
+  // ==============================================
+  // MÉTODOS PRINCIPALES
+  // ==============================================
+
   /**
-   * Espera hasta que el token esté disponible en localStorage (máximo 12 segundos)
-   * Una vez que aparece → ejecuta la petición real
+   * Obtener documentos disponibles (los que vienen de asesor gerencia)
+   * GET /rendicion-cuentas/documentos/disponibles
    */
-  private waitForTokenAndExecute<T>(
-    requestFactory: () => Observable<T>,
-    maxWaitSeconds: number = 12
-  ): Observable<T> {
-    const start = Date.now();
-
-    return timer(0, 200).pipe(  // chequea cada 200ms para ser más rápido
-      switchMap(() => {
-        const token = localStorage.getItem('token');
-        const elapsed = (Date.now() - start) / 1000;
-
-        if (token) {
-          console.log(`[RendicionService] Token encontrado tras ${elapsed.toFixed(1)}s → ejecutando petición`);
-          return requestFactory();
-        }
-
-        if (elapsed > maxWaitSeconds) {
-          console.warn(`[RendicionService] Timeout: token no apareció después de ${maxWaitSeconds}s`);
-          return throwError(() => new Error('No se encontró token después de esperar'));
-        }
-
-        console.log(`[RendicionService] Esperando token... (${elapsed.toFixed(1)}s)`);
-        return throwError(() => 'waiting');
-      }),
-      retryWhen(errors =>
-        errors.pipe(
-          delay(200),
-          take(maxWaitSeconds * 5 + 1)  // ~12 segundos de intentos
-        )
-      ),
-      catchError(err => {
-        if (err === 'waiting') {
-          return throwError(() => new Error('Timeout esperando token de autenticación'));
-        }
-        console.error('[RendicionService] Error en petición:', err);
-        return throwError(() => err);
-      })
-    );
-  }
-
-  // ────────────────────────────────────────────────
-  // TODOS LOS MÉTODOS USAN LA ESPERA DEL TOKEN
-  // ────────────────────────────────────────────────
-
   obtenerDocumentosDisponibles(): Observable<RendicionCuentasProceso[]> {
-    return this.waitForTokenAndExecute(() =>
-      this.http.get<any>(`${this.apiUrl}/pendientes`).pipe(
-        map(res => this.handleListResponse(res, 'documentos disponibles')),
-        catchError(err => this.handleError(err, 'cargar documentos disponibles'))
-      )
+    return this.http.get<any>(`${this.apiUrl}/documentos/disponibles`).pipe(
+      map(res => {
+        console.log('📥 Documentos disponibles:', res);
+        return this.handleListResponse(res);
+      }),
+      catchError(err => this.handleError(err, 'cargar documentos disponibles'))
     );
   }
 
-  obtenerDocumentosPendientes(filtros?: FiltrosRendicionCuentas): Observable<{ data: RendicionCuentasProceso[]; total: number }> {
-    let params = new HttpParams();
-    if (filtros?.estados?.length) params = params.set('estados', filtros.estados.join(','));
-    if (filtros?.responsableId) params = params.set('responsableId', filtros.responsableId);
-    if (filtros?.desde) params = params.set('desde', filtros.desde);
-    if (filtros?.hasta) params = params.set('hasta', filtros.hasta);
-    if (filtros?.limit) params = params.set('limit', filtros.limit.toString());
-    if (filtros?.offset) params = params.set('offset', filtros.offset.toString());
+  /**
+   * Tomar un documento para revisión
+   * POST /rendicion-cuentas/documentos/:documentoId/tomar
+   */
+  tomarDocumentoParaRevision(documentoId: string): Observable<any> {
+    if (!documentoId) return throwError(() => new Error('ID requerido'));
 
-    return this.waitForTokenAndExecute(() =>
-      this.http.get<any>(this.apiUrl, { params }).pipe(
-        map(res => ({
-          data: this.handleListResponse(res, 'documentos con filtros'),
-          total: res.meta?.total || 0
-        })),
-        catchError(err => this.handleError(err, 'cargar documentos con filtros'))
-      )
+    console.log('📤 Tomando documento para revisión:', documentoId);
+    
+    return this.http.post<any>(`${this.apiUrl}/documentos/${documentoId}/tomar`, {}).pipe(
+      map(res => {
+        console.log('📥 Respuesta tomar documento:', res);
+        if (res.ok || res.success) return res;
+        throw new Error(res.message || 'No se pudo tomar el documento');
+      }),
+      catchError(err => this.handleError(err, `tomar documento ${documentoId}`))
     );
   }
 
-  obtenerMisDocumentos(filtros?: { estados?: string[]; desde?: Date; hasta?: Date }): Observable<RendicionCuentasProceso[]> {
-    let params = new HttpParams();
-    if (filtros?.estados?.length) params = params.set('estados', filtros.estados.join(','));
-    if (filtros?.desde) params = params.set('desde', filtros.desde.toISOString());
-    if (filtros?.hasta) params = params.set('hasta', filtros.hasta.toISOString());
-
-    return this.waitForTokenAndExecute(() =>
-      this.http.get<any>(`${this.apiUrl}/mis-documentos`, { params }).pipe(
-        map(res => this.handleListResponse(res, 'mis documentos')),
-        catchError(err => this.handleError(err, 'cargar mis documentos'))
-      )
+  /**
+   * Obtener mis documentos en revisión
+   * GET /rendicion-cuentas/mis-documentos
+   */
+  obtenerMisDocumentos(): Observable<RendicionCuentasProceso[]> {
+    return this.http.get<any>(`${this.apiUrl}/mis-documentos`).pipe(
+      map(res => this.handleListResponse(res)),
+      catchError(err => this.handleError(err, 'cargar mis documentos'))
     );
   }
 
-  obtenerDetalleRevision(id: string): Observable<RendicionCuentasProceso> {
-    if (!id) return throwError(() => new Error('ID requerido'));
-
-    return this.waitForTokenAndExecute(() =>
-      this.http.get<any>(`${this.apiUrl}/${id}`).pipe(
-        map(res => {
-          if (res.ok && res.data) return this.mapearProceso(res.data);
-          throw new Error(res.message || 'No se encontró el documento');
-        }),
-        catchError(err => this.handleError(err, `obtener detalle ${id}`))
-      )
-    );
-  }
-
-  getHistorial(id: string): Observable<RendicionCuentasHistorialItem[]> {
-    if (!id) return throwError(() => new Error('ID requerido'));
-
-    return this.waitForTokenAndExecute(() =>
-      this.http.get<any>(`${this.apiUrl}/${id}/historial`).pipe(
-        map(res => {
-          if (res.ok && res.data) return res.data.map((h: any) => this.mapearHistorial(h));
-          if (Array.isArray(res)) return res.map((h: any) => this.mapearHistorial(h));
-          return [];
-        }),
-        catchError(err => this.handleError(err, `cargar historial ${id}`))
-      )
-    );
-  }
-
-  tomarDocumentoParaRevision(id: string): Observable<any> {
-    if (!id) return throwError(() => new Error('ID requerido'));
-
-    return this.waitForTokenAndExecute(() =>
-      this.http.post<any>(`${this.apiUrl}/${id}/tomar`, {}).pipe(
-        map(res => {
-          if (res.ok || res.success) return res;
-          throw new Error(res.message || 'No se pudo tomar el documento');
-        }),
-        catchError(err => this.handleError(err, `tomar documento ${id}`))
-      )
-    );
-  }
-
-  iniciarRevision(id: string, dto: IniciarRevisionDto): Observable<RendicionCuentasProceso> {
-    return this.waitForTokenAndExecute(() =>
-      this.http.post<any>(`${this.apiUrl}/${id}/iniciar-revision`, dto).pipe(
-        map(res => this.handleActionResponse(res, 'iniciar revisión')),
-        catchError(err => this.handleError(err, `iniciar revisión ${id}`))
-      )
-    );
-  }
-
+  /**
+   * Tomar decisión (APROBAR, OBSERVAR, RECHAZAR)
+   * PATCH /rendicion-cuentas/documentos/:id/decision
+   */
   tomarDecision(id: string, dto: TomarDecisionDto): Observable<RendicionCuentasProceso> {
-    return this.waitForTokenAndExecute(() =>
-      this.http.post<any>(`${this.apiUrl}/${id}/decision`, dto).pipe(
-        map(res => this.handleActionResponse(res, 'tomar decisión')),
-        catchError(err => this.handleError(err, `tomar decisión ${id}`))
-      )
+    return this.http.patch<any>(`${this.apiUrl}/documentos/${id}/decision`, dto).pipe(
+      map(res => {
+        console.log('📥 Respuesta tomar decisión:', res);
+        return this.handleActionResponse(res);
+      }),
+      catchError(err => this.handleError(err, `tomar decisión ${id}`))
     );
   }
 
+  /**
+   * Descargar carpeta completa del documento
+   * GET /rendicion-cuentas/documentos/:documentoId/descargar
+   */
+  descargarCarpeta(documentoId: string): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/documentos/${documentoId}/descargar`, {
+      responseType: 'blob'
+    });
+  }
+
+  /**
+   * Obtener detalle de una rendición por su ID
+   * GET /rendicion-cuentas/rendiciones/:rendicionId/detalle
+   */
+  obtenerDetalleRendicion(rendicionId: string): Observable<RendicionCuentasProceso> {
+    if (!rendicionId) return throwError(() => new Error('ID requerido'));
+
+    return this.http.get<any>(`${this.apiUrl}/rendiciones/${rendicionId}/detalle`).pipe(
+      map(res => {
+        console.log('📥 Respuesta detalle rendición:', res);
+        
+        let datosProceso: any;
+        
+        if (res.ok && res.data) {
+          datosProceso = res.data;
+        } else if (res.data) {
+          datosProceso = res.data;
+        } else if (res.id) {
+          datosProceso = res;
+        } else {
+          throw new Error(res.message || 'No se encontró el documento');
+        }
+        
+        return this.mapearProceso(datosProceso);
+      }),
+      catchError(err => this.handleError(err, `obtener detalle de rendición ${rendicionId}`))
+    );
+  }
+
+  /**
+   * Alias para mantener compatibilidad
+   */
+  obtenerDetalleRevision(id: string): Observable<RendicionCuentasProceso> {
+    return this.obtenerDetalleRendicion(id);
+  }
+
+  /**
+   * Obtener todos los documentos de rendición (lista completa)
+   * GET /rendicion-cuentas/todos-documentos
+   */
+  obtenerTodosDocumentos(): Observable<any[]> {
+    return this.http.get<any>(`${this.apiUrl}/todos-documentos`).pipe(
+      map(res => {
+        console.log('📥 Respuesta todos documentos:', res);
+        
+        if (Array.isArray(res)) {
+          return res;
+        }
+        
+        if (res?.ok === true && Array.isArray(res.data)) {
+          return res.data;
+        }
+        
+        if (res?.data && Array.isArray(res.data)) {
+          return res.data;
+        }
+        
+        return [];
+      }),
+      catchError(err => this.handleError(err, 'cargar todos los documentos'))
+    );
+  }
+
+  /**
+   * Obtener historial del usuario
+   * GET /rendicion-cuentas/historial
+   */
+  obtenerHistorial(): Observable<any[]> {
+    return this.http.get<any>(`${this.apiUrl}/historial`).pipe(
+      map(res => {
+        console.log('📥 Respuesta historial:', res);
+        
+        // Si la respuesta es directamente un array
+        if (Array.isArray(res)) {
+          return res;
+        }
+        
+        // Si tiene estructura { ok: true, data: [...] }
+        if (res?.ok === true && Array.isArray(res.data)) {
+          return res.data;
+        }
+        
+        // Si tiene estructura { data: [...] }
+        if (res?.data && Array.isArray(res.data)) {
+          return res.data;
+        }
+        
+        return [];
+      }),
+      catchError(err => this.handleError(err, 'cargar historial'))
+    );
+  }
+
+  /**
+   * Liberar documento (no implementado en backend)
+   */
   liberarDocumento(id: string): Observable<any> {
-    return this.waitForTokenAndExecute(() =>
-      this.http.post<any>(`${this.apiUrl}/${id}/liberar`, {}).pipe(
-        map(res => {
-          if (res.ok || res.success) return res;
-          throw new Error(res.message || 'No se pudo liberar el documento');
-        }),
-        catchError(err => this.handleError(err, `liberar ${id}`))
-      )
-    );
-  }
-
-  crearDocumento(dto: CreateRendicionCuentasDto): Observable<RendicionCuentasProceso> {
-    return this.waitForTokenAndExecute(() =>
-      this.http.post<any>(this.apiUrl, dto).pipe(
-        map(res => this.handleActionResponse(res, 'crear documento')),
-        catchError(err => this.handleError(err, 'crear documento'))
-      )
-    );
-  }
-
-  verArchivo(documentoId: string, tipo: 'informe' | 'adjunto' | 'resumen'): Observable<Blob> {
-    return this.waitForTokenAndExecute(() =>
-      this.http.get(`${this.apiUrl}/${documentoId}/archivo/${tipo}`, {
-        responseType: 'blob'
-      })
-    );
+    console.warn('liberarDocumento no está implementado en el backend actual');
+    return throwError(() => new Error('Método no implementado'));
   }
 
   // =============================================================================
-  // UTILIDADES (sin cambios)
+  // MÉTODOS DE MAPEO
   // =============================================================================
 
- // src/app/core/services/rendicion-cuentas.service.ts
-private handleListResponse(response: any, context: string): RendicionCuentasProceso[] {
-  console.log(`[RendicionService] Respuesta recibida en ${context}:`, response);
-  
-  // Caso 1: Respuesta con { ok: true, data: [...] }
-  if (response && response.ok === true && Array.isArray(response.data)) {
-    return response.data.map((d: any) => this.mapearProceso(d));
-  }
-  
-  // Caso 2: Respuesta directa como array
-  if (Array.isArray(response)) {
-    return response.map((d: any) => this.mapearProceso(d));
-  }
-  
-  // Caso 3: Respuesta con { data: [...] } (sin ok)
-  if (response && Array.isArray(response.data)) {
-    return response.data.map((d: any) => this.mapearProceso(d));
-  }
-  
-  // Caso 4: Respuesta con { data: { data: [...] } } (anidado)
-  if (response && response.data && Array.isArray(response.data.data)) {
-    return response.data.data.map((d: any) => this.mapearProceso(d));
-  }
-  
-  console.warn(`[RendicionService] Formato inesperado en ${context}:`, response);
-  return [];
-}
+  private handleListResponse(response: any): RendicionCuentasProceso[] {
+    if (response?.ok === true && Array.isArray(response.data)) {
+      return response.data.map((d: any) => this.mapearProceso(d));
+    }
 
-private handleActionResponse(response: any, action: string): RendicionCuentasProceso {
-  console.log(`[RendicionService] Respuesta de ${action}:`, response);
-  
-  if (response && response.ok === true && response.data) {
-    return this.mapearProceso(response.data);
+    if (Array.isArray(response)) {
+      return response.map((d: any) => this.mapearProceso(d));
+    }
+
+    if (response && Array.isArray(response.data)) {
+      return response.data.map((d: any) => this.mapearProceso(d));
+    }
+
+    if (response?.data && Array.isArray(response.data.data)) {
+      return response.data.data.map((d: any) => this.mapearProceso(d));
+    }
+
+    return [];
   }
-  
-  if (response && response.data) {
-    return this.mapearProceso(response.data);
+
+  private handleActionResponse(response: any): RendicionCuentasProceso {
+    if (response?.ok === true && response.data) {
+      return this.mapearProceso(response.data);
+    }
+
+    if (response?.data) {
+      return this.mapearProceso(response.data);
+    }
+
+    if (response?.id) {
+      return this.mapearProceso(response);
+    }
+
+    throw new Error(response?.message || 'Error en la operación');
   }
-  
-  if (response && response.id) {
-    return this.mapearProceso(response);
+
+  private mapearProceso(data: any): RendicionCuentasProceso {
+    if (!data) {
+      throw new Error('No se recibieron datos para mapear');
+    }
+
+    const procesoData = data.data || data;
+    
+    const posiblesIds = [
+      procesoData.id,
+      procesoData.documentoId,
+      procesoData.documento?.id,
+      procesoData.rendicionId
+    ].filter(id => id !== undefined && id !== null && id !== '');
+
+    const id = posiblesIds[0] || '';
+
+    let estado = procesoData.estado || procesoData.estadoRendicion;
+    const estaDisponible = procesoData.disponible === true;
+
+    if (estaDisponible) {
+      estado = RendicionCuentasEstado.PENDIENTE;
+    } else {
+      estado = this.normalizarEstado(estado);
+    }
+
+    return {
+      id: id,
+      documentoId: procesoData.documento?.id || procesoData.documentoId || procesoData.id || '',
+      documento: procesoData.documento || {},
+      responsableId: procesoData.responsableId,
+      responsable: procesoData.responsable,
+      estado: estado,
+      observaciones: procesoData.observaciones || procesoData.observacionesRendicion,
+      fechaAsignacion: procesoData.fechaAsignacion ? new Date(procesoData.fechaAsignacion) : undefined,
+      fechaInicioRevision: procesoData.fechaInicioRevision ? new Date(procesoData.fechaInicioRevision) : undefined,
+      fechaDecision: procesoData.fechaDecision ? new Date(procesoData.fechaDecision) : undefined,
+      fechaCreacion: new Date(procesoData.fechaCreacion || procesoData.fechaRadicacion || new Date()),
+      fechaActualizacion: new Date(procesoData.fechaActualizacion || new Date()),
+
+      numeroRadicado: procesoData.documento?.numeroRadicado || procesoData.numeroRadicado,
+      nombreContratista: procesoData.documento?.nombreContratista || procesoData.nombreContratista,
+      documentoContratista: procesoData.documento?.documentoContratista || procesoData.documentoContratista,
+      numeroContrato: procesoData.documento?.numeroContrato || procesoData.numeroContrato,
+      contadorAsignado: procesoData.documento?.contadorAsignado || procesoData.contadorAsignado,
+      fechaCompletadoContabilidad: procesoData.documento?.fechaCompletadoContabilidad 
+        ? new Date(procesoData.documento.fechaCompletadoContabilidad) 
+        : undefined,
+      disponible: estaDisponible,
+
+      informesPresentados: procesoData.informesPresentados || [],
+      documentosAdjuntos: procesoData.documentosAdjuntos || [],
+      montoRendido: procesoData.montoRendido,
+      montoAprobado: procesoData.montoAprobado,
+      observacionesRendicion: procesoData.observacionesRendicion
+    };
   }
-  
-  throw new Error(response?.message || `Fallo al ${action}`);
-}
 
   private handleError(error: any, context: string): Observable<never> {
     const msg = error.error?.message || error.message || `Error al ${context}`;
@@ -260,73 +299,18 @@ private handleActionResponse(response: any, action: string): RendicionCuentasPro
     return throwError(() => new Error(msg));
   }
 
-  private mapearProceso(data: any): RendicionCuentasProceso {
-    const estado = this.normalizarEstado(data.estado || data.estadoRendicion);
-    
-    return {
-      id: data.id,
-      documentoId: data.documentoId || data.id,
-      documento: data.documento,
-      responsableId: data.responsableId,
-      responsable: data.responsable,
-      estado,
-      observaciones: data.observaciones || data.observacionesRendicion,
-      fechaAsignacion: data.fechaAsignacion ? new Date(data.fechaAsignacion) : undefined,
-      fechaInicioRevision: data.fechaInicioRevision ? new Date(data.fechaInicioRevision) : undefined,
-      fechaDecision: data.fechaDecision ? new Date(data.fechaDecision) : undefined,
-      fechaCreacion: new Date(data.fechaCreacion),
-      fechaActualizacion: new Date(data.fechaActualizacion),
-      
-      numeroRadicado: data.documento?.numeroRadicado || data.numeroRadicado,
-      nombreContratista: data.documento?.nombreContratista || data.nombreContratista,
-      documentoContratista: data.documento?.documentoContratista || data.documentoContratista,
-      numeroContrato: data.documento?.numeroContrato || data.numeroContrato,
-      contadorAsignado: data.documento?.contadorAsignado || data.contadorAsignado,
-      fechaCompletadoContabilidad: data.documento?.fechaCompletadoContabilidad 
-        ? new Date(data.documento.fechaCompletadoContabilidad) 
-        : undefined,
-      disponible: estado === RendicionCuentasEstado.PENDIENTE && !data.responsableId,
-      
-      informesPresentados: data.informesPresentados || [],
-      documentosAdjuntos: data.documentosAdjuntos || [],
-      montoRendido: data.montoRendido,
-      montoAprobado: data.montoAprobado,
-      observacionesRendicion: data.observacionesRendicion
-    };
-  }
-
-  private mapearHistorial(data: any): RendicionCuentasHistorialItem {
-    return {
-      id: data.id,
-      documentoId: data.documentoId,
-      usuarioId: data.usuarioId,
-      usuarioNombre: data.usuario?.nombreCompleto || data.usuarioNombre || 'Sistema',
-      estadoAnterior: this.normalizarEstado(data.estadoAnterior),
-      estadoNuevo: this.normalizarEstado(data.estadoNuevo),
-      accion: data.accion,
-      observacion: data.observacion,
-      fechaCreacion: new Date(data.fechaCreacion),
-      documento: data.documento ? {
-        numeroRadicado: data.documento.numeroRadicado,
-        nombreContratista: data.documento.nombreContratista,
-        numeroContrato: data.documento.numeroContrato
-      } : undefined
-    };
-  }
-
   normalizarEstado(estadoRaw: string | undefined): RendicionCuentasEstado | string {
     if (!estadoRaw) return 'DESCONOCIDO';
-    
+
     const upper = estadoRaw.toUpperCase().trim();
+
+    if (upper.includes('COMPLETADO') || upper.includes('APROBADO')) return RendicionCuentasEstado.COMPLETADO;
+    if (upper.includes('EN_REVISION')) return RendicionCuentasEstado.EN_REVISION;
+    if (upper.includes('PENDIENTE')) return RendicionCuentasEstado.PENDIENTE;
+    if (upper.includes('OBSERVADO')) return RendicionCuentasEstado.OBSERVADO;
+    if (upper.includes('RECHAZADO')) return RendicionCuentasEstado.RECHAZADO;
     
-    switch (true) {
-      case upper.includes('COMPLETADO') || upper.includes('APROBADO'): return RendicionCuentasEstado.COMPLETADO;
-      case upper.includes('EN_REVISION'): return RendicionCuentasEstado.EN_REVISION;
-      case upper.includes('PENDIENTE'): return RendicionCuentasEstado.PENDIENTE;
-      case upper.includes('OBSERVADO'): return RendicionCuentasEstado.OBSERVADO;
-      case upper.includes('RECHAZADO'): return RendicionCuentasEstado.RECHAZADO;
-      default: return upper;
-    }
+    return upper;
   }
 
   getEstadoClass(estado: string | RendicionCuentasEstado | undefined): string {
