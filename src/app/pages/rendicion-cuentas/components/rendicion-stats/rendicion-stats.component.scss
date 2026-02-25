@@ -1,0 +1,50 @@
+// src/app/pages/rendicion-cuentas/rendicion-stats/rendicion-stats.component.scss
+.stats-container {
+  background-color: #f8f9fa;
+  min-height: 100%;
+}
+
+.card {
+  border: none;
+  border-radius: 8px;
+  
+  .card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    font-weight: 500;
+  }
+}
+
+.badge {
+  &-warning { background-color: #ffc107; color: #000; }
+  &-info { background-color: #0dcaf0; color: #000; }
+  &-success { background-color: #198754; color: #fff; }
+  &-danger { background-color: #dc3545; color: #fff; }
+  &-secondary { background-color: #6c757d; color: #fff; }
+  &-primary { background-color: #0d6efd; color: #fff; }
+  &-light { background-color: #f8f9fa; color: #000; }
+}
+
+.list-group-item {
+  transition: background-color 0.2s;
+  
+  &:hover {
+    background-color: #f8f9fa;
+  }
+}
+
+.nav-tabs {
+  .nav-link {
+    color: #495057;
+    font-weight: 500;
+    
+    &.active {
+      color: #10B981;
+      border-bottom: 2px solid #10B981;
+    }
+    
+    .badge {
+      font-size: 0.75rem;
+    }
+  }
+}

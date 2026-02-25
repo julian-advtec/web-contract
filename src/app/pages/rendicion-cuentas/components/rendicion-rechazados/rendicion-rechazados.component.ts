@@ -31,16 +31,25 @@ export class RendicionRechazadosComponent implements OnInit, OnDestroy {
   totalPages = 0;
   pages: number[] = [];
 
+   Math = Math;
+
   sidebarCollapsed = false;
 
-  private estadosRechazo = ['RECHAZADO', 'OBSERVADO', 'RECHAZADO_RENDICION_CUENTAS', 'OBSERVADO_RENDICION_CUENTAS'];
+  // Estados de rechazo/observado (en minúsculas para comparar)
+  private estadosRechazo = [
+    'rechazado_rendicion_cuentas',
+    'rechazado',
+    'observado_rendicion_cuentas',
+    'observado'
+  ];
+
   private destroy$ = new Subject<void>();
 
   constructor(
     private rendicionService: RendicionCuentasService,
     private notificationService: NotificationService,
     private router: Router
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.cargarDocumentosRechazados();
@@ -55,19 +64,28 @@ export class RendicionRechazadosComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.errorMessage = '';
 
-    this.rendicionService.obtenerDocumentosDisponibles()
+    // CAMBIO IMPORTANTE: Usar obtenerTodosDocumentos() en lugar de obtenerDocumentosDisponibles()
+    this.rendicionService.obtenerTodosDocumentos()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (docs: RendicionCuentasProceso[]) => {
-          this.documentos = docs.filter(d => 
-            this.estadosRechazo.includes((d.estado || '').toString().toUpperCase())
-          );
+        next: (docs: any[]) => {
+          console.log('📥 Documentos recibidos para rechazados:', docs);
+
+          // Filtrar solo los que están en estados de rechazo/observado
+          this.documentos = docs.filter(doc => {
+            const estado = (doc.estado || '').toString().toLowerCase();
+            return this.estadosRechazo.some(e => estado.includes(e));
+          });
+
+          console.log('📊 Documentos rechazados filtrados:', this.documentos.length);
+
           this.filteredDocumentos = [...this.documentos];
           this.updatePagination();
           this.isLoading = false;
         },
         error: (err: any) => {
-          this.errorMessage = err.message || 'No se pudieron cargar los documentos';
+          console.error('❌ Error cargando documentos rechazados:', err);
+          this.errorMessage = err.message || 'No se pudieron cargar los documentos rechazados';
           this.documentos = [];
           this.filteredDocumentos = [];
           this.updatePagination();
@@ -80,7 +98,7 @@ export class RendicionRechazadosComponent implements OnInit, OnDestroy {
     if (!this.searchTerm.trim()) {
       this.filteredDocumentos = [...this.documentos];
     } else {
-      const term = this.searchTerm.toLowerCase();
+      const term = this.searchTerm.toLowerCase().trim();
       this.filteredDocumentos = this.documentos.filter(doc =>
         (doc.numeroRadicado?.toLowerCase()?.includes(term) ?? false) ||
         (doc.nombreContratista?.toLowerCase()?.includes(term) ?? false) ||
@@ -124,11 +142,17 @@ export class RendicionRechazadosComponent implements OnInit, OnDestroy {
 
   formatDate(fecha: Date | string | undefined): string {
     if (!fecha) return 'N/A';
-    return new Date(fecha).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    });
+    try {
+      return new Date(fecha).toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return 'Fecha inválida';
+    }
   }
 
   getEstadoClass(estado: string | undefined): string {
@@ -139,29 +163,41 @@ export class RendicionRechazadosComponent implements OnInit, OnDestroy {
     return this.rendicionService.getEstadoTexto(estado || '');
   }
 
-  getMotivoRechazo(doc: RendicionCuentasProceso): string {
-    return doc.observaciones || doc.observacionesRendicion || 'Sin motivo especificado';
+  getMotivoRechazo(doc: any): string {
+    // Buscar en diferentes campos posibles
+    return doc.observaciones ||
+      doc.observacionesRendicion ||
+      doc.motivoRechazo ||
+      'Sin motivo especificado';
   }
 
-  esReciente(doc: RendicionCuentasProceso): boolean {
+  esReciente(doc: any): boolean {
     if (!doc.fechaDecision && !doc.fechaCreacion) return false;
     const fecha = doc.fechaDecision || doc.fechaCreacion;
-    const diffMs = new Date().getTime() - new Date(fecha).getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    return diffDays < 1;
+    try {
+      const diffMs = new Date().getTime() - new Date(fecha).getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      return diffDays < 2; // Menos de 2 días
+    } catch {
+      return false;
+    }
   }
 
-  getFechaRechazo(doc: RendicionCuentasProceso): Date | undefined {
+  getFechaRechazo(doc: any): Date | undefined {
     return doc.fechaDecision || doc.fechaCreacion;
   }
 
   getDiasTranscurridos(fecha: Date | string | undefined): number {
     if (!fecha) return 0;
-    const diffMs = new Date().getTime() - new Date(fecha).getTime();
-    return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    try {
+      const diffMs = new Date().getTime() - new Date(fecha).getTime();
+      return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    } catch {
+      return 0;
+    }
   }
 
-  getDiasClass(doc: RendicionCuentasProceso): string {
+  getDiasClass(doc: any): string {
     const dias = this.getDiasTranscurridos(this.getFechaRechazo(doc));
     if (dias < 1) return 'text-success';
     if (dias <= 3) return 'text-primary';
@@ -169,36 +205,52 @@ export class RendicionRechazadosComponent implements OnInit, OnDestroy {
     return 'text-danger';
   }
 
-  getRechazadoPorNombre(doc: RendicionCuentasProceso): string {
+  getRechazadoPorNombre(doc: any): string {
+    // Intentar obtener el nombre del responsable de varias formas
     if (typeof doc.responsable === 'string') {
       return doc.responsable;
     }
+
     if (doc.responsable && typeof doc.responsable === 'object') {
-      return (doc.responsable as any).nombreCompleto || (doc.responsable as any).fullName || 'Sistema';
+      return (doc.responsable as any).nombreCompleto ||
+        (doc.responsable as any).fullName ||
+        (doc.responsable as any).username ||
+        'Sistema';
     }
+
+    if (doc.responsableNombre) {
+      return doc.responsableNombre;
+    }
+
     return 'Sistema';
   }
 
   getRechazadoClass(estado: string | undefined): string {
-    const e = (estado || '').toString().toUpperCase();
-    if (e.includes('OBSERVADO')) return 'bg-warning text-dark';
-    if (e.includes('RECHAZADO')) return 'bg-danger';
-    return 'bg-secondary';
+    const e = (estado || '').toString().toLowerCase();
+    if (e.includes('observado')) return 'bg-warning text-dark';
+    if (e.includes('rechazado')) return 'bg-danger text-white';
+    return 'bg-secondary text-white';
   }
 
-  getTooltipInfo(doc: RendicionCuentasProceso): string {
-    return `Rechazado: ${this.getFechaRechazo(doc)?.toLocaleDateString() || 'N/A'}\nMotivo: ${this.getMotivoRechazo(doc)}`;
+  getTooltipInfo(doc: any): string {
+    const fecha = this.getFechaRechazo(doc);
+    return `Rechazado: ${fecha ? new Date(fecha).toLocaleDateString() : 'N/A'}\nMotivo: ${this.getMotivoRechazo(doc)}`;
   }
 
   verDetalle(id: string): void {
     this.router.navigate(['/rendicion-cuentas/procesar', id, { modo: 'consulta' }]);
   }
 
-  mostrarInfoRechazo(doc: RendicionCuentasProceso): void {
+  mostrarInfoRechazo(doc: any): void {
     this.notificationService.info('Motivo de rechazo', this.getMotivoRechazo(doc));
   }
 
-  trackById(index: number, doc: RendicionCuentasProceso): string {
-    return doc.id || index.toString();
+  trackById(index: number, doc: any): string {
+    return doc.id || doc.rendicionId || index.toString();
+  }
+
+  esObservado(doc: any): boolean {
+    const estado = (doc.estado || '').toString().toLowerCase();
+    return estado.includes('observado');
   }
 }

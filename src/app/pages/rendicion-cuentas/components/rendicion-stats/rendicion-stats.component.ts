@@ -4,55 +4,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { debounceTime, Subject } from 'rxjs';
-
-// Cambia esta importación
-import { EstadisticasRendicionCuentasService } from '../../../../core/services/estadisticas-rendicion-cuentas.service';
+import { EstadisticasRendicionCuentasService, EstadisticasRendicionCuentas, FiltrosStats, PeriodoStats } from '../../../../core/services/estadisticas-rendicion-cuentas.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import Chart from 'chart.js/auto';
-
-// Define los tipos localmente
-export enum PeriodoStats {
-  HOY = 'hoy',
-  SEMANA = 'semana',
-  MES = 'mes',
-  TRIMESTRE = 'trimestre',
-  SEMESTRE = 'semestre',
-  ANIO = 'anio'
-}
-
-export interface FiltrosStats {
-  periodo: PeriodoStats;
-  soloMios: boolean;
-  estado?: string;
-  fechaInicio?: string;
-  fechaFin?: string;
-  tipoDocumento?: string;
-}
-
-export interface DistribucionEstado {
-  estado: string;
-  cantidad: number;
-  monto: number;
-  color: string;
-}
-
-export interface EstadisticasRendicionCuentas {
-  documentos: any;
-  montos: any;
-  distribucion: DistribucionEstado[];
-  actividadReciente: any[];
-  pendientes: any[];
-  procesados: any[];
-  fechaCalculo: Date;
-  desde: Date;
-  hasta: Date;
-  resumen?: any;
-  metricas?: any;
-  tiempos?: any;
-  misMetricas?: any;
-  documentosPendientes?: any[];
-  documentosProcesados?: any[];
-}
 
 @Component({
   selector: 'app-rendicion-stats',
@@ -91,7 +45,6 @@ export class RendicionStatsComponent implements OnInit, OnDestroy, AfterViewInit
   private chartInstance: any = null;
 
   constructor(
-    // Cambia esto para usar el servicio correcto
     private estadisticasService: EstadisticasRendicionCuentasService,
     private authService: AuthService,
     private currencyPipe: CurrencyPipe,
@@ -111,7 +64,7 @@ export class RendicionStatsComponent implements OnInit, OnDestroy, AfterViewInit
 
   ngAfterViewInit(): void {
     if (this.estadisticas?.distribucion?.length && this.activeTab === 'resumen') {
-      this.renderizarGrafico();
+      setTimeout(() => this.renderizarGrafico(), 500);
     }
   }
 
@@ -140,10 +93,14 @@ export class RendicionStatsComponent implements OnInit, OnDestroy, AfterViewInit
     this.estadisticas = null;
     this.cdr.detectChanges();
 
-    // Usa el método del servicio correcto
+    console.log('🚀 Cargando estadísticas con filtros:', this.filtros);
+
     this.estadisticasService.obtenerEstadisticas(this.filtros).subscribe({
-      next: (data: any) => {
+      next: (data) => {
+        console.log('📈 Estadísticas recibidas del backend:', data);
         this.estadisticas = data;
+        console.log('📊 Resumen:', data.resumen);
+        console.log('📊 Pendientes:', data.resumen?.pendientes);
         this.isLoading = false;
         this.cdr.detectChanges();
 
@@ -153,9 +110,9 @@ export class RendicionStatsComponent implements OnInit, OnDestroy, AfterViewInit
           }
         }, 500);
       },
-      error: (err: any) => {
-        console.error('Error:', err);
-        this.errorMessage = 'Error al cargar estadísticas';
+      error: (err) => {
+        console.error('❌ Error detallado:', err);
+        this.errorMessage = err.message || 'Error al cargar estadísticas';
         this.isLoading = false;
         this.cdr.detectChanges();
       }
@@ -171,6 +128,7 @@ export class RendicionStatsComponent implements OnInit, OnDestroy, AfterViewInit
   }
 
   recargar(): void {
+    this.filtrosAnteriores = { periodo: '' as any, soloMios: false };
     this.cargarEstadisticas();
   }
 
@@ -190,16 +148,10 @@ export class RendicionStatsComponent implements OnInit, OnDestroy, AfterViewInit
   formatearFechaCorta(fecha: Date | string | null | undefined): string {
     if (!fecha) return '—';
     const fechaReal = typeof fecha === 'string' ? new Date(fecha) : fecha;
-    return this.datePipe.transform(fechaReal, 'dd/MM') || '—';
+    return this.datePipe.transform(fechaReal, 'dd/MM/yyyy') || '—';
   }
 
   getBadgeClass(estado: string | null | undefined): string {
-    // Necesitarás inyectar RendicionCuentasService para esto o mover la lógica
-    return this.getEstadoClass(estado || '');
-  }
-
-  // Método auxiliar para clases de estado
-  private getEstadoClass(estado: string): string {
     const estadoMap: { [key: string]: string } = {
       'PENDIENTE': 'badge-warning',
       'EN_REVISION': 'badge-info',
@@ -207,19 +159,16 @@ export class RendicionStatsComponent implements OnInit, OnDestroy, AfterViewInit
       'OBSERVADO': 'badge-secondary',
       'RECHAZADO': 'badge-danger',
       'RECHAZADO_RENDICION': 'badge-danger',
-      'COMPLETADO': 'badge-primary'
+      'COMPLETADO': 'badge-primary',
+      'ESPERA_APROBACION_GERENCIA': 'badge-info',
+      'APROBADO_POR_GERENCIA': 'badge-success'
     };
-    return estadoMap[estado] || 'badge-light';
+    return estadoMap[estado || ''] || 'badge-light';
   }
 
   getResumenPeriodo(): string {
     if (!this.estadisticas?.desde || !this.estadisticas?.hasta) return '';
     return `${this.formatearFechaCorta(this.estadisticas.desde)} — ${this.formatearFechaCorta(this.estadisticas.hasta)}`;
-  }
-
-  formatearMoneda(valor: number | null | undefined): string {
-    if (valor == null || isNaN(valor)) return 'S/ 0';
-    return this.currencyPipe.transform(valor, 'S/ ', 'symbol', '1.0-0') || 'S/ 0';
   }
 
   private renderizarGrafico(): void {
@@ -238,27 +187,31 @@ export class RendicionStatsComponent implements OnInit, OnDestroy, AfterViewInit
       this.chartInstance = new Chart(canvas, {
         type: 'doughnut',
         data: {
-          labels: this.estadisticas!.distribucion.map((d: DistribucionEstado) => d.estado),
+          labels: this.estadisticas!.distribucion.map(d => d.estado),
           datasets: [{
-            data: this.estadisticas!.distribucion.map((d: DistribucionEstado) => d.cantidad),
-            backgroundColor: this.estadisticas!.distribucion.map((d: DistribucionEstado) => d.color),
+            data: this.estadisticas!.distribucion.map(d => d.cantidad),
+            backgroundColor: this.estadisticas!.distribucion.map(d => d.color),
             borderWidth: 1,
             borderColor: '#ffffff'
           }]
         },
         options: {
-          responsive: false,
+          responsive: true,
           maintainAspectRatio: false,
           cutout: '65%',
-          animation: { duration: 0 },
           plugins: {
-            legend: { display: false },
+            legend: { 
+              position: 'bottom',
+              labels: { boxWidth: 12 }
+            },
             tooltip: {
               callbacks: {
                 label: (context: any) => {
                   const label = context.label || '';
                   const value = context.raw as number;
-                  return `${label}: ${value} docs`;
+                  const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                  const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                  return `${label}: ${value} docs (${percentage}%)`;
                 }
               }
             }
