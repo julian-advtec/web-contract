@@ -97,6 +97,8 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
 
+  private _documentoIdSeguro: string | null = null;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -112,63 +114,85 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
 
     this.initializeForm();
 
-    // ✅ DETECTAR SI ES MODO AUDITOR DESDE LA RUTA
+    // Detectar modo auditor
     this.esModoAuditor = this.router.url.includes('/auditor/');
     console.log('🔍 Detectando contexto:', {
       url: this.router.url,
-      esModoAuditor: this.esModoAuditor
+      esModoAuditor: this.esModoAuditor,
+      inputDocumentoId: this.documentoId || 'NO RECIBIDO AÚN',
+      modoInput: this.modo,
+      soloLecturaInput: this.soloLectura
     });
 
-    // Obtener parámetros de la ruta
-    this.route.queryParams.subscribe(params => {
+    // ───────────────────────────────────────────────────────────────
+    // PRIORIDAD: @Input > ruta → y GUARDAR COPIA SEGURA
+    // ───────────────────────────────────────────────────────────────
+    let idFinal: string | null = null;
+
+    if (this.documentoId) {
+      idFinal = this.documentoId;
+      console.log('✅ PRIORIDAD 1 → Usando documentoId recibido por @Input:', idFinal);
+    } else {
+      const idFromRoute = this.route.snapshot.paramMap.get('id');
+      if (idFromRoute) {
+        idFinal = idFromRoute;
+        console.log('⚠️ No hay @Input → fallback a ID de ruta:', idFinal);
+      }
+    }
+
+    if (!idFinal) {
+      console.error('[SupervisorForm] No se recibió ningún ID válido');
+      this.notificationService.error('Error crítico', 'No se pudo identificar el documento');
+      this.isLoading = false;
+      return;
+    }
+
+    // ¡Aquí guardamos la copia que nunca se pierde!
+    this._documentoIdSeguro = idFinal;
+    console.log('🛡️ ID guardado de forma segura internamente:', this._documentoIdSeguro);
+
+    // Query params
+    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
       this.desdeHistorial = params['desdeHistorial'] === 'true';
       this.determinarModoDesdeParams(params);
     });
 
-    // Obtener ID del documento
-    this.route.params.subscribe(params => {
-      this.documentoId = params['id'];
-      console.log('📋 ID del documento:', this.documentoId);
-      this.cargarDocumentoCompleto(this.documentoId);
-    });
-
-    // Suscripciones a cambios en el formulario
-    this.revisionForm.get('estadoRevision')?.valueChanges
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(estado => {
-        this.onEstadoChange(estado);
-      });
-
-    this.revisionForm.get('esUltimoRadicado')?.valueChanges
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(esUltimo => {
-        this.onUltimoRadicadoChange(esUltimo);
-        setTimeout(() => {
-          this.verificarConsistenciaDatos();
-        }, 100);
-      });
-
-    const vieneDeContabilidad = this.modo === 'contabilidad' || this.soloLectura === true;
-
-    if (vieneDeContabilidad) {
+    // Forzar modo solo lectura si viene de contabilidad
+    if (this.modo === 'contabilidad' || this.soloLectura === true) {
       console.log('[SUPERVISOR] Detectado modo CONTABILIDAD o soloLectura=true → BLOQUEO TOTAL');
-
       this.soloLectura = true;
       this.modoEdicion = false;
-      this.esModoAuditor = true;  // simula auditor para ocultar edición
+      this.esModoAuditor = true;
 
-      // Bloqueo completo
       this.revisionForm.disable({ emitEvent: false });
       this.mostrarCampoArchivo = false;
       this.archivoAprobacion = null;
       this.archivoPazSalvo = null;
 
-      // Bloqueo manual extra por si acaso
       ['estadoRevision', 'observacionSupervisor', 'correcciones', 'esUltimoRadicado']
         .forEach(campo => this.revisionForm.get(campo)?.disable({ emitEvent: false }));
-
-      this.cdr.detectChanges();
     }
+
+    // Cargar con el ID correcto
+    this.cargarDocumentoCompleto(idFinal);
+
+    // Suscripciones a valueChanges
+    this.revisionForm.get('estadoRevision')?.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(estado => this.onEstadoChange(estado));
+
+    this.revisionForm.get('esUltimoRadicado')?.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(esUltimo => {
+        this.onUltimoRadicadoChange(esUltimo);
+        setTimeout(() => this.verificarConsistenciaDatos(), 100);
+      });
+
+    // Debug: verificar que el ID sobrevive después de 1 segundo
+    setTimeout(() => {
+      console.log('[SupervisorForm DEBUG] Después de 1s → documentoId input:', this.documentoId);
+      console.log('[SupervisorForm DEBUG] ID seguro interno:', this._documentoIdSeguro);
+    }, 1000);
   }
 
   ngOnDestroy(): void {
@@ -246,41 +270,52 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
    * ✅ Carga el documento completo con toda la información
    */
   cargarDocumentoCompleto(id: string): void {
+    // Protección final: si por alguna razón el id no coincide con el @Input, forzar el correcto
+    if (this.documentoId && this.documentoId !== id) {
+      console.warn(
+        '[SupervisorForm] ¡ID recibido en cargarDocumentoCompleto NO coincide con @Input! ' +
+        'Forzando uso del documentoId correcto recibido del padre.'
+      );
+      console.log('  → ID recibido:', id);
+      console.log('  → ID forzado (@Input):', this.documentoId);
+      id = this.documentoId;
+    }
+
     this.isLoading = true;
 
-    console.log('📥 Cargando documento completo...', {
-      id,
+    console.log('📥 Iniciando carga completa del documento con ID:', id, {
       modoEdicion: this.modoEdicion,
       soloLectura: this.soloLectura,
       desdeHistorial: this.desdeHistorial,
-      esModoAuditor: this.esModoAuditor
+      esModoAuditor: this.esModoAuditor,
+      modoInput: this.modo
     });
 
-    // ✅ DIFERENCIAR SERVICIO SEGÚN MODO
+    // Diferenciar servicio según modo
     let servicioObservable: Observable<any>;
 
     if (this.esModoAuditor) {
-      // Endpoint correcto para auditor (vista)
-      servicioObservable = this.auditorService.obtenerDocumentoParaVista(id); // ← Usa este método
+      console.log('→ Usando servicio AUDITOR para vista');
+      servicioObservable = this.auditorService.obtenerDocumentoParaVista(id);
     } else {
+      console.log('→ Usando servicio SUPERVISOR normal');
       servicioObservable = this.supervisorService.obtenerDocumentoPorId(id);
     }
 
     servicioObservable
       .pipe(
         map((response: any) => {
-          console.log('📊 Documento recibido:', response);
-
+          console.log('📊 Respuesta cruda del servicio:', response);
           const documentoData = response?.data?.documento ||
             response?.documento ||
             response?.data ||
             response;
-
           return documentoData;
         }),
         catchError(error => {
           console.error('❌ Error cargando documento:', error);
           this.notificationService.error('Error', 'No se pudo cargar la información del documento');
+          this.isLoading = false;
           return of(null);
         })
       )
@@ -293,50 +328,45 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
 
           this.radicadoData = documentoData;
 
-          console.log('🔍 Datos del documento recibido:', {
+          console.log('🔍 Datos del documento recibidos:', {
             estado: documentoData.estado,
             supervisorAsignado: documentoData.supervisorAsignado,
-            asignacion: documentoData.asignacion,
-            modoActual: {
-              soloLectura: this.soloLectura,
-              modoEdicion: this.modoEdicion,
-              desdeHistorial: this.desdeHistorial,
-              esModoAuditor: this.esModoAuditor
-            }
+            asignacion: documentoData.asignacion
           });
 
-          // ✅ CARGAR DATOS ESPECÍFICOS DE AUDITOR SI CORRESPONDE
+          // Cargar datos específicos de auditor si aplica
           if (this.esModoAuditor) {
             this.cargarDatosAuditorEspecificos(documentoData);
           }
 
-          // ✅ SI NO HAY PARÁMETROS EXPLÍCITOS, DETERMINAR MODO DESDE DOCUMENTO
+          // Determinar modo si no está forzado
           if (!this.modoYaDeterminado()) {
             this.determinarModoDesdeDocumento(documentoData);
           }
 
-          // Cargar datos en el formulario
+          // Poblar formulario y documentos
           this.poblarFormulario(documentoData);
           this.cargarDocumentosExistentes(documentoData);
 
-          // ✅ CARGAR ARCHIVOS DEL SUPERVISOR DESDE EL BACKEND
+          // Cargar archivos del supervisor
           this.cargarArchivosSupervisorDesdeBackend(id, documentoData);
 
           this.isLoading = false;
 
-          // Configurar formulario según el modo FINAL
+          // Configurar form según modo final
           this.configurarFormularioSegunModo();
 
-          console.log('✅ Documento cargado. Modo final:', {
+          console.log('✅ Carga completa finalizada. Modo actual:', {
             soloLectura: this.soloLectura,
             modoEdicion: this.modoEdicion,
-            estado: documentoData.estado,
-            desdeHistorial: this.desdeHistorial,
             esModoAuditor: this.esModoAuditor
           });
 
-          // Mostrar notificación del modo actual
           this.mostrarNotificacionModo();
+        },
+        error: (err) => {
+          console.error('[SupervisorForm] Falló carga completa con ID:', id, err);
+          this.isLoading = false;
         }
       });
   }
@@ -1593,67 +1623,89 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
   }
 
   guardarRevision(): void {
-    if (this.soloLectura || this.esModoAuditor) {
-      this.notificationService.warning('Acción bloqueada', 'No puedes guardar en modo consulta o auditoría.');
-      return;
-    }
+  // Usar SIEMPRE la copia segura
+  const idParaGuardar = this._documentoIdSeguro;
 
-    if (this.revisionForm.invalid) {
-      this.notificationService.warning('Formulario incompleto', 'Completa los campos requeridos');
-      return;
-    }
-
-    const estado = this.revisionForm.get('estadoRevision')?.value;
-    const esUltimo = this.revisionForm.get('esUltimoRadicado')?.value;
-
-    if (estado === 'APROBADO') {
-      if (!this.archivoAprobacion && !this.tieneAprobacionExistente()) {
-        this.notificationService.error('Error', 'Debe adjuntar documento de aprobación');
-        return;
-      }
-      if (esUltimo && !this.archivoPazSalvo && !this.tienePazSalvoExistente()) {
-        this.notificationService.error('Error', 'Debe adjuntar paz y salvo para último radicado');
-        return;
-      }
-    }
-
-    if (!confirm('¿Guardar revisión? Esto cambiará el estado del documento.')) return;
-
-    this.isProcessing = true;
-    const valores = this.revisionForm.getRawValue();
-
-    const payload = {
-      estado,
-      observacion: valores.observacionSupervisor,
-      correcciones: valores.correcciones || '',
-      requierePazSalvo: esUltimo,
-      esUltimoRadicado: Boolean(esUltimo)
-    };
-
-    let request: Observable<any>;
-
-    if (estado === 'APROBADO' && (this.archivoAprobacion || this.archivoPazSalvo)) {
-      request = this.supervisorService.guardarRevisionConArchivo(
-        this.documentoId,
-        payload,
-        this.archivoAprobacion,
-        esUltimo ? this.archivoPazSalvo : null
-      );
-    } else {
-      request = this.supervisorService.guardarRevision(this.documentoId, payload);
-    }
-
-    request.subscribe({
-      next: () => {
-        this.notificationService.success('Éxito', 'Revisión guardada correctamente');
-        this.isProcessing = false;
-        setTimeout(() => this.volverALista(), 1500);
-      },
-      error: () => {
-        this.notificationService.error('Error', 'No se pudo guardar la revisión');
-        this.isProcessing = false;
-      }
-    });
+  if (!idParaGuardar) {
+    console.error('[SupervisorForm] ¡Intento de guardar sin ID seguro!');
+    this.notificationService.error(
+      'Error crítico',
+      'ID del documento no disponible. Recarga la página e intenta de nuevo.'
+    );
+    return;
   }
+
+  console.log('[SupervisorForm] Guardando revisión con ID seguro:', idParaGuardar);
+
+  if (this.soloLectura || this.esModoAuditor) {
+    this.notificationService.warning('Acción bloqueada', 'No puedes guardar en modo consulta o auditoría.');
+    return;
+  }
+
+  if (this.revisionForm.invalid) {
+    this.notificationService.warning('Formulario incompleto', 'Completa los campos requeridos');
+    this.revisionForm.markAllAsTouched();
+    return;
+  }
+
+  const estado = this.revisionForm.get('estadoRevision')?.value;
+  const esUltimo = this.revisionForm.get('esUltimoRadicado')?.value;
+
+  if (estado === 'APROBADO') {
+    if (!this.archivoAprobacion && !this.tieneAprobacionExistente()) {
+      this.notificationService.error('Error', 'Debe adjuntar documento de aprobación');
+      return;
+    }
+    if (esUltimo && !this.archivoPazSalvo && !this.tienePazSalvoExistente()) {
+      this.notificationService.error('Error', 'Debe adjuntar paz y salvo para último radicado');
+      return;
+    }
+  }
+
+  if (!confirm('¿Guardar revisión? Esto cambiará el estado del documento.')) return;
+
+  this.isProcessing = true;
+  const valores = this.revisionForm.getRawValue();
+
+  const payload = {
+    estado,
+    observacion: valores.observacionSupervisor || '',
+    correcciones: valores.correcciones || '',
+    requierePazSalvo: esUltimo,
+    esUltimoRadicado: Boolean(esUltimo)
+  };
+
+  console.log('[SupervisorForm] Enviando payload:', { id: idParaGuardar, payload });
+
+  let request: Observable<any>;
+
+  if (estado === 'APROBADO' && (this.archivoAprobacion || this.archivoPazSalvo)) {
+    request = this.supervisorService.guardarRevisionConArchivo(
+      idParaGuardar,  // ← Usar el seguro
+      payload,
+      this.archivoAprobacion,
+      esUltimo ? this.archivoPazSalvo : null
+    );
+  } else {
+    request = this.supervisorService.guardarRevision(idParaGuardar, payload);
+  }
+
+  request.subscribe({
+    next: (response) => {
+      console.log('[SupervisorForm] Revisión guardada OK:', response);
+      this.notificationService.success('Éxito', 'Revisión guardada correctamente');
+      this.isProcessing = false;
+      setTimeout(() => this.volverALista(), 1500);
+    },
+    error: (err) => {
+      console.error('[SupervisorForm] Error al guardar:', err);
+      let msg = 'No se pudo guardar la revisión';
+      if (err.status === 400) msg = 'Datos inválidos enviados al servidor';
+      if (err.error?.message) msg = err.error.message;
+      this.notificationService.error('Error', msg);
+      this.isProcessing = false;
+    }
+  });
+}
 
 }

@@ -35,17 +35,14 @@ interface DocumentoAuditoriaItem {
   styleUrls: ['./auditor-form.component.scss']
 })
 export class AuditorFormComponent implements OnInit, OnDestroy {
-  @Input() documentoIdExterno?: string;
+  @Input() documentoId: string | null = null;
   @Input() modo: 'auditoria' | 'contabilidad' | 'general' = 'auditoria';
   @Input() soloLectura: boolean = false;
-
-  documentoId: string = '';
 
   isLoading = false;
   isProcessing = false;
   subiendoArchivos = false;
 
-  // Variables necesarias para que compile (antes daban error)
   documentoEnRevision = false;
   estaEnRevision = false;
   isDownloadingAll = false;
@@ -59,7 +56,6 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
   observacionesRevision = '';
   decisionSeleccionada = '';
 
-  // Variables para modo solo lectura
   decisionAuditor: string = '';
   observacionAuditor: string = '';
   fechaDecisionAuditor: Date | null = null;
@@ -105,95 +101,82 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef
   ) { }
 
-ngOnInit(): void {
-  console.log('AUDITOR - Iniciando ngOnInit...');
-  console.log('Inputs recibidos:', {
-    documentoIdExterno: this.documentoIdExterno,
-    modo: this.modo,
-    soloLectura: this.soloLectura
-  });
+  ngOnInit(): void {
+    console.log('AUDITOR - Iniciando ngOnInit...');
+    console.log('Inputs recibidos:', {
+      documentoId: this.documentoId,
+      modo: this.modo,
+      soloLectura: this.soloLectura
+    });
 
-  // Determinar modo contabilidad/general
-  this.esModoContabilidad = this.modo === 'contabilidad';
-  this.esModoGeneral = this.modo === 'general';
+    this.esModoContabilidad = this.modo === 'contabilidad';
+    this.esModoGeneral = this.modo === 'general';
 
-  // FORZAR solo lectura TOTAL cuando:
-  // - Viene explícitamente con soloLectura=true (desde contabilidad)
-  // - Está en modo contabilidad
-  // - Está en modo general
-  if (this.soloLectura === true || this.esModoContabilidad || this.esModoGeneral) {
-    this.soloLectura = true;
-    console.log('[AUDITOR] Forzado soloLectura = true (input explícito o modo contabilidad/general)');
-  }
+    if (this.soloLectura === true || this.esModoContabilidad || this.esModoGeneral) {
+      this.soloLectura = true;
+      console.log('[AUDITOR] Forzado soloLectura = true (input explícito o modo contabilidad/general)');
+    }
 
-  // Obtener ID del documento
-  if (this.documentoIdExterno) {
-    this.documentoId = this.documentoIdExterno;
-    console.log('[AUDITOR] Usando documentoIdExterno:', this.documentoId);
-  } else {
-    // Si no viene por input, obtener de la ruta
-    this.route.params.subscribe(params => {
-      this.documentoId = params['id'];
-      console.log('[AUDITOR] ID desde ruta:', this.documentoId);
+    if (this.documentoId) {
+      console.log('[AUDITOR] Usando documentoId recibido:', this.documentoId);
+    } else {
+      this.route.params.subscribe(params => {
+        this.documentoId = params['id'] || null;
+        console.log('[AUDITOR] ID desde ruta (fallback):', this.documentoId);
+        if (this.documentoId) {
+          this.cargarDocumentoParaAuditor(this.documentoId);
+        }
+      });
+    }
+
+    this.route.queryParams.subscribe(qp => {
+      const forzadoPorUrl = qp['soloLectura'] === 'true' ||
+                            qp['modo'] === 'consulta' ||
+                            qp['view'] === 'readonly';
+
+      if (forzadoPorUrl && this.estadoDocumento !== 'EN_REVISION_AUDITOR') {
+        this.soloLectura = true;
+        console.log('[AUDITOR] Forzado soloLectura = true desde query params');
+      } else if (forzadoPorUrl) {
+        console.log('[AUDITOR] Ignorado soloLectura desde URL porque está EN_REVISION_AUDITOR');
+      }
+    });
+
+    if (this.documentoId) {
       this.cargarDocumentoParaAuditor(this.documentoId);
+    }
+
+    console.log('[AUDITOR] Estado final después de forzado:', {
+      soloLectura: this.soloLectura,
+      esModoSoloLectura: this.esModoSoloLectura(),
+      modoActual: this.modo
     });
   }
-
-  // Query params: forzar solo lectura desde URL (solo si NO está en revisión activa del auditor)
-  this.route.queryParams.subscribe(qp => {
-    const forzadoPorUrl = qp['soloLectura'] === 'true' ||
-                          qp['modo'] === 'consulta' ||
-                          qp['view'] === 'readonly';
-
-    if (forzadoPorUrl && this.estadoDocumento !== 'EN_REVISION_AUDITOR') {
-      this.soloLectura = true;
-      console.log('[AUDITOR] Forzado soloLectura = true desde query params');
-    } else if (forzadoPorUrl) {
-      console.log('[AUDITOR] Ignorado soloLectura desde URL porque está EN_REVISION_AUDITOR');
-    }
-  });
-
-  // Cargar el documento si ya tenemos ID
-  if (this.documentoId) {
-    this.cargarDocumentoParaAuditor(this.documentoId);
-  }
-
-  // Log final para verificar el estado
-  console.log('[AUDITOR] Estado final después de forzado:', {
-    soloLectura: this.soloLectura,
-    esModoSoloLectura: this.esModoSoloLectura(),
-    modoActual: this.modo
-  });
-}
 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
 
-esModoSoloLectura(): boolean {
-  // Prioridad máxima: si viene de contabilidad/general o con soloLectura=true → SIEMPRE solo lectura
-  if (this.esModoContabilidad || this.esModoGeneral || this.soloLectura === true) {
-  
+  esModoSoloLectura(): boolean {
+    if (this.esModoContabilidad || this.esModoGeneral || this.soloLectura === true) {
+      return true;
+    }
+
+    if (this.estadoDocumento === 'EN_REVISION_AUDITOR') {
+      console.log('[AUDITOR] esModoSoloLectura → false (en revisión activa del auditor)');
+      return false;
+    }
+
+    const esEstadoFinal = [
+      'APROBADO_AUDITOR',
+      'COMPLETADO_AUDITOR',
+      'RECHAZADO_AUDITOR',
+      'OBSERVADO_AUDITOR'
+    ].includes(this.estadoDocumento);
+
+    return esEstadoFinal || this.soloLectura;
   }
-
-  // Si está en revisión activa del auditor → permitir edición (solo aquí)
-  if (this.estadoDocumento === 'EN_REVISION_AUDITOR') {
-    console.log('[AUDITOR] esModoSoloLectura → false (en revisión activa del auditor)');
-    return false;
-  }
-
-  // Para todos los demás casos: solo lectura si ya fue decidido o viene forzado
-  const esEstadoFinal = [
-    'APROBADO_AUDITOR',
-    'COMPLETADO_AUDITOR',
-    'RECHAZADO_AUDITOR',
-    'OBSERVADO_AUDITOR'
-  ].includes(this.estadoDocumento);
-
- 
-  return esEstadoFinal || this.soloLectura;
-}
 
   getClaseEstado(estado: string): string {
     if (!estado) return 'bg-secondary text-white';
@@ -233,6 +216,11 @@ esModoSoloLectura(): boolean {
   }
 
   cargarDocumentoParaAuditor(id: string): void {
+    if (!id) {
+      console.warn('[AUDITOR] No se recibió ID válido para cargar');
+      return;
+    }
+
     this.isLoading = true;
 
     this.auditorService.obtenerDocumentoParaVista(id).subscribe({
@@ -249,14 +237,12 @@ esModoSoloLectura(): boolean {
           console.log('[FORZADO] Modo edición activado porque está EN_REVISION_AUDITOR');
         }
 
-        // Logs para confirmar
         console.log('[CARGA] Estado final:', this.estadoDocumento);
         console.log('[CARGA] soloLectura después de forzado:', this.soloLectura);
         console.log('[CARGA] esModoSoloLectura después de forzado:', this.esModoSoloLectura());
         console.log('[CARGA] ¿Debería mostrar el formulario de edición?:',
           this.estadoDocumento === 'EN_REVISION_AUDITOR' && !this.esModoSoloLectura());
 
-        // Extraer decisión y observación del auditor
         if (data?.auditor) {
           const aud = data.auditor;
           this.decisionAuditor = this.mapearEstadoAuditor(aud.estado);
@@ -271,7 +257,6 @@ esModoSoloLectura(): boolean {
 
         this.actualizarArchivosDesdeServidor(data?.archivosAuditor || []);
 
-        // Forzar modo solo lectura si ya hay decisión
         if (['APROBADO_AUDITOR', 'COMPLETADO_AUDITOR', 'RECHAZADO_AUDITOR', 'OBSERVADO_AUDITOR']
           .includes(this.estadoDocumento)) {
           this.soloLectura = true;
@@ -328,7 +313,7 @@ esModoSoloLectura(): boolean {
       this.notificationService.warning('No disponible', 'Archivo no subido');
       return;
     }
-    this.auditorService.previsualizarArchivoAuditor(this.documentoId, tipo);
+    this.auditorService.previsualizarArchivoAuditor(this.documentoId!, tipo);
   }
 
   descargarArchivoAuditor(tipo: string): void {
@@ -336,7 +321,7 @@ esModoSoloLectura(): boolean {
       this.notificationService.warning('No disponible', 'Archivo no subido');
       return;
     }
-    this.auditorService.descargarArchivoAuditorDirecto(this.documentoId, tipo);
+    this.auditorService.descargarArchivoAuditorDirecto(this.documentoId!, tipo);
   }
 
   volverALista(): void {
@@ -352,10 +337,10 @@ esModoSoloLectura(): boolean {
   }
 
   onArchivoSeleccionado(event: any, tipo: string): void {
-if (this.esModoContabilidad || this.esModoGeneral) {
-    this.notificationService.warning('No permitido', 'No puede subir archivos en modo contabilidad/general');
-    return;
-  }
+    if (this.esModoContabilidad || this.esModoGeneral) {
+      this.notificationService.warning('No permitido', 'No puede subir archivos en modo contabilidad/general');
+      return;
+    }
 
     const file = event.target.files?.[0];
     if (!file) return;
@@ -442,7 +427,7 @@ if (this.esModoContabilidad || this.esModoGeneral) {
     archivosSubidos.forEach(tipo => {
       if (this.archivosAuditorFormulario[tipo]?.subido) {
         const nombreArchivo = this.archivosAuditorFormulario[tipo].nombreArchivo || `${tipo}.pdf`;
-        descargas.push(this.auditorService.descargarArchivoAuditorBlob(this.documentoId, tipo));
+        descargas.push(this.auditorService.descargarArchivoAuditorBlob(this.documentoId!, tipo));
         nombresArchivos.push(nombreArchivo);
         tiposArchivos.push(tipo);
       }
@@ -480,7 +465,7 @@ if (this.esModoContabilidad || this.esModoGeneral) {
       this.notificationService.info('Sin documentos', 'No hay archivos subidos');
       return;
     }
-    this.auditorService.descargarTodosArchivosAuditor(this.documentoId);
+    this.auditorService.descargarTodosArchivosAuditor(this.documentoId!);
   }
 
   abrirTodosArchivosAuditor(): void {
@@ -520,7 +505,6 @@ if (this.esModoContabilidad || this.esModoGeneral) {
     return headers;
   }
 
-  // Métodos de decisión (los que el HTML necesita)
   registrarDecision(): void {
     if (!this.decisionSeleccionada) {
       this.notificationService.warning('Atención', 'Seleccione una decisión');
@@ -546,7 +530,7 @@ if (this.esModoContabilidad || this.esModoGeneral) {
     formData.append('estado', this.decisionSeleccionada);
     formData.append('observaciones', this.observacionesRevision.trim() || 'Sin observaciones adicionales');
 
-    this.auditorService.registrarDecisionCompleta(this.documentoId, formData).subscribe({
+    this.auditorService.registrarDecisionCompleta(this.documentoId!, formData).subscribe({
       next: (response) => {
         this.notificationService.success('Éxito', 'Decisión registrada correctamente');
         Object.keys(this.archivosAuditorFormulario).forEach(k => {
@@ -554,7 +538,7 @@ if (this.esModoContabilidad || this.esModoGeneral) {
         });
         this.observacionesRevision = '';
         this.decisionSeleccionada = '';
-        this.cargarDocumentoParaAuditor(this.documentoId);
+        this.cargarDocumentoParaAuditor(this.documentoId!);
         this.isProcessing = false;
         setTimeout(() => this.router.navigate(['/auditor/lista']), 2000);
       },
@@ -567,10 +551,10 @@ if (this.esModoContabilidad || this.esModoGeneral) {
 
   liberarDocumento(): void {
     this.isProcessing = true;
-    this.auditorService.liberarDocumento(this.documentoId).subscribe({
+    this.auditorService.liberarDocumento(this.documentoId!).subscribe({
       next: () => {
         this.notificationService.success('Éxito', 'Documento liberado');
-        this.cargarDocumentoParaAuditor(this.documentoId);
+        this.cargarDocumentoParaAuditor(this.documentoId!);
         this.isProcessing = false;
       },
       error: err => {
@@ -580,267 +564,6 @@ if (this.esModoContabilidad || this.esModoGeneral) {
     });
   }
 
-  // Resto de métodos originales que tenías (sin eliminar ninguno)
-  private cargarConEndpointNormal(id: string): void {
-    const vistaUrl = `${environment.apiUrl}/auditor/documentos/${id}/vista`;
-
-    this.http.get(vistaUrl, { headers: this.getAuthHeaders() })
-      .pipe(
-        takeUntil(this.destroy$),
-        catchError(error => {
-          const fallbackUrl = `${environment.apiUrl}/auditor/documentos/${id}`;
-          return this.http.get(fallbackUrl, { headers: this.getAuthHeaders() });
-        })
-      )
-      .subscribe({
-        next: (response: any) => {
-          this.procesarRespuestaDocumento(response);
-          this.isLoading = false;
-        },
-        error: (error: any) => {
-          this.isLoading = false;
-        }
-      });
-  }
-
-  private procesarRespuestaDebug(debugResponse: any): void {
-    const doc = debugResponse.documento;
-
-    this.documentoData = doc;
-    this.numeroRadicado = doc.numeroRadicado || '';
-    this.nombreContratista = doc.nombreContratista || '';
-    this.estadoDocumento = doc.estado || '';
-    this.primerRadicadoDelAno = !!doc.primerRadicadoDelAno;
-
-    this.documentoEnRevision = this.estadoDocumento === 'EN_REVISION_AUDITOR';
-    this.estaEnRevision = this.documentoEnRevision;
-
-    Object.keys(this.archivosAuditorFormulario).forEach(key => {
-      this.archivosAuditorFormulario[key] = {
-        subido: false,
-        archivo: null,
-        nombreArchivo: '',
-        rutaServidor: null
-      };
-    });
-
-    if (debugResponse.archivosDetalle && Array.isArray(debugResponse.archivosDetalle)) {
-      debugResponse.archivosDetalle.forEach((archivo: any) => {
-        if (archivo.tipo && this.archivosAuditorFormulario.hasOwnProperty(archivo.tipo)) {
-          this.archivosAuditorFormulario[archivo.tipo] = {
-            subido: archivo.subido || false,
-            archivo: null,
-            nombreArchivo: archivo.nombre || '',
-            rutaServidor: archivo.ruta || null
-          };
-        }
-      });
-    }
-
-    this.verificarArchivosCompletos();
-    this.verificarEstado();
-
-    this.cdr.detectChanges();
-  }
-
-  private procesarRespuestaDocumento(response: any): void {
-    let estadoEncontrado = 'SIN ESTADO';
-    let docData = null;
-
-    if (response?.data?.data?.documento) {
-      docData = response.data.data.documento;
-      estadoEncontrado = docData.estado || response.data.data.estado || 'SIN ESTADO';
-    }
-    else if (response?.data?.documento) {
-      docData = response.data.documento;
-      estadoEncontrado = docData.estado || response.data.estado || 'SIN ESTADO';
-    }
-    else if (response?.documento) {
-      docData = response.documento;
-      estadoEncontrado = docData.estado || response.estado || 'SIN ESTADO';
-    }
-    else if (response?.estado) {
-      docData = response;
-      estadoEncontrado = response.estado;
-    }
-
-    this.estadoDocumento = estadoEncontrado;
-
-    if (docData) {
-      this.documentoData = docData;
-      this.numeroRadicado = docData.numeroRadicado || '';
-      this.nombreContratista = docData.nombreContratista || '';
-      this.primerRadicadoDelAno = !!docData.primerRadicadoDelAno;
-    }
-
-    let archivosAuditor = [];
-    if (response?.data?.data?.archivosAuditor) {
-      archivosAuditor = response.data.data.archivosAuditor;
-    } else if (response?.data?.archivosAuditor) {
-      archivosAuditor = response.data.archivosAuditor;
-    } else if (response?.archivosAuditor) {
-      archivosAuditor = response.archivosAuditor;
-    }
-
-    if (archivosAuditor.length > 0) {
-      this.procesarArchivosAuditor(archivosAuditor);
-    }
-
-    let archivosRadicados = [];
-    if (response?.data?.data?.archivosRadicados) {
-      archivosRadicados = response.data.data.archivosRadicados;
-    } else if (response?.data?.archivosRadicados) {
-      archivosRadicados = response.data.archivosRadicados;
-    } else if (response?.archivosRadicados) {
-      archivosRadicados = response.archivosRadicados;
-    }
-
-    if (archivosRadicados.length > 0) {
-      this.cargarDocumentosRadicados(archivosRadicados);
-    }
-
-    this.documentoEnRevision = this.estadoDocumento === 'EN_REVISION_AUDITOR';
-    this.estaEnRevision = this.documentoEnRevision;
-
-    this.cdr.detectChanges();
-
-    setTimeout(() => {
-      this.verificarEstado();
-      this.verificarArchivosCompletos();
-    }, 100);
-  }
-
-  private procesarArchivosAuditor(archivos: any[]): void {
-    archivos.forEach((archivo: any) => {
-      if (archivo.subido && archivo.tipo) {
-        const key = archivo.tipo as keyof typeof this.archivosAuditorFormulario;
-        if (this.archivosAuditorFormulario[key]) {
-          this.archivosAuditorFormulario[key].subido = archivo.subido;
-          this.archivosAuditorFormulario[key].nombreArchivo = archivo.nombreArchivo || '';
-          this.archivosAuditorFormulario[key].rutaServidor = archivo.rutaServidor || null;
-        }
-      }
-    });
-  }
-
-  tomarParaRevision(): void {
-    this.isProcessing = true;
-
-    this.auditorService.tomarDocumentoParaRevision(this.documentoId)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (response) => {
-          this.notificationService.success('Éxito', 'Documento tomado para revisión');
-          this.isProcessing = false;
-          this.cargarDocumentoParaAuditor(this.documentoId);
-        },
-        error: (err) => {
-          this.notificationService.error('Error', err.error?.message || 'No se pudo tomar el documento');
-          this.isProcessing = false;
-        }
-      });
-  }
-
-  private cargarDocumentosRadicados(archivos: any[]): void {
-    const cuentaCobro = archivos.find(a => a.numero === 1 || a.tipo?.includes('cuenta'));
-    const seguridadSocial = archivos.find(a => a.numero === 2 || a.tipo?.includes('seguridad'));
-    const informeActividades = archivos.find(a => a.numero === 3 || a.tipo?.includes('informe'));
-
-    this.documentosExistentes = [
-      {
-        nombre: cuentaCobro?.nombre || '',
-        nombreOriginal: cuentaCobro?.descripcion || 'cuenta_cobro.pdf',
-        disponible: !!cuentaCobro?.nombre,
-        tipo: 'cuentaCobro',
-        indice: 1
-      },
-      {
-        nombre: seguridadSocial?.nombre || '',
-        nombreOriginal: seguridadSocial?.descripcion || 'seguridad_social.pdf',
-        disponible: !!seguridadSocial?.nombre,
-        tipo: 'seguridadSocial',
-        indice: 2
-      },
-      {
-        nombre: informeActividades?.nombre || '',
-        nombreOriginal: informeActividades?.descripcion || 'informe_actividades.pdf',
-        disponible: !!informeActividades?.nombre,
-        tipo: 'informeActividades',
-        indice: 3
-      }
-    ];
-  }
-
-  private actualizarArchivosAuditorFormulario(archivos: any[]): void {
-    Object.keys(this.archivosAuditorFormulario).forEach(key => {
-      this.archivosAuditorFormulario[key] = {
-        subido: false,
-        archivo: null,
-        nombreArchivo: '',
-        rutaServidor: null
-      };
-    });
-
-    archivos.forEach((archivo: any) => {
-      if (archivo.subido && archivo.tipo) {
-        const key = archivo.tipo as keyof typeof this.archivosAuditorFormulario;
-        if (this.archivosAuditorFormulario[key]) {
-          this.archivosAuditorFormulario[key].subido = true;
-          this.archivosAuditorFormulario[key].nombreArchivo = archivo.nombreArchivo || '';
-          this.archivosAuditorFormulario[key].rutaServidor = archivo.rutaServidor || null;
-        }
-      }
-    });
-  }
-
-  private verificarArchivosCompletos(): void {
-    if (!this.primerRadicadoDelAno) {
-      this.archivosCompletos = true;
-      return;
-    }
-
-    const subidosConfirmados = Object.values(this.archivosAuditorFormulario)
-      .filter(a => a.subido === true && (a.rutaServidor || a.nombreArchivo))
-      .length;
-
-    this.archivosCompletos = subidosConfirmados === 6;
-  }
-
-  contarArchivosAuditorSubidos(): number {
-    const subidos = Object.values(this.archivosAuditorFormulario)
-      .filter(a => {
-        return a.subido === true && (!!a.rutaServidor?.trim() || !!a.nombreArchivo?.trim());
-      }).length;
-
-    return subidos;
-  }
-
-  hayArchivosSeleccionados(): boolean {
-    const haySeleccionados = Object.values(this.archivosAuditorFormulario)
-      .some(a => a.archivo !== null);
-    return haySeleccionados;
-  }
-
-  puedeRealizarRevision(): boolean {
-    if (this.estadoDocumento !== 'EN_REVISION_AUDITOR') {
-      return false;
-    }
-
-    if (this.primerRadicadoDelAno && !this.archivosCompletos) {
-      return false;
-    }
-
-    if (this.esModoContabilidad || this.esModoGeneral) {
-      return false;
-    }
-
-    return true;
-  }
-
-  verificarEstado(): void {
-    // Puedes dejarlo vacío o agregar lógica si lo necesitas
-  }
-
   aprobarDocumento(): void {
     if (!this.observacionesRevision.trim()) {
       this.notificationService.warning('Advertencia', 'Debe ingresar observaciones');
@@ -848,14 +571,14 @@ if (this.esModoContabilidad || this.esModoGeneral) {
     }
 
     this.isProcessing = true;
-    this.auditorService.guardarRevision(this.documentoId, {
+    this.auditorService.guardarRevision(this.documentoId!, {
       estado: 'APROBADO',
       observaciones: this.observacionesRevision
     }).subscribe({
       next: () => {
         this.notificationService.success('Éxito', 'Documento aprobado');
         this.isProcessing = false;
-        this.cargarDocumentoParaAuditor(this.documentoId);
+        this.cargarDocumentoParaAuditor(this.documentoId!);
         this.observacionesRevision = '';
       },
       error: err => {
@@ -872,14 +595,14 @@ if (this.esModoContabilidad || this.esModoGeneral) {
     }
 
     this.isProcessing = true;
-    this.auditorService.guardarRevision(this.documentoId, {
+    this.auditorService.guardarRevision(this.documentoId!, {
       estado: 'OBSERVADO',
       observaciones: this.observacionesRevision
     }).subscribe({
       next: () => {
         this.notificationService.success('Éxito', 'Documento observado');
         this.isProcessing = false;
-        this.cargarDocumentoParaAuditor(this.documentoId);
+        this.cargarDocumentoParaAuditor(this.documentoId!);
         this.observacionesRevision = '';
       },
       error: err => {
@@ -896,14 +619,14 @@ if (this.esModoContabilidad || this.esModoGeneral) {
     }
 
     this.isProcessing = true;
-    this.auditorService.guardarRevision(this.documentoId, {
+    this.auditorService.guardarRevision(this.documentoId!, {
       estado: 'RECHAZADO',
       observaciones: this.observacionesRevision
     }).subscribe({
       next: () => {
         this.notificationService.success('Éxito', 'Documento rechazado');
         this.isProcessing = false;
-        this.cargarDocumentoParaAuditor(this.documentoId);
+        this.cargarDocumentoParaAuditor(this.documentoId!);
         this.observacionesRevision = '';
       },
       error: err => {
@@ -915,14 +638,14 @@ if (this.esModoContabilidad || this.esModoGeneral) {
 
   completarRevision(): void {
     this.isProcessing = true;
-    this.auditorService.guardarRevision(this.documentoId, {
+    this.auditorService.guardarRevision(this.documentoId!, {
       estado: 'COMPLETADO',
       observaciones: this.observacionesRevision || 'Revisión completada'
     }).subscribe({
       next: () => {
         this.notificationService.success('Éxito', 'Revisión completada');
         this.isProcessing = false;
-        this.cargarDocumentoParaAuditor(this.documentoId);
+        this.cargarDocumentoParaAuditor(this.documentoId!);
         this.observacionesRevision = '';
       },
       error: err => {
@@ -962,7 +685,7 @@ if (this.esModoContabilidad || this.esModoGeneral) {
       }
     });
 
-    this.auditorService.registrarDecisionCompleta(this.documentoId, formData)
+    this.auditorService.registrarDecisionCompleta(this.documentoId!, formData)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response) => {
@@ -980,7 +703,7 @@ if (this.esModoContabilidad || this.esModoGeneral) {
   }
 
   enviarRevisionSimple(): void {
-    this.auditorService.guardarRevision(this.documentoId, {
+    this.auditorService.guardarRevision(this.documentoId!, {
       estado: this.decisionSeleccionada,
       observaciones: this.observacionesRevision
     }).pipe(takeUntil(this.destroy$))
@@ -1010,7 +733,7 @@ if (this.esModoContabilidad || this.esModoGeneral) {
       takeUntil(this.destroy$)
     ).subscribe({
       next: () => {
-        this.auditorService.guardarRevision(this.documentoId, {
+        this.auditorService.guardarRevision(this.documentoId!, {
           estado: this.decisionSeleccionada,
           observaciones: this.observacionesRevision
         }).pipe(takeUntil(this.destroy$)).subscribe({
@@ -1048,7 +771,7 @@ if (this.esModoContabilidad || this.esModoGeneral) {
       formData.append('observaciones', this.observacionesRevision.trim());
     }
 
-    return this.auditorService.subirArchivosAuditor(this.documentoId, formData).pipe(
+    return this.auditorService.subirArchivosAuditor(this.documentoId!, formData).pipe(
       tap(() => {
         this.notificationService.success('Éxito', 'Archivos subidos correctamente');
         Object.keys(this.archivosAuditorFormulario).forEach(key => {
@@ -1083,7 +806,7 @@ if (this.esModoContabilidad || this.esModoGeneral) {
   }
 
   private registrarDecisionDespuesDeSubida(): void {
-    this.auditorService.guardarRevision(this.documentoId, {
+    this.auditorService.guardarRevision(this.documentoId!, {
       estado: this.decisionSeleccionada,
       observaciones: this.observacionesRevision
     })
@@ -1113,59 +836,8 @@ if (this.esModoContabilidad || this.esModoGeneral) {
     return this.documentoData.archivosAuditor.filter((a: any) => a.subido === true).length;
   }
 
-  contarArchivosRealmenteSubidosEnFormulario(): number {
-    return Object.values(this.archivosAuditorFormulario).filter(a =>
-      a.subido === true &&
-      (a.nombreArchivo?.trim() || a.rutaServidor?.trim())
-    ).length;
-  }
-
-  archivosObligatoriosCompletos(): boolean {
-    if (!this.primerRadicadoDelAno) return true;
-    return this.contarDocumentosConfirmados() >= 6;
-  }
-
-  subirArchivosAuditor(): void {
-    if (!this.hayArchivosPendientesDeSubir()) {
-      this.notificationService.warning('Atención', 'No hay archivos nuevos seleccionados');
-      return;
-    }
-
-    this.subiendoArchivos = true;
-
-    const formData = new FormData();
-
-    Object.entries(this.archivosAuditorFormulario).forEach(([key, data]) => {
-      if (data.archivo) {
-        formData.append(key, data.archivo);
-      }
-    });
-
-    if (this.observacionesRevision?.trim()) {
-      formData.append('observaciones', this.observacionesRevision.trim());
-    }
-
-    this.auditorService.subirArchivosAuditor(this.documentoId, formData).subscribe({
-      next: () => {
-        this.notificationService.success('Éxito', 'Archivos subidos correctamente');
-
-        Object.keys(this.archivosAuditorFormulario).forEach(k => {
-          this.archivosAuditorFormulario[k as keyof typeof this.archivosAuditorFormulario].archivo = null;
-        });
-
-        this.recargarEstadoCompleto();
-
-        this.subiendoArchivos = false;
-      },
-      error: (err) => {
-        this.notificationService.error('Error', err.error?.message || 'Fallo al subir archivos');
-        this.subiendoArchivos = false;
-      }
-    });
-  }
-
   recargarEstadoCompleto(): void {
-    this.cargarDocumentoParaAuditor(this.documentoId);
+    this.cargarDocumentoParaAuditor(this.documentoId!);
   }
 
   puedeRegistrarDecision(): boolean {
@@ -1178,5 +850,22 @@ if (this.esModoContabilidad || this.esModoGeneral) {
     }
 
     return true;
+  }
+
+  verificarEstado(): void {
+    // Puedes dejarlo vacío o agregar lógica si lo necesitas
+  }
+
+    verificarArchivosCompletos(): void {
+    if (!this.primerRadicadoDelAno) {
+      this.archivosCompletos = true;
+      return;
+    }
+
+    const subidosConfirmados = Object.values(this.archivosAuditorFormulario)
+      .filter(a => a.subido === true && (a.rutaServidor || a.nombreArchivo))
+      .length;
+
+    this.archivosCompletos = subidosConfirmados === 6;
   }
 }

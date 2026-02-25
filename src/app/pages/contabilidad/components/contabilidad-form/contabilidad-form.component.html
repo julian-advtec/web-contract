@@ -85,11 +85,11 @@
       </h5>
     </div>
     <div class="card-body p-0 force-readonly-wrapper">  
-<app-supervisor-form
-  [documentoId]="documento?.id"
-  [modo]="'contabilidad'"         
-  [soloLectura]="true">
-</app-supervisor-form>
+<app-supervisor-form 
+    [documentoId]="documento.documentoId" 
+    [modo]="'contabilidad'" 
+    [soloLectura]="true">
+  </app-supervisor-form>
     </div>
   </div>
 </section>
@@ -103,10 +103,10 @@
         </div>
         <div class="card-body p-0">
 <app-auditor-form 
-        [documentoIdExterno]="documento?.id"
-        [soloLectura]="true"
-        [modo]="'contabilidad'">
-      </app-auditor-form>
+    [documentoId]="documento.documentoId" 
+    [modo]="'contabilidad'" 
+    [soloLectura]="true">
+  </app-auditor-form>
         </div>
       </div>
     </section>

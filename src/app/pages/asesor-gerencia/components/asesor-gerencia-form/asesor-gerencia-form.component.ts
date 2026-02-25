@@ -93,38 +93,68 @@ export class AsesorGerenciaFormComponent implements OnInit {
     const partes = path.split(/[\\/]/);
     return partes[partes.length - 1] || 'comprobante_firmado.pdf';
   }
-  ngOnInit(): void {
-    this.cargarFirmaUsuario();
 
-    const id = this.documentoId || this.route.snapshot.paramMap.get('id');
-    const modo = this.route.snapshot.queryParamMap.get('modo') || 'edicion';
-    const soloLecturaParam = this.route.snapshot.queryParamMap.get('soloLectura') === 'true';
-    const desdeHistorial = this.route.snapshot.queryParamMap.get('desdeHistorial') === 'true';
-    const forceEdit = this.route.snapshot.queryParamMap.get('forceEdit') === 'true';
 
-    // Prioridad: si viene forceEdit=true (continuar revisión), SIEMPRE edición
-    this.esModoLectura = forceEdit ? false : (
-      soloLecturaParam ||
-      modo === 'consulta' ||
-      modo === 'lectura' ||
-      modo === 'vista' ||
-      (desdeHistorial && !forceEdit) ||  // Solo si no es forceEdit
-      this.forceReadOnly
-    );
+ngOnInit(): void {
+  this.cargarFirmaUsuario();
 
-    if (id) {
-      this.cargarDocumento(id);
-    } else {
-      this.mostrarMensaje('No se recibió ID del documento', 'error');
-      this.isLoading = false;
-    }
+  console.log('📌 [AsesorGerenciaForm] ID recibido como @Input:', this.documentoId);
+  console.log('📌 [AsesorGerenciaForm] ID desde ruta (si aplica):', this.route.snapshot.paramMap.get('id'));
 
-    if (this.esModoLectura || this.estaProcesado) {
-      this.form.disable();
-    } else {
-      this.form.enable();  // Asegurar que se habilite si es edición
-    }
+  // ───────────────────────────────────────────────────────────────
+  // Prioridad absoluta: usar @Input cuando existe (modo embebido)
+  // Solo fallback a ruta si NO hay input (modo standalone/directo)
+  // ───────────────────────────────────────────────────────────────
+  let idParaCargar: string | null = null;
+
+  if (this.documentoId) {
+    // Caso más común ahora: viene desde rendición o padre
+    idParaCargar = this.documentoId;
+    console.log('✅ Usando ID desde @Input (prioridad alta):', idParaCargar);
+  } else {
+    // Modo standalone (URL directa)
+    idParaCargar = this.route.snapshot.paramMap.get('id');
+    console.log('⚡ Usando ID desde ruta (fallback):', idParaCargar);
   }
+
+  const modo = this.route.snapshot.queryParamMap.get('modo') || 'edicion';
+  const soloLecturaParam = this.route.snapshot.queryParamMap.get('soloLectura') === 'true';
+  const desdeHistorial = this.route.snapshot.queryParamMap.get('desdeHistorial') === 'true';
+  const forceEdit = this.route.snapshot.queryParamMap.get('forceEdit') === 'true';
+
+  // Prioridad: si viene forceEdit=true (continuar revisión), SIEMPRE edición
+  this.esModoLectura = forceEdit ? false : (
+    soloLecturaParam ||
+    modo === 'consulta' ||
+    modo === 'lectura' ||
+    modo === 'vista' ||
+    (desdeHistorial && !forceEdit) ||
+    this.forceReadOnly
+  );
+
+  console.log('📊 Modo calculado:', {
+    esModoLectura: this.esModoLectura,
+    forceReadOnly: this.forceReadOnly,
+    forceEdit,
+    soloLecturaParam,
+    desdeHistorial
+  });
+
+  if (idParaCargar) {
+    console.log('🚀 Cargando documento con ID:', idParaCargar);
+    this.cargarDocumento(idParaCargar);
+  } else {
+    console.error('❌ No hay ID válido para cargar en asesor-gerencia');
+    this.mostrarMensaje('No se recibió ID del documento', 'error');
+    this.isLoading = false;
+  }
+
+  if (this.esModoLectura || this.estaProcesado) {
+    this.form.disable();
+  } else {
+    this.form.enable();  // Asegurar que se habilite si es edición
+  }
+}
 
   cargarFirmaUsuario(): void {
     if (this.esModoLectura || this.estaProcesado) return;
@@ -250,25 +280,25 @@ export class AsesorGerenciaFormComponent implements OnInit {
   }
 
   cargarComprobanteFirmado(): void {
-  if (!this.documento?.id) return;
+    if (!this.documento?.id) return;
 
-  console.log('[cargarComprobanteFirmado] Iniciando carga automática del firmado...');
+    console.log('[cargarComprobanteFirmado] Iniciando carga automática del firmado...');
 
-  // ← COMENTA O ELIMINA ESTA PARTE (esto es lo que causa el 404 al cargar la página)
-  // this.asesorGerenciaService.verArchivo(this.documento.id, 'comprobanteFirmado').subscribe({
-  //   next: (blob: Blob) => {
-  //     console.log('[cargarComprobanteFirmado] Firmado cargado automáticamente OK - tamaño:', blob.size);
-  //     this.pdfBlobFirmado = blob;  // o lo que uses
-  //   },
-  //   error: (err) => {
-  //     console.error('[cargarComprobanteFirmado] Error carga automática:', err);
-  //     // No mostrar mensaje aquí para no molestar al usuario al cargar la página
-  //   }
-  // });
+    // ← COMENTA O ELIMINA ESTA PARTE (esto es lo que causa el 404 al cargar la página)
+    // this.asesorGerenciaService.verArchivo(this.documento.id, 'comprobanteFirmado').subscribe({
+    //   next: (blob: Blob) => {
+    //     console.log('[cargarComprobanteFirmado] Firmado cargado automáticamente OK - tamaño:', blob.size);
+    //     this.pdfBlobFirmado = blob;  // o lo que uses
+    //   },
+    //   error: (err) => {
+    //     console.error('[cargarComprobanteFirmado] Error carga automática:', err);
+    //     // No mostrar mensaje aquí para no molestar al usuario al cargar la página
+    //   }
+    // });
 
-  // Si quieres, puedes dejar un log para confirmar que ya no se ejecuta
-  console.log('[cargarComprobanteFirmado] Carga automática DESACTIVADA - se carga solo al clic en Ver PDF');
-}
+    // Si quieres, puedes dejar un log para confirmar que ya no se ejecuta
+    console.log('[cargarComprobanteFirmado] Carga automática DESACTIVADA - se carga solo al clic en Ver PDF');
+  }
 
   verComprobanteFirmado(): void {
     if (this.esModoLectura || this.estaProcesado) {
@@ -452,6 +482,4 @@ export class AsesorGerenciaFormComponent implements OnInit {
     if (u.includes('RECHAZADO_ASESOR_GERENCIA')) return 'RECHAZADO';
     return 'PENDIENTE';
   }
-
-  
 }

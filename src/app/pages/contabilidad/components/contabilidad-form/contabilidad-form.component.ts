@@ -48,7 +48,7 @@ export class ContabilidadFormComponent implements OnInit, OnDestroy {
   // Mensajes
   mensaje = '';
   tipoMensaje: 'success' | 'error' | 'warning' | 'info' = 'info';
-@Input() documentoId: string | null = null;
+  @Input() documentoId: string | null = null;
   // Control de botones
   puedeGuardar = false;
   puedeLiberar = false;
@@ -107,9 +107,25 @@ export class ContabilidadFormComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    const id = this.route.snapshot.paramMap.get('id');
+    // 1. Obtener ID con prioridad: @Input > ruta
+    const idFromInput = this.documentoId; // Viene de padre (rendicion-form)
+    const idFromRoute = this.route.snapshot.paramMap.get('id');
 
-    // Suscripción a query params
+    const id = idFromInput || idFromRoute;
+
+    console.log('[ContabilidadForm ngOnInit] ──────────────────────────────');
+    console.log('  → @Input documentoId:', idFromInput || 'null (no recibido)');
+    console.log('  → ID desde ruta:', idFromRoute || 'null (no en ruta)');
+    console.log('  → ID final seleccionado para cargar:', id || 'NINGUNO');
+
+    if (!id) {
+      console.error('[ContabilidadForm] No se recibió ningún ID válido');
+      this.mostrarMensaje('No se recibió ID del documento', 'error');
+      this.isLoading = false;
+      return;
+    }
+
+    // 2. Suscripción a query params (para modo forzado)
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
       const forzadoPorParams = params['soloLectura'] === 'true' ||
         params['modo'] === 'consulta' ||
@@ -122,7 +138,7 @@ export class ContabilidadFormComponent implements OnInit, OnDestroy {
       if (this.estadosEdicionContabilidad.some(e => estadoUpper.includes(e))) {
         // Está en revisión contable → FORZAR EDICIÓN (ignora URL)
         this.esSoloLectura = false;
-        console.log('[Modo decidido] → EDICIÓN (estado editable)');
+        console.log('[Modo decidido] → EDICIÓN (estado editable contable)');
       }
       else if (
         this.estaProcesado ||
@@ -142,33 +158,31 @@ export class ContabilidadFormComponent implements OnInit, OnDestroy {
       else if (forzadoPorParams) {
         // Solo si no hay estado claro, respetar URL
         this.esSoloLectura = true;
-        console.log('[Modo decidido] → SOLO LECTURA (forzado por URL)');
+        console.log('[Modo decidido] → SOLO LECTURA (forzado por query params)');
       }
       else {
         this.esSoloLectura = false;
         console.log('[Modo decidido] → EDICIÓN por defecto (sin forzado)');
       }
 
-      console.log('[ngOnInit] Decisión final:', {
+      console.log('[ngOnInit] Decisión final del modo:', {
         estado: estadoUpper || 'Aún no cargado',
         esSoloLectura: this.esSoloLectura,
         forzadoPorParams,
-        estaProcesado: this.estaProcesado
+        estaProcesado: this.estaProcesado,
+        forceReadOnlyInput: this.forceReadOnly
       });
     });
 
-    if (id) {
-      this.cargarDocumento(id);
-    } else {
-      this.mostrarMensaje('No se recibió ID del documento', 'error');
-      this.isLoading = false;
-    }
+    // 3. Cargar el documento con el ID correcto
+    this.cargarDocumento(id);
 
+    // 4. Forzar solo lectura si viene explícitamente por @Input
     if (this.forceReadOnly) {
-  this.esSoloLectura = true;
-  this.form.disable();
- 
-}
+      this.esSoloLectura = true;
+      this.form.disable();
+      console.log('[ngOnInit] Forzado solo lectura por @Input forceReadOnly');
+    }
   }
 
   ngOnDestroy(): void {
@@ -176,70 +190,103 @@ export class ContabilidadFormComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  cargarDocumento(id: string): void {
-    this.isLoading = true;
+cargarDocumento(idRecibido: string): void {
+  // ───────────────────────────────────────────────────────────────
+  // PROTECCIÓN PRINCIPAL: Priorizar SIEMPRE el documentoId correcto
+  // ───────────────────────────────────────────────────────────────
+  let idFinal = idRecibido;
 
-    this.contabilidadService.obtenerDetalleDocumento(id)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (response: any) => {
-          const data = response?.data || response;
-          this.documento = data?.documento || data || null;
-
-          if (!this.documento) {
-            this.mostrarMensaje('Documento no encontrado', 'error');
-            this.isLoading = false;
-            return;
-          }
-
-          const estadoUpper = (this.documento.estado || '').toUpperCase();
-
-          this.estaEnRevision = this.estadosEdicionContabilidad.some(e => estadoUpper.includes(e));
-          this.esDocumentoDeOtroRol = this.estadosOtrosRoles.some(e => estadoUpper.includes(e));
-          this.estaProcesado = this.estadosFinalesContabilidad.some(e => estadoUpper.includes(e)) ||
-            estadoUpper.includes('TESORERIA') ||
-            estadoUpper.includes('COMPLETADO') ||
-            estadoUpper.includes('PROCESADO');
-
-          // Solo deshabilitamos el FORM, NO bloqueamos el render de la vista
-          const deshabilitarFormulario = this.esSoloLectura ||
-            this.esDocumentoDeOtroRol ||
-            this.estaProcesado;
-
-          console.log('=================================');
-          console.log('Carga completada - Estado:', estadoUpper);
-          console.log('estaEnRevision:', this.estaEnRevision);
-          console.log('esDocumentoDeOtroRol:', this.esDocumentoDeOtroRol);
-          console.log('estaProcesado:', this.estaProcesado);
-          console.log('esSoloLectura:', this.esSoloLectura);
-          console.log('Formulario deshabilitado:', deshabilitarFormulario);
-          console.log('=================================');
-
-          this.cargarDatosPrevios();
-          this.inicializarFormulario(estadoUpper);
-
-          if (deshabilitarFormulario) {
-            this.form.disable();
-          } else {
-            this.form.enable();
-          }
-
-          this.actualizarEstadoBotones();
-          this.isLoading = false;
-        },
-        error: (err) => {
-          console.error('Error cargando documento:', err);
-          let msg = 'Error al cargar el documento';
-          if (err.status === 403) {
-            msg = 'No tienes permiso para acceder a este documento en su estado actual.';
-          } else if (err.status === 404) {
-            msg = 'Documento no encontrado.';
-          }
-          this.mostrarMensaje(msg, 'error');
-          this.isLoading = false;
-        }
-      });
+  // Si ya tenemos el documento cargado desde el padre y tiene documentoId válido → usarlo
+  if (this.documento?.documentoId && this.documento.documentoId !== idRecibido) {
+    console.warn(
+      '[ContabilidadForm] ¡ID recibido NO coincide con documento.documentoId! ' +
+      'Forzando uso del ID correcto del documento original.'
+    );
+    console.log('  → ID recibido (probablemente rendicionId):', idRecibido);
+    console.log('  → ID forzado (documentoId):', this.documento.documentoId);
+    idFinal = this.documento.documentoId;
   }
+
+  // Validación básica de ID (UUID típico tiene 36 caracteres con guiones)
+  if (!idFinal || idFinal.length < 30 || !idFinal.includes('-')) {
+    console.error('[ContabilidadForm] ID inválido o sospechoso:', idFinal);
+    this.mostrarMensaje('ID de documento inválido o no recibido correctamente', 'error');
+    this.isLoading = false;
+    return;
+  }
+
+  console.log('[ContabilidadForm] Iniciando carga con ID FINAL:', idFinal);
+  this.isLoading = true;
+
+  this.contabilidadService.obtenerDetalleDocumento(idFinal)
+    .pipe(takeUntil(this.destroy$))
+    .subscribe({
+      next: (response: any) => {
+        console.log('[ContabilidadForm] Respuesta OK para ID:', idFinal, response);
+
+        const data = response?.data || response;
+        this.documento = {
+          ... (data?.documento || data || {}),
+          // Aseguramos que documentoId siempre esté presente y sea el correcto
+          documentoId: data?.documentoId || data?.id || idFinal
+        };
+
+        if (!this.documento || !this.documento.documentoId) {
+          this.mostrarMensaje('Documento no encontrado o datos incompletos', 'error');
+          this.isLoading = false;
+          return;
+        }
+
+        const estadoUpper = (this.documento.estado || '').toUpperCase();
+
+        this.estaEnRevision = this.estadosEdicionContabilidad.some(e => estadoUpper.includes(e));
+        this.esDocumentoDeOtroRol = this.estadosOtrosRoles.some(e => estadoUpper.includes(e));
+        this.estaProcesado = this.estadosFinalesContabilidad.some(e => estadoUpper.includes(e)) ||
+          estadoUpper.includes('TESORERIA') ||
+          estadoUpper.includes('COMPLETADO') ||
+          estadoUpper.includes('PROCESADO');
+
+        // Solo deshabilitamos el FORM, NO bloqueamos el render de la vista
+        const deshabilitarFormulario = this.esSoloLectura ||
+          this.esDocumentoDeOtroRol ||
+          this.estaProcesado;
+
+        console.log('=================================');
+        console.log('Carga completada - Estado:', estadoUpper);
+        console.log('estaEnRevision:', this.estaEnRevision);
+        console.log('esDocumentoDeOtroRol:', this.esDocumentoDeOtroRol);
+        console.log('estaProcesado:', this.estaProcesado);
+        console.log('esSoloLectura:', this.esSoloLectura);
+        console.log('Formulario deshabilitado:', deshabilitarFormulario);
+        console.log('ID final usado:', idFinal);
+        console.log('=================================');
+
+        this.cargarDatosPrevios();
+        this.inicializarFormulario(estadoUpper);
+
+        if (deshabilitarFormulario) {
+          this.form.disable();
+        } else {
+          this.form.enable();
+        }
+
+        this.actualizarEstadoBotones();
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.error('[ContabilidadForm] Falló carga con ID:', idFinal, err);
+
+        let msg = 'Error al cargar el documento contable';
+        if (err.status === 403) {
+          msg = 'No tienes permiso para acceder a este documento en su estado actual.';
+        } else if (err.status === 404) {
+          msg = 'Documento no encontrado en contabilidad (posible ID incorrecto)';
+        }
+        this.mostrarMensaje(msg, 'error');
+        this.isLoading = false;
+      }
+    });
+}
 
   private inicializarFormulario(estadoUpper: string): void {
     let tipoProceso = 'nada';

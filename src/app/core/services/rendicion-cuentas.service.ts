@@ -71,58 +71,45 @@ export class RendicionCuentasService {
     );
   }
 
-  /**
-   * Tomar decisión (APROBAR, OBSERVAR, RECHAZAR)
-   * PATCH /rendicion-cuentas/documentos/:id/decision
-   */
-  tomarDecision(id: string, dto: TomarDecisionDto): Observable<RendicionCuentasProceso> {
-    return this.http.patch<any>(`${this.apiUrl}/documentos/${id}/decision`, dto).pipe(
-      map(res => {
-        console.log('📥 Respuesta tomar decisión:', res);
-        return this.handleActionResponse(res);
-      }),
-      catchError(err => this.handleError(err, `tomar decisión ${id}`))
-    );
-  }
-
-  /**
-   * Descargar carpeta completa del documento
-   * GET /rendicion-cuentas/documentos/:documentoId/descargar
-   */
-  descargarCarpeta(documentoId: string): Observable<Blob> {
-    return this.http.get(`${this.apiUrl}/documentos/${documentoId}/descargar`, {
-      responseType: 'blob'
-    });
-  }
 
   /**
    * Obtener detalle de una rendición por su ID
    * GET /rendicion-cuentas/rendiciones/:rendicionId/detalle
    */
-  obtenerDetalleRendicion(rendicionId: string): Observable<RendicionCuentasProceso> {
-    if (!rendicionId) return throwError(() => new Error('ID requerido'));
+obtenerDetalleRendicion(rendicionId: string): Observable<RendicionCuentasProceso> {
+  if (!rendicionId) return throwError(() => new Error('ID de rendición requerido'));
 
-    return this.http.get<any>(`${this.apiUrl}/rendiciones/${rendicionId}/detalle`).pipe(
-      map(res => {
-        console.log('📥 Respuesta detalle rendición:', res);
-        
-        let datosProceso: any;
-        
-        if (res.ok && res.data) {
-          datosProceso = res.data;
-        } else if (res.data) {
-          datosProceso = res.data;
-        } else if (res.id) {
-          datosProceso = res;
-        } else {
-          throw new Error(res.message || 'No se encontró el documento');
-        }
-        
-        return this.mapearProceso(datosProceso);
-      }),
-      catchError(err => this.handleError(err, `obtener detalle de rendición ${rendicionId}`))
-    );
-  }
+  console.log(`[Service] Obteniendo detalle rendición: ${rendicionId}`);
+
+  return this.http.get<any>(`${this.apiUrl}/rendiciones/${rendicionId}/detalle`).pipe(
+    map(res => {
+      console.log('[Service] Respuesta cruda de detalle rendición:', res);
+      
+      let datos = res.data || res;
+      if (!datos) throw new Error('No se encontraron datos en la respuesta');
+
+      return this.mapearProceso(datos);
+    }),
+    catchError(err => this.handleError(err, `obtener detalle rendición ${rendicionId}`))
+  );
+}
+
+tomarDecision(rendicionId: string, dto: TomarDecisionDto): Observable<RendicionCuentasProceso> {
+  console.log(`[Service] Tomando decisión en rendición ${rendicionId}:`, dto);
+
+  return this.http.patch<any>(`${this.apiUrl}/documentos/${rendicionId}/decision`, dto).pipe(
+    map(res => this.handleActionResponse(res)),
+    catchError(err => this.handleError(err, `tomar decisión en ${rendicionId}`))
+  );
+}
+
+descargarCarpeta(documentoId: string): Observable<Blob> {
+  console.log(`[Service] Descargando carpeta completa del documento: ${documentoId}`);
+  
+  return this.http.get(`${this.apiUrl}/documentos/${documentoId}/descargar`, {
+    responseType: 'blob'
+  });
+}
 
   /**
    * Alias para mantener compatibilidad
