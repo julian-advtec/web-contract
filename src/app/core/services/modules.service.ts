@@ -48,46 +48,7 @@ export class ModulesService {
       requiredRole: UserRole.RADICADOR,
       isActive: true
     },
-    {
-      id: 'nueva-radicacion',
-      title: 'Nueva Radicación',
-      description: 'Crear nuevo documento radicado',
-      path: '/radicacion/nuevo',
-      route: '/radicacion/nuevo',
-      icon: 'radicacion',
-      requiredRole: UserRole.RADICADOR,
-      isActive: true
-    },
-    {
-      id: 'lista-radicacion',
-      title: 'Lista General',
-      description: 'Ver todos los documentos radicados',
-      path: '/radicacion/lista',
-      route: '/radicacion/lista',
-      icon: 'lista-documentos',
-      requiredRole: UserRole.RADICADOR,
-      isActive: true
-    },
-    {
-      id: 'mis-radicaciones',
-      title: 'Mis Radicaciones',
-      description: 'Ver mis documentos radicados',
-      path: '/radicacion/mis-radicaciones',
-      route: '/radicacion/mis-radicaciones',
-      icon: 'mis-documentos',
-      requiredRole: UserRole.RADICADOR,
-      isActive: true
-    },
-    {
-      id: 'rechazados',
-      title: 'Documentos Rechazados',
-      description: 'Ver documentos con estado rechazado',
-      path: '/radicacion/rechazados',
-      route: '/radicacion/rechazados',
-      icon: 'rechazados',
-      requiredRole: UserRole.RADICADOR, // O el rol que quieras
-      isActive: true
-    },
+    
     {
       id: 'supervisor',
       title: 'Supervisor',
@@ -158,16 +119,7 @@ export class ModulesService {
       requiredRole: UserRole.RENDICION_CUENTAS,
       isActive: true
     },
-    {
-      id: 'configuracion',
-      title: 'Configuración',
-      description: 'Configuración del sistema',
-      path: '/configuracion',
-      route: '/configuracion',
-      icon: 'configuracion',
-      requiredRole: UserRole.ADMIN,
-      isActive: true
-    }
+    
   ];
 
   constructor() { }

@@ -6,7 +6,7 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
 import { debounceTime, Subject } from 'rxjs';
 
 // IMPORTACIONES CORREGIDAS - IGUAL A TESORERÍA
-import { EstadisticasAsesorGerenciaService } from '../../../../core/services/estadisticast-asesor-gerencia';
+import { EstadisticasAsesorGerenciaService } from '../../../../core/services/estadisticas-asesor-gerencia';
 import { AuthService } from '../../../../core/services/auth.service';
 import { EstadisticasAsesorGerencia, FiltrosStats, PeriodoStats } from '../../../../core/models/estadisticas-asesor-gerencia.model';
 

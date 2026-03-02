@@ -1,121 +1,26 @@
 <div class="rendicion-list-container">
 
-  <!-- Filtros rápidos -->
-  <div class="search-container mt-3 mb-4">
-    <div class="row mb-3">
-      <div class="col-md-4">
-        <div class="input-group">
-          <span class="input-group-text"><i class="fas fa-filter"></i></span>
-          <select class="form-select" [(ngModel)]="filtroEstado" (change)="onFiltroChange()">
-            <option value="todos">Todos los estados</option>
-            <option value="pendientes">Pendientes</option>
-            <option value="en_revision">En revisión</option>
-            <option value="aprobados">Aprobados</option>
-            <option value="observados">Observados</option>
-            <option value="rechazados">Rechazados</option>
-            <option value="completados">Completados</option>
-          </select>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="input-group">
-          <span class="input-group-text"><i class="fas fa-user-tag"></i></span>
-          <select class="form-select" [(ngModel)]="filtroAsignacion" (change)="onFiltroChange()">
-            <option value="todos">Todos los responsables</option>
-            <option value="mios">Solo mis documentos</option>
-            <option value="sin_asignar">Sin asignar</option>
-            <option value="de_otros">De otros usuarios</option>
-          </select>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="input-group">
-          <span class="input-group-text"><i class="fas fa-calendar"></i></span>
-          <select class="form-select" [(ngModel)]="filtroFecha" (change)="onFiltroChange()">
-            <option value="todos">Cualquier fecha</option>
-            <option value="hoy">Hoy</option>
-            <option value="semana">Última semana</option>
-            <option value="mes">Último mes</option>
-          </select>
-        </div>
-      </div>
-    </div>
-
-    <div class="input-group search-group flex-grow-1">
-      <span class="input-group-text">
-        <i class="fas fa-search"></i>
-      </span>
-      <input type="text" class="form-control" placeholder="Buscar radicado, contratista, contrato, estado..."
-        [(ngModel)]="searchTerm" (input)="onSearch()" [disabled]="isLoading" />
-      <button class="btn btn-outline-primary" (click)="limpiarFiltros()"
-        *ngIf="searchTerm || filtroEstado !== 'todos' || filtroAsignacion !== 'todos' || filtroFecha !== 'todos'">
-        <i class="fas fa-times"></i> Limpiar
+  <!-- Solo búsqueda -->
+  <div class="search-container mb-4">
+    <div class="input-group">
+      <span class="input-group-text"><i class="fas fa-search"></i></span>
+      <input type="text" class="form-control" placeholder="Buscar por radicado, contratista, contrato..."
+        [(ngModel)]="searchTerm" (input)="aplicarBusqueda()" [disabled]="isLoading" />
+      <button class="btn btn-outline-secondary" *ngIf="searchTerm.trim()" (click)="limpiarBusqueda()">
+        <i class="fas fa-times"></i>
       </button>
     </div>
   </div>
 
-  <!-- Resumen rápido -->
-  <div class="row mb-4" *ngIf="!isLoading && documentos.length > 0">
-    <div class="col-md-3">
-      <div class="card bg-primary text-white">
-        <div class="card-body d-flex align-items-center justify-content-between">
-          <div>
-            <h6 class="mb-0">Disponibles</h6>
-            <h3 class="mb-0">{{ getDisponiblesCount() }}</h3>
-          </div>
-          <i class="fas fa-inbox fa-2x opacity-50"></i>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card bg-warning text-white">
-        <div class="card-body d-flex align-items-center justify-content-between">
-          <div>
-            <h6 class="mb-0">En Revisión</h6>
-            <h3 class="mb-0">{{ getEnRevisionCount() }}</h3>
-          </div>
-          <i class="fas fa-sync-alt fa-spin fa-2x opacity-50"></i>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card bg-success text-white">
-        <div class="card-body d-flex align-items-center justify-content-between">
-          <div>
-            <h6 class="mb-0">Aprobados</h6>
-            <h3 class="mb-0">{{ getProcesadosCount() }}</h3>
-          </div>
-          <i class="fas fa-check-circle fa-2x opacity-50"></i>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card bg-info text-white">
-        <div class="card-body d-flex align-items-center justify-content-between">
-          <div>
-            <h6 class="mb-0">Total</h6>
-            <h3 class="mb-0">{{ documentos.length }}</h3>
-          </div>
-          <i class="fas fa-file-invoice fa-2x opacity-50"></i>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Mensajes -->
-  <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
-    <i class="fas fa-exclamation-triangle me-2"></i>{{ errorMessage }}
-    <button type="button" class="btn-close" (click)="dismissError()"></button>
+  <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show">
+    {{ errorMessage }}
+    <button type="button" class="btn-close" (click)="errorMessage = ''"></button>
   </div>
 
-  <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show" role="alert">
-    <i class="fas fa-check-circle me-2"></i>{{ successMessage }}
-    <button type="button" class="btn-close" (click)="dismissSuccess()"></button>
-  </div>
-
-  <div *ngIf="infoMessage" class="alert alert-info alert-dismissible fade show" role="alert">
-    <i class="fas fa-info-circle me-2"></i>{{ infoMessage }}
-    <button type="button" class="btn-close" (click)="dismissInfo()"></button>
+  <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show">
+    {{ successMessage }}
+    <button type="button" class="btn-close" (click)="successMessage = ''"></button>
   </div>
 
   <!-- Loading -->
@@ -123,129 +28,91 @@
     <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
       <span class="visually-hidden">Cargando...</span>
     </div>
-    <p class="mt-3 text-muted">Cargando documentos de rendición de cuentas...</p>
+    <p class="mt-3">Cargando rendiciones de cuentas...</p>
   </div>
 
-  <!-- Sin datos -->
-  <div *ngIf="!isLoading && filteredDocumentos.length === 0" class="text-center py-5">
-    <i class="fas fa-file-invoice fa-4x text-secondary mb-4"></i>
-    <h4 class="text-muted mb-2">No hay documentos</h4>
-    <p class="text-muted mb-3">No se encontraron documentos con los filtros aplicados</p>
-    <div class="d-flex justify-content-center gap-2 mt-4 flex-wrap">
-      <button class="btn btn-primary" (click)="refreshData()" [disabled]="isLoading">
-        <i class="fas fa-sync-alt me-1"></i> Refrescar
-      </button>
-      <button class="btn btn-outline-primary" (click)="limpiarFiltros()">
-        <i class="fas fa-filter me-1"></i> Limpiar filtros
-      </button>
-    </div>
+  <!-- Sin resultados -->
+  <div *ngIf="!isLoading && filteredDocumentos.length === 0" class="text-center py-5 text-muted">
+    <i class="fas fa-folder-open fa-4x mb-3 d-block"></i>
+    <h5>No hay documentos para mostrar</h5>
+    <p *ngIf="searchTerm.trim()">Prueba con otro término de búsqueda</p>
   </div>
 
   <!-- Lista -->
   <div *ngIf="!isLoading && filteredDocumentos.length > 0" class="documentos-container">
+
     <div class="documentos-header">
-      <div class="header-item">Radicado</div>
-      <div class="header-item">Contratista</div>
-      <div class="header-item">Contrato</div>
-      <div class="header-item">Estado</div>
-      <div class="header-item">Tipo</div>
-      <div class="header-item acciones-header">Acciones</div>
+      <div>Radicado</div>
+      <div>Contratista</div>
+      <div>Contrato</div>
+      <div>Estado</div>
+      <div>Acciones</div>
     </div>
 
     <div class="documentos-list">
-      <div *ngFor="let documento of paginatedDocumentos" class="documento-card"
-        [class.reciente]="esDocumentoReciente(documento)" [class.mi-documento]="esMiDocumento(documento)">
+      <div *ngFor="let doc of paginatedDocumentos; trackBy: trackById" class="documento-card"
+        [class.mi-documento]="doc.responsableId === usuarioId"
+        [class.libre]="!doc.responsableId && (doc.estado === 'PENDIENTE' || doc.disponible)">
 
-        <!-- Radicado -->
-        <div class="documento-info">
-          <h5 class="documento-numero">
-            <i class="fas fa-hashtag me-1"></i>{{ getNumeroRadicado(documento) }}
-            <span *ngIf="esDocumentoReciente(documento)" class="reciente-badge">
-              <i class="fas fa-star me-1"></i>NUEVO
-            </span>
-            <span *ngIf="esMiDocumento(documento)" class="mi-badge">
-              <i class="fas fa-user me-1"></i>MÍO
-            </span>
-          </h5>
-          <small>{{ formatDateOnly(getFechaRadicacion(documento)) }}</small>
-        </div>
-
-        <!-- Contratista -->
-        <div class="documento-contratista">
-          <strong>{{ getNombreContratista(documento) }}</strong>
-          <small>{{ getDocumentoContratista(documento) }}</small>
-        </div>
-
-        <!-- Contrato -->
-        <div class="documento-contrato">
-          <span class="contrato-badge">
-            <i class="fas fa-file-contract me-1"></i>{{ getNumeroContrato(documento) }}
-          </span>
-        </div>
-
-        <!-- Estado -->
-        <div class="documento-estado">
-          <span class="badge" [ngClass]="getEstadoBadgeClass(getEstado(documento))">
-            {{ getEstadoTexto(getEstado(documento)) }}
-          </span>
-          <small *ngIf="getObservacion(documento)" class="observacion-preview">
-            <i class="fas fa-comment me-1"></i>{{ getObservacionCorta(documento) }}
+        <div class="radicado">
+          <strong>{{ doc.numeroRadicado || 'Sin radicar' }}</strong>
+          <small class="text-muted d-block">
+            {{ doc.fechaCreacion | date:'dd/MM/yyyy' }}
           </small>
         </div>
 
-        <!-- Tipo -->
-        <div class="documento-tipo">
-          <span class="badge" [ngClass]="getTipoDocumentoBadgeClass(documento)">
-            {{ getTipoDocumentoTexto(documento) }}
+        <div class="contratista">
+          {{ doc.nombreContratista || '—' }}
+          <small class="text-muted d-block">{{ doc.documentoContratista || '' }}</small>
+        </div>
+
+        <div class="contrato">
+          {{ doc.numeroContrato || '—' }}
+        </div>
+
+        <div class="estado">
+          <span class="badge rounded-pill px-3 py-2" [ngClass]="getEstadoBadgeClass(doc.estado)">
+            {{ getEstadoTexto(doc.estado) }}
           </span>
         </div>
 
-        <!-- Acciones -->
-        <div class="documento-acciones">
-          <!-- Para disponible -->
-          <button *ngIf="documento.estado === 'PENDIENTE' && !documento.responsableId" class="btn btn-sm btn-primary"
-            (click)="tomarDocumento(documento)" [disabled]="isProcessing">
+        <div class="acciones text-end">
+          <!-- Libre → Tomar -->
+          <button *ngIf="esLibre(doc)" class="btn btn-sm btn-primary me-2" (click)="tomarDocumento(doc)"
+            [disabled]="isProcessing">
             <i class="fas fa-hand-paper me-1"></i> Tomar
           </button>
 
-          <!-- Para en revisión mío -->
-          <button *ngIf="documento.estado === 'EN_REVISION' && documento.responsableId === usuarioId"
-            class="btn btn-sm btn-success" (click)="revisarDocumento(documento)">
-            <i class="fas fa-user-check me-1"></i> Procesar Revisión
+          <!-- Mío y en revisión → Procesar -->
+          <button *ngIf="esMiDocumentoEnRevision(doc)" class="btn btn-sm btn-success me-2"
+            (click)="revisarDocumento(doc)">
+            <i class="fas fa-edit me-1"></i> Procesar
           </button>
 
-          <!-- Si está procesado o es de otro, botón para consultar -->
-          <button *ngIf="esConsultable(documento)" class="btn btn-sm btn-info" (click)="revisarDocumento(documento)">
-            <i class="fas fa-eye me-1"></i> Consultar
+          <!-- Solo lectura -->
+          <button *ngIf="!esLibre(doc) && !esMiDocumentoEnRevision(doc)" class="btn btn-sm btn-outline-secondary"
+            (click)="revisarDocumento(doc)">
+            <i class="fas fa-eye me-1"></i> Ver
           </button>
-
-          <!-- Info adicional -->
-          <div class="mt-1">
-            <small><i class="fas fa-file me-1"></i>Docs: {{ getDocumentCount(documento) }}</small>
-          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Paginación -->
-  <div class="documentos-pagination" *ngIf="totalPages > 1">
-    <div class="pagination-info">
-      Mostrando {{ paginatedDocumentos.length }} de {{ filteredDocumentos.length }} documentos
-      (Página {{ currentPage }} de {{ totalPages }})
-    </div>
-    <div class="pagination-controls">
-      <button class="btn btn-outline-primary btn-sm" [disabled]="currentPage === 1"
+    <!-- Paginación -->
+    <div class="d-flex justify-content-between align-items-center mt-4" *ngIf="totalPages > 1">
+      <button class="btn btn-outline-secondary btn-sm" [disabled]="currentPage === 1"
         (click)="changePage(currentPage - 1)">
         <i class="fas fa-chevron-left"></i> Anterior
       </button>
-      <div class="page-numbers">
-        <button *ngFor="let page of pages" class="btn btn-sm" [class.btn-primary]="page === currentPage"
-          [class.btn-outline-primary]="page !== currentPage" (click)="changePage(page)">
-          {{ page }}
+
+      <div class="d-flex gap-1">
+        <button *ngFor="let p of pages" class="btn btn-sm" [class.btn-primary]="p === currentPage"
+          [class.btn-outline-secondary]="p !== currentPage" (click)="changePage(p)">
+          {{ p }}
         </button>
       </div>
-      <button class="btn btn-outline-primary btn-sm" [disabled]="currentPage === totalPages"
+
+      <button class="btn btn-outline-secondary btn-sm" [disabled]="currentPage === totalPages"
         (click)="changePage(currentPage + 1)">
         Siguiente <i class="fas fa-chevron-right"></i>
       </button>

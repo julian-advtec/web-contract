@@ -195,7 +195,18 @@ export class RadicacionComponent implements OnInit {
         icon: 'rechazados',
         requiredRole: UserRole.RADICADOR,
         isActive: true
-      }
+      },
+      {
+        id: 'mis-estadisticas',
+        title: 'Mis Estadísticas',
+        description: 'Ver mis estadísticas de radicación',
+        path: '/radicacion/mis-estadisticas',
+        route: '/radicacion/mis-estadisticas',
+        icon: 'chart-bar',           // o el icono que prefieras (fas fa-chart-bar)
+        requiredRole: UserRole.RADICADOR,
+        isActive: true
+      },
+
     ];
 
     console.log('📋 Módulos disponibles (manual):', this.availableModules);

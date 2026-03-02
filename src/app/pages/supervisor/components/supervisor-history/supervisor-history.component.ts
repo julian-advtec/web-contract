@@ -6,6 +6,7 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { SupervisorService } from '../../../../core/services/supervisor/supervisor.service';
 import { NotificationService } from '../../../../core/services/notification.service';
+import { SupervisorEstadisticasService } from '../../../../core/services/supervisor';
 
 @Component({
   selector: 'app-supervisor-history',
@@ -43,7 +44,8 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
   constructor(
     private supervisorService: SupervisorService,
     private notificationService: NotificationService,
-    private router: Router
+    private router: Router,
+    private estadisticasService: SupervisorEstadisticasService
   ) { }
 
   ngOnInit(): void {
@@ -77,46 +79,49 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
     this.successMessage = '';
     this.infoMessage = '';
 
-    this.supervisorService.getHistorial()
+    // ← Aquí estaba el error: usabas getHistorial() que no existe
+    this.estadisticasService.obtenerHistorial()  // ← Método real del servicio
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (response: any) => {
-          console.log('📊 Respuesta del historial:', response);
-
-          if (response.success) {
-            this.historial = response.data || [];
-            console.log('✅ Historial cargado con', this.historial.length, 'registros');
-
-            // DEBUG: Mostrar estructura de los primeros elementos
-            this.historial.slice(0, 3).forEach((item, index) => {
-              console.log(`🔍 Elemento ${index + 1}:`, {
-                estado: item.estado,
-                supervisorRevisor: item.supervisorRevisor,
-                supervisorAsignado: item.documento?.supervisorAsignado,
-                asignacion: item.documento?.asignacion,
-                tieneSupervisor: !!this.getSupervisorAsignado(item)
-              });
-            });
-
-            this.filteredHistorial = [...this.historial];
-            this.updatePagination();
-
-            if (this.filteredHistorial.length > 0) {
-              const recientes = this.filteredHistorial.filter(item => this.esDocumentoReciente(item));
-              this.successMessage = `Se encontraron ${this.filteredHistorial.length} supervisiones (${recientes.length} recientes)`;
-            } else {
-              this.infoMessage = 'No hay supervisiones en el historial';
-            }
-          } else {
-            this.error = response.message || 'Error al cargar el historial';
-            this.notificationService.error('Error', this.error);
-          }
+        next: (historialData: any[] | null) => {
           this.loading = false;
+
+          if (!historialData || historialData.length === 0) {
+            this.infoMessage = 'No hay supervisiones en el historial';
+            this.historial = [];
+            this.filteredHistorial = [];
+            this.updatePagination();
+            return;
+          }
+
+          this.historial = historialData;
+          console.log('✅ Historial cargado con', this.historial.length, 'registros');
+
+          // DEBUG: Mostrar estructura de los primeros elementos
+          this.historial.slice(0, 3).forEach((item, index) => {
+            console.log(`🔍 Elemento ${index + 1}:`, {
+              estado: item.estado,
+              supervisorRevisor: item.supervisorRevisor,
+              supervisorAsignado: item.documento?.supervisorAsignado,
+              asignacion: item.documento?.asignacion,
+              tieneSupervisor: !!this.getSupervisorAsignado(item)
+            });
+          });
+
+          this.filteredHistorial = [...this.historial];
+          this.updatePagination();
+
+          if (this.filteredHistorial.length > 0) {
+            const recientes = this.filteredHistorial.filter(item => this.esDocumentoReciente(item));
+            this.successMessage = `Se encontraron ${this.filteredHistorial.length} supervisiones (${recientes.length} recientes)`;
+          } else {
+            this.infoMessage = 'No hay supervisiones en el historial';
+          }
         },
         error: (err: any) => {
-          this.error = 'Error de conexión con el servidor: ' + err.message;
           this.loading = false;
-          console.error('Error:', err);
+          this.error = 'Error de conexión con el servidor: ' + (err.message || 'Desconocido');
+          console.error('Error cargando historial:', err);
           this.notificationService.error('Error', this.error);
         }
       });

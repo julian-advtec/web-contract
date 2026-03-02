@@ -5,7 +5,7 @@ import { SupervisorComponent } from './supervisor.component';
 import { SupervisorPendingListComponent } from './components/supervisor-pending-list/supervisor-pending-list.component';
 import { SupervisorFormComponent } from './components/supervisor-form/supervisor-form.component';
 import { SupervisorHistoryComponent } from './components/supervisor-history/supervisor-history.component';
-import { SupervisorStatsComponent } from './components/supervisor-stats/supervisor-stats.component';
+import { EstadisticasSupervisorComponent } from './components/estadisticas-supervisor/estadisticas-supervisor.component';
 import { AuditorListComponent } from '../auditor/components/auditor-list/auditor-list.component';
 import { RoleGuard } from '../../core/guards/role.guard';
 import { UserRole } from '../../core/models/user.types';
@@ -36,7 +36,7 @@ const routes: Routes = [
       },
       {
         path: 'estadisticas',
-        component: SupervisorStatsComponent
+        component: EstadisticasSupervisorComponent
       },{
         path: 'mis-documentos',
         component: AuditorListComponent

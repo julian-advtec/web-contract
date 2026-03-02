@@ -7,7 +7,7 @@ import { SupervisorComponent } from './supervisor.component';
 import { SupervisorPendingListComponent } from './components/supervisor-pending-list/supervisor-pending-list.component';
 import { SupervisorFormComponent } from './components/supervisor-form/supervisor-form.component';
 import { SupervisorHistoryComponent } from './components/supervisor-history/supervisor-history.component';
-import { SupervisorStatsComponent } from './components/supervisor-stats/supervisor-stats.component';
+import { SupervisorEstadisticasService } from '../../core/services/supervisor';
 
 @NgModule({
   declarations: [
@@ -15,7 +15,7 @@ import { SupervisorStatsComponent } from './components/supervisor-stats/supervis
     SupervisorPendingListComponent,
     SupervisorFormComponent,
     SupervisorHistoryComponent,
-    SupervisorStatsComponent
+    SupervisorEstadisticasService
   ],
   imports: [
     CommonModule,

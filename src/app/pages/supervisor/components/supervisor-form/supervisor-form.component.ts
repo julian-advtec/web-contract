@@ -9,7 +9,7 @@ import { EventEmitter } from '@angular/core';
 import { SupervisorService } from '../../../../core/services/supervisor/supervisor.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { AuditorService } from '../../../../core/services/auditor.service'; // ← AÑADIR
-
+import { SupervisorEstadisticasService } from '../../../../core/services/supervisor';
 
 @Component({
   selector: 'app-supervisor-form',
@@ -106,7 +106,8 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     private supervisorService: SupervisorService,
     private auditorService: AuditorService, // ← AÑADIR
     private notificationService: NotificationService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private estadisticasService: SupervisorEstadisticasService
   ) { }
 
   ngOnInit(): void {
@@ -1329,7 +1330,7 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
   private cargarArchivosSupervisorDesdeBackend(documentoId: string, documentoData: any): void {
     console.log('🔍 Buscando archivos del supervisor para documento:', documentoId);
 
-    this.supervisorService.getHistorial()
+    this.estadisticasService.obtenerHistorial()
       .pipe(
         map((historialResponse: any) => {
           if (historialResponse.success && Array.isArray(historialResponse.data)) {

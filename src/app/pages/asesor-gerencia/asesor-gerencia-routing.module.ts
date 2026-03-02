@@ -63,7 +63,8 @@ const routes: Routes = [
         path: 'estadisticas',
         component: AsesorGerenciaStatsComponent,
         data: { title: 'Mis Estadísticas' }
-      } 
+      },
+       
        
     ]
   }

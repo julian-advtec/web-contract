@@ -1,0 +1,366 @@
+<!-- src/app/modules/radicacion/components/radicacion-completa-list/radicacion-completa-list.component.html -->
+<div class="radicacion-completa-container">
+  <!-- Header con título y acciones -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1">
+        <i class="fas fa-file-alt me-2 text-primary"></i>
+        Todos los Radicados
+      </h2>
+      <p class="text-muted mb-0">
+        <i class="fas fa-users me-1"></i>
+        Documentos radicados por todos los radicadores en el sistema
+      </p>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-primary" (click)="exportToExcel()" [disabled]="filteredDocumentos.length === 0">
+        <i class="fas fa-file-excel me-1"></i> Exportar
+      </button>
+      <button class="btn btn-primary" (click)="refreshData()" [disabled]="loading">
+        <i class="fas fa-sync-alt me-1" [class.fa-spin]="loading"></i> Refrescar
+      </button>
+    </div>
+  </div>
+
+  <!-- Alertas -->
+  <div *ngIf="error" class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-triangle me-2"></i>{{ error }}
+    <button type="button" class="btn-close" (click)="dismissError()"></button>
+  </div>
+
+  <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="fas fa-check-circle me-2"></i>{{ successMessage }}
+    <button type="button" class="btn-close" (click)="dismissSuccess()"></button>
+  </div>
+
+  <div *ngIf="infoMessage" class="alert alert-info alert-dismissible fade show" role="alert">
+    <i class="fas fa-info-circle me-2"></i>{{ infoMessage }}
+    <button type="button" class="btn-close" (click)="dismissInfo()"></button>
+  </div>
+
+  <!-- Filtros y búsqueda -->
+  <div class="filters-card mb-4">
+    <div class="row g-3">
+      <div class="col-md-5">
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0">
+            <i class="fas fa-search text-muted"></i>
+          </span>
+          <input type="text" 
+                 class="form-control border-start-0 ps-0" 
+                 placeholder="Buscar por radicado, contrato, contratista, radicador..." 
+                 [(ngModel)]="searchTerm"
+                 (ngModelChange)="onSearch()">
+        </div>
+      </div>
+      <div class="col-md-2">
+        <select class="form-select" [(ngModel)]="filtroEstado" (change)="onFiltroChange()">
+          <option value="todos">Todos los estados</option>
+          <option value="RADICADO">Radicado</option>
+          <option value="SUPERVISADO">Supervisado</option>
+          <option value="EN_REVISION_CONTABILIDAD">En Contabilidad</option>
+          <option value="OBSERVADO_CONTABILIDAD">Observado Contabilidad</option>
+          <option value="COMPLETADO_CONTABILIDAD">Completado Contabilidad</option>
+          <option value="EN_REVISION_TESORERIA">En Tesorería</option>
+          <option value="OBSERVADO_TESORERIA">Observado Tesorería</option>
+          <option value="COMPLETADO_TESORERIA">Completado Tesorería</option>
+          <option value="EN_REVISION_ASESOR_GERENCIA">En Gerencia</option>
+          <option value="OBSERVADO_ASESOR_GERENCIA">Observado Gerencia</option>
+          <option value="COMPLETADO_ASESOR_GERENCIA">Completado Gerencia</option>
+          <option value="RECHAZADO_ASESOR_GERENCIA">Rechazado Gerencia</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select class="form-select" [(ngModel)]="filtroRadicador" (change)="onFiltroChange()">
+          <option value="todos">Todos los radicadores</option>
+          <option *ngFor="let radicador of radicadoresUnicos" [value]="radicador">
+            {{ radicador }}
+          </option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <div class="d-flex gap-2">
+          <select class="form-select" [(ngModel)]="filtroFecha" (change)="onFiltroChange()">
+            <option value="todos">Cualquier fecha</option>
+            <option value="hoy">Hoy</option>
+            <option value="semana">Última semana</option>
+            <option value="mes">Último mes</option>
+            <option value="trimestre">Último trimestre</option>
+            <option value="ano">Último año</option>
+          </select>
+          <button class="btn btn-outline-secondary" (click)="limpiarFiltros()" 
+                  title="Limpiar filtros">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtros activos -->
+    <div class="active-filters mt-3" *ngIf="hayFiltrosActivos()">
+      <small class="text-muted me-2">Filtros activos:</small>
+      <span class="filter-badge" *ngIf="searchTerm">
+        Búsqueda: "{{ searchTerm }}"
+        <i class="fas fa-times ms-2" (click)="searchTerm = ''; onSearch()"></i>
+      </span>
+      <span class="filter-badge" *ngIf="filtroEstado !== 'todos'">
+        Estado: {{ getEstadoTexto(filtroEstado) }}
+        <i class="fas fa-times ms-2" (click)="filtroEstado = 'todos'; onFiltroChange()"></i>
+      </span>
+      <span class="filter-badge" *ngIf="filtroRadicador !== 'todos'">
+        Radicador: {{ filtroRadicador }}
+        <i class="fas fa-times ms-2" (click)="filtroRadicador = 'todos'; onFiltroChange()"></i>
+      </span>
+      <span class="filter-badge" *ngIf="filtroFecha !== 'todos'">
+        Período: {{ getFechaTexto(filtroFecha) }}
+        <i class="fas fa-times ms-2" (click)="filtroFecha = 'todos'; onFiltroChange()"></i>
+      </span>
+    </div>
+  </div>
+
+  <!-- Estadísticas rápidas -->
+  <div class="stats-row mb-4" *ngIf="!loading && todosDocumentos.length > 0">
+    <div class="stat-card">
+      <div class="stat-icon bg-primary bg-opacity-10">
+        <i class="fas fa-file-alt text-primary"></i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{{ todosDocumentos.length }}</span>
+        <span class="stat-label">Total Radicados</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon bg-success bg-opacity-10">
+        <i class="fas fa-check-circle text-success"></i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{{ getCompletadosCount() }}</span>
+        <span class="stat-label">Completados</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon bg-warning bg-opacity-10">
+        <i class="fas fa-clock text-warning"></i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{{ getPendientesCount() }}</span>
+        <span class="stat-label">En Proceso</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon bg-info bg-opacity-10">
+        <i class="fas fa-users text-info"></i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{{ radicadoresUnicos.length }}</span>
+        <span class="stat-label">Radicadores</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Estado de carga -->
+  <div *ngIf="loading" class="text-center py-5">
+    <div class="spinner-border text-primary mb-3" role="status">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+    <h5 class="text-muted">Cargando documentos radicados...</h5>
+    <p class="text-muted small">Obteniendo información de todos los radicadores</p>
+  </div>
+
+  <!-- Sin datos -->
+  <div *ngIf="!loading && filteredDocumentos.length === 0" class="empty-state">
+    <div class="empty-state-icon">
+      <i class="fas fa-file-alt"></i>
+    </div>
+    <h4 class="mb-2">No hay documentos</h4>
+    <p class="text-muted mb-4">
+      {{ todosDocumentos.length === 0 ? 
+         'No se han radicado documentos en el sistema' : 
+         'No se encontraron documentos con los filtros aplicados' }}
+    </p>
+    <div class="d-flex justify-content-center gap-3">
+      <button class="btn btn-primary" (click)="refreshData()">
+        <i class="fas fa-sync-alt me-2"></i>Refrescar
+      </button>
+      <button *ngIf="todosDocumentos.length > 0" 
+              class="btn btn-outline-primary" 
+              (click)="limpiarFiltros()">
+        <i class="fas fa-times me-2"></i>Limpiar filtros
+      </button>
+    </div>
+  </div>
+
+  <!-- Vista de tabla (para escritorio) -->
+  <div *ngIf="!loading && filteredDocumentos.length > 0" class="table-responsive d-none d-lg-block">
+    <table class="table table-hover align-middle">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-3">Radicado</th>
+          <th>Contratista</th>
+          <th>Contrato</th>
+          <th>Estado</th>
+          <th>Radicador</th>
+          <th>Fecha Rad.</th>
+          <th class="text-center">Documentos</th>
+          <th class="text-end pe-3">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let doc of paginatedDocumentos" 
+            class="documento-row"
+            [class.table-primary]="esDocumentoReciente(doc)">
+          <td class="ps-3">
+            <div class="fw-semibold">{{ doc.numeroRadicado || 'N/A' }}</div>
+            <small class="text-muted">{{ doc.id | slice:0:8 }}...</small>
+          </td>
+          <td>
+            <div class="fw-semibold">{{ doc.nombreContratista || 'Sin nombre' }}</div>
+            <small class="text-muted">{{ doc.documentoContratista || 'Sin documento' }}</small>
+          </td>
+          <td>
+            <span class="badge bg-light text-dark border">
+              {{ doc.numeroContrato || 'N/A' }}
+            </span>
+          </td>
+          <td>
+            <span class="badge" [ngClass]="getEstadoBadgeClass(doc.estado)">
+              {{ getEstadoTexto(doc.estado) }}
+            </span>
+          </td>
+          <td>
+            <div class="d-flex align-items-center">
+              <i class="fas fa-user-tie me-2 text-secondary"></i>
+              <span>{{ doc.nombreRadicador || doc.radicador?.fullName || 'N/A' }}</span>
+            </div>
+          </td>
+          <td>
+            <div>{{ formatDate(doc.fechaRadicacion) }}</div>
+            <small class="text-muted">{{ formatTimeAgo(doc.fechaRadicacion) }}</small>
+          </td>
+          <td class="text-center">
+            <span class="badge bg-secondary">
+              {{ getDocumentosSubidos(doc) }}/3
+            </span>
+          </td>
+          <td class="text-end pe-3">
+            <div class="btn-group btn-group-sm">
+              <button class="btn btn-outline-primary" 
+                      (click)="verDetalle(doc)"
+                      title="Ver detalles">
+                <i class="fas fa-eye"></i>
+              </button>
+              <button class="btn btn-outline-secondary" 
+                      (click)="verArchivos(doc)"
+                      title="Ver documentos">
+                <i class="fas fa-file-pdf"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Vista de tarjetas (para móvil/tablet) -->
+  <div *ngIf="!loading && filteredDocumentos.length > 0" class="d-lg-none">
+    <div class="documentos-cards">
+      <div *ngFor="let doc of paginatedDocumentos" 
+           class="documento-card"
+           [class.reciente]="esDocumentoReciente(doc)">
+        <div class="card-header">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h5 class="mb-1">
+                <i class="fas fa-hashtag me-1"></i>{{ doc.numeroRadicado || 'N/A' }}
+              </h5>
+              <small class="text-muted">ID: {{ doc.id | slice:0:8 }}...</small>
+            </div>
+            <span class="badge" [ngClass]="getEstadoBadgeClass(doc.estado)">
+              {{ getEstadoTexto(doc.estado) }}
+            </span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row mb-2">
+            <div class="col-4 text-muted">Contratista:</div>
+            <div class="col-8 fw-semibold">{{ doc.nombreContratista || 'N/A' }}</div>
+          </div>
+          <div class="row mb-2">
+            <div class="col-4 text-muted">Contrato:</div>
+            <div class="col-8">{{ doc.numeroContrato || 'N/A' }}</div>
+          </div>
+          <div class="row mb-2">
+            <div class="col-4 text-muted">Radicador:</div>
+            <div class="col-8">
+              <i class="fas fa-user-tie me-1 text-secondary"></i>
+              {{ doc.nombreRadicador || doc.radicador?.fullName || 'N/A' }}
+            </div>
+          </div>
+          <div class="row mb-2">
+            <div class="col-4 text-muted">Fecha:</div>
+            <div class="col-8">{{ formatDate(doc.fechaRadicacion) }}</div>
+          </div>
+          <div class="row">
+            <div class="col-4 text-muted">Docs:</div>
+            <div class="col-8">
+              <span class="badge bg-secondary">
+                {{ getDocumentosSubidos(doc) }}/3
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer bg-transparent">
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-primary flex-grow-1" 
+                    (click)="verDetalle(doc)">
+              <i class="fas fa-eye me-1"></i> Detalle
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" 
+                    (click)="verArchivos(doc)">
+              <i class="fas fa-file-pdf me-1"></i> Docs
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Paginación -->
+  <div *ngIf="!loading && filteredDocumentos.length > 0 && totalPages > 1" 
+       class="pagination-container mt-4">
+    <div class="pagination-info">
+      <span class="text-muted">
+        Mostrando {{ paginatedDocumentos.length }} de {{ filteredDocumentos.length }} documentos
+        (Página {{ currentPage }} de {{ totalPages }})
+      </span>
+    </div>
+    <div class="pagination-controls">
+      <button class="btn btn-outline-primary btn-sm" 
+              [disabled]="currentPage === 1"
+              (click)="changePage(currentPage - 1)">
+        <i class="fas fa-chevron-left"></i> Anterior
+      </button>
+      <div class="page-numbers">
+        <button *ngFor="let page of pages" 
+                class="btn btn-sm"
+                [class.btn-primary]="page === currentPage"
+                [class.btn-outline-primary]="page !== currentPage"
+                (click)="changePage(page)">
+          {{ page }}
+        </button>
+      </div>
+      <button class="btn btn-outline-primary btn-sm" 
+              [disabled]="currentPage === totalPages"
+              (click)="changePage(currentPage + 1)">
+        Siguiente <i class="fas fa-chevron-right"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Resumen al final -->
+  <div *ngIf="!loading && filteredDocumentos.length > 0" class="text-center text-muted small mt-3">
+    <i class="fas fa-database me-1"></i>
+    Total en sistema: <strong>{{ todosDocumentos.length }}</strong> documentos | 
+    Mostrando: <strong>{{ filteredDocumentos.length }}</strong> documentos
+  </div>
+</div>

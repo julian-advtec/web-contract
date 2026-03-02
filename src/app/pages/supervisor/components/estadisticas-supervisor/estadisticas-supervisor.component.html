@@ -1,0 +1,90 @@
+<!-- src/app/pages/supervisor/components/estadisticas-supervisor/estadisticas-supervisor.component.html -->
+<div class="stats-container p-3">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0">
+      <i class="fas fa-chart-bar me-2 text-primary"></i>
+      Estadísticas de Supervisor
+    </h4>
+    <button class="btn btn-sm btn-outline-primary" (click)="cargarEstadisticas()" [disabled]="cargando">
+      <i class="fas fa-sync-alt me-1" [class.fa-spin]="cargando"></i>
+      Actualizar
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="cargando" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+    <p class="mt-3 text-muted">Cargando estadísticas...</p>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="errorMessage" class="alert alert-danger">
+    {{ errorMessage }}
+  </div>
+
+  <!-- Contenido -->
+  <ng-container *ngIf="!cargando && !errorMessage && estadisticas">
+    <div class="row g-3 mb-4">
+      <div class="col-lg-4 col-md-6">
+        <div class="card border-primary shadow-sm h-100">
+          <div class="card-body text-center">
+            <h6 class="text-primary mb-1">Documentos Radicados Totales</h6>
+            <h3>{{ estadisticas?.totalDocumentosRadicados ?? 0 }}</h3>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-4 col-md-6">
+        <div class="card border-warning shadow-sm h-100">
+          <div class="card-body text-center">
+            <h6 class="text-warning mb-1">En Revisión</h6>
+            <h3>{{ estadisticas?.enRevision ?? 0 }}</h3>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-4 col-md-6">
+        <div class="card border-success shadow-sm h-100">
+          <div class="card-body text-center">
+            <h6 class="text-success mb-1">Aprobados</h6>
+            <h3>{{ estadisticas?.aprobados ?? 0 }}</h3>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6 col-md-6">
+        <div class="card border-danger shadow-sm h-100">
+          <div class="card-body text-center">
+            <h6 class="text-danger mb-1">Observados / Rechazados</h6>
+            <h3>{{ (estadisticas?.observados ?? 0) + (estadisticas?.rechazados ?? 0) }}</h3>
+            <small>({{ estadisticas?.observados ?? 0 }} obs. / {{ estadisticas?.rechazados ?? 0 }} rech.)</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6 col-md-6">
+        <div class="card border-info shadow-sm h-100">
+          <div class="card-body text-center">
+            <h6 class="text-info mb-1">Eficiencia</h6>
+            <h3>{{ estadisticas?.eficiencia ?? 0 }}%</h3>
+            <small>Tiempo promedio: {{ estadisticas?.tiempoPromedioHoras ?? 0 }} h</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="text-end text-muted small">
+      Calculado: {{ estadisticas?.fechaConsulta | date:'dd/MM/yyyy HH:mm' }}
+    </div>
+  </ng-container>
+
+  <!-- Sin datos -->
+  <div *ngIf="!cargando && !errorMessage && !estadisticas" class="alert alert-info text-center py-5">
+    <h5>No hay estadísticas disponibles</h5>
+    <p>Intenta actualizar o verifica los permisos.</p>
+  </div>
+</div>

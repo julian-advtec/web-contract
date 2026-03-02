@@ -1,193 +1,100 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+// src/app/pages/radicacion/components/estadisticas-radicador/estadisticas-radicador.component.ts
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RadicacionService } from '../../../../core/services/radicacion.service';
-import { Subscription } from 'rxjs';
+import { debounceTime, Subject } from 'rxjs';
+import { EstadisticasRadicadorService } from '../../../../core/services/estadisticas-radicador.service';
+import { EstadisticasRadicador, FiltrosEstadisticasRadicador, PeriodoStats } from '../../../../core/models/estadisticas-radicador.model';
 
 @Component({
-  selector: 'app-estadisticas-radicacion',
+  selector: 'app-estadisticas-radicador',
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './estadisticas-radicacion.component.html',
   styleUrls: ['./estadisticas-radicacion.component.scss']
 })
-export class EstadisticasRadicacionComponent implements OnInit, OnDestroy {
-  // Períodos disponibles
+export class EstadisticasRadicadorComponent implements OnInit, OnDestroy {
   periodos = [
-    { value: 'hoy', label: 'Hoy' },
-    { value: 'semana', label: 'Última semana' },
-    { value: 'mes', label: 'Último mes' },
-    { value: 'trimestre', label: 'Último trimestre' },
-    { value: 'ano', label: 'Último año' }
+    { value: PeriodoStats.HOY, label: 'Hoy' },
+    { value: PeriodoStats.SEMANA, label: 'Última semana' },
+    { value: PeriodoStats.MES, label: 'Último mes' },
+    { value: PeriodoStats.TRIMESTRE, label: 'Último trimestre' },
+    { value: PeriodoStats.ANO, label: 'Este año' }
   ];
 
-  periodoSeleccionado = 'mes';
-  fechaDesde = '';
-  fechaHasta = '';
+  filtros: FiltrosEstadisticasRadicador = {
+    periodo: PeriodoStats.MES
+    // soloMios ya no es necesario
+  };
+
+  private filtrosSubject = new Subject<void>();
+
   cargando = false;
-  errorCarga = '';
-  mostrandoPersonalizado = false;
+  errorMessage: string | null = null;
+  estadisticas: EstadisticasRadicador | null = null;
 
-  // Datos de estadísticas
-  estadisticas: any = null;
-
-  // Datos para gráficos
-  chartData: any[] = [];
-  chartColors: string[] = [
-    '#4CAF50', '#FF9800', '#F44336', '#2196F3', '#9C27B0', '#607D8B'
-  ];
-
-  private subscriptions: Subscription[] = [];
-
-  constructor(private radicacionService: RadicacionService) {}
+  constructor(
+    private estadisticasService: EstadisticasRadicadorService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
+    this.filtrosSubject.pipe(debounceTime(300)).subscribe(() => {
+      this.cargarEstadisticas();
+    });
+
     this.cargarEstadisticas();
   }
 
   ngOnDestroy(): void {
-    this.subscriptions.forEach(sub => sub.unsubscribe());
+    this.filtrosSubject.complete();
   }
 
-  cambiarPeriodo(periodo: string): void {
-    this.periodoSeleccionado = periodo;
-    this.mostrandoPersonalizado = false;
+  aplicarFiltros(): void {
+    this.filtrosSubject.next();
+  }
+
+  cargarEstadisticas(): void {
+    this.cargando = true;
+    this.errorMessage = null;
+    this.estadisticas = null;
+    this.cdr.detectChanges();
+
+    this.estadisticasService.obtenerMisEstadisticas(this.filtros.periodo).subscribe({
+      next: (data) => {
+        this.estadisticas = data;
+        this.cargando = false;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.errorMessage = err.message || 'Error al cargar estadísticas';
+        this.cargando = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  recargar(): void {
     this.cargarEstadisticas();
   }
 
-  aplicarFechasPersonalizadas(): void {
-    if (!this.fechaDesde || !this.fechaHasta) {
-      this.errorCarga = 'Debe seleccionar fecha desde y fecha hasta';
-      return;
-    }
+getTotalDocumentos(): number {
+  return this.estadisticas?.documentos?.totalRadicados || 0;
+}
 
-    const desde = new Date(this.fechaDesde);
-    const hasta = new Date(this.fechaHasta);
+getResumenPeriodo(): string {
+  if (!this.estadisticas?.desde || !this.estadisticas?.hasta) return '';
+  const desde = new Date(this.estadisticas.desde);
+  const hasta = new Date(this.estadisticas.hasta);
+  return `${desde.toLocaleDateString('es-CO')} — ${hasta.toLocaleDateString('es-CO')}`;
+}
 
-    if (desde > hasta) {
-      this.errorCarga = 'La fecha desde no puede ser mayor a la fecha hasta';
-      return;
-    }
-
-    this.mostrandoPersonalizado = true;
-    this.cargarEstadisticasPersonalizadas();
-  }
-
-  private cargarEstadisticas(): void {
-    this.cargando = true;
-    this.errorCarga = '';
-
-    const sub = this.radicacionService.obtenerEstadisticasRadicacion({
-      periodo: this.periodoSeleccionado
-    }).subscribe({
-      next: (response) => {
-        if (response.ok) {
-          this.estadisticas = response.data;
-          this.prepararDatosGrafico();
-        } else {
-          this.errorCarga = response.error || 'Error al cargar estadísticas';
-        }
-        this.cargando = false;
-      },
-      error: (error) => {
-        console.error('Error cargando estadísticas:', error);
-        this.errorCarga = 'Error de conexión al cargar estadísticas';
-        this.cargando = false;
-      }
-    });
-
-    this.subscriptions.push(sub);
-  }
-
-  private cargarEstadisticasPersonalizadas(): void {
-    this.cargando = true;
-    this.errorCarga = '';
-
-    const sub = this.radicacionService.obtenerEstadisticasRadicacion({
-      desde: this.fechaDesde,
-      hasta: this.fechaHasta
-    }).subscribe({
-      next: (response) => {
-        if (response.ok) {
-          this.estadisticas = response.data;
-          this.prepararDatosGrafico();
-        } else {
-          this.errorCarga = response.error || 'Error al cargar estadísticas';
-        }
-        this.cargando = false;
-      },
-      error: (error) => {
-        console.error('Error cargando estadísticas:', error);
-        this.errorCarga = 'Error de conexión al cargar estadísticas';
-        this.cargando = false;
-      }
-    });
-
-    this.subscriptions.push(sub);
-  }
-
-  private prepararDatosGrafico(): void {
-    if (!this.estadisticas?.documentosPorEstado) return;
-
-    this.chartData = this.estadisticas.documentosPorEstado.map((item: any, index: number) => ({
-      ...item,
-      color: this.chartColors[index % this.chartColors.length],
-      porcentaje: this.estadisticas.resumen.totalDocumentos > 0 
-        ? Math.round((item.cantidad / this.estadisticas.resumen.totalDocumentos) * 100) 
-        : 0
-    }));
-  }
-
-  obtenerResumen(): any {
-    if (!this.estadisticas) return null;
-    return this.estadisticas.resumen;
-  }
-
-  obtenerRadicacionesPorDia(): any[] {
-    return this.estadisticas?.radicacionesPorDia || [];
-  }
-
-  obtenerDocumentosPorRadicador(): any[] {
-    return this.estadisticas?.documentosPorRadicador || [];
-  }
-
-  obtenerDocumentosPorContratista(): any[] {
-    return this.estadisticas?.documentosPorContratista || [];
-  }
-
-  obtenerDocumentosRecientes(): any[] {
-    return this.estadisticas?.documentosRecientes || [];
-  }
-
-  getEstadoClass(estado: string): string {
-    const classes: Record<string, string> = {
-      'RADICADO': 'badge-success',
-      'EN_REVISION': 'badge-warning',
-      'OBSERVADO': 'badge-danger',
-      'APROBADO': 'badge-info',
-      'RECHAZADO': 'badge-danger',
-      'FINALIZADO': 'badge-secondary'
-    };
-    return classes[estado] || 'badge-secondary';
-  }
-
-  formatearFecha(fecha: string | Date): string {
-    if (!fecha) return '—';
-    return new Date(fecha).toLocaleDateString('es-CO', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  }
-
-  formatearFechaCorta(fecha: string | Date): string {
-    if (!fecha) return '—';
-    return new Date(fecha).toLocaleDateString('es-CO', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+  getBadgeClass(estado: string): string {
+    const upper = (estado || '').toUpperCase();
+    if (upper.includes('APROBADO')) return 'badge bg-success';
+    if (upper.includes('OBSERVADO')) return 'badge bg-warning text-dark';
+    if (upper.includes('RECHAZADO')) return 'badge bg-danger';
+    if (upper.includes('RADICADO')) return 'badge bg-info';
+    return 'badge bg-secondary';
   }
 }

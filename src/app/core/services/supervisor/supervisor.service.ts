@@ -168,13 +168,7 @@ export class SupervisorService {
         return this.estadisticasService.obtenerEstadisticas();
     }
 
-    getEstadisticas(): Observable<{ success: boolean; data: SupervisorStats }> {
-        return this.estadisticasService.getEstadisticas();
-    }
 
-    getHistorial(): Observable<{ success: boolean; data: any[] }> {
-        return this.estadisticasService.getHistorial();
-    }
 
     /**
      * ✅ Operaciones

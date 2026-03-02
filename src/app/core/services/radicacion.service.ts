@@ -811,4 +811,33 @@ export class RadicacionService {
             })
         );
     }
+
+      getAllDocumentos(): Observable<any[]> {
+    console.log('[RadicacionService] Solicitando TODOS los documentos del sistema');
+    
+    return this.http.get<any>(`${this.apiUrl}`, { headers: this.getAuthHeaders() }).pipe(
+      map(response => {
+        console.log('[RadicacionService] Respuesta getAllDocumentos:', response);
+        
+        if (response && response.success && response.data) {
+          return response.data;
+        }
+        
+        if (Array.isArray(response)) {
+          return response;
+        }
+        
+        if (response && response.data && Array.isArray(response.data)) {
+          return response.data;
+        }
+        
+        console.warn('[RadicacionService] Formato de respuesta inesperado:', response);
+        return [];
+      }),
+      catchError(error => {
+        console.error('[RadicacionService] Error en getAllDocumentos:', error);
+        return throwError(() => new Error(error.message || 'Error al obtener documentos'));
+      })
+    );
+  }
 }

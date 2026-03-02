@@ -20,7 +20,7 @@ export const routes: Routes = [
     canActivate: [AuthGuard],
     data: { roles: ['admin'] }
   },
-  {
+ /* {
     path: 'radicacion',
     loadComponent: () => import('./pages/radicacion/radicacion.component').then(m => m.RadicacionComponent),
     canActivate: [AuthGuard, RoleGuard],
@@ -48,6 +48,13 @@ export const routes: Routes = [
           .then(m => m.ListaRechazadosComponent)
       }
     ]
+  }, */
+
+    {
+    path: 'radicacion',
+    loadChildren: () => import('./pages/radicacion/radicacion-routing.module').then(m => m.RadicacionRoutingModule),
+    canActivate: [AuthGuard, RoleGuard],
+    data: { roles: ['radicacion', 'admin'] }
   },
   {
     path: 'supervisor',
