@@ -1,4 +1,3 @@
-// src/app/core/services/supervisor/supervisor-estadisticas.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
@@ -26,44 +25,74 @@ export class SupervisorEstadisticasService {
     });
   }
 
-  obtenerEstadisticas(): Observable<SupervisorEstadisticas | null> {
+  obtenerEstadisticas(periodo: string = 'ano'): Observable<SupervisorEstadisticas | null> {
     const headers = this.getAuthHeaders();
-    if (!headers.has('Authorization')) {
-      return of(null);
-    }
+    if (!headers.has('Authorization')) return of(null);
 
-    return this.http.get<any>(this.apiUrl, { headers }).pipe(
+    const params = new HttpParams().set('periodo', periodo);
+
+    return this.http.get<any>(this.apiUrl, { headers, params }).pipe(
       map(response => {
-        console.log('[DEBUG Supervisor Estadísticas] Respuesta completa:', response);
+        console.log('[DEBUG Supervisor] Respuesta completa:', response);
 
-        // Accede al nivel correcto (doble data)
-        const realData = response?.data?.data;
+        // La estructura correcta: response.data contiene los datos
+        const realData = response?.data;
 
-        if (response?.ok === true && realData) {
-          console.log('[DEBUG] Datos reales encontrados:', realData);
-          return realData as SupervisorEstadisticas;
+        if (response?.success === true && realData) {
+          // Mapeo completo
+          const estadisticas: SupervisorEstadisticas = {
+            totalDocumentosRadicados: realData.totalDocumentosRadicados ?? 0,
+            enRevision: realData.enRevision ?? 0,
+            aprobados: realData.aprobados ?? 0,
+            observados: realData.observados ?? 0,
+            rechazados: realData.rechazados ?? 0,
+            tiempoPromedioHoras: realData.tiempoPromedioHoras ?? 0,
+            eficiencia: realData.eficiencia ?? 0,
+            distribucion: (realData.distribucion || []).map((item: any) => ({
+              estado: item.estado || 'Desconocido',
+              cantidad: item.cantidad ?? 0,
+              porcentaje: item.porcentaje ?? 0,
+              color: item.color || '#4CAF50'
+            })),
+            ultimosProcesados: (realData.ultimosProcesados || []).map((item: any) => ({
+              id: item.id,
+              numeroRadicado: item.documento?.numeroRadicado || 'N/A',
+              contratista: item.documento?.nombreContratista || 'N/A',
+              fecha: item.fechaAprobacion || item.fechaCreacion || '',
+              estado: item.estado || 'N/A'
+            })),
+            totales: realData.totales || {
+              enRevision: realData.enRevision ?? 0,
+              aprobados: realData.aprobados ?? 0,
+              observados: realData.observados ?? 0,
+              rechazados: realData.rechazados ?? 0,
+              total: (realData.enRevision ?? 0) + (realData.aprobados ?? 0) + 
+                     (realData.observados ?? 0) + (realData.rechazados ?? 0)
+            },
+            fechaConsulta: realData.fechaConsulta || new Date().toISOString(),
+            desde: realData.desde || '',
+            hasta: realData.hasta || ''
+          };
+
+          console.log('[DEBUG Supervisor] Datos mapeados:', estadisticas);
+          return estadisticas;
         }
 
-        if (response?.success === true && response?.data) {
-          return response.data as SupervisorEstadisticas;
-        }
-
-        console.warn('[Supervisor] Respuesta sin ok/data o sin data interna:', response);
-        this.notificationService.warning('Datos incompletos', 'No se recibieron estadísticas completas');
+        console.warn('[DEBUG Supervisor] No se pudo mapear la respuesta:', response);
         return null;
       }),
       catchError(err => {
-        console.error('[Supervisor Estadísticas] Error en petición:', err);
+        console.error('[Supervisor] Error:', err);
         this.notificationService.error('Error', 'No se pudieron cargar las estadísticas');
         return of(null);
       })
     );
   }
 
-  // Método de historial (ya agregado para resolver el otro error)
   obtenerHistorial(limit: number = 20): Observable<any[] | null> {
     const headers = this.getAuthHeaders();
     if (!headers.has('Authorization')) {
+      console.warn('[Historial] No hay token de autenticación');
       return of(null);
     }
 
@@ -73,18 +102,23 @@ export class SupervisorEstadisticasService {
       map(response => {
         console.log('[DEBUG Supervisor Historial] Respuesta completa:', response);
 
-        // Manejo flexible de la estructura de respuesta
-        const historialData = response?.data?.data || response?.data || response || [];
+        let historialData = response?.data?.data ||
+                           response?.data ||
+                           response?.historial ||
+                           response?.records ||
+                           response ||
+                           [];
 
         if (Array.isArray(historialData)) {
+          console.log(`[Historial] ${historialData.length} registros encontrados`);
           return historialData;
         }
 
-        console.warn('[Supervisor Historial] No se encontró array válido');
+        console.warn('[Supervisor Historial] No se encontró array válido en la respuesta');
         return [];
       }),
       catchError(err => {
-        console.error('[Supervisor Historial] Error:', err);
+        console.error('[Supervisor Historial] Error en la petición:', err);
         this.notificationService.error('Error', 'No se pudo cargar el historial');
         return of([]);
       })

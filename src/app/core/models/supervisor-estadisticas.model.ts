@@ -1,12 +1,32 @@
+export enum PeriodoStats {
+  HOY = 'hoy',
+  SEMANA = 'semana',
+  MES = 'mes',
+  TRIMESTRE = 'trimestre',
+  ANO = 'ano'  // Debe ser 'ano' no 'anio'
+}
+
+export interface FiltrosEstadisticasSupervisor {
+  periodo: PeriodoStats;
+}
+
+export interface DistribucionEstadoSupervisor {
+  estado: string;
+  cantidad: number;
+  porcentaje: number;
+  color?: string;
+}
+
 export interface SupervisorEstadisticas {
   totalDocumentosRadicados: number;
   enRevision: number;
   aprobados: number;
   observados: number;
   rechazados: number;
-  recientes: number;
   tiempoPromedioHoras: number;
   eficiencia: number;
+  distribucion: DistribucionEstadoSupervisor[]; // para la barra
+  ultimosProcesados: any[]; // para la tabla de últimos
   totales: {
     enRevision: number;
     aprobados: number;
@@ -15,49 +35,6 @@ export interface SupervisorEstadisticas {
     total: number;
   };
   fechaConsulta: string;
-}
-
-export interface SupervisorHistorialItem {
-  id: string;
-  documento: {
-    id: string;
-    numeroRadicado: string;
-    nombreContratista: string;
-    documentoContratista: string;
-    numeroContrato: string;
-    fechaInicio: string;
-    fechaFin: string;
-    fechaRadicacion: string;
-    estado: string;
-    cuentaCobro: string;
-    seguridadSocial: string;
-    informeActividades: string;
-    observacion: string;
-    nombreRadicador: string;
-  };
-  supervisorRevisor: string;
-  estado: string;
-  observacion: string;
-  correcciones: string;
-  fechaCreacion: string;
-  fechaActualizacion: string;
-  fechaAprobacion: string | null;
-  tieneArchivo: boolean;
-  nombreArchivoSupervisor: string | null;
-  tienePazSalvo: boolean;
-  pazSalvo: string | null;
-}
-
-export interface SupervisorInconsistencias {
-  totalDocumentos: number;
-  totalConPazSalvo: number;
-  inconsistenciasEncontradas: number;
-  detalles: Array<{
-    documento_id: string;
-    numero_radicado: string;
-    es_ultimo_radicado: boolean;
-    paz_salvo: string;
-    estado_supervision: string;
-  }>;
-  fechaVerificacion: string;
+  desde: string;
+  hasta: string;
 }
