@@ -395,7 +395,7 @@
                 <div class="d-flex align-items-center">
                   <i class="fas fa-file-upload text-primary fa-2x me-3"></i>
                   <div>
-                    <strong>{{ nombreArchivoAprobacionExistente }}</strong>
+                    <strong>{{ getNombreArchivoParaMostrar(nombreArchivoAprobacionExistente) }}</strong>
                     <div *ngIf="fechaArchivoAprobacionExistente" class="small text-muted">
                       Cargado el: {{ fechaArchivoAprobacionExistente | date:'dd/MM/yyyy HH:mm' }}
                     </div>
@@ -408,7 +408,8 @@
                     <i class="fas fa-eye"></i> Ver
                   </button>
                   <button type="button" class="btn btn-sm btn-outline-success ms-1"
-                    (click)="descargarArchivosSupervisor('aprobacion')" [disabled]="isProcessing">
+                    (click)="descargarArchivosSupervisor('aprobacion')"
+                    [disabled]="isProcessing || !nombreArchivoAprobacionExistente">
                     <i class="fas fa-download"></i> Descargar
                   </button>
                 </div>
@@ -449,106 +450,44 @@
           </div>
         </div>
 
-        <div class="checkbox-section mt-4" *ngIf="revisionForm.get('estadoRevision')?.value === 'APROBADO'">
-          <div *ngIf="soloLectura || esModoAuditor">
-            <div *ngIf="revisionForm.get('esUltimoRadicado')?.value">
-              <div class="alert alert-info">
-                <i class="fas fa-check-circle me-2"></i>
-                <strong>Este documento fue marcado como el ÚLTIMO RADICADO del contratista</strong>
-              </div>
-            </div>
-            <div *ngIf="!revisionForm.get('esUltimoRadicado')?.value" class="alert alert-secondary">
-              <i class="fas fa-info-circle me-2"></i>
-              Este documento <strong>NO</strong> fue marcado como último radicado.
-            </div>
-          </div>
 
-          <div *ngIf="!soloLectura && !esModoAuditor">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" formControlName="esUltimoRadicado" id="esUltimoRadicado"
-                [disabled]="soloLectura">
-              <label class="form-check-label fw-bold" for="esUltimoRadicado">
-                <i class="fas fa-check-circle me-2"></i>
-                Este es el <strong>ÚLTIMO RADICADO</strong> del contratista
-              </label>
-              <small class="text-muted d-block mt-1">
-                Marque esta opción si este es el último radicado del contratista para este contrato.
-                <span *ngIf="revisionForm.get('esUltimoRadicado')?.value" class="text-danger fw-bold">
-                  ¡ATENCIÓN! Si marca esta opción, debe adjuntar el paz y salvo.
-                </span>
-              </small>
-            </div>
-          </div>
 
-          <div *ngIf="revisionForm.get('esUltimoRadicado')?.value || nombrePazSalvoExistente">
-            <div class="paz-salvo-section mt-4">
-              <h6 class="section-title mb-3">
-                <i class="fas fa-file-contract"></i> Paz y Salvo del Contratista
-                <span *ngIf="nombrePazSalvoExistente" class="badge bg-success ms-2">
-                  <i class="fas fa-check"></i> Ya cargado
-                </span>
-              </h6>
 
-              <div *ngIf="nombrePazSalvoExistente" class="existing-file mb-3 p-3 bg-success bg-opacity-10 rounded">
-                <div class="d-flex align-items-center justify-content-between">
-                  <div class="d-flex align-items-center">
-                    <i class="fas fa-file-contract text-success fa-2x me-3"></i>
-                    <div>
-                      <strong>{{ getNombreArchivoPazSalvo() }}</strong>
-                      <div *ngIf="fechaPazSalvoExistente" class="small text-muted">
-                        Cargado el: {{ fechaPazSalvoExistente | date:'dd/MM/yyyy HH:mm' }}
-                      </div>
-                    </div>
-                  </div>
-                  <div class="btn-group">
-                    <button type="button" class="btn btn-sm btn-outline-primary"
-                      (click)="previsualizarArchivosSupervisor('pazsalvo')"
-                      [disabled]="isProcessing || !nombrePazSalvoExistente">
-                      <i class="fas fa-eye"></i> Ver
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-success ms-1"
-                      (click)="descargarArchivosSupervisor('pazsalvo')" [disabled]="isProcessing">
-                      <i class="fas fa-download"></i> Descargar
-                    </button>
-                  </div>
-                </div>
-              </div>
 
-              <div *ngIf="!soloLectura && !esModoAuditor">
-                <div class="mb-3">
-                  <label class="form-label small">
-                    <i class="fas fa-upload me-1"></i>
-                    {{ nombrePazSalvoExistente ? 'Reemplazar' : 'Subir' }} paz y salvo:
-                  </label>
-                  <div class="input-group">
-                    <input type="file" class="form-control form-control-sm"
-                      (change)="onArchivoPazSalvoSeleccionado($event)" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                      #archivoPazSalvoInput [disabled]="soloLectura">
-                    <button *ngIf="archivoPazSalvo && !soloLectura" class="btn btn-outline-danger btn-sm" type="button"
-                      (click)="eliminarArchivoPazSalvo(); archivoPazSalvoInput.value = ''">
-                      <i class="fas fa-trash"></i>
-                    </button>
-                  </div>
-                  <div *ngIf="archivoPazSalvo" class="mt-2">
-                    <span class="badge bg-success">
-                      <i class="fas fa-check me-1"></i>
-                      {{ archivoPazSalvo.name }} ({{ getFileSize(archivoPazSalvo.size) }})
-                    </span>
-                  </div>
-                  <small class="text-muted d-block mt-1">
-                    <strong *ngIf="revisionForm.get('esUltimoRadicado')?.value" class="text-danger">
-                      REQUERIDO para último radicado:
-                    </strong>
-                    <strong *ngIf="!revisionForm.get('esUltimoRadicado')?.value">
-                      Opcional para no último radicado:
-                    </strong>
-                    Formatos: PDF, DOC, DOCX, JPG, PNG (Max. 10MB)
-                  </small>
-                </div>
-              </div>
-            </div>
-          </div>
+<!-- Archivo de paz y salvo existente -->
+<div *ngIf="nombrePazSalvoExistente" class="existing-file mb-3 p-3 bg-success bg-opacity-10 rounded">
+  <div class="d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center">
+      <i class="fas fa-file-contract text-success fa-2x me-3"></i>
+      <div>
+        <strong>{{ getNombreArchivoParaMostrar(nombrePazSalvoExistente) }}</strong>
+        <div *ngIf="fechaPazSalvoExistente" class="small text-muted">
+          <i class="far fa-calendar-alt me-1"></i>
+          {{ fechaPazSalvoExistente | date:'dd/MM/yyyy HH:mm' }}
         </div>
+      </div>
+    </div>
+    <div class="btn-group">
+      <button type="button" class="btn btn-sm btn-outline-primary"
+        (click)="verArchivoPazSalvo()"
+        [disabled]="isProcessing">
+        <i class="fas fa-eye"></i> Ver
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-success ms-1"
+        (click)="descargarArchivoPazSalvo()" 
+        [disabled]="isProcessing">
+        <i class="fas fa-download"></i> Descargar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Mensaje si es último radicado pero no hay paz y salvo -->
+<div *ngIf="revisionForm.get('esUltimoRadicado')?.value && !nombrePazSalvoExistente && soloLectura" 
+     class="alert alert-warning mt-2">
+  <i class="fas fa-exclamation-triangle me-2"></i>
+  <strong>Documento marcado como ÚLTIMO RADICADO</strong> - No se encontró archivo de paz y salvo adjunto.
+</div>
 
         <div class="form-row mt-4">
           <div class="form-group full-width">

@@ -3,10 +3,11 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { SupervisorComponent } from './supervisor.component';
 import { SupervisorPendingListComponent } from './components/supervisor-pending-list/supervisor-pending-list.component';
+import { SupervisorListComponent } from './components/supervisor-list/supervisor-list.component'; // MIS SUPERVISIONES
 import { SupervisorFormComponent } from './components/supervisor-form/supervisor-form.component';
 import { SupervisorHistoryComponent } from './components/supervisor-history/supervisor-history.component';
+import { SupervisorRejectedListComponent } from './components/supervisor-rejected-list/supervisor-rejected-list.component'; // RECHAZADOS
 import { EstadisticasSupervisorComponent } from './components/estadisticas-supervisor/estadisticas-supervisor.component';
-import { AuditorListComponent } from '../auditor/components/auditor-list/auditor-list.component';
 import { RoleGuard } from '../../core/guards/role.guard';
 import { UserRole } from '../../core/models/user.types';
 
@@ -24,22 +25,33 @@ const routes: Routes = [
       },
       {
         path: 'pendientes',
-        component: SupervisorPendingListComponent
+        component: SupervisorPendingListComponent,
+        data: { title: 'Documentos Pendientes' }
       },
       {
-        path: 'revisar/:id',
-        component: SupervisorFormComponent
+        path: 'mis-documentos',
+        component: SupervisorListComponent,
+        data: { title: 'Mis Supervisiones' }
+      },
+      {
+        path: 'rechazados',
+        component: SupervisorRejectedListComponent,
+        data: { title: 'Documentos Rechazados' }
       },
       {
         path: 'historial',
-        component: SupervisorHistoryComponent
+        component: SupervisorHistoryComponent,
+        data: { title: 'Historial de Supervisiones' }
       },
       {
         path: 'estadisticas',
-        component: EstadisticasSupervisorComponent
-      },{
-        path: 'mis-documentos',
-        component: AuditorListComponent
+        component: EstadisticasSupervisorComponent,
+        data: { title: 'Estadísticas' }
+      },
+      {
+        path: 'revisar/:id',
+        component: SupervisorFormComponent,
+        data: { title: 'Revisar Documento' }
       }
     ]
   }

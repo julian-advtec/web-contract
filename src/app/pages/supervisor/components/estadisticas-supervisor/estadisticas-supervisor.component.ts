@@ -41,20 +41,21 @@ export class EstadisticasSupervisorComponent implements OnInit {
     this.cargando = true;
     this.errorMessage = null;
     this.estadisticas = null;
-    this.cdr.detectChanges();
 
-    console.log('[Componente] Cargando estadísticas para período:', this.filtros.periodo);
-
-    this.estadisticasService.obtenerEstadisticas(this.filtros.periodo).subscribe({
+    // Enviamos el filtro como body en POST
+    this.estadisticasService.obtenerEstadisticas(this.filtros).subscribe({
       next: (data) => {
-        console.log('[Componente] Datos recibidos:', data);
-        this.estadisticas = data;
+        if (data) {
+          this.estadisticas = data;
+          console.log('Estadísticas cargadas correctamente:', data);
+        } else {
+          this.errorMessage = 'No se recibieron datos válidos del servidor';
+        }
         this.cargando = false;
         this.cdr.detectChanges();
       },
       error: (err) => {
-        console.error('[Componente] Error:', err);
-        this.errorMessage = err.message || 'Error al cargar estadísticas';
+        this.errorMessage = err.message || 'Error de conexión';
         this.cargando = false;
         this.cdr.detectChanges();
       }

@@ -1,3 +1,4 @@
+// src/app/pages/supervisor/components/supervisor-history/supervisor-history.component.ts
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
@@ -5,8 +6,9 @@ import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { SupervisorService } from '../../../../core/services/supervisor/supervisor.service';
+// IMPORTAR EL SERVICIO CORRECTAMENTE (no como tipo)
+import { SupervisorEstadisticasService } from '../../../../core/services/supervisor/supervisor-estadisticas.service';
 import { NotificationService } from '../../../../core/services/notification.service';
-import { SupervisorEstadisticasService } from '../../../../core/services/supervisor';
 
 @Component({
   selector: 'app-supervisor-history',
@@ -26,17 +28,13 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
   successMessage = '';
   infoMessage = '';
 
-  // Búsqueda y paginación
   searchTerm = '';
   currentPage = 1;
   pageSize = 10;
   totalPages = 0;
   pages: number[] = [];
 
-  // Usuario actual
   usuarioActual = '';
-
-  // Control sidebar
   sidebarCollapsed = false;
 
   private destroy$ = new Subject<void>();
@@ -45,7 +43,7 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
     private supervisorService: SupervisorService,
     private notificationService: NotificationService,
     private router: Router,
-    private estadisticasService: SupervisorEstadisticasService
+    private estadisticasService: SupervisorEstadisticasService  // ✅ AHORA SÍ ESTÁ IMPORTADO
   ) { }
 
   ngOnInit(): void {
@@ -79,8 +77,7 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
     this.successMessage = '';
     this.infoMessage = '';
 
-    // ← Aquí estaba el error: usabas getHistorial() que no existe
-    this.estadisticasService.obtenerHistorial()  // ← Método real del servicio
+    this.estadisticasService.obtenerHistorial()  // ✅ AHORA SÍ FUNCIONA
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (historialData: any[] | null) => {
@@ -96,17 +93,6 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
 
           this.historial = historialData;
           console.log('✅ Historial cargado con', this.historial.length, 'registros');
-
-          // DEBUG: Mostrar estructura de los primeros elementos
-          this.historial.slice(0, 3).forEach((item, index) => {
-            console.log(`🔍 Elemento ${index + 1}:`, {
-              estado: item.estado,
-              supervisorRevisor: item.supervisorRevisor,
-              supervisorAsignado: item.documento?.supervisorAsignado,
-              asignacion: item.documento?.asignacion,
-              tieneSupervisor: !!this.getSupervisorAsignado(item)
-            });
-          });
 
           this.filteredHistorial = [...this.historial];
           this.updatePagination();
@@ -166,7 +152,7 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
     const normalizar = (nombre: string) => {
       return nombre.toLowerCase()
         .trim()
-        .replace(/\s+/g, ' ') // Eliminar múltiples espacios
+        .replace(/\s+/g, ' ')
         .replace(/[áä]/g, 'a').replace(/[éë]/g, 'e').replace(/[íï]/g, 'i')
         .replace(/[óö]/g, 'o').replace(/[úü]/g, 'u');
     };
@@ -174,7 +160,6 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
     const nombre1Normalizado = normalizar(nombre1);
     const nombre2Normalizado = normalizar(nombre2);
     
-    // Verificar coincidencia exacta o parcial
     return nombre1Normalizado === nombre2Normalizado || 
            nombre1Normalizado.includes(nombre2Normalizado) ||
            nombre2Normalizado.includes(nombre1Normalizado);
@@ -184,7 +169,6 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
   revisarNuevamente(item: any): void {
     console.log('🔄 Revisar documento desde historial:', item);
 
-    // Extraer el ID del documento
     let documentoId = '';
 
     if (item.documento?.id) {
@@ -201,12 +185,10 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Obtener información del documento
     const estado = item.estado?.toUpperCase() || '';
     const supervisorAsignado = this.getSupervisorAsignado(item);
     const soyElSupervisor = this.esMiDocumento(item);
     
-    // ✅ DETERMINAR PARÁMETROS DE NAVEGACIÓN
     const queryParams = this.determinarModoNavegacion(estado, supervisorAsignado, soyElSupervisor);
     
     console.log('🚀 Navegando a formulario con:', {
@@ -218,13 +200,9 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
       queryParams
     });
 
-    // Navegar al formulario de revisión
     this.router.navigate(['/supervisor/revisar', documentoId], { queryParams });
   }
 
-  /**
-   * ✅ LÓGICA PRINCIPAL CORREGIDA: Determinar modo de navegación
-   */
   private determinarModoNavegacion(estado: string, supervisorAsignado: string, soyElSupervisor: boolean): any {
     const queryParams: any = {
       desdeHistorial: 'true'
@@ -236,10 +214,7 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
       soyElSupervisor
     });
 
-    // Estados que son SIEMPRE solo lectura
     const estadosSoloLecturaFinal = ['APROBADO', 'RECHAZADO'];
-    
-    // Estados que pueden ser editables
     const estadosPotencialmenteEditables = [
       'RADICADO', 
       'EN_REVISION', 
@@ -252,25 +227,21 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
     const esEstadoFinal = estadosSoloLecturaFinal.some(e => estado.includes(e));
     const esEstadoPotencialEditable = estadosPotencialmenteEditables.some(e => estado.includes(e));
 
-    // ✅ REGLA 1: Estados APROBADO y RECHAZADO → SIEMPRE solo lectura
     if (esEstadoFinal) {
       queryParams.soloLectura = 'true';
       queryParams.modo = 'consulta';
       console.log('✅ Modo: SOLO LECTURA (estado final APROBADO/RECHAZADO)');
     }
-    // ✅ REGLA 2: Estados editables + soy el supervisor → EDICIÓN
     else if (esEstadoPotencialEditable && soyElSupervisor) {
       queryParams.modo = 'edicion';
       queryParams.soloLectura = 'false';
       console.log('✅ Modo: EDICIÓN (estado editable, soy el supervisor)');
     }
-    // ✅ REGLA 3: Estados editables pero NO soy el supervisor → SOLO LECTURA
     else if (esEstadoPotencialEditable && !soyElSupervisor) {
       queryParams.soloLectura = 'true';
       queryParams.modo = 'consulta';
       console.log('✅ Modo: SOLO LECTURA (estado editable, NO soy el supervisor)');
     }
-    // ✅ REGLA 4: Por defecto → EDICIÓN (para evitar problemas)
     else {
       queryParams.modo = 'edicion';
       queryParams.soloLectura = 'false';
@@ -280,49 +251,6 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
     return queryParams;
   }
 
-  // ✅ MÉTODO ALTERNATIVO SIMPLIFICADO (si el anterior sigue fallando)
-  revisarNuevamenteSimplificado(item: any): void {
-    console.log('🔄 [SIMPLIFICADO] Revisar documento desde historial:', item);
-
-    // Extraer el ID del documento
-    let documentoId = '';
-
-    if (item.documento?.id) {
-      documentoId = item.documento.id;
-    } else if (item.id) {
-      documentoId = item.id;
-    } else if (item.documentoId) {
-      documentoId = item.documentoId;
-    }
-
-    if (!documentoId) {
-      console.error('❌ No hay ID de documento disponible');
-      this.notificationService.error('Error', 'No se puede revisar el documento: ID no disponible');
-      return;
-    }
-
-    // LÓGICA SIMPLIFICADA: Solo lectura para APROBADO/RECHAZADO, edición para todo lo demás
-    const estado = item.estado?.toUpperCase() || '';
-    const esEstadoFinal = estado.includes('APROBADO') || estado.includes('RECHAZADO');
-    
-    const queryParams: any = {
-      desdeHistorial: 'true'
-    };
-
-    if (esEstadoFinal) {
-      queryParams.soloLectura = 'true';
-      queryParams.modo = 'consulta';
-      console.log('✅ [SIMPLIFICADO] Modo: SOLO LECTURA (APROBADO/RECHAZADO)');
-    } else {
-      queryParams.modo = 'edicion';
-      queryParams.soloLectura = 'false';
-      console.log('✅ [SIMPLIFICADO] Modo: EDICIÓN (cualquier otro estado)');
-    }
-
-    this.router.navigate(['/supervisor/revisar', documentoId], { queryParams });
-  }
-
-  // Métodos auxiliares (mantener los existentes)
   esDocumentoReciente(item: any): boolean {
     const fechaActualizacion = item.fechaActualizacion || item.updatedAt;
     if (!fechaActualizacion) return false;
@@ -452,20 +380,6 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
     }
   }
 
-  formatDateWithFullMonth(fecha: Date | string): string {
-    if (!fecha) return 'N/A';
-    try {
-      const date = new Date(fecha);
-      return date.toLocaleDateString('es-ES', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    } catch {
-      return 'Fecha inválida';
-    }
-  }
-
   getDocumentCount(item: any): number {
     let count = 0;
     const docData = item.documento || item;
@@ -503,7 +417,6 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
     return item.supervisorRevisor || item.supervisorAsignado || item.usuarioAsignadoNombre || this.usuarioActual || 'Supervisor';
   }
 
-  // Búsqueda y filtrado
   onSearch(): void {
     if (!this.searchTerm.trim()) {
       this.filteredHistorial = [...this.historial];
@@ -529,11 +442,9 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
     this.updatePagination();
   }
 
-  // Métodos de paginación
   updatePagination(): void {
     this.totalPages = Math.ceil(this.filteredHistorial.length / this.pageSize);
 
-    // Calcular páginas a mostrar
     this.pages = [];
     const maxPagesToShow = 5;
     let startPage = Math.max(1, this.currentPage - Math.floor(maxPagesToShow / 2));
@@ -547,7 +458,6 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
       this.pages.push(i);
     }
 
-    // Actualizar historial paginado
     const startIndex = (this.currentPage - 1) * this.pageSize;
     const endIndex = Math.min(startIndex + this.pageSize, this.filteredHistorial.length);
     this.paginatedHistorial = this.filteredHistorial.slice(startIndex, endIndex);
@@ -576,7 +486,6 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
     this.loadHistorial();
   }
 
-  // Métodos para documentos del historial
   verDocumentosHistorial(item: any, index: number): void {
     let documentoId = '';
 

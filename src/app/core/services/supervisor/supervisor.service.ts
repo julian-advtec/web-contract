@@ -6,6 +6,7 @@ import { SupervisorRevisionService } from './supervisor-revision.service';
 import { SupervisorArchivosService } from './supervisor-archivos.service';
 import { SupervisorEstadisticasService } from './supervisor-estadisticas.service';
 import { SupervisorOperacionesService } from './supervisor-operaciones.service';
+import { FiltrosEstadisticasSupervisor, PeriodoStats } from '../../models/supervisor-estadisticas.model';
 
 interface SupervisorStats {
     pendientes: number;
@@ -164,8 +165,8 @@ export class SupervisorService {
     /**
      * ✅ Estadísticas
      */
-    obtenerEstadisticas(): Observable<any> {
-        return this.estadisticasService.obtenerEstadisticas();
+    obtenerEstadisticas(filtros: FiltrosEstadisticasSupervisor = { periodo: PeriodoStats.ANO }): Observable<any> {
+        return this.estadisticasService.obtenerEstadisticas(filtros);
     }
 
 
@@ -183,5 +184,13 @@ export class SupervisorService {
 
     obtenerInfoContratista(documentoId: string): Observable<any> {
         return this.operacionesService.obtenerInfoContratista(documentoId);
+    }
+
+    obtenerHistorial(): Observable<any[]> {
+        return this.estadisticasService.obtenerHistorial();
+    }
+
+    obtenerMisSupervisiones(): Observable<Documento[]> {
+        return this.documentosService.obtenerMisSupervisiones();
     }
 }

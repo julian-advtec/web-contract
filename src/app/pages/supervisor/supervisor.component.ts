@@ -1,12 +1,13 @@
 // src/app/pages/supervisor/supervisor.component.ts
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterModule, RouterOutlet, ActivatedRoute } from '@angular/router';
+import { Router, RouterModule, RouterOutlet, ActivatedRoute, NavigationEnd } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { SidebarComponent } from '../../layout/sidebar/sidebar.component';
 import { NavbarComponent } from '../../layout/navbar/navbar.component';
 import { User, UserRole, getUserRoleName, stringToUserRole } from '../../core/models/user.types';
 import { ModulesService, AppModule } from '../../core/services/modules.service';
+import { filter } from 'rxjs/operators';
 
 @Component({
     selector: 'app-supervisor',
@@ -25,6 +26,7 @@ export class SupervisorComponent implements OnInit, OnDestroy {
     currentUser: User | null = null;
     sidebarCollapsed = false;
     availableModules: AppModule[] = [];
+    currentPageTitle: string = '';
 
     // Propiedades para mensajes
     errorMessage = '';
@@ -35,17 +37,25 @@ export class SupervisorComponent implements OnInit, OnDestroy {
         private modulesService: ModulesService,
         private router: Router,
         private route: ActivatedRoute
-    ) { }
+    ) {
+        // Escuchar cambios de ruta para actualizar el título
+        this.router.events.pipe(
+            filter(event => event instanceof NavigationEnd)
+        ).subscribe(() => {
+            this.updatePageTitle();
+        });
+    }
 
     ngOnInit(): void {
         console.log('🚀 Inicializando componente de supervisor...');
         this.verificarAutenticacion();
         this.loadCurrentUser();
         this.loadAvailableModules();
+        this.updatePageTitle();
     }
 
     ngOnDestroy(): void {
-        // Limpieza si es necesario
+        console.log('🧹 Destruyendo componente de supervisor');
     }
 
     verificarAutenticacion(): void {
@@ -104,7 +114,7 @@ export class SupervisorComponent implements OnInit, OnDestroy {
             return;
         }
 
-        // Módulos específicos para supervisor
+        // Módulos completos para supervisor
         this.availableModules = [
             {
                 id: 'dashboard',
@@ -127,9 +137,29 @@ export class SupervisorComponent implements OnInit, OnDestroy {
                 isActive: true
             },
             {
+                id: 'mis-documentos',
+                title: 'Mis Supervisiones',
+                description: 'Documentos que estoy revisando',
+                path: '/supervisor/mis-documentos',
+                route: '/supervisor/mis-documentos',
+                icon: 'folder-open',
+                requiredRole: UserRole.SUPERVISOR,
+                isActive: true
+            },
+            {
+                id: 'rechazados',
+                title: 'Rechazados',
+                description: 'Documentos rechazados',
+                path: '/supervisor/rechazados',
+                route: '/supervisor/rechazados',
+                icon: 'times-circle',
+                requiredRole: UserRole.SUPERVISOR,
+                isActive: true
+            },
+            {
                 id: 'historial',
                 title: 'Historial',
-                description: 'Historial de revisiones',
+                description: 'Historial completo de revisiones',
                 path: '/supervisor/historial',
                 route: '/supervisor/historial',
                 icon: 'history',
@@ -139,7 +169,7 @@ export class SupervisorComponent implements OnInit, OnDestroy {
             {
                 id: 'estadisticas',
                 title: 'Estadísticas',
-                description: 'Estadísticas de revisión',
+                description: 'Métricas y estadísticas',
                 path: '/supervisor/estadisticas',
                 route: '/supervisor/estadisticas',
                 icon: 'chart-bar',
@@ -149,6 +179,24 @@ export class SupervisorComponent implements OnInit, OnDestroy {
         ];
 
         console.log('📋 Módulos disponibles para supervisor:', this.availableModules);
+    }
+
+    updatePageTitle(): void {
+        // Obtener el título de la ruta activa
+        const child = this.route.firstChild;
+        if (child && child.snapshot.data['title']) {
+            this.currentPageTitle = child.snapshot.data['title'];
+        } else {
+            // Título por defecto según la URL
+            const url = this.router.url;
+            if (url.includes('pendientes')) this.currentPageTitle = 'Documentos Pendientes';
+            else if (url.includes('mis-documentos')) this.currentPageTitle = 'Mis Supervisiones';
+            else if (url.includes('rechazados')) this.currentPageTitle = 'Documentos Rechazados';
+            else if (url.includes('historial')) this.currentPageTitle = 'Historial';
+            else if (url.includes('estadisticas')) this.currentPageTitle = 'Estadísticas';
+            else if (url.includes('revisar')) this.currentPageTitle = 'Revisar Documento';
+            else this.currentPageTitle = 'Panel de Supervisor';
+        }
     }
 
     getUserRoleName(): string {
@@ -179,7 +227,7 @@ export class SupervisorComponent implements OnInit, OnDestroy {
         this.successMessage = '';
     }
 
-    // En el SupervisorFormComponent, agrega estos métodos:
+    // Métodos de utilidad
     formatDate(date: Date | string): string {
         if (!date) return 'N/A';
 
@@ -206,15 +254,33 @@ export class SupervisorComponent implements OnInit, OnDestroy {
             case 'PENDIENTE':
                 return 'pendiente';
             case 'APROBADO':
+            case 'APROBADO_SUPERVISOR':
                 return 'aprobado';
             case 'RECHAZADO':
+            case 'RECHAZADO_SUPERVISOR':
                 return 'rechazado';
             case 'EN_REVISION':
+            case 'EN_REVISION_SUPERVISOR':
                 return 'en-revision';
             case 'OBSERVADO':
+            case 'OBSERVADO_SUPERVISOR':
                 return 'observado';
             default:
                 return 'default';
         }
+    }
+
+    getInitials(): string {
+        if (!this.currentUser) return 'S';
+        
+        if (this.currentUser.fullName) {
+            const names = this.currentUser.fullName.split(' ');
+            if (names.length >= 2) {
+                return (names[0][0] + names[1][0]).toUpperCase();
+            }
+            return this.currentUser.fullName.substring(0, 2).toUpperCase();
+        }
+        
+        return this.currentUser.username?.substring(0, 2).toUpperCase() || 'S';
     }
 }

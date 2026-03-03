@@ -196,6 +196,20 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     }, 1000);
   }
 
+  getNombreArchivoParaMostrar(nombreArchivo: string | null): string {
+    if (!nombreArchivo) return 'Archivo sin nombre';
+
+    // Dividir por separadores de ruta y tomar el último segmento
+    const parts = nombreArchivo.split(/[\\/]/);
+    const nombreLimpio = parts[parts.length - 1] || nombreArchivo;
+
+    // Limitar longitud si es muy largo
+    if (nombreLimpio.length > 50) {
+      return nombreLimpio.substring(0, 47) + '...';
+    }
+
+    return nombreLimpio;
+  }
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
@@ -1093,27 +1107,6 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     }
   }
 
-  previsualizarArchivosSupervisor(tipo: 'aprobacion' | 'pazsalvo'): void {
-    let nombreArchivo = '';
-
-    if (tipo === 'aprobacion') {
-      nombreArchivo = this.nombreArchivoAprobacionExistente ||
-        this.supervisorInfo?.nombreArchivoAprobacion || '';
-      if (nombreArchivo) {
-        this.supervisorService.verArchivoAprobacion(nombreArchivo);
-      }
-    } else {
-      nombreArchivo = this.nombrePazSalvoExistente ||
-        this.supervisorInfo?.nombrePazSalvo || '';
-      if (nombreArchivo) {
-        this.supervisorService.previsualizarPazSalvo(nombreArchivo);
-      }
-    }
-
-    if (!nombreArchivo) {
-      this.notificationService.warning('Sin archivo', `No hay archivo de ${tipo} para previsualizar`);
-    }
-  }
 
   descargarArchivosSupervisor(tipo: 'aprobacion' | 'pazsalvo'): void {
     console.log(`📥 Descargando archivo de ${tipo}...`);
@@ -1327,21 +1320,32 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
   /**
    * ✅ Carga los archivos del supervisor desde el backend
    */
+  // En supervisor-form.component.ts
+
   private cargarArchivosSupervisorDesdeBackend(documentoId: string, documentoData: any): void {
     console.log('🔍 Buscando archivos del supervisor para documento:', documentoId);
 
+    // Primero intentar con los datos del documento
+    this.cargarArchivosDesdeDocumento(documentoData);
+
+    // Luego buscar en el historial para obtener más detalles
     this.estadisticasService.obtenerHistorial()
       .pipe(
         map((historialResponse: any) => {
-          if (historialResponse.success && Array.isArray(historialResponse.data)) {
-            const registroSupervisor = historialResponse.data.find((item: any) => {
-              return item.documentoId === documentoId ||
-                (item.documento && item.documento.id === documentoId);
-            });
-
-            return registroSupervisor;
+          // Manejar diferentes formatos de respuesta
+          let historialArray = [];
+          if (historialResponse?.data && Array.isArray(historialResponse.data)) {
+            historialArray = historialResponse.data;
+          } else if (Array.isArray(historialResponse)) {
+            historialArray = historialResponse;
           }
-          return null;
+
+          // Buscar el registro correspondiente a este documento
+          return historialArray.find((item: any) => {
+            return item.documentoId === documentoId ||
+              item.id === documentoId ||
+              (item.documento && item.documento.id === documentoId);
+          });
         }),
         catchError(error => {
           console.warn('⚠️ Error obteniendo historial:', error);
@@ -1352,76 +1356,83 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
         next: (registroSupervisor: any) => {
           if (registroSupervisor) {
             console.log('✅ Archivos del supervisor encontrados en historial:', registroSupervisor);
-            this.procesarDatosSupervisor(registroSupervisor);
-          } else {
-            this.cargarArchivosDesdeDocumento(documentoData);
+
+            // Si hay nombreArchivoSupervisor, actualizar
+            if (registroSupervisor.nombreArchivoSupervisor) {
+              this.nombreArchivoAprobacionExistente = registroSupervisor.nombreArchivoSupervisor;
+              this.fechaArchivoAprobacionExistente = registroSupervisor.fechaAprobacion ?
+                new Date(registroSupervisor.fechaAprobacion) : null;
+            }
+
+            // Si hay pazSalvo, actualizar
+            if (registroSupervisor.pazSalvo) {
+              this.nombrePazSalvoExistente = registroSupervisor.pazSalvo;
+              this.fechaPazSalvoExistente = registroSupervisor.fechaActualizacion ?
+                new Date(registroSupervisor.fechaActualizacion) : null;
+            }
+
+            // Si hay observación o correcciones, actualizar formulario
+            if (registroSupervisor.observacion && !this.revisionForm.get('observacionSupervisor')?.value) {
+              this.revisionForm.patchValue({ observacionSupervisor: registroSupervisor.observacion });
+            }
+
+            if (registroSupervisor.correcciones && !this.revisionForm.get('correcciones')?.value) {
+              this.revisionForm.patchValue({ correcciones: registroSupervisor.correcciones });
+            }
+
+            this.cdr.detectChanges();
           }
         }
       });
   }
 
-  private procesarDatosSupervisor(supervisorData: any): void {
-    console.log('🔍 Procesando datos del supervisor:', supervisorData);
+  // Método para previsualizar archivo de aprobación (mejorado)
+  previsualizarArchivosSupervisor(tipo: 'aprobacion' | 'pazsalvo'): void {
+    let nombreArchivo = '';
 
-    const nombreArchivoAprobacion = supervisorData?.nombreArchivoSupervisor || '';
-    const nombrePazSalvo = supervisorData?.pazSalvo || '';
+    if (tipo === 'aprobacion') {
+      nombreArchivo = this.nombreArchivoAprobacionExistente ||
+        this.supervisorInfo?.nombreArchivoAprobacion || '';
 
-    console.log('📁 Archivos encontrados:', {
-      aprobacion: nombreArchivoAprobacion,
-      pazSalvo: nombrePazSalvo
-    });
+      if (nombreArchivo) {
+        console.log('👁️ Previsualizando archivo de aprobación:', nombreArchivo);
 
-    this.nombreArchivoAprobacionExistente = nombreArchivoAprobacion;
-    this.nombrePazSalvoExistente = nombrePazSalvo;
+        // Usar el método específico o generar URL
+        if (this.supervisorService.verArchivoAprobacion) {
+          this.supervisorService.verArchivoAprobacion(nombreArchivo);
+        } else {
+          // Fallback: construir URL manualmente
+          const url = this.supervisorService.getUrlArchivoSupervisor(nombreArchivo);
+          if (url && url !== '#') {
+            window.open(url, '_blank');
+          } else {
+            this.notificationService.warning('Error', 'No se pudo generar la URL del archivo');
+          }
+        }
+      }
+    } else {
+      nombreArchivo = this.nombrePazSalvoExistente ||
+        this.supervisorInfo?.nombrePazSalvo || '';
 
-    if (supervisorData?.fechaAprobacion) {
-      this.fechaArchivoAprobacionExistente = new Date(supervisorData.fechaAprobacion);
-    }
-    if (supervisorData?.fechaActualizacion) {
-      this.fechaPazSalvoExistente = new Date(supervisorData.fechaActualizacion);
-    }
+      if (nombreArchivo) {
+        console.log('👁️ Previsualizando paz y salvo:', nombreArchivo);
 
-    // ✅ Obtener observación y correcciones directamente desde los campos separados
-    const observacionSupervisor = supervisorData?.observacion || '';
-    const correccionesSugeridas = supervisorData?.correcciones || '';
-
-    console.log('📝 Campos separados encontrados:', {
-      observacion: observacionSupervisor,
-      correcciones: correccionesSugeridas
-    });
-
-    this.supervisorInfo = {
-      ...this.supervisorInfo,
-      tieneArchivoAprobacion: !!nombreArchivoAprobacion,
-      tienePazSalvo: !!nombrePazSalvo,
-      nombreArchivoAprobacion: nombreArchivoAprobacion,
-      nombrePazSalvo: nombrePazSalvo,
-      esUltimoRadicado: supervisorData?.esUltimoRadicado || !!nombrePazSalvo,
-      supervisorRevisor: supervisorData?.usuarioNombre || this.getCurrentUser(),
-      fechaRevision: supervisorData?.fechaAprobacion || supervisorData?.fechaActualizacion,
-      observacionSupervisor: observacionSupervisor,
-      correccionesSugeridas: correccionesSugeridas
-    };
-
-    // ✅ ACTUALIZAR EL FORMULARIO CON LAS OBSERVACIONES Y CORRECCIONES
-    this.revisionForm.patchValue({
-      estadoRevision: supervisorData?.estado || '',
-      observacionSupervisor: observacionSupervisor || '',
-      correcciones: correccionesSugeridas || '',
-      esUltimoRadicado: this.supervisorInfo.esUltimoRadicado
-    });
-
-    if (nombreArchivoAprobacion || nombrePazSalvo) {
-      this.mostrarCampoArchivo = true;
+        if (this.supervisorService.previsualizarPazSalvo) {
+          this.supervisorService.previsualizarPazSalvo(nombreArchivo);
+        } else {
+          const url = this.supervisorService.getUrlArchivoSupervisor(nombreArchivo);
+          if (url && url !== '#') {
+            window.open(url, '_blank');
+          } else {
+            this.notificationService.warning('Error', 'No se pudo generar la URL del archivo');
+          }
+        }
+      }
     }
 
-    console.log('✅ Información del supervisor actualizada:', {
-      observacionSupervisor: this.supervisorInfo.observacionSupervisor,
-      correccionesSugeridas: this.supervisorInfo.correccionesSugeridas,
-      estadoRevision: supervisorData?.estado
-    });
-
-    this.cdr.detectChanges();
+    if (!nombreArchivo) {
+      this.notificationService.warning('Sin archivo', `No hay archivo de ${tipo} para previsualizar`);
+    }
   }
 
   private cargarArchivosDesdeDocumento(documento: any): void {
@@ -1624,89 +1635,233 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
   }
 
   guardarRevision(): void {
-  // Usar SIEMPRE la copia segura
-  const idParaGuardar = this._documentoIdSeguro;
+    const idParaGuardar = this._documentoIdSeguro;
 
-  if (!idParaGuardar) {
-    console.error('[SupervisorForm] ¡Intento de guardar sin ID seguro!');
-    this.notificationService.error(
-      'Error crítico',
-      'ID del documento no disponible. Recarga la página e intenta de nuevo.'
-    );
-    return;
-  }
-
-  console.log('[SupervisorForm] Guardando revisión con ID seguro:', idParaGuardar);
-
-  if (this.soloLectura || this.esModoAuditor) {
-    this.notificationService.warning('Acción bloqueada', 'No puedes guardar en modo consulta o auditoría.');
-    return;
-  }
-
-  if (this.revisionForm.invalid) {
-    this.notificationService.warning('Formulario incompleto', 'Completa los campos requeridos');
-    this.revisionForm.markAllAsTouched();
-    return;
-  }
-
-  const estado = this.revisionForm.get('estadoRevision')?.value;
-  const esUltimo = this.revisionForm.get('esUltimoRadicado')?.value;
-
-  if (estado === 'APROBADO') {
-    if (!this.archivoAprobacion && !this.tieneAprobacionExistente()) {
-      this.notificationService.error('Error', 'Debe adjuntar documento de aprobación');
+    if (!idParaGuardar) {
+      console.error('[SupervisorForm] ¡Intento de guardar sin ID seguro!');
+      this.notificationService.error('Error crítico', 'ID del documento no disponible');
       return;
     }
-    if (esUltimo && !this.archivoPazSalvo && !this.tienePazSalvoExistente()) {
-      this.notificationService.error('Error', 'Debe adjuntar paz y salvo para último radicado');
+
+    if (this.soloLectura || this.esModoAuditor) {
+      this.notificationService.warning('Acción bloqueada', 'No puedes guardar en modo consulta o auditoría.');
       return;
     }
-  }
 
-  if (!confirm('¿Guardar revisión? Esto cambiará el estado del documento.')) return;
-
-  this.isProcessing = true;
-  const valores = this.revisionForm.getRawValue();
-
-  const payload = {
-    estado,
-    observacion: valores.observacionSupervisor || '',
-    correcciones: valores.correcciones || '',
-    requierePazSalvo: esUltimo,
-    esUltimoRadicado: Boolean(esUltimo)
-  };
-
-  console.log('[SupervisorForm] Enviando payload:', { id: idParaGuardar, payload });
-
-  let request: Observable<any>;
-
-  if (estado === 'APROBADO' && (this.archivoAprobacion || this.archivoPazSalvo)) {
-    request = this.supervisorService.guardarRevisionConArchivo(
-      idParaGuardar,  // ← Usar el seguro
-      payload,
-      this.archivoAprobacion,
-      esUltimo ? this.archivoPazSalvo : null
-    );
-  } else {
-    request = this.supervisorService.guardarRevision(idParaGuardar, payload);
-  }
-
-  request.subscribe({
-    next: (response) => {
-      console.log('[SupervisorForm] Revisión guardada OK:', response);
-      this.notificationService.success('Éxito', 'Revisión guardada correctamente');
-      this.isProcessing = false;
-      setTimeout(() => this.volverALista(), 1500);
-    },
-    error: (err) => {
-      console.error('[SupervisorForm] Error al guardar:', err);
-      let msg = 'No se pudo guardar la revisión';
-      if (err.status === 400) msg = 'Datos inválidos enviados al servidor';
-      if (err.error?.message) msg = err.error.message;
-      this.notificationService.error('Error', msg);
-      this.isProcessing = false;
+    if (this.revisionForm.invalid) {
+      this.notificationService.warning('Formulario incompleto', 'Completa los campos requeridos');
+      this.revisionForm.markAllAsTouched();
+      return;
     }
-  });
-}
+
+    const estadoSeleccionado = this.revisionForm.get('estadoRevision')?.value;
+    const esUltimo = this.revisionForm.get('esUltimoRadicado')?.value;
+
+    // ✅ MAPEO DE ESTADOS DEL FRONTEND AL BACKEND
+    let estadoBackend = estadoSeleccionado;
+
+    // Mapear estados que no son válidos en el backend
+    if (estadoSeleccionado === 'PENDIENTE_CORRECCIONES') {
+      estadoBackend = 'OBSERVADO'; // O 'DEVUELTO' según tu lógica
+    }
+
+    if (estadoBackend === 'APROBADO') {
+      if (!this.archivoAprobacion && !this.tieneAprobacionExistente()) {
+        this.notificationService.error('Error', 'Debe adjuntar documento de aprobación');
+        return;
+      }
+      if (esUltimo && !this.archivoPazSalvo && !this.tienePazSalvoExistente()) {
+        this.notificationService.error('Error', 'Debe adjuntar paz y salvo para último radicado');
+        return;
+      }
+    }
+
+    if (!confirm('¿Guardar revisión? Esto cambiará el estado del documento.')) return;
+
+    this.isProcessing = true;
+    const valores = this.revisionForm.getRawValue();
+
+    const payload = {
+      estado: estadoBackend, // ← Usar el estado mapeado
+      observacion: valores.observacionSupervisor || '',
+      correcciones: valores.correcciones || '',
+      requierePazSalvo: esUltimo,
+      esUltimoRadicado: Boolean(esUltimo)
+    };
+
+    console.log('[SupervisorForm] Enviando payload:', { id: idParaGuardar, payload, estadoOriginal: estadoSeleccionado, estadoMapeado: estadoBackend });
+
+    let request: Observable<any>;
+
+    if (estadoBackend === 'APROBADO' && (this.archivoAprobacion || this.archivoPazSalvo)) {
+      request = this.supervisorService.guardarRevisionConArchivo(
+        idParaGuardar,
+        payload,
+        this.archivoAprobacion,
+        esUltimo ? this.archivoPazSalvo : null
+      );
+    } else {
+      request = this.supervisorService.guardarRevision(idParaGuardar, payload);
+    }
+
+    request.subscribe({
+      next: (response) => {
+        console.log('[SupervisorForm] Revisión guardada OK:', response);
+        this.notificationService.success('Éxito', 'Revisión guardada correctamente');
+        this.isProcessing = false;
+        setTimeout(() => this.volverALista(), 1500);
+      },
+      error: (err) => {
+        console.error('[SupervisorForm] Error al guardar:', err);
+
+        // Mostrar mensaje detallado si está disponible
+        let msg = 'No se pudo guardar la revisión';
+        if (err.error?.message) {
+          msg = err.error.message;
+        } else if (err.message) {
+          msg = err.message;
+        }
+
+        this.notificationService.error('Error', msg);
+        this.isProcessing = false;
+      }
+    });
+
+
+  }
+
+
+  verArchivoAprobacion(): void {
+    const nombreArchivo = this.nombreArchivoAprobacionExistente ||
+      this.supervisorInfo?.nombreArchivoAprobacion ||
+      '';
+
+    if (!nombreArchivo) {
+      this.notificationService.warning('Sin archivo', 'No hay archivo de aprobación para visualizar');
+      return;
+    }
+
+    console.log('👁️ Visualizando archivo de aprobación:', nombreArchivo);
+
+    // Usar el método del servicio
+    if (this.supervisorService.verArchivoAprobacion) {
+      this.supervisorService.verArchivoAprobacion(nombreArchivo);
+    } else {
+      // Fallback: construir URL manualmente
+      const url = this.supervisorService.getUrlArchivoSupervisor(nombreArchivo);
+      if (url && url !== '#') {
+        window.open(url, '_blank');
+      } else {
+        this.notificationService.error('Error', 'No se pudo generar la URL del archivo');
+      }
+    }
+  }
+
+  /**
+   * ✅ Ver archivo de paz y salvo (funciona en cualquier modo)
+   */
+  verArchivoPazSalvo(): void {
+    const nombreArchivo = this.nombrePazSalvoExistente ||
+      this.supervisorInfo?.nombrePazSalvo ||
+      '';
+
+    if (!nombreArchivo) {
+      this.notificationService.warning('Sin archivo', 'No hay archivo de paz y salvo para visualizar');
+      return;
+    }
+
+    console.log('👁️ Visualizando paz y salvo:', nombreArchivo);
+
+    if (this.supervisorService.previsualizarPazSalvo) {
+      this.supervisorService.previsualizarPazSalvo(nombreArchivo);
+    } else {
+      const url = this.supervisorService.getUrlArchivoSupervisor(nombreArchivo);
+      if (url && url !== '#') {
+        window.open(url, '_blank');
+      } else {
+        this.notificationService.error('Error', 'No se pudo generar la URL del archivo');
+      }
+    }
+  }
+
+  /**
+   * ✅ Descargar archivo de aprobación
+   */
+  descargarArchivoAprobacion(): void {
+    const nombreArchivo = this.nombreArchivoAprobacionExistente ||
+      this.supervisorInfo?.nombreArchivoAprobacion ||
+      '';
+
+    if (!nombreArchivo) {
+      this.notificationService.warning('Sin archivo', 'No hay archivo de aprobación para descargar');
+      return;
+    }
+
+    this.isProcessing = true;
+    console.log('📥 Descargando archivo de aprobación:', nombreArchivo);
+
+    this.supervisorService.descargarArchivoAprobacion(nombreArchivo)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (blob: Blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = this.getNombreArchivoParaMostrar(nombreArchivo);
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+
+          this.notificationService.success('Descarga completada', 'Archivo descargado correctamente');
+          this.isProcessing = false;
+        },
+        error: (error: any) => {
+          console.error('❌ Error descargando archivo de aprobación:', error);
+          this.notificationService.error('Error', 'No se pudo descargar el archivo');
+          this.isProcessing = false;
+        }
+      });
+  }
+
+  /**
+   * ✅ Descargar archivo de paz y salvo
+   */
+  descargarArchivoPazSalvo(): void {
+    const nombreArchivo = this.nombrePazSalvoExistente ||
+      this.supervisorInfo?.nombrePazSalvo ||
+      '';
+
+    if (!nombreArchivo) {
+      this.notificationService.warning('Sin archivo', 'No hay archivo de paz y salvo para descargar');
+      return;
+    }
+
+    this.isProcessing = true;
+    console.log('📥 Descargando paz y salvo:', nombreArchivo);
+
+    this.supervisorService.descargarPazSalvo(nombreArchivo)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (blob: Blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = this.getNombreArchivoParaMostrar(nombreArchivo);
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+
+          this.notificationService.success('Descarga completada', 'Archivo descargado correctamente');
+          this.isProcessing = false;
+        },
+        error: (error: any) => {
+          console.error('❌ Error descargando paz y salvo:', error);
+          this.notificationService.error('Error', 'No se pudo descargar el archivo');
+          this.isProcessing = false;
+        }
+      });
+  }
 
 }

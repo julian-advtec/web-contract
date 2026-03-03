@@ -1,0 +1,239 @@
+<!-- src/app/pages/supervisor/components/supervisor-rejected-list/supervisor-rejected-list.component.html -->
+<div class="supervisor-rejected-container" [class.sidebar-collapsed]="sidebarCollapsed">
+    <div class="supervisor-rejected-inner">
+
+        <!-- Barra de búsqueda y acciones -->
+        <div class="search-container mt-3 mb-4">
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <div class="input-group search-group flex-grow-1">
+                    <span class="input-group-text">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input type="text" class="form-control" placeholder="Buscar radicado, contratista, contrato..."
+                        [(ngModel)]="searchTerm" (input)="onSearch()" [disabled]="isLoading" />
+                </div>
+            </div>
+        </div>
+
+        <!-- Mensajes de estado -->
+        <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i> {{ errorMessage }}
+            <button type="button" class="btn-close" (click)="dismissError()"></button>
+        </div>
+
+        <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle me-2"></i> {{ successMessage }}
+            <button type="button" class="btn-close" (click)="dismissSuccess()"></button>
+        </div>
+
+        <div *ngIf="infoMessage" class="alert alert-info alert-dismissible fade show" role="alert">
+            <i class="fas fa-info-circle me-2"></i> {{ infoMessage }}
+            <button type="button" class="btn-close" (click)="dismissInfo()"></button>
+        </div>
+
+        <!-- Contenido principal -->
+        <div class="card shadow main-card">
+            <div class="card-body p-0">
+
+                <!-- Loading -->
+                <div *ngIf="isLoading" class="text-center py-5">
+                    <div class="spinner-border text-danger" style="width: 3rem; height: 3rem;"></div>
+                    <p class="mt-3 text-muted">Cargando documentos rechazados...</p>
+                </div>
+
+                <!-- Empty State -->
+                <div *ngIf="!isLoading && filteredDocumentos.length === 0" class="text-center py-5">
+                    <div class="empty-state">
+                        <i class="fas fa-times-circle fa-4x text-secondary mb-4"></i>
+                        <h4 class="text-muted mb-2">No hay documentos rechazados</h4>
+                        <p class="text-muted mb-3">Los documentos que han sido rechazados aparecerán aquí</p>
+
+                        <div class="mt-4">
+                            <p class="text-start"><strong>¿Por qué no hay rechazados?</strong></p>
+                            <ul class="list-unstyled text-start">
+                                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Verifica que hay
+                                    documentos en estado "RECHAZADO" o "RECHAZADO_SUPERVISOR"</li>
+                                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Los rechazados aparecen
+                                    después de ser evaluados por supervisores</li>
+                                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Verifica que estás
+                                    autenticado como supervisor</li>
+                            </ul>
+                        </div>
+
+                        <div class="d-flex justify-content-center gap-2 mt-4 flex-wrap">
+                            <button class="btn btn-danger" (click)="refreshData()" [disabled]="isLoading">
+                                <i class="fas fa-sync-alt me-1"></i> Refrescar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lista de documentos rechazados -->
+                <div *ngIf="!isLoading && filteredDocumentos.length > 0" class="documentos-container">
+
+                    <!-- Header de la tabla -->
+                    <div class="documentos-header">
+                        <div class="header-item">Radicado</div>
+                        <div class="header-item">Contratista</div>
+                        <div class="header-item">Contrato</div>
+                        <div class="header-item">Estado</div>
+                        <div class="header-item">Rechazado por</div>
+                        <div class="header-item">Motivo</div>
+                        <div class="header-item acciones-header">Acciones</div>
+                    </div>
+
+                    <!-- Lista de rechazados -->
+                    <div class="documentos-list">
+                        <div *ngFor="let doc of paginatedDocumentos" class="documento-card"
+                            [class.reciente]="esDocumentoReciente(doc)" [title]="getTooltipInfo(doc)">
+
+                            <!-- Radicado -->
+                            <div class="documento-info">
+                                <div class="documento-details">
+                                    <h5 class="documento-numero mb-1">
+                                        <i class="fas fa-hashtag me-1"></i>{{ doc.numeroRadicado }}
+                                        <span *ngIf="esDocumentoReciente(doc)" class="reciente-badge">
+                                            <i class="fas fa-star me-1"></i>NUEVO
+                                        </span>
+                                    </h5>
+                                    <p class="documento-fecha mb-1">
+                                        <i class="far fa-calendar me-1"></i>
+                                        {{ formatDate(doc.fechaRadicacion) }}
+                                    </p>
+                                    <small class="text-muted">
+                                        <i class="fas fa-user me-1"></i>
+                                        {{ doc.radicador || 'Radicador' }}
+                                    </small>
+                                </div>
+                            </div>
+
+                            <!-- Contratista -->
+                            <div class="documento-contratista">
+                                <p class="contratista-text mb-1">
+                                    <strong>{{ doc.nombreContratista }}</strong>
+                                </p>
+                                <small class="text-muted">
+                                    <i class="fas fa-id-card me-1"></i>
+                                    {{ doc.documentoContratista }}
+                                </small>
+                            </div>
+
+                            <!-- Contrato -->
+                            <div class="documento-contrato">
+                                <span class="contrato-badge">
+                                    <i class="fas fa-file-contract me-1"></i>
+                                    {{ doc.numeroContrato }}
+                                </span>
+                                <small class="d-block text-muted mt-1">
+                                    {{ getDuracionContrato(doc.fechaInicio, doc.fechaFin) }}
+                                </small>
+                            </div>
+
+                            <!-- Estado -->
+                            <div class="documento-estado">
+                                <span class="estado-badge" [ngClass]="getEstadoClass(doc.estado)">
+                                    <i class="fas fa-ban me-1"></i>
+                                    {{ getEstadoTexto(doc.estado) }}
+                                </span>
+                                <div class="dias-transcurridos mt-1">
+                                    <small [ngClass]="getDiasClass(doc)">
+                                        <i class="far fa-clock me-1"></i>
+                                        Rechazado hace {{ getDiasDesdeRechazo(doc) }} días
+                                    </small>
+                                </div>
+                            </div>
+
+                            <!-- Supervisor que rechazó -->
+                            <div class="documento-supervisor">
+                                <div class="supervisor-info">
+                                    <strong>
+                                        <i class="fas fa-user-shield me-1"></i>
+                                        {{ getSupervisorRechazo(doc) }}
+                                    </strong>
+                                    <small *ngIf="getObservaciones(doc)" class="text-muted d-block">
+                                        {{ getObservaciones(doc).length > 80 ? (getObservaciones(doc).substring(0, 80) + '...') : getObservaciones(doc) }}
+                                    </small>
+                                </div>
+                            </div>
+
+                            <!-- Motivo del rechazo -->
+                            <div class="documento-motivo">
+                                <div class="motivo-container">
+                                    <p class="motivo-text mb-0">
+                                        <i class="fas fa-comment-dots me-1 text-danger"></i>
+                                        {{ getMotivoRechazo(doc) }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Acciones -->
+                            <div class="documento-acciones">
+                                <div class="acciones-buttons">
+                                    <div class="d-flex flex-column gap-1">
+
+                                        <!-- Ver detalles (solo lectura) -->
+                                        <button class="btn btn-outline-danger btn-sm" (click)="verDetalle(doc)"
+                                            title="Ver documento (solo lectura)" [disabled]="isProcessing">
+                                            <i class="fas fa-eye me-1"></i> Consultar
+                                        </button>
+
+                                        <!-- Indicador de solo lectura -->
+                                        <div class="badge bg-secondary mt-1">
+                                            <i class="fas fa-lock me-1"></i> Solo lectura
+                                        </div>
+
+                                        <!-- Botones de vista rápida de documentos -->
+                                        <div class="btn-group mt-1" *ngIf="getDocumentCount(doc) > 0">
+                                            <button class="btn btn-outline-info btn-sm flex-fill"
+                                                (click)="previsualizarDocumentoEspecifico(doc, 1)"
+                                                [disabled]="!doc.cuentaCobro" title="Ver Cuenta de Cobro">
+                                                <i class="fas fa-file-invoice"></i>
+                                            </button>
+                                            <button class="btn btn-outline-info btn-sm flex-fill"
+                                                (click)="previsualizarDocumentoEspecifico(doc, 2)"
+                                                [disabled]="!doc.seguridadSocial" title="Ver Seguridad Social">
+                                                <i class="fas fa-shield-alt"></i>
+                                            </button>
+                                            <button class="btn btn-outline-info btn-sm flex-fill"
+                                                (click)="previsualizarDocumentoEspecifico(doc, 3)"
+                                                [disabled]="!doc.informeActividades" title="Ver Informe de Actividades">
+                                                <i class="fas fa-chart-line"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Paginación -->
+                    <div class="documentos-pagination" *ngIf="totalPages > 1">
+                        <div class="pagination-info">
+                            Página {{ currentPage }} de {{ totalPages }}
+                        </div>
+
+                        <div class="pagination-controls">
+                            <button class="btn btn-outline-danger btn-sm" [disabled]="currentPage === 1"
+                                (click)="changePage(currentPage - 1)">
+                                <i class="fas fa-chevron-left"></i> Anterior
+                            </button>
+
+                            <div class="page-numbers">
+                                <button *ngFor="let page of pages" class="btn btn-sm"
+                                    [class.btn-danger]="page === currentPage"
+                                    [class.btn-outline-danger]="page !== currentPage" (click)="changePage(page)">
+                                    {{ page }}
+                                </button>
+                            </div>
+
+                            <button class="btn btn-outline-danger btn-sm" [disabled]="currentPage === totalPages"
+                                (click)="changePage(currentPage + 1)">
+                                Siguiente <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

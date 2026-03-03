@@ -111,4 +111,32 @@ export class SupervisorDocumentosService extends SupervisorCoreService {
             catchError(this.handleError)
         );
     }
+
+// src/app/core/services/supervisor/supervisor-documentos.service.ts
+// Agrega este método
+
+obtenerMisSupervisiones(): Observable<Documento[]> {
+  const headers = this.getAuthHeaders();
+  console.log('📋 Solicitando todas mis supervisiones...');
+
+  return this.http.get<any>(`${this.apiUrl}/mis-supervisiones`, { headers }).pipe(
+    map(response => {
+      console.log('📊 Respuesta mis supervisiones:', response);
+
+      let documentos: Documento[] = [];
+
+      if (response?.data && Array.isArray(response.data)) {
+        documentos = this.mapearDocumentosDesdeBackend(response.data);
+      } else if (Array.isArray(response)) {
+        documentos = this.mapearDocumentosDesdeBackend(response);
+      }
+
+      return documentos;
+    }),
+    catchError(error => {
+      console.error('❌ Error obteniendo mis supervisiones:', error);
+      return of([]);
+    })
+  );
+}
 }
