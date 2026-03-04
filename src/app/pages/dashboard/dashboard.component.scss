@@ -1,64 +1,79 @@
 /* src/app/pages/dashboard/dashboard.component.scss */
-@import '../../shared/layout-styles.scss'; // Asegúrate de que esta ruta sea correcta
+@import '../../shared/layout-styles.scss';
 
-/* ===== ESTILOS ESPECÍFICOS PARA DASHBOARD ===== */
+/* Estructura general */
+.app-container {
+  display: flex;
+  min-height: 100vh;
+}
 
-/* Asegurar que la imagen de fondo cubra todo el espacio */
+/* Main con fondo */
 .main-with-margin {
-  position: relative;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    z-index: -1;
-  }
-}
-
-/* ===== CONTENEDOR CENTRADO ===== */
-.container-fluid {
   flex: 1;
-  display: flex !important; // IMPORTANTE: Hacerlo flex
-  align-items: center !important; // Centrar verticalmente
-  justify-content: center !important; // Centrar horizontalmente
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
-  width: 100%;
-  height: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  // Fondo: más pequeño y completo
+  background-size: contain;               // ← imagen completa, sin cortes, más pequeña si hace falta
+  background-position: center;            // centrado perfecto
+  background-repeat: no-repeat;           // nunca se repite
+  background-attachment: scroll;          // scroll normal
+
+  // Color de fondo que rellena los espacios (elige uno que combine con tu foto nocturna)
+  background-color: #162954;              // verde-azul muy oscuro / negro azulado
+  // Alternativas que puedes probar:
+  // background-color: #0d1b2a;          // azul noche
+  // background-color: #001524;          // azul marino oscuro
+  // background-color: #000;             // negro puro si quieres más dramático
+
+  overflow: hidden;
 }
 
-/* ===== WELCOME OVERLAY - CENTRADO ===== */
+/* Capa para el contenido (centrado vertical y horizontal) */
+.main-content-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+.container-fluid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 1400px;
+  padding: 2rem 1.5rem;
+  margin: 0 auto;
+}
+
+/* Welcome overlay (efecto vidrio) */
 .welcome-overlay {
   text-align: center;
   padding: 50px 40px;
   max-width: 85%;
   width: 100%;
-  
-  // Fondo blanco con toques verdes
+
   background: linear-gradient(135deg, 
-    rgba(255, 255, 255, 0.95) 0%, 
-    rgba(236, 253, 245, 0.9) 100%);
+    rgba(255, 255, 255, 0.94) 0%, 
+    rgba(236, 253, 245, 0.88) 100%);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: 20px;
-  border: 1px solid rgba(16, 185, 129, 0.2);
-  box-shadow: 0 20px 40px rgba(6, 78, 59, 0.15);
-  
-  // Asegurar que esté por encima de la imagen de fondo
+  border: 1px solid rgba(16, 185, 129, 0.18);
+  box-shadow: 0 20px 40px rgba(6, 78, 59, 0.14);
+
+  z-index: 2;
   position: relative;
-  z-index: 1;
-  
-  // Centrar horizontalmente y ajustar verticalmente
-  margin: 0 auto;
 }
 
+/* Textos (tus estilos originales) */
 .welcome-title {
   font-family: 'Playfair Display', serif;
   font-size: 4rem;
@@ -74,17 +89,31 @@
   background-clip: text;
 }
 
+/* Textos con colores AZULES */
+.welcome-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 4rem;
+  font-weight: 700;
+  font-style: italic;
+  margin: 0 0 25px 0;
+  line-height: 1.1;
+  text-shadow: 2px 2px 10px rgba(0, 0, 60, 0.6); // sombra azul oscura
+  background: linear-gradient(135deg, #1d4ed8, #60a5fa); // azul royal → azul claro
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 .welcome-message {
   font-size: 1.5rem;
-  color: $dark-green;
+  color: #1e40af;               // azul oscuro legible (indigo-800)
   margin: 0 0 1rem 0;
   line-height: 1.5;
   font-weight: 400;
   
   strong {
-    color: $primary-green;
     font-weight: 600;
-    background: linear-gradient(135deg, $primary-green 0%, $light-green 100%);
+    background: linear-gradient(135deg, #3b82f6, #93c5fd); // azul medio → azul claro
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -93,107 +122,42 @@
 
 .welcome-subtitle {
   font-size: 1.2rem;
-  color: $primary-green;
+  color: #60a5fa;               // azul claro (blue-400)
   margin: 0;
   line-height: 1.5;
   font-style: italic;
   font-weight: 400;
-  opacity: 0.9;
+  opacity: 0.95;
 }
 
-// Ajustes responsivos para el overlay
+/* Responsive (mantengo lo tuyo) */
 @include tablet {
-  .container-fluid {
-    padding: 1.5rem;
-  }
-  
-  .welcome-overlay {
-    padding: 40px 30px;
-    max-width: 90%;
-  }
-  
-  .welcome-title { 
-    font-size: 3.2rem; 
-    margin-bottom: 20px;
-  }
-  
-  .welcome-message { 
-    font-size: 1.3rem; 
-  }
-  
-  .welcome-subtitle { 
-    font-size: 1.1rem; 
-  }
+  .container-fluid { padding: 1.5rem; }
+  .welcome-overlay { padding: 40px 30px; max-width: 90%; }
+  .welcome-title { font-size: 3.2rem; margin-bottom: 20px; }
+  .welcome-message { font-size: 1.3rem; }
+  .welcome-subtitle { font-size: 1.1rem; }
 }
 
 @include small-tablet {
-  .container-fluid {
-    padding: 1rem;
-  }
-  
-  .welcome-overlay {
-    padding: 35px 25px;
-    max-width: 95%;
-  }
-  
-  .welcome-title { 
-    font-size: 2.5rem; 
-    margin-bottom: 18px;
-  }
-  
-  .welcome-message { 
-    font-size: 1.1rem; 
-  }
-  
-  .welcome-subtitle { 
-    font-size: 1rem; 
-  }
+  .container-fluid { padding: 1rem; }
+  .welcome-overlay { padding: 35px 25px; max-width: 95%; }
+  .welcome-title { font-size: 2.5rem; }
+  .welcome-message { font-size: 1.1rem; }
+  .welcome-subtitle { font-size: 1rem; }
 }
 
 @include mobile {
-  .welcome-overlay {
-    padding: 30px 20px;
-    max-width: 95%;
-    margin: 0 10px;
-  }
-
-  .welcome-title { 
-    font-size: 2rem; 
-    margin-bottom: 15px;
-  }
-  
-  .welcome-message { 
-    font-size: 1rem; 
-    margin-bottom: 0.75rem;
-  }
-  
-  .welcome-subtitle { 
-    font-size: 0.9rem; 
-  }
+  .welcome-overlay { padding: 30px 20px; max-width: 95%; margin: 0 10px; }
+  .welcome-title { font-size: 2rem; margin-bottom: 15px; }
+  .welcome-message { font-size: 1rem; margin-bottom: 0.75rem; }
+  .welcome-subtitle { font-size: 0.9rem; }
 }
 
-// Para pantallas muy pequeñas
 @media (max-width: 480px) {
-  .container-fluid {
-    padding: 0.75rem;
-  }
-  
-  .welcome-overlay {
-    padding: 25px 15px;
-    margin: 0 5px;
-  }
-  
-  .welcome-title { 
-    font-size: 1.6rem; 
-    margin-bottom: 12px;
-  }
-  
-  .welcome-message { 
-    font-size: 0.9rem; 
-    margin-bottom: 0.5rem;
-  }
-  
-  .welcome-subtitle { 
-    font-size: 0.8rem; 
-  }
+  .container-fluid { padding: 0.75rem; }
+  .welcome-overlay { padding: 25px 15px; margin: 0 5px; }
+  .welcome-title { font-size: 1.6rem; margin-bottom: 12px; }
+  .welcome-message { font-size: 0.9rem; margin-bottom: 0.5rem; }
+  .welcome-subtitle { font-size: 0.8rem; }
 }
