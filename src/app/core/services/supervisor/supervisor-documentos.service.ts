@@ -112,25 +112,36 @@ export class SupervisorDocumentosService extends SupervisorCoreService {
         );
     }
 
-// src/app/core/services/supervisor/supervisor-documentos.service.ts
-// Agrega este método
 
 obtenerMisSupervisiones(): Observable<Documento[]> {
   const headers = this.getAuthHeaders();
   console.log('📋 Solicitando todas mis supervisiones...');
 
-  return this.http.get<any>(`${this.apiUrl}/mis-supervisiones`, { headers }).pipe(
+  return this.http.get<any>(`${this.apiUrl}/documentos/mis-supervisiones`, { headers }).pipe(
     map(response => {
-      console.log('📊 Respuesta mis supervisiones:', response);
+      console.log('📊 Respuesta mis supervisiones (completa):', JSON.stringify(response, null, 2));
+      console.log('📊 Estructura data:', response?.data);
+      console.log('📊 Es array?', Array.isArray(response?.data?.data));
 
       let documentos: Documento[] = [];
 
+      // La respuesta del backend tiene estructura: { success: true, count: 10, data: [...] }
       if (response?.data && Array.isArray(response.data)) {
+        console.log('✅ Usando response.data');
         documentos = this.mapearDocumentosDesdeBackend(response.data);
-      } else if (Array.isArray(response)) {
+      } 
+      // Si viene como { success: true, data: { data: [...] } }
+      else if (response?.data?.data && Array.isArray(response.data.data)) {
+        console.log('✅ Usando response.data.data');
+        documentos = this.mapearDocumentosDesdeBackend(response.data.data);
+      }
+      // Si viene como array directo
+      else if (Array.isArray(response)) {
+        console.log('✅ Usando response como array');
         documentos = this.mapearDocumentosDesdeBackend(response);
       }
 
+      console.log(`📊 Documentos mapeados: ${documentos.length}`);
       return documentos;
     }),
     catchError(error => {

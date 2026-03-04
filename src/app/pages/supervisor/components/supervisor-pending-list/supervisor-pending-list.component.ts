@@ -220,12 +220,14 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
               `Redirigiendo a revisión de ${doc.numeroRadicado || doc.id}...`
             );
 
-            // Navegación con depuración
+            // ✅ Navegación con modo edición FORZADO
             setTimeout(() => {
               console.log('[NAVEGACIÓN] Intentando ir a /supervisor/revisar/' + doc.id);
               this.router.navigate(['/supervisor/revisar', doc.id], {
                 queryParams: {
                   desde: 'pendientes',
+                  modo: 'edicion',           // ← FORZAR MODO EDICIÓN
+                  soloLectura: 'false',       // ← FORZAR QUE NO SEA SOLO LECTURA
                   refresh: Date.now().toString()
                 }
               }).then(navOk => {
@@ -266,8 +268,13 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
   continuarRevision(doc: Documento): void {
     console.log(`▶️ Continuando revisión de ${doc.numeroRadicado || doc.id}`);
 
+    // ✅ También forzar modo edición al continuar
     this.router.navigate(['/supervisor/revisar', doc.id], {
-      queryParams: { desde: 'pendientes' }
+      queryParams: { 
+        desde: 'pendientes',
+        modo: 'edicion',
+        soloLectura: 'false'
+      }
     }).then(ok => {
       console.log('[CONTINUAR] Navegación:', ok ? 'exitosa' : 'fallida');
     }).catch(err => {
@@ -280,15 +287,11 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
   // Resto de métodos (sin cambios críticos)
   // ───────────────────────────────────────────────────────────────
 
-  // ... (onSearch, refreshData, updatePagination, formatDate, etc.)
-  // Mantén los que ya tienes, solo asegúrate de que updatePagination() refresque correctamente
-
   refreshData(): void {
     console.log('🔄 Refrescando lista de pendientes...');
     this.cargarDocumentosRadicados();
   }
 
-  // Ejemplo rápido de updatePagination (ajústalo si ya lo tienes diferente)
   updatePagination(): void {
     this.totalPages = Math.ceil(this.filteredDocumentos.length / this.pageSize);
     this.pages = [];
@@ -309,11 +312,6 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
     this.paginatedDocumentos = this.filteredDocumentos.slice(startIdx, startIdx + this.pageSize);
   }
 
-
-
-
-
-
   // ✅ NUEVOS MÉTODOS HELPER
   getSupervisorEstado(doc: Documento): string {
     return doc['supervisorEstado'] || doc['asignacion']?.['estado'] || 'Pendiente';
@@ -326,11 +324,6 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
   estaEnRevision(doc: Documento): boolean {
     return doc['supervisorEstado'] === 'EN_REVISION' || doc['asignacion']?.['enRevision'] === true;
   }
-
-
-
-
-
 
   forzarAsignacion(): void {
     console.log('🚀 Supervisor: Forzando asignación de documentos RADICADOS...');
@@ -360,8 +353,6 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
         }
       });
   }
-
-
 
   // Resto de los métodos existentes (formatDate, getDuracionContrato, etc.)...
   formatDate(fecha: Date | string): string {
@@ -504,8 +495,6 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
     this.currentPage = 1;
     this.updatePagination();
   }
-
- 
 
   changePage(page: number): void {
     if (page >= 1 && page <= this.totalPages && page !== this.currentPage) {

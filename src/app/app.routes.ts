@@ -54,7 +54,7 @@ export const routes: Routes = [
     path: 'radicacion',
     loadChildren: () => import('./pages/radicacion/radicacion-routing.module').then(m => m.RadicacionRoutingModule),
     canActivate: [AuthGuard, RoleGuard],
-    data: { roles: ['radicacion', 'admin'] }
+    data: { roles: ['radicador', 'admin'] }
   },
   {
     path: 'supervisor',

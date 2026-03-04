@@ -165,43 +165,44 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
            nombre2Normalizado.includes(nombre1Normalizado);
   }
 
-  // ✅ NUEVO MÉTODO MEJORADO: Revisar documento desde historial
-  revisarNuevamente(item: any): void {
-    console.log('🔄 Revisar documento desde historial:', item);
+revisarNuevamente(item: any): void {
+  console.log('🔄 Revisar documento desde historial:', item);
 
-    let documentoId = '';
+  let documentoId = '';
 
-    if (item.documento?.id) {
-      documentoId = item.documento.id;
-    } else if (item.id) {
-      documentoId = item.id;
-    } else if (item.documentoId) {
-      documentoId = item.documentoId;
-    }
-
-    if (!documentoId) {
-      console.error('❌ No hay ID de documento disponible');
-      this.notificationService.error('Error', 'No se puede revisar el documento: ID no disponible');
-      return;
-    }
-
-    const estado = item.estado?.toUpperCase() || '';
-    const supervisorAsignado = this.getSupervisorAsignado(item);
-    const soyElSupervisor = this.esMiDocumento(item);
-    
-    const queryParams = this.determinarModoNavegacion(estado, supervisorAsignado, soyElSupervisor);
-    
-    console.log('🚀 Navegando a formulario con:', {
-      documentoId,
-      estado,
-      supervisorAsignado,
-      soyElSupervisor,
-      usuarioActual: this.usuarioActual,
-      queryParams
-    });
-
-    this.router.navigate(['/supervisor/revisar', documentoId], { queryParams });
+  if (item.documento?.id) {
+    documentoId = item.documento.id;
+  } else if (item.id) {
+    documentoId = item.id;
+  } else if (item.documentoId) {
+    documentoId = item.documentoId;
   }
+
+  if (!documentoId) {
+    console.error('❌ No hay ID de documento disponible');
+    this.notificationService.error('Error', 'No se puede revisar el documento: ID no disponible');
+    return;
+  }
+
+  const estado = item.estado?.toUpperCase() || '';
+  const supervisorAsignado = this.getSupervisorAsignado(item);
+  const soyElSupervisor = this.esMiDocumento(item);
+  
+  const queryParams = this.determinarModoNavegacion(estado, supervisorAsignado, soyElSupervisor);
+  
+  console.log('🚀 Navegando a formulario con:', {
+    documentoId,  // ← Usamos documentoId, no doc.id
+    estado,
+    supervisorAsignado,
+    soyElSupervisor,
+    usuarioActual: this.usuarioActual,
+    queryParams
+  });
+
+  // ✅ CORREGIDO: Usar documentoId en lugar de doc.id
+  this.router.navigate(['/supervisor/revisar', documentoId], { queryParams });
+}
+
 
   private determinarModoNavegacion(estado: string, supervisorAsignado: string, soyElSupervisor: boolean): any {
     const queryParams: any = {

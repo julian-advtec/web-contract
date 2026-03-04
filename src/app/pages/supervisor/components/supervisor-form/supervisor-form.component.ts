@@ -1,3 +1,4 @@
+// src/app/pages/supervisor/components/supervisor-form/supervisor-form.component.ts
 import { Component, OnInit, ChangeDetectorRef, OnDestroy, Input, Output } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
@@ -8,7 +9,7 @@ import { EventEmitter } from '@angular/core';
 
 import { SupervisorService } from '../../../../core/services/supervisor/supervisor.service';
 import { NotificationService } from '../../../../core/services/notification.service';
-import { AuditorService } from '../../../../core/services/auditor.service'; // ← AÑADIR
+import { AuditorService } from '../../../../core/services/auditor.service';
 import { SupervisorEstadisticasService } from '../../../../core/services/supervisor';
 
 @Component({
@@ -104,7 +105,7 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     private router: Router,
     private fb: FormBuilder,
     private supervisorService: SupervisorService,
-    private auditorService: AuditorService, // ← AÑADIR
+    private auditorService: AuditorService,
     private notificationService: NotificationService,
     private cdr: ChangeDetectorRef,
     private estadisticasService: SupervisorEstadisticasService
@@ -115,19 +116,24 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
 
     this.initializeForm();
 
-    // Detectar modo auditor
-    this.esModoAuditor = this.router.url.includes('/auditor/');
+    // Detectar modo por URL
+    const url = this.router.url;
+    const esRutaSupervisor = url.includes('/supervisor/');
+    const esRutaAuditor = url.includes('/auditor/') && !esRutaSupervisor;
+
+    this.esModoAuditor = esRutaAuditor;
+
     console.log('🔍 Detectando contexto:', {
-      url: this.router.url,
+      url,
+      esRutaSupervisor,
+      esRutaAuditor,
       esModoAuditor: this.esModoAuditor,
       inputDocumentoId: this.documentoId || 'NO RECIBIDO AÚN',
       modoInput: this.modo,
       soloLecturaInput: this.soloLectura
     });
 
-    // ───────────────────────────────────────────────────────────────
-    // PRIORIDAD: @Input > ruta → y GUARDAR COPIA SEGURA
-    // ───────────────────────────────────────────────────────────────
+    // Obtener ID
     let idFinal: string | null = null;
 
     if (this.documentoId) {
@@ -148,31 +154,27 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // ¡Aquí guardamos la copia que nunca se pierde!
     this._documentoIdSeguro = idFinal;
     console.log('🛡️ ID guardado de forma segura internamente:', this._documentoIdSeguro);
 
-    // Query params
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
+      console.log('📌 QueryParams recibidos en formulario:', params);
+
       this.desdeHistorial = params['desdeHistorial'] === 'true';
-      this.determinarModoDesdeParams(params);
+
+      // ✅ Los parámetros explícitos SIEMPRE tienen prioridad
+      if (params['modo'] === 'edicion' || params['soloLectura'] === 'false') {
+        this.soloLectura = false;
+        this.modoEdicion = true;
+        console.log('✅ Forzado por queryParams: EDICIÓN');
+      } else if (params['modo'] === 'consulta' || params['soloLectura'] === 'true') {
+        this.soloLectura = true;
+        this.modoEdicion = false;
+        console.log('✅ Forzado por queryParams: SOLO LECTURA');
+      }
+
+      this.determinarModoDesdeParams(params, this.router.url);
     });
-
-    // Forzar modo solo lectura si viene de contabilidad
-    if (this.modo === 'contabilidad' || this.soloLectura === true) {
-      console.log('[SUPERVISOR] Detectado modo CONTABILIDAD o soloLectura=true → BLOQUEO TOTAL');
-      this.soloLectura = true;
-      this.modoEdicion = false;
-      this.esModoAuditor = true;
-
-      this.revisionForm.disable({ emitEvent: false });
-      this.mostrarCampoArchivo = false;
-      this.archivoAprobacion = null;
-      this.archivoPazSalvo = null;
-
-      ['estadoRevision', 'observacionSupervisor', 'correcciones', 'esUltimoRadicado']
-        .forEach(campo => this.revisionForm.get(campo)?.disable({ emitEvent: false }));
-    }
 
     // Cargar con el ID correcto
     this.cargarDocumentoCompleto(idFinal);
@@ -196,6 +198,46 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     }, 1000);
   }
 
+  /**
+   * ✅ Determinar modo basado en parámetros explícitos
+   */
+  private determinarModoDesdeParams(params: any, url: string): void {
+    console.log('🔍 Determinando modo desde parámetros:', params);
+
+    // ✅ PRIORIDAD 1: Si la URL es de auditor, forzar modo auditor
+    if (url.includes('/auditor/') && !url.includes('/supervisor/')) {
+      this.soloLectura = true;
+      this.modoEdicion = false;
+      this.esModoAuditor = true;
+      console.log('✅ Modo: AUDITORÍA (desde módulo auditor)');
+      return;
+    }
+
+    // ✅ PRIORIDAD 2: Si la URL es de supervisor, NO ES AUDITOR
+    if (url.includes('/supervisor/')) {
+      this.esModoAuditor = false;
+      console.log('✅ Forzando: Es ruta de supervisor, modo auditor = false');
+    }
+
+    // ✅ PRIORIDAD 3: Parámetros explícitos de la URL
+    if (params['modo'] === 'edicion' || params['soloLectura'] === 'false') {
+      this.soloLectura = false;
+      this.modoEdicion = true;
+      console.log('✅ Modo: EDICIÓN (parámetro explícito)');
+      return;
+    }
+
+    if (params['modo'] === 'consulta' || params['soloLectura'] === 'true') {
+      this.soloLectura = true;
+      this.modoEdicion = false;
+      console.log('✅ Modo: SOLO LECTURA (parámetro explícito)');
+      return;
+    }
+
+    // Si no hay parámetros, se determinará después con los datos del documento
+    console.log('⚠️ Modo: Por determinar con datos del documento');
+  }
+
   getNombreArchivoParaMostrar(nombreArchivo: string | null): string {
     if (!nombreArchivo) return 'Archivo sin nombre';
 
@@ -210,44 +252,13 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
 
     return nombreLimpio;
   }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
 
-  /**
-   * ✅ Determinar modo basado en parámetros explícitos
-   */
-  private determinarModoDesdeParams(params: any): void {
-    console.log('🔍 Determinando modo desde parámetros:', params);
 
-    // ✅ MODO AUDITOR TIENE PRIORIDAD
-    if (this.esModoAuditor || params['modo'] === 'auditoria') {
-      this.soloLectura = true;
-      this.modoEdicion = false;
-      console.log('✅ Modo: AUDITORÍA (desde módulo auditor)');
-      return;
-    }
-
-    // Parámetro explícito de solo lectura tiene prioridad
-    if (params['soloLectura'] === 'true' || params['modo'] === 'consulta') {
-      this.soloLectura = true;
-      this.modoEdicion = false;
-      console.log('✅ Modo: SOLO LECTURA (parámetro explícito)');
-      return;
-    }
-
-    // Parámetro explícito modo=edicion
-    if (params['modo'] === 'edicion') {
-      this.soloLectura = false;
-      this.modoEdicion = true;
-      console.log('✅ Modo: EDICIÓN (parámetro explícito)');
-      return;
-    }
-
-    // Si viene desde historial sin parámetros, determinar después con datos del documento
-    console.log('⚠️ Modo: Por determinar con datos del documento');
-  }
 
   private initializeForm(): void {
     this.revisionForm = this.fb.group({
@@ -281,9 +292,6 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * ✅ Carga el documento completo con toda la información
-   */
   cargarDocumentoCompleto(id: string): void {
     // Protección final: si por alguna razón el id no coincide con el @Input, forzar el correcto
     if (this.documentoId && this.documentoId !== id) {
@@ -298,18 +306,22 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
 
     this.isLoading = true;
 
+    const url = this.router.url;
+    const esRutaSupervisor = url.includes('/supervisor/');
+
     console.log('📥 Iniciando carga completa del documento con ID:', id, {
       modoEdicion: this.modoEdicion,
       soloLectura: this.soloLectura,
       desdeHistorial: this.desdeHistorial,
       esModoAuditor: this.esModoAuditor,
+      esRutaSupervisor,
       modoInput: this.modo
     });
 
-    // Diferenciar servicio según modo
+    // ✅ FORZAR: Si la URL es de supervisor, NUNCA usar auditor
     let servicioObservable: Observable<any>;
 
-    if (this.esModoAuditor) {
+    if (this.esModoAuditor && !esRutaSupervisor) {
       console.log('→ Usando servicio AUDITOR para vista');
       servicioObservable = this.auditorService.obtenerDocumentoParaVista(id);
     } else {
@@ -354,8 +366,10 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
             this.cargarDatosAuditorEspecificos(documentoData);
           }
 
-          // Determinar modo si no está forzado
-          if (!this.modoYaDeterminado()) {
+          // Determinar modo basado en el documento SOLO si no hay parámetros explícitos
+          const modoYaForzado = this.soloLectura === true || this.modoEdicion === true;
+
+          if (!modoYaForzado) {
             this.determinarModoDesdeDocumento(documentoData);
           }
 
@@ -428,9 +442,8 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
 
     if (vieneDeContabilidad) {
       console.log('[determinarModoDesdeDocumento] IGNORADO: viene de Contabilidad o soloLectura=true');
-      return;  // ← NO EJECUTA NADA MÁS → no sobrescribe
+      return;
     }
-
 
     // Solo llega aquí si NO está forzado (modo normal de supervisor)
     const estado = (documentoData.estado || '').toUpperCase().trim();
@@ -441,30 +454,77 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
       documentoData.asignacion?.supervisorActual ||
       documentoData.asignadoA ||
       documentoData.supervisorRevisor ||
+      documentoData.usuarioAsignadoNombre ||
       '';
 
     supervisorAsignado = supervisorAsignado.trim();
 
-    console.log('🔍 Determinando modo (modo normal):', { estado, soyYo: this.compararNombres(supervisorAsignado, usuarioActual) });
+    console.log('🔍 Determinando modo (modo normal):', {
+      estado,
+      soyYo: this.compararNombres(supervisorAsignado, usuarioActual),
+      supervisorAsignado,
+      usuarioActual
+    });
 
-    const estadosSoloLectura = ['APROBADO', 'RECHAZADO', 'GLOSADO', 'PROCESADO', 'COMPLETADO', 'PAGADO', 'FINALIZADO'];
+    // Estados que son SIEMPRE solo lectura (finales)
+    const estadosSoloLectura = [
+      'APROBADO',
+      'APROBADO_SUPERVISOR',
+      'APROBADO_AUDITOR',
+      'RECHAZADO',
+      'RECHAZADO_SUPERVISOR',
+      'RECHAZADO_AUDITOR',
+      'GLOSADO',
+      'PROCESADO',
+      'COMPLETADO',
+      'COMPLETADO_AUDITOR',
+      'PAGADO',
+      'FINALIZADO'
+    ];
+
+    // Estados que permiten edición (si soy el supervisor)
+    const estadosEditables = [
+      'RADICADO',
+      'EN_REVISION',
+      'EN_REVISION_SUPERVISOR',
+      'EN_REVISION_AUDITOR',
+      'PENDIENTE',
+      'PENDIENTE_CORRECCIONES',
+      'OBSERVADO',
+      'OBSERVADO_SUPERVISOR',
+      'OBSERVADO_AUDITOR',
+      'DEVUELTO',
+      'DEVUELTO_SUPERVISOR'
+    ];
+
     const esEstadoFinal = estadosSoloLectura.some(e => estado.includes(e));
-
-    const estadosEditables = ['RADICADO', 'EN_REVISION_SUPERVISOR', 'EN_REVISION', 'PENDIENTE', 'PENDIENTE_CORRECCIONES', 'OBSERVADO'];
+    const esEstadoEditable = estadosEditables.some(e => estado.includes(e));
 
     const soyElSupervisor = this.compararNombres(supervisorAsignado, usuarioActual) ||
       usuarioActual.includes('Administrador') ||
-      !supervisorAsignado;
+      !supervisorAsignado ||
+      supervisorAsignado === 'Sin asignar';
 
     if (esEstadoFinal) {
       this.soloLectura = true;
       this.modoEdicion = false;
-    } else if (soyElSupervisor && estadosEditables.some(e => estado.includes(e))) {
+      console.log('✅ Modo determinado: SOLO LECTURA (estado final)', estado);
+    }
+    else if (esEstadoEditable && soyElSupervisor) {
       this.soloLectura = false;
       this.modoEdicion = true;
-    } else {
+      console.log('✅ Modo determinado: EDICIÓN (estado editable, soy supervisor)', estado);
+    }
+    else if (esEstadoEditable && !soyElSupervisor) {
       this.soloLectura = true;
       this.modoEdicion = false;
+      console.log('✅ Modo determingOnInitnado: SOLO LECTURA (estado editable pero no soy supervisor)', estado);
+    }
+    else {
+      // Por defecto, si no podemos determinar, asumimos solo lectura por seguridad
+      this.soloLectura = true;
+      this.modoEdicion = false;
+      console.log('⚠️ Modo determinado: SOLO LECTURA (por defecto, estado no identificado)', estado);
     }
   }
 
@@ -1320,8 +1380,6 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
   /**
    * ✅ Carga los archivos del supervisor desde el backend
    */
-  // En supervisor-form.component.ts
-
   private cargarArchivosSupervisorDesdeBackend(documentoId: string, documentoData: any): void {
     console.log('🔍 Buscando archivos del supervisor para documento:', documentoId);
 

@@ -9,35 +9,35 @@ import { SupervisorCoreService } from './supervisor-core.service';
 })
 export class SupervisorRevisionService extends SupervisorCoreService {
     
-    guardarRevision(documentoId: string, datosRevision: any): Observable<any> {
-        const headers = this.getAuthHeaders();
+  guardarRevision(documentoId: string, datosRevision: any): Observable<any> {
+    const headers = this.getAuthHeaders();
 
-        const payload = {
-            estado: datosRevision.estado,
-            observacion: datosRevision.observacion,
-            correcciones: datosRevision.correcciones || null,
-            requierePazSalvo: datosRevision.requierePazSalvo || false,
-            esUltimoRadicado: datosRevision.esUltimoRadicado || false
-        };
+    const payload = {
+        estado: datosRevision.estado,
+        observacion: datosRevision.observacion,
+        correcciones: datosRevision.correcciones || null,
+        requierePazSalvo: datosRevision.requierePazSalvo || false,
+        esUltimoRadicado: datosRevision.esUltimoRadicado || false
+    };
 
-        console.log(`📤 Enviando revisión para documento ${documentoId}:`, payload);
+    console.log(`📤 Enviando revisión para documento ${documentoId}:`, payload);
 
-        return this.http.post<any>(`${this.apiUrl}/revisar/${documentoId}`, payload, { headers })
-            .pipe(
-                map(response => {
-                    console.log('✅ Revisión guardada:', response);
-
-                    if (response?.ok === true && response.data) {
-                        return response.data;
-                    }
-                    if (response?.success === true) {
-                        return response.data || response;
-                    }
-                    return response;
-                }),
-                catchError(this.handleError)
-            );
-    }
+    // CAMBIA ESTA LÍNEA - usa '/revision/' en lugar de '/revisar/'
+    return this.http.post<any>(`${this.apiUrl}/revision/${documentoId}`, payload, { headers })
+        .pipe(
+            map(response => {
+                console.log('✅ Revisión guardada:', response);
+                if (response?.ok === true && response.data) {
+                    return response.data;
+                }
+                if (response?.success === true) {
+                    return response.data || response;
+                }
+                return response;
+            }),
+            catchError(this.handleError)
+        );
+}
 
     guardarRevisionConArchivo(
         documentoId: string,
