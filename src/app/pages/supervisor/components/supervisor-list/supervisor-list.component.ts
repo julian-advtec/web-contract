@@ -268,70 +268,70 @@ export class SupervisorListComponent implements OnInit, OnDestroy {
   // ========================
   // MÉTODOS DE NAVEGACIÓN (MODIFICADOS)
   // ========================
-  
-verDetalle(doc: any): void {
-  if (!doc?.id) {
-    this.notificationService.error('Error', 'ID de documento no válido');
-    return;
+
+  verDetalle(doc: any): void {
+    if (!doc?.id) {
+      this.notificationService.error('Error', 'ID de documento no válido');
+      return;
+    }
+
+    // 🚨 FUERZAS MANUALES PARA PRUEBA - ELIMINAR DESPUÉS
+    const MODO_FORZADO = 'edicion'; // 'edicion' o 'consulta'
+    const SOLO_LECTURA_FORZADO = 'false'; // 'true' o 'false'
+
+    console.log('🚨 MODO FORZADO ACTIVADO - usar:', MODO_FORZADO);
+
+    const esMiDocumento = doc.supervisorAsignado === this.usuarioActual ||
+      doc.usuarioAsignadoNombre === this.usuarioActual;
+
+    const estadosBaseEditables = [
+      'EN_REVISION',
+      'RADICADO',
+      'OBSERVADO',
+      'PENDIENTE'
+    ];
+
+    const estadoDoc = (doc.estado || '').toUpperCase();
+    const estadoSupervisor = (doc.supervisorEstado || '').toUpperCase();
+
+    const esEditablePorEstado = estadosBaseEditables.some(base =>
+      estadoDoc.includes(base) || estadoSupervisor.includes(base)
+    );
+
+    const esEditableCalculado = esEditablePorEstado && esMiDocumento;
+
+    console.log('🔍 VEREDICTO FINAL:', {
+      id: doc.id,
+      numeroRadicado: doc.numeroRadicado,
+      estadoDoc,
+      estadoSupervisor,
+      esEditablePorEstado,
+      esMiDocumento,
+      esEditableCalculado,
+      modoCalculado: esEditableCalculado ? 'edicion' : 'consulta',
+      soloLecturaCalculado: esEditableCalculado ? 'false' : 'true'
+    });
+
+    // ✅ USAR VALORES FORZADOS PARA PRUEBA
+    const queryParams: any = {
+      modo: MODO_FORZADO,
+      soloLectura: SOLO_LECTURA_FORZADO,
+      desdeLista: 'mis-supervisiones',
+      _t: Date.now(),
+      debug: 'forzado' // Para identificar en logs
+    };
+
+    console.log('🚀 Navegando con queryParams (FORZADOS):', queryParams);
+
+    this.router.navigate(['/supervisor/revisar', doc.id], {
+      queryParams,
+      replaceUrl: true
+    }).then(success => {
+      console.log('✅ Navegación exitosa:', success);
+    }).catch(error => {
+      console.error('❌ Error en navegación:', error);
+    });
   }
-
-  // 🚨 FUERZAS MANUALES PARA PRUEBA - ELIMINAR DESPUÉS
-  const MODO_FORZADO = 'edicion'; // 'edicion' o 'consulta'
-  const SOLO_LECTURA_FORZADO = 'false'; // 'true' o 'false'
-  
-  console.log('🚨 MODO FORZADO ACTIVADO - usar:', MODO_FORZADO);
-
-  const esMiDocumento = doc.supervisorAsignado === this.usuarioActual || 
-                        doc.usuarioAsignadoNombre === this.usuarioActual;
-  
-  const estadosBaseEditables = [
-    'EN_REVISION',
-    'RADICADO',
-    'OBSERVADO',
-    'PENDIENTE'
-  ];
-
-  const estadoDoc = (doc.estado || '').toUpperCase();
-  const estadoSupervisor = (doc.supervisorEstado || '').toUpperCase();
-  
-  const esEditablePorEstado = estadosBaseEditables.some(base => 
-    estadoDoc.includes(base) || estadoSupervisor.includes(base)
-  );
-  
-  const esEditableCalculado = esEditablePorEstado && esMiDocumento;
-
-  console.log('🔍 VEREDICTO FINAL:', {
-    id: doc.id,
-    numeroRadicado: doc.numeroRadicado,
-    estadoDoc,
-    estadoSupervisor,
-    esEditablePorEstado,
-    esMiDocumento,
-    esEditableCalculado,
-    modoCalculado: esEditableCalculado ? 'edicion' : 'consulta',
-    soloLecturaCalculado: esEditableCalculado ? 'false' : 'true'
-  });
-
-  // ✅ USAR VALORES FORZADOS PARA PRUEBA
-  const queryParams: any = {
-    modo: MODO_FORZADO,
-    soloLectura: SOLO_LECTURA_FORZADO,
-    desdeLista: 'mis-supervisiones',
-    _t: Date.now(),
-    debug: 'forzado' // Para identificar en logs
-  };
-
-  console.log('🚀 Navegando con queryParams (FORZADOS):', queryParams);
-
-  this.router.navigate(['/supervisor/revisar', doc.id], { 
-    queryParams,
-    replaceUrl: true
-  }).then(success => {
-    console.log('✅ Navegación exitosa:', success);
-  }).catch(error => {
-    console.error('❌ Error en navegación:', error);
-  });
-}
 
   // ========================
   // MÉTODOS DE ESTADO (EXISTENTES)

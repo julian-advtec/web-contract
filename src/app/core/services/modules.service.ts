@@ -59,16 +59,7 @@ export class ModulesService {
       requiredRole: UserRole.SUPERVISOR,
       isActive: true
     },
-    {
-      id: 'reportes',
-      title: 'Reportes',
-      description: 'Reportes y estadísticas',
-      path: '/reportes',
-      route: '/reportes',
-      icon: 'reportes',
-      requiredRole: UserRole.SUPERVISOR,
-      isActive: true
-    },
+
     {
       id: 'auditoria',
       title: 'Auditoría',

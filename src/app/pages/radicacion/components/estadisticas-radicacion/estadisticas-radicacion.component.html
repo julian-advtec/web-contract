@@ -58,7 +58,7 @@
         <div class="card border-primary shadow-sm h-100">
           <div class="card-body text-center">
             <h6 class="text-primary mb-1">Total Radicados por mí</h6>
-            <h3 class="mb-1">{{ stats.documentos?.totalRadicados || 0 }}</h3>
+            <h3 class="mb-1">{{ stats.documentos.totalRadicados || 0 }}</h3>
             <small class="text-muted">En este período</small>
           </div>
         </div>
@@ -69,7 +69,7 @@
         <div class="card border-success shadow-sm h-100">
           <div class="card-body text-center">
             <h6 class="text-success mb-1">Actividad Reciente</h6>
-            <h3 class="mb-1">{{ stats.ultimosRadicados?.length || 0 }}</h3>
+            <h3 class="mb-1">{{ stats.ultimosRadicados.length || 0 }}</h3>
             <small class="text-muted">Últimos 10 radicados</small>
           </div>
         </div>

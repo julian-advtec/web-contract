@@ -51,7 +51,12 @@ const routes: Routes = [
         path: 'lista-rechazados',
         component: ListaRechazadosComponent,
         title: 'Lista de Rechazados'
-      }
+      },
+       {
+    path: 'rechazados',
+    component: ListaRechazadosComponent, // 👈 Usar el componente correcto
+    data: { title: 'Documentos Rechazados' }
+  }
     ]
   }
 ];
