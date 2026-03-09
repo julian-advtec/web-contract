@@ -63,64 +63,103 @@ export class AsesorGerenciaListComponent implements OnInit, OnDestroy {
   }
 
   // Cargar TODOS los documentos de asesor gerencia
-  loadTodosDocumentos(): void {
-    this.loading = true;
-    this.error = '';
-    this.successMessage = '';
-    this.infoMessage = '';
+loadTodosDocumentos(): void {
+  this.loading = true;
+  this.error = '';
+  this.successMessage = '';
+  this.infoMessage = '';
 
-    console.log('[GERENCIA - LISTA COMPLETA] Solicitando TODOS los documentos...');
+  console.log('[GERENCIA - LISTA COMPLETA] Solicitando TODOS los documentos...');
 
-    // Primero obtenemos los disponibles (COMPLETADO_TESORERIA)
-    this.asesorGerenciaService.getDocumentosDisponibles()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (disponibles: any[]) => {
-          console.log('[GERENCIA] Disponibles recibidos:', disponibles?.length || 0);
-
-          // Luego obtenemos los que están en revisión (mis documentos)
-          this.asesorGerenciaService.getMisDocumentos()
-            .pipe(takeUntil(this.destroy$))
-            .subscribe({
-              next: (enRevision: any[]) => {
-                console.log('[GERENCIA] En revisión recibidos:', enRevision?.length || 0);
-
-                // Finalmente obtenemos el historial (documentos procesados)
-                this.asesorGerenciaService.getHistorial()
-                  .pipe(takeUntil(this.destroy$))
-                  .subscribe({
-                    next: (historialResponse: any) => {
-                      console.log('[GERENCIA] Historial recibido:', historialResponse?.data?.length || 0);
-
-                      const historial = historialResponse?.data || [];
-
-                      // Combinar TODOS los documentos
-                      this.combinarTodosDocumentos(disponibles || [], enRevision || [], historial);
-
-                      this.loading = false;
-                    },
-                    error: (err: any) => {
-                      console.error('[GERENCIA] Error cargando historial:', err);
-                      this.combinarTodosDocumentos(disponibles || [], enRevision || [], []);
-                      this.loading = false;
-                    }
-                  });
-              },
-              error: (err: any) => {
-                console.error('[GERENCIA] Error cargando documentos en revisión:', err);
-                this.combinarTodosDocumentos(disponibles || [], [], []);
-                this.loading = false;
-              }
-            });
-        },
-        error: (err: any) => {
-          console.error('[GERENCIA] Error cargando documentos disponibles:', err);
-          this.error = 'Error de conexión con el servidor: ' + (err.message || 'Desconocido');
+  this.asesorGerenciaService.getTodosDocumentos()
+    .pipe(takeUntil(this.destroy$))
+    .subscribe({
+      next: (documentos: any[]) => {
+        console.log('[GERENCIA] Documentos recibidos (raw):', documentos);
+        
+        if (!documentos || documentos.length === 0) {
+          console.log('[GERENCIA] No se recibieron documentos');
+          this.todosDocumentos = [];
           this.loading = false;
-          this.notificationService.error('Error', this.error);
+          this.infoMessage = 'No hay documentos en el sistema';
+          this.aplicarFiltros();
+          this.updatePagination();
+          return;
         }
-      });
+        
+        // Mapear los documentos al formato esperado por el template
+        this.todosDocumentos = documentos.map((item: any) => {
+          console.log('[GERENCIA] Procesando item:', item);
+          
+          return {
+            id: item.documentoId || item.id,
+            documentoId: item.documentoId,
+            numeroRadicado: item.numeroRadicado || 'N/A',
+            numeroContrato: item.numeroContrato || 'N/A',
+            nombreContratista: item.nombreContratista || 'N/A',
+            documentoContratista: item.documentoContratista || 'N/A',
+            fechaRadicacion: item.fechaRadicacion || null,
+            fechaInicio: item.fechaInicio || null,
+            fechaFin: item.fechaFin || null,
+            estado: item.estadoDocumento || item.estado || 'N/A',
+            observacion: item.observaciones || '',
+            radicador: item.radicador || 'Sistema',
+            estadoGerencia: item.estadoGerencia || 'DISPONIBLE',
+            tipo: this.determinarTipoDocumento({
+              estadoGerencia: item.estadoGerencia,
+              esMio: item.esMio
+            }),
+            asignacion: {
+              asesorAsignado: item.asesor || null,
+              enRevision: item.estadoGerencia === 'EN_REVISION'
+            },
+            asesorRevisor: item.asesor || null,
+            fechaInicioRevision: item.fechaInicioRevision || null,
+            fechaFinRevision: item.fechaFinRevision || null,
+            aprobacionPath: item.aprobacionPath || null,
+            comprobanteFirmadoPath: item.comprobanteFirmadoPath || null,
+            firmaAplicada: item.firmaAplicada || false,
+            esMio: item.esMio || false
+          };
+        });
+
+        console.log('[GERENCIA] Documentos mapeados:', this.todosDocumentos.length);
+
+        this.loading = false;
+        this.aplicarFiltros();
+        this.updatePagination();
+
+        if (this.todosDocumentos.length > 0) {
+          const disponiblesCount = this.todosDocumentos.filter(d => d.tipo === 'disponible').length;
+          const enRevisionCount = this.todosDocumentos.filter(d => d.tipo === 'en_revision_mio').length;
+          const procesadosCount = this.todosDocumentos.filter(d => d.tipo === 'procesado').length;
+
+          this.successMessage = `Se encontraron ${this.todosDocumentos.length} documentos totales (${disponiblesCount} disponibles, ${enRevisionCount} en revisión, ${procesadosCount} procesados)`;
+        } else {
+          this.infoMessage = 'No hay documentos en el sistema';
+        }
+      },
+      error: (err: any) => {
+        console.error('[GERENCIA] Error cargando documentos:', err);
+        this.error = 'Error de conexión con el servidor: ' + (err.message || 'Desconocido');
+        this.loading = false;
+        this.notificationService.error('Error', this.error);
+      }
+    });
+}
+
+// Modificar el método determinarTipoDocumento
+determinarTipoDocumento(item: any): string {
+  if (item.estadoGerencia === 'EN_REVISION') {
+    return item.esMio ? 'en_revision_mio' : 'procesado';
+  } else if (item.estadoGerencia === 'DISPONIBLE' || !item.estadoGerencia) {
+    return 'disponible';
+  } else {
+    return 'procesado';
   }
+}
+
+
 
   // Combinar todos los documentos en una sola lista
   combinarTodosDocumentos(disponibles: any[], enRevision: any[], historial: any[]): void {

@@ -4,11 +4,11 @@ import { AuditorComponent } from './auditor.component'; // componente padre/layo
 import { AuditorListComponent } from './components/auditor-list/auditor-list.component';
 import { AuditorFormComponent } from './components/auditor-form/auditor-form.component';
 import { AuditorHistoryComponent } from './components/auditor-history/auditor-history.component';
-import { AuditorStatsComponent } from './components/auditor-stats/auditor-stats.component';
+import { EstadisticasAuditorComponent } from './components/auditor-stats/auditor-stats.component';
 import { ListaRechazadosComponent } from './components/lista-rechazados/lista-rechazados.component';
 import { RoleGuard } from '../../core/guards/role.guard';
 import { UserRole } from '../../core/models/user.types';
-import { AuditorPendingListComponent} from './components/auditor-pending-list/auditor-pending-list.component'
+import { AuditorPendingListComponent } from './components/auditor-pending-list/auditor-pending-list.component'
 
 const routes: Routes = [
   {
@@ -44,7 +44,7 @@ const routes: Routes = [
       },
       {
         path: 'estadisticas',
-        component: AuditorStatsComponent,
+        component: EstadisticasAuditorComponent,
         title: 'Estadísticas de Auditor'
       },
       {
@@ -52,11 +52,11 @@ const routes: Routes = [
         component: ListaRechazadosComponent,
         title: 'Lista de Rechazados'
       },
-       {
-    path: 'rechazados',
-    component: ListaRechazadosComponent, // 👈 Usar el componente correcto
-    data: { title: 'Documentos Rechazados' }
-  }
+      {
+        path: 'rechazados',
+        component: ListaRechazadosComponent, // 👈 Usar el componente correcto
+        data: { title: 'Documentos Rechazados' }
+      }
     ]
   }
 ];

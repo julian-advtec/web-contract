@@ -1,79 +1,10 @@
 // src/app/core/services/estadisticas-rendicion-cuentas.service.ts
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
-import { catchError, map, timeout } from 'rxjs/operators';
+import { catchError, map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
-
-export enum PeriodoStats {
-  HOY = 'hoy',
-  SEMANA = 'semana',
-  MES = 'mes',
-  TRIMESTRE = 'trimestre'
-}
-
-export interface FiltrosStats {
-  periodo: PeriodoStats;
-  soloMios: boolean;
-  estado?: string;
-  fechaInicio?: string;
-  fechaFin?: string;
-  tipoDocumento?: string;
-}
-
-export interface EstadisticasRendicionCuentas {
-  desde: Date;
-  hasta: Date;
-  fechaCalculo: Date;
-  resumen: {
-    pendientes: number;
-    enRevision: number;
-    aprobados: number;
-    observados: number;
-    rechazados: number;
-    completados: number;
-    esperaAprobacionGerencia: number;
-    aprobadoPorGerencia: number;
-    total: number;
-  };
-  rendimiento: {
-    tiempoPromedioHoras: number;
-    tasaAprobacion: number;
-    tasaObservacion: number;
-    tasaRechazo: number;
-  };
-  metricas: {
-    documentosProcesados: number;
-    tiempoPromedioRespuesta: number;
-    tasaAprobacion: number;
-    tasaObservacion: number;
-    tasaRechazo: number;
-    documentosPendientes: number;
-  };
-  distribucion: Array<{
-    estado: string;
-    cantidad: number;
-    porcentaje: number;
-    color: string;
-  }>;
-  documentosPendientes: any[];
-  documentosProcesados: any[];
-  actividadReciente: any[];
-  tiempos: {
-    promedioHoras: number;
-    minimoHoras: number;
-    maximoHoras: number;
-    promedioDias: number;
-  };
-  cumplimiento: any;
-  tendencias: any[];
-  misMetricas?: {
-    pendientes: number;
-    procesadosHoy: number;
-    procesadosSemana: number;
-    promedioRespuesta: number;
-  };
-}
+import { EstadisticasRendicionCuentas, FiltrosStats, PeriodoStats } from '../models/estadisticas-rendicion-cuentas.model';
 
 @Injectable({
   providedIn: 'root'
@@ -81,63 +12,167 @@ export interface EstadisticasRendicionCuentas {
 export class EstadisticasRendicionCuentasService {
   private apiUrl = `${environment.apiUrl}/rendicion-cuentas/estadisticas`;
 
-  constructor(private http: HttpClient) {
-    console.log('🔧 Servicio de estadísticas inicializado con URL:', this.apiUrl);
-  }
+  constructor(private http: HttpClient) {}
 
+  /**
+   * Obtiene las estadísticas de rendición de cuentas según los filtros aplicados
+   * @param filtros Filtros para la consulta (período, soloMios, etc.)
+   * @returns Observable con las estadísticas
+   */
+  obtenerEstadisticas(filtros: FiltrosStats): Observable<EstadisticasRendicionCuentas> {
+    let params = new HttpParams().set('periodo', filtros.periodo);
 
-obtenerEstadisticas(filtros?: FiltrosStats): Observable<EstadisticasRendicionCuentas> {
-  console.log('📊 Solicitando estadísticas con filtros:', filtros);
-  
-  const params: any = { ...filtros };
-  
-  return this.http.get<any>(this.apiUrl, { params }).pipe(
-    timeout(30000),
-    map(response => {
-      console.log('✅ Respuesta completa del backend:', response);
-      
-      // Verificar si la respuesta tiene la estructura { ok: true, data: { data: ... } }
-      if (response && response.ok === true && response.data) {
-        // Si response.data tiene otra propiedad data, extraer esa
-        if (response.data.data) {
-          console.log('📦 Extrayendo data.data del response:', response.data.data);
-          return response.data.data; // ← EXTRAER EL DATA ANIDADO
+    if (filtros.soloMios) {
+      params = params.set('soloMios', 'true');
+    }
+
+    return this.http.get<any>(this.apiUrl, { params }).pipe(
+      map(response => {
+        console.log('[Servicio Rendición] Respuesta completa:', response);
+
+        // Extraer datos según la estructura del backend
+        let data = response;
+        
+        // Si response tiene propiedad data (estructura { ok: true, data: {...} })
+        if (response?.data) {
+          data = response.data;
+          console.log('[Servicio Rendición] Extraído response.data:', data);
         }
-        console.log('📦 Extrayendo data del response:', response.data);
-        return response.data;
-      }
-      
-      return response;
-    }),
-    catchError(this.handleError)
-  );
-}
-
-  obtenerResumenRapido(): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/resumen`).pipe(
-      timeout(10000),
-      map(response => response.data || response),
-      catchError(this.handleError)
+        
+        // Si data tiene propiedad data anidada (estructura { data: { data: {...} } })
+        if (data?.data) {
+          data = data.data;
+          console.log('[Servicio Rendición] Extraído data.data:', data);
+        }
+        
+        // Verificar que data tiene resumen, si no, crear estructura vacía
+        if (!data || !data.resumen) {
+          console.warn('[Servicio Rendición] Datos no tienen resumen, usando estructura vacía:', data);
+          
+          // Devolver estructura vacía para evitar errores en el template
+          return this.crearEstructuraVacia() as EstadisticasRendicionCuentas;
+        }
+        
+        // Calcular porcentajes para la distribución
+        if (data.distribucion && data.resumen?.total > 0) {
+          data.distribucion = data.distribucion.map((item: any) => ({
+            ...item,
+            porcentaje: Math.round((item.cantidad / data.resumen.total) * 100)
+          }));
+        }
+        
+        // Asegurar que documentosPendientes y documentosProcesados sean arrays
+        if (!data.documentosPendientes) data.documentosPendientes = [];
+        if (!data.documentosProcesados) data.documentosProcesados = [];
+        if (!data.actividadReciente) data.actividadReciente = [];
+        
+        // Asegurar que tiempos tenga todas las propiedades
+        if (!data.tiempos) {
+          data.tiempos = {
+            promedioHoras: 0,
+            minimoHoras: 0,
+            maximoHoras: 0,
+            promedioDias: 0
+          };
+        }
+        
+        // Asegurar que rendimiento tenga todas las propiedades
+        if (!data.rendimiento) {
+          data.rendimiento = {
+            tiempoPromedioHoras: 0,
+            tasaAprobacion: 0,
+            tasaObservacion: 0,
+            tasaRechazo: 0
+          };
+        }
+        
+        console.log('[Servicio Rendición] Datos finales procesados:', data);
+        
+        return data as EstadisticasRendicionCuentas;
+      }),
+      catchError(err => {
+        console.error('[Servicio Rendición] Error:', err);
+        
+        // En caso de error, devolver estructura vacía para que la aplicación no se rompa
+        return throwError(() => ({
+          error: err,
+          estructuraVacia: this.crearEstructuraVacia()
+        }));
+      })
     );
   }
 
-  private handleError(error: HttpErrorResponse) {
-    let errorMessage = 'Error al conectar con el servidor';
-    
-    if (error.status === 0) {
-      errorMessage = 'No se pudo conectar al servidor. Verifica que el backend esté corriendo en http://localhost:3000';
-      console.error('❌ Error de red/CORS:', error.message);
-    } else if (error.status === 401) {
-      errorMessage = 'Sesión expirada o no autorizada';
-    } else if (error.status === 403) {
-      errorMessage = 'No tienes permisos para ver estas estadísticas';
-    } else if (error.status === 400) {
-      errorMessage = error.error?.message || 'Solicitud inválida';
-    } else if (error.status >= 500) {
-      errorMessage = 'Error interno del servidor';
-    }
-    
-    console.error('❌ Error en servicio de estadísticas:', error);
-    return throwError(() => new Error(errorMessage));
+  /**
+   * Crea una estructura vacía de estadísticas para evitar errores cuando no hay datos
+   */
+  private crearEstructuraVacia(): any {
+    const hoy = new Date();
+    const haceUnMes = new Date(hoy);
+    haceUnMes.setMonth(haceUnMes.getMonth() - 1);
+
+    return {
+      desde: haceUnMes,
+      hasta: hoy,
+      fechaCalculo: hoy,
+      resumen: {
+        pendientes: 0,
+        enRevision: 0,
+        aprobados: 0,
+        observados: 0,
+        rechazados: 0,
+        completados: 0,
+        esperaAprobacionGerencia: 0,
+        aprobadoPorGerencia: 0,
+        total: 0
+      },
+      rendimiento: {
+        tiempoPromedioHoras: 0,
+        tasaAprobacion: 0,
+        tasaObservacion: 0,
+        tasaRechazo: 0
+      },
+      metricas: {
+        documentosProcesados: 0,
+        tiempoPromedioRespuesta: 0,
+        tasaAprobacion: 0,
+        tasaObservacion: 0,
+        tasaRechazo: 0,
+        documentosPendientes: 0
+      },
+      distribucion: [],
+      documentosPendientes: [],
+      documentosProcesados: [],
+      actividadReciente: [],
+      tiempos: {
+        promedioHoras: 0,
+        minimoHoras: 0,
+        maximoHoras: 0,
+        promedioDias: 0
+      }
+    };
+  }
+
+  /**
+   * Obtiene un resumen rápido para el dashboard
+   */
+  obtenerResumenRapido(): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/resumen`).pipe(
+      map(response => {
+        console.log('[Servicio Rendición] Resumen rápido:', response);
+        
+        let data = response?.data || response || {};
+        
+        return {
+          totalPendientes: data.totalPendientes || 0,
+          misPendientes: data.misPendientes || 0,
+          procesadosSemana: data.procesadosSemana || 0,
+          tasaAprobacion: data.tasaAprobacion || 0
+        };
+      }),
+      catchError(err => {
+        console.error('[Servicio Rendición] Error en resumen rápido:', err);
+        return throwError(() => err);
+      })
+    );
   }
 }

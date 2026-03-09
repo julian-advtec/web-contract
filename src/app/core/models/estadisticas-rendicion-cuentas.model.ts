@@ -1,50 +1,26 @@
 // src/app/core/models/estadisticas-rendicion-cuentas.model.ts
-export interface DocumentosPorEstado {
+export enum PeriodoStats {
+  HOY = 'hoy',
+  SEMANA = 'semana',
+  MES = 'mes',
+  TRIMESTRE = 'trimestre'
+}
+
+export interface FiltrosStats {
+  periodo: PeriodoStats;
+  soloMios: boolean;
+}
+
+export interface ResumenRendicion {
   pendientes: number;
   enRevision: number;
   aprobados: number;
   observados: number;
   rechazados: number;
   completados: number;
+  esperaAprobacionGerencia: number;
+  aprobadoPorGerencia: number;
   total: number;
-  esperaAprobacionGerencia?: number;
-  aprobadoPorGerencia?: number;
-}
-
-export interface TiemposRespuesta {
-  promedioHoras: number;
-  minimoHoras: number;
-  maximoHoras: number;
-  promedioDias: number;
-}
-
-export interface ActividadReciente {
-  id: string;
-  tipo: 'APROBADO' | 'OBSERVADO' | 'RECHAZADO' | 'INICIADO' | 'ASIGNADO';
-  numeroRadicado: string;
-  contratista: string;
-  fecha: Date;
-  responsable: string;
-  estado: string;
-}
-
-export interface DocumentoItem {
-  id: string;
-  numeroRadicado: string;
-  contratista: string;
-  contrato: string;
-  estado: string;
-  fechaAsignacion: Date;
-  fechaDecision?: Date | null;
-  responsableAsignado?: string;
-  observaciones?: string | null;
-}
-
-export interface DistribucionEstado {
-  estado: string;
-  cantidad: number;
-  porcentaje: number;
-  color: string;
 }
 
 export interface Rendimiento {
@@ -54,13 +30,48 @@ export interface Rendimiento {
   tasaRechazo: number;
 }
 
-export interface MetricasDesempeno {
+export interface Metricas {
   documentosProcesados: number;
   tiempoPromedioRespuesta: number;
   tasaAprobacion: number;
   tasaObservacion: number;
   tasaRechazo: number;
   documentosPendientes: number;
+}
+
+export interface DistribucionItem {
+  estado: string;
+  cantidad: number;
+  porcentaje: number;
+  color: string;
+}
+
+export interface DocumentoItem {
+  id: string;
+  numeroRadicado: string;
+  contratista: string;
+  contrato: string;
+  estado: string;
+  fechaAsignacion: Date;
+  fechaDecision?: Date;
+  responsableAsignado?: string;
+  observaciones?: string;
+}
+
+export interface ActividadItem {
+  id: string;
+  tipo: string;
+  numeroRadicado: string;
+  contratista: string;
+  fecha: Date;
+  responsable: string;
+}
+
+export interface Tiempos {
+  promedioHoras: number;
+  minimoHoras: number;
+  maximoHoras: number;
+  promedioDias: number;
 }
 
 export interface MisMetricas {
@@ -74,31 +85,13 @@ export interface EstadisticasRendicionCuentas {
   desde: Date;
   hasta: Date;
   fechaCalculo: Date;
-  resumen: DocumentosPorEstado;
+  resumen: ResumenRendicion;
   rendimiento: Rendimiento;
-  metricas: MetricasDesempeno;
-  distribucion: DistribucionEstado[];
+  metricas: Metricas;
+  distribucion: DistribucionItem[];
   documentosPendientes: DocumentoItem[];
   documentosProcesados: DocumentoItem[];
-  actividadReciente: ActividadReciente[];
-  tiempos: TiemposRespuesta;
+  actividadReciente: ActividadItem[];
+  tiempos: Tiempos;
   misMetricas?: MisMetricas;
-  cumplimiento?: any;
-  tendencias?: any[];
-}
-
-export interface FiltrosStats {
-  periodo?: string;
-  soloMios?: boolean;
-  fechaInicio?: string;
-  fechaFin?: string;
-  estado?: string;
-  tipoDocumento?: string;
-}
-
-export enum PeriodoStats {
-  HOY = 'hoy',
-  SEMANA = 'semana',
-  MES = 'mes',
-  TRIMESTRE = 'trimestre'
 }

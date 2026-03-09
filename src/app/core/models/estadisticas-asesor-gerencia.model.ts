@@ -16,6 +16,7 @@ export interface DocumentosPorEstado {
   aprobados: number;
   observados: number;
   rechazados: number;
+  completados: number;
   total: number;
 }
 
@@ -24,6 +25,7 @@ export interface MontosPorEstado {
   aprobado: number;
   observado: number;
   rechazado: number;
+  completado: number;
   total: number;
 }
 
@@ -47,6 +49,8 @@ export interface DocumentoAsesorGerencia {
   fechaAsignacion: Date;
   fechaProcesamiento?: Date;
   asesorAsignado?: string;
+  tieneComprobante?: boolean;
+  tieneFirma?: boolean;
 }
 
 export interface EstadisticasAsesorGerencia {

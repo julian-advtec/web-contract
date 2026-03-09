@@ -1,4 +1,4 @@
-// src/auditor/models/auditor-estadisticas.model.ts
+// src/app/core/models/auditor-estadisticas.model.ts
 export enum PeriodoStats {
   HOY = 'hoy',
   SEMANA = 'semana',
@@ -18,25 +18,8 @@ export interface DistribucionEstadoAuditor {
   color?: string;
 }
 
-export interface DocumentoAuditorResumen {
-  id: string;
-  numeroRadicado: string;
-  nombreContratista: string;
-  documentoContratista: string;
-  numeroContrato: string;
-  fechaRadicacion: Date;
-  fechaRevision: Date;
-  estado: string;
-  estadoAuditor: string;
-  observaciones?: string;
-  primerRadicadoDelAno: boolean;
-}
-
-export interface EstadisticasAuditor {
-  // Totales generales
+export interface AuditorEstadisticas {
   totalDocumentosDisponibles: number;
-  
-  // Mis documentos
   misDocumentos: {
     enRevision: number;
     aprobados: number;
@@ -46,39 +29,38 @@ export interface EstadisticasAuditor {
     primerRadicados: number;
     total: number;
   };
-  
-  // Rechazados desglosados
   rechazados: {
     total: number;
     rechazadosAuditor: number;
     rechazadosOtrasAreas: number;
     porPeriodo: number;
   };
-  
-  // Métricas
   tiempoPromedioHoras: number;
   eficiencia: number;
   recientes: number;
-  
-  // Distribución para gráficos
   distribucion: DistribucionEstadoAuditor[];
-  
-  // Últimos procesados
-  ultimosProcesados: DocumentoAuditorResumen[];
-  
-  // Fechas de consulta
+  ultimosProcesados: Array<{
+    id: string;
+    numeroRadicado: string;
+    contratista: string;
+    fecha: string | Date;
+    estado: string;
+    primerRadicado: boolean;
+  }>;
+  totales: {
+    enRevision: number;
+    aprobados: number;
+    observados: number;
+    rechazados: number;
+    completados: number;
+    total: number;
+  };
   fechaConsulta: string;
   desde: string;
   hasta: string;
-  
-  // Diagnóstico
-  diagnostico?: {
-    periodoSolicitado: string;
-    fechaDesde: string;
-    fechaHasta: string;
-  };
 }
 
+// Interfaz para documentos rechazados - CON ARCHIVOS OPCIONALES
 export interface AuditorRechazadoResponse {
   id: string;
   documento: {
@@ -87,30 +69,29 @@ export interface AuditorRechazadoResponse {
     nombreContratista: string;
     documentoContratista: string;
     numeroContrato: string;
-    fechaRadicacion: Date;
-    fechaInicio: Date;
-    fechaFin: Date;
+    fechaRadicacion: Date | string;
+    fechaInicio: Date | string;
+    fechaFin: Date | string;
     estado: string;
     cuentaCobro: string;
     seguridadSocial: string;
     informeActividades: string;
-    comentarios?: string;          // 👈 AÑADIR
-    primerRadicadoDelAno: boolean; // 👈 AÑADIR
+    comentarios?: string;
+    primerRadicadoDelAno?: boolean;
   };
   auditorRevisor: string;
   estado: string;
   observaciones: string;
   correcciones: string;
-  fechaCreacion: Date;
-  fechaActualizacion: Date;
-  fechaRechazo: Date;
-  tieneArchivos: boolean;
-  archivos: {
-    rp: boolean;
-    cdp: boolean;
-    poliza: boolean;
-    certificadoBancario: boolean;
-    minuta: boolean;
-    actaInicio: boolean;
+  fechaCreacion: Date | string;
+  fechaActualizacion: Date | string;
+  fechaRechazo?: Date | string;
+  archivos?: {
+    rp?: boolean;
+    cdp?: boolean;
+    poliza?: boolean;
+    certificadoBancario?: boolean;
+    minuta?: boolean;
+    actaInicio?: boolean;
   };
 }

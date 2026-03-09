@@ -25,14 +25,22 @@ export class EstadisticasAsesorGerenciaService {
       map(response => {
         console.log('[Servicio] Respuesta completa:', response);
 
-        if (!response.ok) {
-          throw new Error(response.error || 'Respuesta inválida');
+        // Extraer datos según la estructura del backend
+        let data = response;
+        
+        // Si response tiene propiedad data
+        if (response?.data) {
+          data = response.data;
         }
-
-        const realData = response.data?.data || response.data;
-        console.log('[Servicio] Datos reales extraídos:', realData);
-
-        return realData as EstadisticasAsesorGerencia;
+        
+        // Si data tiene propiedad data anidada
+        if (data?.data) {
+          data = data.data;
+        }
+        
+        console.log('[Servicio] Datos extraídos:', data);
+        
+        return data as EstadisticasAsesorGerencia;
       }),
       catchError(err => {
         console.error('[Servicio] Error:', err);

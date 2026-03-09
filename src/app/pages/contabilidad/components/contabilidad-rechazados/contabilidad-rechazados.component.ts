@@ -8,10 +8,27 @@ import { takeUntil } from 'rxjs/operators';
 
 import { ContabilidadService } from '../../../../core/services/contabilidad.service';
 import { NotificationService } from '../../../../core/services/notification.service';
-import { Documento } from '../../../../core/models/documento.model';
 
 // Interfaz extendida para manejar propiedades dinámicas
-interface DocumentoExtendido extends Documento {
+interface DocumentoContableExtendido {
+  id?: string;
+  numeroRadicado?: string;
+  fechaRadicacion?: Date | string;
+  nombreContratista?: string;
+  documentoContratista?: string;
+  numeroContrato?: string;
+  fechaInicio?: Date | string;
+  fechaFin?: Date | string;
+  estado?: string;
+  cuentaCobro?: string;
+  seguridadSocial?: string;
+  informeActividades?: string;
+  comentarios?: string;
+  radicador?: string;
+  ultimoUsuario?: string;
+  fechaActualizacion?: Date | string;
+  updatedAt?: Date | string;
+  primerRadicadoDelAno?: boolean;
   [key: string]: any; // Para propiedades dinámicas
 }
 
@@ -23,9 +40,9 @@ interface DocumentoExtendido extends Documento {
   imports: [CommonModule, RouterModule, FormsModule]
 })
 export class ContabilidadRechazadosComponent implements OnInit, OnDestroy {
-  documentos: DocumentoExtendido[] = [];
-  filteredDocumentos: DocumentoExtendido[] = [];
-  paginatedDocumentos: DocumentoExtendido[] = [];
+  documentos: DocumentoContableExtendido[] = [];
+  filteredDocumentos: DocumentoContableExtendido[] = [];
+  paginatedDocumentos: DocumentoContableExtendido[] = [];
 
   isLoading = false;
   isProcessing = false;
@@ -75,90 +92,99 @@ export class ContabilidadRechazadosComponent implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * Cargar documentos rechazados visibles para contabilidad
-   */
   cargarDocumentosRechazados(): void {
     this.isLoading = true;
     this.errorMessage = '';
     this.successMessage = '';
     this.infoMessage = '';
 
-    console.log('📋 Cargando documentos rechazados visibles...');
+    console.log('📋 Cargando documentos rechazados desde historial...');
 
-    this.contabilidadService.obtenerRechazadosVisibles()
+    this.contabilidadService.getHistorial()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (response: any) => {
-          console.log('[RECHAZADOS] Respuesta:', response);
-
-          // Manejar diferentes formatos de respuesta
-          let documentos = [];
-
-          if (response?.success && response?.data) {
-            documentos = response.data;
-          } else if (response?.data) {
-            documentos = response.data;
-          } else if (Array.isArray(response)) {
-            documentos = response;
-          } else if (response?.documentos) {
-            documentos = response.documentos;
+        next: (historial: any[]) => {
+          console.log('[HISTORIAL] Datos recibidos:', historial?.length);
+          
+          // Mostrar los primeros items para depuración
+          if (historial && historial.length > 0) {
+            console.log('[HISTORIAL] Primer item:', historial[0]);
           }
-
-          console.log(`[FILTRADO] ${documentos.length} documentos rechazados encontrados`);
-
-          // Mapear los documentos con información adicional
-          this.documentos = documentos.map((doc: any) => {
-            const docExtendido = { ...doc } as DocumentoExtendido;
-
-            // Extraer información del rechazo si está disponible
-            if (doc.rechazoInfo) {
-              docExtendido['fechaRechazo'] = doc.rechazoInfo.fecha;
-              docExtendido['motivoRechazo'] = doc.rechazoInfo.motivo;
-              docExtendido['rechazadoPor'] = doc.rechazoInfo.rechazadoPor;
-              docExtendido['rechazadoPorRol'] = doc.rechazoInfo.rol;
-            }
-
-            // Buscar en historial si existe
-            if (doc.historialEstados && Array.isArray(doc.historialEstados)) {
-              const estadosRechazo = doc.historialEstados.filter((h: any) =>
-                (h.estado || '').toUpperCase().includes('RECHAZADO')
-              );
-
-              if (estadosRechazo.length > 0) {
-                const ultimoRechazo = estadosRechazo[estadosRechazo.length - 1];
-                docExtendido['fechaRechazo'] = ultimoRechazo.fecha || docExtendido['fechaRechazo'];
-                docExtendido['rechazadoPor'] = ultimoRechazo.usuarioNombre || docExtendido['rechazadoPor'];
-                docExtendido['rechazadoPorRol'] = ultimoRechazo.rolUsuario || docExtendido['rechazadoPorRol'];
-                docExtendido['motivoRechazo'] = ultimoRechazo.observacion || docExtendido['motivoRechazo'];
-              }
-            }
-
-            return docExtendido;
+          
+          // Filtrar solo documentos rechazados del historial - VERSIÓN MEJORADA
+          const itemsRechazados = historial.filter(item => {
+            if (!item) return false;
+            
+            // Buscar en todas las posibles propiedades que contengan el estado
+            const estado = (item.estado || '').toUpperCase();
+            const documentoEstado = (item.documento?.estado || '').toUpperCase();
+            const estadoCont = (item.estadoCont || '').toUpperCase();
+            const estadoDoc = (item.estadoDoc || '').toUpperCase();
+            
+            // Palabras clave de rechazo
+            const esRechazado = 
+              estado.includes('RECHAZADO') ||
+              documentoEstado.includes('RECHAZADO') ||
+              estadoCont.includes('RECHAZADO') ||
+              estadoDoc.includes('RECHAZADO') ||
+              estado === 'RECHAZADO' ||
+              documentoEstado === 'RECHAZADO';
+            
+            // También incluir observados si aplica
+            const esObservado = 
+              estado.includes('OBSERVADO') ||
+              documentoEstado.includes('OBSERVADO') ||
+              estadoCont.includes('OBSERVADO') ||
+              estadoDoc.includes('OBSERVADO');
+            
+            return esRechazado || esObservado;
           });
 
+          console.log(`[FILTRADO] ${itemsRechazados.length} documentos rechazados/observados encontrados`);
+
+          // Mapear los items a documentos - asegurando que todas las propiedades estén disponibles
+          this.documentos = itemsRechazados.map(item => {
+            // Si el item ya tiene todas las propiedades, usarlo directamente
+            if (item.numeroRadicado) {
+              return { ...item } as DocumentoContableExtendido;
+            }
+            
+            // Si el item tiene documento anidado, combinar propiedades
+            if (item.documento) {
+              return {
+                ...item.documento,
+                ...item,
+                id: item.documento.id || item.id,
+                estado: item.estado || item.documento.estado,
+                observaciones: item.observaciones || item.documento.observaciones || item.documento.comentarios,
+                fechaRechazo: item.fechaActualizacion || item.fechaCreacion || item.documento.fechaActualizacion
+              } as DocumentoContableExtendido;
+            }
+            
+            // Si no, usar el item tal cual
+            return { ...item } as DocumentoContableExtendido;
+          });
+
+          console.log('[DOCUMENTOS MAPEADOS]', this.documentos);
           this.procesarDocumentos();
         },
         error: (err: any) => {
-          console.error('[CONTABILIDAD] Error cargando rechazados:', err);
-          this.errorMessage = err.error?.message || err.message || 'Error al cargar documentos rechazados';
+          console.error('[CONTABILIDAD] Error cargando historial:', err);
+          this.errorMessage = 'Error al cargar documentos rechazados';
           this.notificationService.error('Error', this.errorMessage);
           this.isLoading = false;
         }
       });
   }
 
-  /**
-   * Procesar documentos después de cargarlos
-   */
   procesarDocumentos(): void {
     console.log(`📊 Encontrados ${this.documentos.length} documentos rechazados`);
 
     if (this.documentos.length > 0) {
-      this.successMessage = `Se encontraron ${this.documentos.length} documentos rechazados visibles`;
+      this.successMessage = `Se encontraron ${this.documentos.length} documentos rechazados`;
       setTimeout(() => this.successMessage = '', 4000);
     } else {
-      this.infoMessage = 'No hay documentos rechazados visibles';
+      this.infoMessage = 'No hay documentos rechazados';
     }
 
     this.filteredDocumentos = [...this.documentos];
@@ -166,96 +192,32 @@ export class ContabilidadRechazadosComponent implements OnInit, OnDestroy {
     this.isLoading = false;
   }
 
-  // ===================================================
-  // MÉTODOS ESPECÍFICOS PARA RECHAZADOS
-  // ===================================================
+  // ───────────────────────────────────────────────────────────────
+  // Métodos específicos para rechazados
+  // ───────────────────────────────────────────────────────────────
 
-  /**
-   * Obtener el rol que rechazó el documento
-   */
-  getRechazadoPor(doc: DocumentoExtendido): string {
-    const estado = (doc.estado || '').toUpperCase();
-
-    // Primero verificar si hay información específica
-    if (doc['rechazadoPorRol']) {
-      return doc['rechazadoPorRol'];
-    }
-
-    if (doc['rechazadoPor']) {
-      return doc['rechazadoPor'];
-    }
-
-    // Determinar por el estado
-    if (estado.includes('SUPERVISOR')) return 'Supervisor';
-    if (estado.includes('AUDITOR')) return 'Auditoría';
-    if (estado.includes('ASESOR')) return 'Asesor Gerencia';
-    if (estado.includes('RENDICION')) return 'Rendición Cuentas';
-    if (estado.includes('TESORERIA')) return 'Tesorería';
-    if (estado.includes('CONTABILIDAD')) return 'Contabilidad (anterior)';
-
-    return doc['usuarioAsignadoNombre'] || doc['ultimoUsuario'] || 'Sistema / No especificado';
+  getContadorRechazo(doc: DocumentoContableExtendido): string {
+    return doc['contadorRevisor'] || 
+           doc['auditor'] || 
+           doc['rechazadoPor'] || 
+           doc['usuarioAsignadoNombre'] || 
+           doc['ultimoUsuario'] ||
+           'Nivel Superior';
   }
 
-  /**
-   * Obtener clase CSS para el badge del rechazador
-   */
-  getRechazadoPorClass(doc: DocumentoExtendido): string {
-    const rol = this.getRechazadoPor(doc).toLowerCase();
-
-    if (rol.includes('supervisor')) return 'badge bg-warning text-dark';
-    if (rol.includes('auditor')) return 'badge bg-info';
-    if (rol.includes('asesor')) return 'badge bg-purple text-white';
-    if (rol.includes('rendicion')) return 'badge bg-dark text-white';
-    if (rol.includes('tesoreria')) return 'badge bg-primary text-white';
-    if (rol.includes('contabilidad')) return 'badge bg-danger text-white';
-
-    return 'badge bg-secondary text-white';
+  getMotivoRechazo(doc: DocumentoContableExtendido): string {
+    return doc['motivoRechazo'] || 
+           doc['observaciones'] || 
+           doc['comentarios'] || 
+           'Sin motivo especificado';
   }
 
-  /**
-   * Obtener el motivo del rechazo
-   */
-  getMotivoRechazo(doc: DocumentoExtendido): string {
-    return doc['motivoRechazo'] ||
-      doc['observacion'] ||
-      doc['observaciones'] ||
-      doc['comentarios'] ||
-      'Sin motivo especificado';
+  getObservaciones(doc: DocumentoContableExtendido): string {
+    return doc['observaciones'] || doc['comentarios'] || '';
   }
 
-  /**
-   * Obtener fecha de rechazo
-   */
-  getFechaRechazo(doc: DocumentoExtendido): string {
-    const fecha = doc['fechaRechazo'] ||
-      doc.fechaActualizacion ||
-      doc.updatedAt ||
-      doc.fechaCreacion;
-
-    if (!fecha) return 'Fecha desconocida';
-
-    try {
-      const date = new Date(fecha);
-      return date.toLocaleDateString('es-CO', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch {
-      return 'Fecha inválida';
-    }
-  }
-
-  /**
-   * Calcular días desde el rechazo
-   */
-  getDiasDesdeRechazo(doc: DocumentoExtendido): number {
-    const fechaRechazo = doc['fechaRechazo'] ||
-      doc.fechaActualizacion ||
-      doc.updatedAt;
-
+  getDiasDesdeRechazo(doc: DocumentoContableExtendido): number {
+    const fechaRechazo = doc['fechaRechazo'] || doc.fechaActualizacion || doc.updatedAt;
     if (!fechaRechazo) return 0;
 
     try {
@@ -268,48 +230,21 @@ export class ContabilidadRechazadosComponent implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * Obtener nombre del contador asignado
-   */
-  getContadorAsignado(doc: DocumentoExtendido): string {
-    return doc['contadorNombre'] ||
-      doc['contadorAsignado'] ||
-      doc['usuarioAsignadoNombre'] ||
-      'No asignado';
+  getFechaRechazo(doc: DocumentoContableExtendido): string {
+    return this.formatDate(doc['fechaRechazo'] || doc.fechaActualizacion || doc.updatedAt);
   }
 
-  /**
-   * Verificar si el documento tiene archivos
-   */
-  tieneArchivos(doc: DocumentoExtendido): boolean {
-    return !!(doc.cuentaCobro ||
-      doc.seguridadSocial ||
-      doc.informeActividades ||
-      doc.glosaPath ||
-      doc.causacionPath ||
-      doc.extractoPath ||
-      doc.comprobanteEgresoPath);
+  esDocumentoReciente(doc: DocumentoContableExtendido): boolean {
+    const dias = this.getDiasDesdeRechazo(doc);
+    return dias < 2; // Menos de 2 días
   }
 
-  /**
-   * Contar documentos disponibles
-   */
-  getDocumentCount(doc: DocumentoExtendido): number {
-    let count = 0;
-    if (doc.cuentaCobro) count++;
-    if (doc.seguridadSocial) count++;
-    if (doc.informeActividades) count++;
-    if (doc.glosaPath) count++;
-    if (doc.causacionPath) count++;
-    if (doc.extractoPath) count++;
-    if (doc.comprobanteEgresoPath) count++;
-    return count;
+  esMiRechazo(doc: DocumentoContableExtendido): boolean {
+    const rechazadoPor = this.getContadorRechazo(doc);
+    return rechazadoPor === this.usuarioActual;
   }
 
-  /**
-   * Ver documento en modo consulta
-   */
-  verDetalle(doc: DocumentoExtendido): void {
+  verDetalle(doc: DocumentoContableExtendido): void {
     if (!doc?.id) {
       this.notificationService.error('Error', 'ID de documento no válido');
       return;
@@ -318,89 +253,55 @@ export class ContabilidadRechazadosComponent implements OnInit, OnDestroy {
     console.log(`👁️ Ver documento rechazado: ${doc.numeroRadicado} (${doc.id})`);
 
     // Siempre en modo consulta/solo lectura
-    this.router.navigate(['/contabilidad/procesar', doc.id], {
+    this.router.navigate(['/contabilidad/revisar', doc.id], {
       queryParams: {
         soloLectura: 'true',
         modo: 'consulta',
         desde: 'rechazados'
       }
-    }).then(ok => {
-      console.log('[VER] Navegación:', ok ? 'exitosa' : 'fallida');
     }).catch(err => {
       console.error('[VER] Error:', err);
       this.notificationService.error('Redirección fallida', 'Intenta ingresar manualmente');
     });
   }
 
-  /**
-   * Descargar todos los archivos del documento
-   */
-  descargarTodos(doc: DocumentoExtendido): void {
-    if (!doc?.id) {
-      this.notificationService.error('Error', 'ID de documento no válido');
-      return;
-    }
-
-    const archivos = [
-      { tipo: 'cuenta_cobro', existe: doc.cuentaCobro, nombre: doc.cuentaCobro },
-      { tipo: 'seguridad_social', existe: doc.seguridadSocial, nombre: doc.seguridadSocial },
-      { tipo: 'informe_actividades', existe: doc.informeActividades, nombre: doc.informeActividades },
-      { tipo: 'glosa', existe: doc.glosaPath, nombre: doc.glosaPath },
-      { tipo: 'causacion', existe: doc.causacionPath, nombre: doc.causacionPath },
-      { tipo: 'extracto', existe: doc.extractoPath, nombre: doc.extractoPath },
-      { tipo: 'comprobanteEgreso', existe: doc.comprobanteEgresoPath, nombre: doc.comprobanteEgresoPath }
-    ].filter(a => a.existe);
-
-    if (archivos.length === 0) {
-      this.notificationService.warning('Sin archivos', 'Este documento no tiene archivos asociados');
-      return;
-    }
-
-    this.isProcessing = true;
-
-    // Descargar secuencialmente
-    let descargados = 0;
-
-    archivos.forEach((archivo, index) => {
-      setTimeout(() => {
-        this.descargarArchivoEspecifico(doc.id!, archivo.tipo, archivo.nombre!);
-        descargados++;
-
-        if (descargados === archivos.length) {
-          this.isProcessing = false;
-          this.notificationService.success('Descarga completada',
-            `Se descargaron ${archivos.length} archivo(s)`);
-        }
-      }, index * 500); // Delay de 500ms entre descargas
-    });
+  tieneArchivos(doc: DocumentoContableExtendido): boolean {
+    return this.getDocumentCount(doc) > 0;
   }
 
-  /**
-   * Descargar archivo específico
-   */
-  descargarArchivoEspecifico(documentoId: string, tipo: string, nombreArchivo: string): void {
-    this.contabilidadService.descargarArchivo(documentoId, tipo)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (blob: Blob) => {
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = nombreArchivo || `${tipo}_${documentoId}.pdf`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          window.URL.revokeObjectURL(url);
-        },
-        error: (error: any) => {
-          console.error(`❌ Error descargando ${tipo}:`, error);
-        }
-      });
+  getDocumentCount(doc: DocumentoContableExtendido): number {
+    let count = 0;
+    if (doc.cuentaCobro) count++;
+    if (doc.seguridadSocial) count++;
+    if (doc.informeActividades) count++;
+    
+    // Archivos específicos de contabilidad
+    if (doc['glosa']) count++;
+    if (doc['causacion']) count++;
+    if (doc['extracto']) count++;
+    if (doc['comprobanteEgreso']) count++;
+    
+    return count;
   }
 
-  // ===================================================
-  // MÉTODOS DE PAGINACIÓN Y BÚSQUEDA
-  // ===================================================
+  descargarTodos(doc: DocumentoContableExtendido): void {
+    const totalArchivos = this.getDocumentCount(doc);
+    
+    if (totalArchivos === 0) {
+      this.notificationService.warning('Sin archivos', 'Este documento no tiene archivos adjuntos');
+      return;
+    }
+    
+    console.log(`📥 Iniciando descarga de ${totalArchivos} archivo(s) para:`, doc.numeroRadicado);
+    this.notificationService.info('Descarga iniciada', `Preparando ${totalArchivos} archivo(s)...`);
+    
+    // Aquí implementarías la lógica para descargar todos los archivos
+    // Podrías llamar a un método del servicio que los empaquete en ZIP
+  }
+
+  // ───────────────────────────────────────────────────────────────
+  // Métodos de utilidad
+  // ───────────────────────────────────────────────────────────────
 
   refreshData(): void {
     console.log('🔄 Refrescando lista de rechazados...');
@@ -408,6 +309,13 @@ export class ContabilidadRechazadosComponent implements OnInit, OnDestroy {
   }
 
   updatePagination(): void {
+    if (!this.filteredDocumentos || this.filteredDocumentos.length === 0) {
+      this.totalPages = 0;
+      this.pages = [];
+      this.paginatedDocumentos = [];
+      return;
+    }
+    
     this.totalPages = Math.ceil(this.filteredDocumentos.length / this.pageSize);
     this.pages = [];
 
@@ -441,13 +349,12 @@ export class ContabilidadRechazadosComponent implements OnInit, OnDestroy {
       const term = this.searchTerm.toLowerCase();
       this.filteredDocumentos = this.documentos.filter(doc => {
         return (
-          (doc.numeroRadicado?.toLowerCase().includes(term)) ||
-          (doc.nombreContratista?.toLowerCase().includes(term)) ||
-          (doc.numeroContrato?.toLowerCase().includes(term)) ||
-          (doc.documentoContratista?.toLowerCase().includes(term)) ||
-          (this.getMotivoRechazo(doc)?.toLowerCase().includes(term)) ||
-          (this.getRechazadoPor(doc)?.toLowerCase().includes(term)) ||
-          (doc.observacion?.toLowerCase().includes(term))
+          (doc.numeroRadicado || '').toLowerCase().includes(term) ||
+          (doc.nombreContratista || '').toLowerCase().includes(term) ||
+          (doc.numeroContrato || '').toLowerCase().includes(term) ||
+          (doc.documentoContratista || '').toLowerCase().includes(term) ||
+          (this.getMotivoRechazo(doc) || '').toLowerCase().includes(term) ||
+          (this.getContadorRechazo(doc) || '').toLowerCase().includes(term)
         );
       });
     }
@@ -455,27 +362,11 @@ export class ContabilidadRechazadosComponent implements OnInit, OnDestroy {
     this.updatePagination();
   }
 
-  // ===================================================
-  // MÉTODOS DE UTILIDAD
-  // ===================================================
+  // ───────────────────────────────────────────────────────────────
+  // Métodos de formateo y helpers
+  // ───────────────────────────────────────────────────────────────
 
-  formatDate(fecha: Date | string): string {
-    if (!fecha) return 'N/A';
-    try {
-      const date = new Date(fecha);
-      return date.toLocaleDateString('es-ES', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch {
-      return 'Fecha inválida';
-    }
-  }
-
-  formatDateShort(fecha: Date | string): string {
+  formatDate(fecha: Date | string | undefined): string {
     if (!fecha) return 'N/A';
     try {
       const date = new Date(fecha);
@@ -489,7 +380,65 @@ export class ContabilidadRechazadosComponent implements OnInit, OnDestroy {
     }
   }
 
-  getDiasClass(doc: DocumentoExtendido): string {
+  formatDateShort(fecha: Date | string | undefined): string {
+    if (!fecha) return 'N/A';
+    try {
+      const date = new Date(fecha);
+      return date.toLocaleDateString('es-ES', {
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return 'Fecha inválida';
+    }
+  }
+
+  getDuracionContrato(inicio: Date | string | undefined, fin: Date | string | undefined): string {
+    if (!inicio || !fin) return 'N/A';
+    try {
+      const fechaInicio = new Date(inicio);
+      const fechaFin = new Date(fin);
+      const diferenciaMs = fechaFin.getTime() - fechaInicio.getTime();
+      const dias = Math.floor(diferenciaMs / (1000 * 60 * 60 * 24));
+      return `${dias} días`;
+    } catch {
+      return 'N/A';
+    }
+  }
+
+  getEstadoClass(estado: string | undefined): string {
+    if (!estado) return 'badge-secondary';
+
+    const estadoUpper = estado.toUpperCase();
+
+    if (estadoUpper.includes('RECHAZADO')) return 'badge-danger';
+    if (estadoUpper.includes('OBSERVADO')) return 'badge-warning';
+    if (estadoUpper.includes('GLOSADO')) return 'badge-warning';
+    if (estadoUpper.includes('APROBADO')) return 'badge-success';
+    if (estadoUpper.includes('EN_REVISION')) return 'badge-info';
+    if (estadoUpper.includes('COMPLETADO')) return 'badge-success';
+
+    return 'badge-secondary';
+  }
+
+  getEstadoTexto(estado: string | undefined): string {
+    if (!estado) return 'Desconocido';
+
+    const estadoUpper = estado.toUpperCase();
+
+    if (estadoUpper.includes('RECHAZADO_CONTABILIDAD')) return 'Rechazado (Contabilidad)';
+    if (estadoUpper.includes('RECHAZADO')) return 'Rechazado';
+    if (estadoUpper.includes('OBSERVADO_CONTABILIDAD')) return 'Observado (Contabilidad)';
+    if (estadoUpper.includes('OBSERVADO')) return 'Observado';
+    if (estadoUpper.includes('GLOSADO')) return 'Glosado';
+    if (estadoUpper.includes('APROBADO')) return 'Aprobado';
+    if (estadoUpper.includes('EN_REVISION')) return 'En Revisión';
+    if (estadoUpper.includes('COMPLETADO')) return 'Completado';
+
+    return estado;
+  }
+
+  getDiasClass(doc: DocumentoContableExtendido): string {
     const dias = this.getDiasDesdeRechazo(doc);
 
     if (dias < 2) return 'text-danger fw-bold'; // Reciente
@@ -498,18 +447,42 @@ export class ContabilidadRechazadosComponent implements OnInit, OnDestroy {
     return 'text-secondary'; // Más de 15 días
   }
 
-  getTooltipInfo(doc: DocumentoExtendido): string {
-    let info = `Radicado: ${doc.numeroRadicado || 'N/A'}\n`;
-    info += `Contratista: ${doc.nombreContratista || 'N/A'}\n`;
-    info += `Rechazado por: ${this.getRechazadoPor(doc)}\n`;
-    info += `Fecha: ${this.getFechaRechazo(doc)}\n`;
-    info += `Motivo: ${this.getMotivoRechazo(doc).substring(0, 100)}`;
+  getRechazadoPorClass(doc: DocumentoContableExtendido): string {
+    if (this.esMiRechazo(doc)) return 'bg-info text-white';
+    return 'bg-danger text-white';
+  }
+
+  getTooltipInfo(doc: DocumentoContableExtendido): string {
+    let info = '';
+
+    if (doc.numeroRadicado) {
+      info += `📄 Radicado: ${doc.numeroRadicado}\n`;
+    }
+
+    if (doc.nombreContratista) {
+      info += `👤 Contratista: ${doc.nombreContratista}\n`;
+    }
+
+    const dias = this.getDiasDesdeRechazo(doc);
+    info += `⏱️ Rechazado hace: ${dias} días\n`;
+
+    info += `📝 Motivo: ${this.getMotivoRechazo(doc).substring(0, 80)}`;
+
+    if (doc.primerRadicadoDelAno) {
+      info += `\n⭐ Primer radicado del año`;
+    }
+    
+    const archivos = this.getDocumentCount(doc);
+    if (archivos > 0) {
+      info += `\n📎 ${archivos} archivo(s) disponible(s)`;
+    }
+
     return info;
   }
 
-  // ===================================================
-  // MÉTODOS PARA MENSAJES
-  // ===================================================
+  // ───────────────────────────────────────────────────────────────
+  // Métodos para mensajes
+  // ───────────────────────────────────────────────────────────────
 
   dismissError(): void {
     this.errorMessage = '';

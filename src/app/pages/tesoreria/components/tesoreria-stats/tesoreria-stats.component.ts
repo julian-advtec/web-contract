@@ -1,16 +1,73 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, AfterViewInit, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+// src/app/pages/tesoreria/components/tesoreria-stats/tesoreria-stats.component.ts
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { CurrencyPipe, DatePipe } from '@angular/common';
-import { debounceTime, Subject } from 'rxjs';
 
 import { EstadisticasTesoreriaService } from '../../../../core/services/estadisticas-tesoreria.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { NotificationService } from '../../../../core/services/notification.service';
+import { PeriodoStats as ModelPeriodoStats, FiltrosStats } from '../../../../core/models/estadisticas-tesoreria.model';
 
-import { EstadisticasTesoreria, FiltrosStats, PeriodoStats } from '../../../../core/models/estadisticas-tesoreria.model';
+// Re-exportar para usar en el template
+export { PeriodoStats } from '../../../../core/models/estadisticas-tesoreria.model';
 
-// Import estático de Chart.js
-import Chart from 'chart.js/auto';
+export interface FiltrosEstadisticasTesoreria {
+  periodo: ModelPeriodoStats;
+  soloMios: boolean;
+}
+
+export interface EstadisticasTesoreria {
+  totalDocumentosDisponibles?: number;
+  misDocumentos?: {
+    pendientes: number;
+    pagados: number;
+    observados: number;
+    rechazados: number;
+    enProceso: number;
+    total: number;
+  };
+  rechazados?: {
+    total: number;
+    rechazadosTesorero: number;
+    rechazadosOtrasAreas: number;
+    porPeriodo: number;
+  };
+  tiempoPromedioHoras?: number;
+  eficiencia?: number;
+  recientes?: number;
+  distribucion?: Array<{
+    estado: string;
+    cantidad: number;
+    porcentaje: number;
+    color: string;
+  }>;
+  ultimosProcesados?: Array<{
+    id: string;
+    numeroRadicado: string;
+    contratista: string;
+    fecha: string | Date;
+    estado: string;
+    monto?: number;
+  }>;
+  totales?: {
+    pendientes: number;
+    pagados: number;
+    observados: number;
+    rechazados: number;
+    enProceso: number;
+    total: number;
+  };
+  fechaConsulta?: string;
+  desde?: string;
+  hasta?: string;
+  // Propiedades originales del backend
+  documentos?: any;
+  montos?: any;
+  actividadReciente?: any[];
+  pendientes?: any[];
+  procesados?: any[];
+  fechaCalculo?: Date;
+}
 
 @Component({
   selector: 'app-tesoreria-stats',
@@ -18,40 +75,32 @@ import Chart from 'chart.js/auto';
   imports: [CommonModule, FormsModule],
   templateUrl: './tesoreria-stats.component.html',
   styleUrls: ['./tesoreria-stats.component.scss'],
-  providers: [CurrencyPipe, DatePipe],
-  changeDetection: ChangeDetectionStrategy.Default   // temporal, para descartar problemas de detección
+  providers: [CurrencyPipe, DatePipe]
 })
-export class TesoreriaStatsComponent implements OnInit, OnDestroy, AfterViewInit {
-  estadisticas: EstadisticasTesoreria | null = null;
-  isLoading = true;
-  errorMessage: string | null = null;
-
-  currentUserRole: string = '';
-  filtros: FiltrosStats = {
-    periodo: PeriodoStats.MES,
-    soloMios: false
-  };
-
-  private filtrosAnteriores: FiltrosStats = {
-    periodo: PeriodoStats.MES,
-    soloMios: false
-  };
-
-  private filtrosSubject = new Subject<void>();
-
+export class TesoreriaStatsComponent implements OnInit {
+  // Usar el enum del modelo para que coincida con el servicio
   periodos = [
-    { value: PeriodoStats.HOY, label: 'Hoy' },
-    { value: PeriodoStats.SEMANA, label: 'Última semana' },
-    { value: PeriodoStats.MES, label: 'Último mes' },
-    { value: PeriodoStats.TRIMESTRE, label: 'Último trimestre' }
+    { value: ModelPeriodoStats.HOY, label: 'Hoy' },
+    { value: ModelPeriodoStats.SEMANA, label: 'Última semana' },
+    { value: ModelPeriodoStats.MES, label: 'Último mes' },
+    { value: ModelPeriodoStats.TRIMESTRE, label: 'Último trimestre' }
   ];
 
-  activeTab: 'resumen' | 'pendientes' | 'procesados' = 'resumen';
-  private chartInstance: any = null;
+  // Mismos nombres de propiedades
+  filtros: FiltrosStats = {
+    periodo: ModelPeriodoStats.MES,
+    soloMios: false
+  };
+
+  cargando = false;
+  errorMessage: string | null = null;
+  estadisticas: EstadisticasTesoreria | null = null;
+  currentUserRole: string = '';
 
   constructor(
     private estadisticasService: EstadisticasTesoreriaService,
     private authService: AuthService,
+    private notificationService: NotificationService,
     private currencyPipe: CurrencyPipe,
     private datePipe: DatePipe,
     private cdr: ChangeDetectorRef
@@ -59,122 +108,157 @@ export class TesoreriaStatsComponent implements OnInit, OnDestroy, AfterViewInit
 
   ngOnInit(): void {
     this.currentUserRole = this.authService.getCurrentUser()?.role || 'USUARIO';
-
-    this.filtrosSubject.pipe(debounceTime(1200)).subscribe(() => {
-      this.cargarEstadisticas();
-    });
-
     this.cargarEstadisticas();
   }
 
-  ngAfterViewInit(): void {
-    if (this.estadisticas?.distribucion?.length && this.activeTab === 'resumen') {
-      this.renderizarGrafico();
-    }
-  }
-
-  ngOnDestroy(): void {
-    if (this.chartInstance) {
-      this.chartInstance.destroy();
-      this.chartInstance = null;
-    }
-    this.filtrosSubject.complete();
-  }
-
+  // Mismo método que en contabilidad
   cargarEstadisticas(): void {
-    if (
-      this.filtros.periodo === this.filtrosAnteriores.periodo &&
-      this.filtros.soloMios === this.filtrosAnteriores.soloMios
-    ) {
-      console.log('[DEBUG] Filtros iguales → no recargo');
-      this.isLoading = false;
-      this.cdr.detectChanges();
-      return;
-    }
-
-    this.filtrosAnteriores = { ...this.filtros };
-
-    this.isLoading = true;
+    this.cargando = true;
     this.errorMessage = null;
     this.estadisticas = null;
-    this.cdr.detectChanges();
-
-    console.log('[DEBUG] Iniciando carga con filtros:', this.filtros);
 
     this.estadisticasService.obtenerEstadisticas(this.filtros).subscribe({
-      next: (data) => {
-        console.log('[DEBUG] Datos recibidos:', data);
-        this.estadisticas = data;
-        this.isLoading = false;
-        console.log('[DEBUG] isLoading = false');
+      next: (data: any) => {
+        console.log('Respuesta del servicio:', data);
+        
+        if (data) {
+          // Asegurar que pendientes y procesados sean arrays
+          const pendientes = Array.isArray(data.pendientes) ? data.pendientes : [];
+          const procesados = Array.isArray(data.procesados) ? data.procesados : [];
+          
+          console.log('📊 pendientes:', pendientes.length);
+          console.log('📊 procesados:', procesados.length);
+          
+          // Calcular total de documentos
+          const totalDocumentos = data.documentos?.total || pendientes.length + procesados.length;
+          
+          // Calcular eficiencia
+          const pagados = data.documentos?.pagados || 
+                         procesados.filter((p: any) => p.estado?.includes('PAGADO')).length;
+          const eficiencia = totalDocumentos > 0 ? Math.round((pagados / totalDocumentos) * 100) : 0;
+          
+          // Combinar pendientes y procesados para ultimosProcesados
+          const todosLosProcesos = [
+            ...pendientes.map((p: any) => ({ ...p, tipo: 'pendiente' })),
+            ...procesados.map((p: any) => ({ ...p, tipo: 'procesado' }))
+          ].sort((a, b) => {
+            const fechaA = new Date(a.fechaProcesamiento || a.fechaAsignacion || a.fecha || 0).getTime();
+            const fechaB = new Date(b.fechaProcesamiento || b.fechaAsignacion || b.fecha || 0).getTime();
+            return fechaB - fechaA;
+          }).slice(0, 10);
+          
+          console.log('📊 todosLosProcesos combinados:', todosLosProcesos.length);
 
+          this.estadisticas = {
+            // Propiedades calculadas para el frontend
+            totalDocumentosDisponibles: totalDocumentos,
+            misDocumentos: {
+              pendientes: data.documentos?.pendientes || pendientes.length,
+              pagados: data.documentos?.pagados || 
+                      procesados.filter((p: any) => p.estado?.includes('PAGADO')).length,
+              observados: data.documentos?.observados || 
+                         procesados.filter((p: any) => p.estado?.includes('OBSERVADO')).length,
+              rechazados: data.documentos?.rechazados || 
+                         procesados.filter((p: any) => p.estado?.includes('RECHAZADO')).length,
+              enProceso: data.documentos?.enProceso || 0,
+              total: totalDocumentos
+            },
+            rechazados: {
+              total: data.documentos?.rechazados || 
+                    procesados.filter((p: any) => p.estado?.includes('RECHAZADO')).length,
+              rechazadosTesorero: data.documentos?.rechazados || 
+                                  procesados.filter((p: any) => p.estado?.includes('RECHAZADO')).length,
+              rechazadosOtrasAreas: 0,
+              porPeriodo: data.documentos?.rechazados || 0
+            },
+            tiempoPromedioHoras: data.tiempoPromedioHoras || 0,
+            eficiencia: eficiencia,
+            recientes: data.actividadReciente?.length || todosLosProcesos.length,
+            distribucion: data.distribucion?.map((item: any, index: number) => ({
+              estado: item.estado,
+              cantidad: item.cantidad,
+              porcentaje: totalDocumentos > 0 ? Math.round((item.cantidad / totalDocumentos) * 100) : 0,
+              color: item.color || this.getColorForIndex(index)
+            })) || [],
+            // CREAR ultimosProcesados a partir de pendientes y procesados
+            ultimosProcesados: todosLosProcesos.map((p: any) => ({
+              id: p.id,
+              numeroRadicado: p.numeroRadicado || p.documento?.numeroRadicado || 'N/A',
+              contratista: p.contratista || p.documento?.nombreContratista || 'N/A',
+              fecha: p.fechaProcesamiento || p.fechaAsignacion || p.fecha || new Date(),
+              estado: p.estado || 'PENDIENTE',
+              monto: p.monto || 0
+            })),
+            totales: {
+              pendientes: data.documentos?.pendientes || pendientes.length,
+              pagados: data.documentos?.pagados || 
+                      procesados.filter((p: any) => p.estado?.includes('PAGADO')).length,
+              observados: data.documentos?.observados || 
+                         procesados.filter((p: any) => p.estado?.includes('OBSERVADO')).length,
+              rechazados: data.documentos?.rechazados || 
+                         procesados.filter((p: any) => p.estado?.includes('RECHAZADO')).length,
+              enProceso: data.documentos?.enProceso || 0,
+              total: totalDocumentos
+            },
+            fechaConsulta: data.fechaCalculo || new Date().toISOString(),
+            desde: data.desde || '',
+            hasta: data.hasta || '',
+            
+            // Mantener propiedades originales
+            documentos: data.documentos,
+            montos: data.montos,
+            actividadReciente: data.actividadReciente,
+            pendientes: data.pendientes,
+            procesados: data.procesados,
+            fechaCalculo: data.fechaCalculo
+          };
+          
+          console.log('✅ Estadísticas procesadas:', this.estadisticas);
+          console.log('📊 ultimosProcesados generados:', this.estadisticas.ultimosProcesados?.length);
+        } else {
+          this.errorMessage = 'No se recibieron datos válidos';
+        }
+        
+        this.cargando = false;
         this.cdr.detectChanges();
-
-        setTimeout(() => {
-          console.log('[DEBUG] 500ms después de cargar datos');
-          if (this.activeTab === 'resumen' && this.estadisticas?.distribucion?.length) {
-            this.renderizarGrafico();
-          }
-        }, 500);
       },
       error: (err) => {
-        console.error('[ERROR] Falló:', err);
-        this.errorMessage = 'Error al cargar estadísticas.';
-        this.isLoading = false;
+        console.error('❌ Error:', err);
+        const mensajeError = err.message || 'Error de conexión';
+        this.errorMessage = mensajeError;
+        this.notificationService.error('Error', mensajeError);
+        this.cargando = false;
         this.cdr.detectChanges();
       }
     });
   }
 
-  aplicarFiltros(): void {
-    this.filtrosSubject.next();
-  }
-
   toggleMisEstadisticas(): void {
-    this.filtrosSubject.next();
-  }
-
-  recargar(): void {
     this.cargarEstadisticas();
   }
 
-  setActiveTab(tab: 'resumen' | 'pendientes' | 'procesados'): void {
-    this.activeTab = tab;
-    this.cdr.detectChanges();
-
-    if (tab === 'resumen' && this.estadisticas?.distribucion?.length) {
-      setTimeout(() => this.renderizarGrafico(), 150);
-    }
-  }
-
-  verDocumento(id: string): void {
-    window.open(`/tesoreria/documento/${id}?modo=consulta`, '_blank');
-  }
-
-  formatearFechaCorta(fecha: Date | string | null | undefined): string {
-    if (!fecha) return '—';
-    const fechaReal = typeof fecha === 'string' ? new Date(fecha) : fecha;
-    return this.datePipe.transform(fechaReal, 'dd/MM') || '—';
-  }
-
-  formatearFechaLarga(fecha: Date | string | null | undefined): string {
-    if (!fecha) return '—';
-    const fechaReal = typeof fecha === 'string' ? new Date(fecha) : fecha;
-    return this.datePipe.transform(fechaReal, 'dd/MM/yyyy HH:mm') || '—';
-  }
-
-  getBadgeClass(estado: string | null | undefined): string {
-    const upper = (estado || '').toUpperCase();
-    if (upper.includes('PAGADO') || upper.includes('COMPLETADO')) return 'badge bg-success';
-    if (upper.includes('OBSERVADO')) return 'badge bg-warning text-dark';
-    if (upper.includes('RECHAZADO')) return 'badge bg-danger';
-    if (upper.includes('PENDIENTE')) return 'badge bg-secondary';
-    return 'badge bg-dark';
+  // Mismos métodos helper que en contabilidad
+  getTotalProcesados(): number {
+    return this.estadisticas?.totales?.total || 0;
   }
 
   getResumenPeriodo(): string {
     if (!this.estadisticas?.desde || !this.estadisticas?.hasta) return '';
-    return `${this.formatearFechaCorta(this.estadisticas.desde)} — ${this.formatearFechaCorta(this.estadisticas.hasta)}`;
+    const desde = new Date(this.estadisticas.desde);
+    const hasta = new Date(this.estadisticas.hasta);
+    return `${desde.toLocaleDateString('es-CO')} — ${hasta.toLocaleDateString('es-CO')}`;
+  }
+
+  getBadgeClass(estado: string | undefined): string {
+    const estadoStr = estado || '';
+    const upper = estadoStr.toUpperCase();
+    if (upper.includes('PAGADO') || upper.includes('COMPLETADO')) return 'badge bg-success';
+    if (upper.includes('OBSERVADO')) return 'badge bg-warning text-dark';
+    if (upper.includes('RECHAZADO')) return 'badge bg-danger';
+    if (upper.includes('PENDIENTE')) return 'badge bg-warning';
+    if (upper.includes('PROCESO')) return 'badge bg-info';
+    if (upper.includes('RADICADO')) return 'badge bg-primary';
+    return 'badge bg-secondary';
   }
 
   formatearMoneda(valor: number | null | undefined): string {
@@ -182,67 +266,13 @@ export class TesoreriaStatsComponent implements OnInit, OnDestroy, AfterViewInit
     return this.currencyPipe.transform(valor, 'S/ ', 'symbol', '1.0-0') || 'S/ 0';
   }
 
-  private renderizarGrafico(): void {
-    console.log('[DEBUG] Intentando renderizar gráfico');
+  // Método específico para tesorería
+  tieneMonto(ultimosProcesados: any[] | undefined): boolean {
+    return ultimosProcesados?.some(p => p?.monto != null && p?.monto > 0) || false;
+  }
 
-    const canvas = document.getElementById('chart-estados') as HTMLCanvasElement;
-    if (!canvas) {
-      console.warn('[DEBUG] Canvas no encontrado');
-      return;
-    }
-
-    // Chequeo crítico: evitar crear chart si el canvas no tiene tamaño válido
-    const rect = canvas.getBoundingClientRect();
-    console.log('[DEBUG] Tamaño canvas:', rect.width, 'x', rect.height);
-    if (rect.width <= 0 || rect.height <= 0) {
-      console.warn('[DEBUG] Canvas tiene tamaño 0 → NO se crea el gráfico (evita freeze)');
-      return;
-    }
-
-    // Destruir instancia anterior si existe
-    if (this.chartInstance) {
-      console.log('[DEBUG] Destruyendo gráfico anterior');
-      this.chartInstance.destroy();
-      this.chartInstance = null;
-    }
-
-    try {
-      this.chartInstance = new Chart(canvas, {
-        type: 'doughnut',
-        data: {
-          labels: this.estadisticas!.distribucion.map(d => d.estado),
-          datasets: [{
-            data: this.estadisticas!.distribucion.map(d => d.cantidad),
-            backgroundColor: this.estadisticas!.distribucion.map(d => d.color),
-            borderWidth: 1,
-            borderColor: '#ffffff'
-          }]
-        },
-        options: {
-          responsive: false,                    // ← clave: desactivado para evitar loops de resize
-          maintainAspectRatio: false,
-          cutout: '65%',
-          animation: {
-            duration: 0                         // sin animaciones
-          },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: (context: any) => {
-                  const label = context.label || '';
-                  const value = context.raw as number;
-                  return `${label}: ${value} docs`;
-                }
-              }
-            }
-          }
-        }
-      });
-
-      console.log('[DEBUG] Gráfico creado exitosamente');
-    } catch (err) {
-      console.error('[ERROR] Falló al crear gráfico:', err);
-    }
+  private getColorForIndex(index: number): string {
+    const colores = ['#FFA726', '#66BB6A', '#FFB74D', '#EF5350', '#42A5F5', '#AB47BC'];
+    return colores[index % colores.length];
   }
 }

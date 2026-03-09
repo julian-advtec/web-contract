@@ -1,14 +1,49 @@
+// src/app/core/services/contabilidad.service.ts
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, throwError } from 'rxjs';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http'; // ← IMPORTAR HttpParams
+import { Observable, throwError, of } from 'rxjs'; // ← IMPORTAR of
 import { catchError, map, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
-import { DocumentoContable } from '../models/documento-contable.model'; // ← Importar del modelo
+import { DocumentoContable } from '../models/documento-contable.model';
+import { NotificationService } from './notification.service'; // ← IMPORTAR NotificationService
 
 export interface ApiResponse<T = any> {
   success: boolean;
   message?: string;
   data?: T;
+}
+
+// Interfaz para documentos rechazados (puedes moverla a un archivo de modelos)
+export interface RechazadoResponse {
+  id: string;
+  documento: {
+    id: string;
+    numeroRadicado: string;
+    nombreContratista: string;
+    documentoContratista: string;
+    numeroContrato: string;
+    fechaRadicacion: Date | string;
+    fechaInicio: Date | string;
+    fechaFin: Date | string;
+    estado: string;
+    cuentaCobro: string;
+    seguridadSocial: string;
+    informeActividades: string;
+    comentarios?: string;
+    primerRadicadoDelAno?: boolean;
+  };
+  contadorRevisor?: string;
+  estado: string;
+  observaciones: string;
+  fechaCreacion: Date | string;
+  fechaActualizacion: Date | string;
+  fechaRechazo?: Date | string;
+  archivos?: {
+    glosa?: boolean;
+    causacion?: boolean;
+    extracto?: boolean;
+    comprobanteEgreso?: boolean;
+  };
 }
 
 @Injectable({
@@ -17,10 +52,13 @@ export interface ApiResponse<T = any> {
 export class ContabilidadService {
   private apiUrl = `${environment.apiUrl}/contabilidad`;
 
-  constructor(private http: HttpClient) { }
+  constructor(
+    private http: HttpClient,
+    private notificationService: NotificationService // ← INYECTAR NotificationService
+  ) { }
 
   private getHeaders(): HttpHeaders {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token') || '';
     return new HttpHeaders({
       Authorization: token ? `Bearer ${token}` : '',
       'Content-Type': 'application/json'
@@ -28,7 +66,7 @@ export class ContabilidadService {
   }
 
   private getHeadersFormData(): HttpHeaders {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token') || '';
     return new HttpHeaders({
       Authorization: token ? `Bearer ${token}` : ''
     });
@@ -210,9 +248,7 @@ export class ContabilidadService {
     );
   }
 
-
-
-  // 17. Descargar archivo radicado
+  // 15. Descargar archivo radicado
   descargarArchivoRadicado(documentoId: string, numeroArchivo: number): Observable<Blob> {
     return this.http.get(
       `${environment.apiUrl}/documentos/${documentoId}/descargar-radicado/${numeroArchivo}`,
@@ -225,7 +261,7 @@ export class ContabilidadService {
     );
   }
 
-  // 18. Previsualizar archivo radicado
+  // 16. Previsualizar archivo radicado
   previsualizarArchivoRadicado(documentoId: string, numeroArchivo: number): Observable<Blob> {
     return this.http.get(
       `${environment.apiUrl}/documentos/${documentoId}/preview/${numeroArchivo}`,
@@ -238,28 +274,7 @@ export class ContabilidadService {
     );
   }
 
-  // 19. Rechazados visibles
-  obtenerRechazadosVisibles(): Observable<any[]> {
-    return this.http.get<any>(`${this.apiUrl}/rechazados-visibles`, {
-      headers: this.getHeaders()
-    }).pipe(
-      map(response => {
-        console.log('[RECHAZADOS-VISIBLES] Respuesta:', response);
-        return response.data || response || [];
-      }),
-      catchError(err => throwError(() => new Error(err.error?.message || 'Error al cargar rechazados')))
-    );
-  }
-
-  // Helpers
-  private extractArrayData(response: any): DocumentoContable[] {
-    if (Array.isArray(response)) return response;
-    if (response?.data && Array.isArray(response.data)) return response.data;
-    if (response?.documentos && Array.isArray(response.documentos)) return response.documentos;
-    if (response?.success && Array.isArray(response.data)) return response.data;
-    return [];
-  }
-
+  // 17. Descargar archivo contabilidad
   descargarArchivoContabilidad(documentoId: string, tipo: string): Observable<Blob> {
     return this.http.get(
       `${this.apiUrl}/documentos/${documentoId}/descargar-contable/${tipo}`,
@@ -272,6 +287,23 @@ export class ContabilidadService {
     );
   }
 
+  // 18. Descargar archivo genérico
+  descargarArchivo(documentoId: string, tipo: string): Observable<Blob> {
+    const url = `${this.apiUrl}/documentos/${documentoId}/descargar/${tipo}`;
+    console.log(`[DESCARGAR ARCHIVO] ${url}`);
+
+    return this.http.get(url, {
+      responseType: 'blob',
+      headers: this.getHeaders()
+    }).pipe(
+      catchError(error => {
+        console.error(`Error descargando archivo ${tipo}:`, error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  // 19. Previsualizar archivo contabilidad
   previsualizarArchivoContabilidad(documentoId: string, tipo: string): Observable<Blob> {
     return this.http.get(
       `${this.apiUrl}/documentos/${documentoId}/preview-contable/${tipo}`,
@@ -284,5 +316,58 @@ export class ContabilidadService {
     );
   }
 
-  
+  // 20. Obtener documentos rechazados (CORREGIDO)
+  obtenerRechazados(filtros?: { desde?: Date; hasta?: Date; soloMios?: boolean }): Observable<RechazadoResponse[]> {
+    const headers = this.getHeaders(); // ← Usar getHeaders() en lugar de getAuthHeaders()
+    let params = new HttpParams();
+
+    if (filtros?.desde) {
+      params = params.set('desde', filtros.desde.toISOString());
+    }
+    if (filtros?.hasta) {
+      params = params.set('hasta', filtros.hasta.toISOString());
+    }
+    if (filtros?.soloMios !== undefined) {
+      params = params.set('soloMios', filtros.soloMios.toString());
+    }
+
+    return this.http.get<any>(`${this.apiUrl}/rechazados-visibles`, { headers, params }).pipe( // ← Endpoint correcto para contabilidad
+      map(response => {
+        console.log('[Contabilidad Rechazados] Respuesta completa:', response);
+
+        // Extraer los datos de la estructura anidada
+        let data = response;
+
+        if (data?.ok === true && data?.data) {
+          data = data.data;
+        }
+
+        if (data?.success === true && data?.data) {
+          data = data.data;
+        } else if (Array.isArray(data)) {
+          data = data;
+        } else if (data?.data && Array.isArray(data.data)) {
+          data = data.data;
+        }
+
+        const result = Array.isArray(data) ? data : [];
+        console.log(`[Contabilidad Rechazados] Documentos extraídos: ${result.length}`);
+        return result;
+      }),
+      catchError(err => {
+        console.error('[Contabilidad Rechazados] Error:', err);
+        this.notificationService.error('Error', 'No se pudieron cargar los documentos rechazados');
+        return of([]);
+      })
+    );
+  }
+
+  // Helpers
+  private extractArrayData(response: any): DocumentoContable[] {
+    if (Array.isArray(response)) return response;
+    if (response?.data && Array.isArray(response.data)) return response.data;
+    if (response?.documentos && Array.isArray(response.documentos)) return response.documentos;
+    if (response?.success && Array.isArray(response.data)) return response.data;
+    return [];
+  }
 }

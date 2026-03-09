@@ -1,4 +1,4 @@
-<!-- src/app/pages/rendicion-cuentas/rendicion-stats/rendicion-stats.component.html -->
+<!-- src/app/pages/rendicion-cuentas/components/rendicion-stats/rendicion-stats.component.html -->
 <div class="stats-container p-3">
 
   <!-- Header -->
@@ -65,8 +65,8 @@
         <div class="card border-warning shadow-sm h-100">
           <div class="card-body text-center">
             <h6 class="text-warning mb-1">Pendientes</h6>
-            <h3 class="mb-1">{{ stats.resumen.pendientes ?? 0 }}</h3> <!-- Cambiado de ?. a . -->
-            <div class="small">En revisión: {{ stats.resumen.enRevision ?? 0 }}</div> <!-- Cambiado -->
+            <h3 class="mb-1">{{ stats.resumen?.pendientes || 0 }}</h3>
+            <div class="small">En revisión: {{ stats.resumen?.enRevision || 0 }}</div>
           </div>
         </div>
       </div>
@@ -74,8 +74,8 @@
         <div class="card border-success shadow-sm h-100">
           <div class="card-body text-center">
             <h6 class="text-success mb-1">Aprobados</h6>
-            <h3 class="mb-1">{{ stats.resumen.aprobados ?? 0 }}</h3> <!-- Cambiado -->
-            <div class="small">Completados: {{ stats.resumen.completados ?? 0 }}</div> <!-- Cambiado -->
+            <h3 class="mb-1">{{ stats.resumen?.aprobados || 0 }}</h3>
+            <div class="small">Completados: {{ stats.resumen?.completados || 0 }}</div>
           </div>
         </div>
       </div>
@@ -83,7 +83,8 @@
         <div class="card border-warning shadow-sm h-100">
           <div class="card-body text-center">
             <h6 class="text-warning mb-1">Observados</h6>
-            <h3 class="mb-1">{{ stats.resumen.observados ?? 0 }}</h3> <!-- Cambiado -->
+            <h3 class="mb-1">{{ stats.resumen?.observados || 0 }}</h3>
+            <div class="small">Espera Gerencia: {{ stats.resumen?.esperaAprobacionGerencia || 0 }}</div>
           </div>
         </div>
       </div>
@@ -91,20 +92,21 @@
         <div class="card border-danger shadow-sm h-100">
           <div class="card-body text-center">
             <h6 class="text-danger mb-1">Rechazados</h6>
-            <h3 class="mb-1">{{ stats.resumen.rechazados ?? 0 }}</h3> <!-- Cambiado -->
+            <h3 class="mb-1">{{ stats.resumen?.rechazados || 0 }}</h3>
+            <div class="small">Aprob. Gerencia: {{ stats.resumen?.aprobadoPorGerencia || 0 }}</div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Métricas de desempeño -->
-    <div class="row g-3 mb-4" *ngIf="stats.metricas">
+    <div class="row g-3 mb-4" *ngIf="stats.rendimiento">
       <div class="col-md-4">
         <div class="card bg-light">
           <div class="card-body text-center">
             <h6>Tiempo Promedio</h6>
-            <h4>{{ stats.metricas.tiempoPromedioRespuesta ?? 0 }} hrs</h4> <!-- Cambiado -->
-            <small class="text-muted">{{ stats.tiempos.promedioDias ?? 0 }} días</small> <!-- Cambiado -->
+            <h4>{{ stats.rendimiento?.tiempoPromedioHoras || 0 }} hrs</h4>
+            <small class="text-muted">{{ stats.tiempos?.promedioDias || 0 }} días</small>
           </div>
         </div>
       </div>
@@ -112,7 +114,7 @@
         <div class="card bg-light">
           <div class="card-body text-center">
             <h6>Tasa Aprobación</h6>
-            <h4>{{ stats.metricas.tasaAprobacion ?? 0 }}%</h4> <!-- Cambiado -->
+            <h4>{{ stats.rendimiento?.tasaAprobacion || 0 }}%</h4>
           </div>
         </div>
       </div>
@@ -120,7 +122,7 @@
         <div class="card bg-light">
           <div class="card-body text-center">
             <h6>Tasa Observación</h6>
-            <h4>{{ stats.metricas.tasaObservacion ?? 0 }}%</h4> <!-- Cambiado -->
+            <h4>{{ stats.rendimiento?.tasaObservacion || 0 }}%</h4>
           </div>
         </div>
       </div>
@@ -135,72 +137,148 @@
       </li>
       <li class="nav-item">
         <button class="nav-link" [class.active]="activeTab === 'pendientes'" (click)="setActiveTab('pendientes')">
-          Pendientes <span class="badge bg-secondary ms-1">{{ stats.documentosPendientes.length || 0 }}</span>
-          <!-- Cambiado -->
+          Pendientes <span class="badge bg-secondary ms-1">{{ stats.documentosPendientes?.length || 0 }}</span>
         </button>
       </li>
       <li class="nav-item">
         <button class="nav-link" [class.active]="activeTab === 'procesados'" (click)="setActiveTab('procesados')">
-          Procesados <span class="badge bg-secondary ms-1">{{ stats.documentosProcesados.length || 0 }}</span>
-          <!-- Cambiado -->
+          Procesados <span class="badge bg-secondary ms-1">{{ stats.documentosProcesados?.length || 0 }}</span>
         </button>
       </li>
     </ul>
 
-    <!-- Actividad Reciente -->
-    <ng-container *ngFor="let act of stats.actividadReciente || []">
-      <!-- Este sí necesita ? porque el array podría ser undefined -->
-      <div class="list-group-item px-3 py-2">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <div>
-            <span class="badge me-2" [ngClass]="getBadgeClass(act.tipo)">{{ act.tipo }}</span>
-            <strong>{{ act.numeroRadicado }}</strong>
-            <small class="text-muted ms-2 d-block d-sm-inline">
-              {{ act.contratista | slice:0:28 }}{{ act.contratista.length > 28 ? '...' : '' }}
-            </small>
+    <!-- Contenido según pestaña -->
+    <div [ngSwitch]="activeTab">
+
+      <!-- RESUMEN -->
+      <div *ngSwitchCase="'resumen'">
+        <div class="row g-3">
+          <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-header bg-light py-2">
+                <h6 class="mb-0">Distribución por estado</h6>
+              </div>
+              <div class="card-body p-3" style="height: 280px;">
+                <canvas id="chart-estados" width="400" height="260"></canvas>
+              </div>
+            </div>
           </div>
-          <div class="text-end">
-            <div class="small text-muted">{{ formatearFechaCorta(act.fecha) }}</div>
-            <small>{{ act.responsable }}</small>
+
+          <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-header bg-light py-2">
+                <h6 class="mb-0">Últimas actividades</h6>
+              </div>
+              <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                  <ng-container *ngFor="let act of stats.actividadReciente || []">
+                    <div class="list-group-item px-3 py-2">
+                      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                          <span class="badge me-2" [ngClass]="getBadgeClass(act.tipo)">{{ act.tipo }}</span>
+                          <strong>{{ act.numeroRadicado }}</strong>
+                          <small class="text-muted ms-2 d-block d-sm-inline">
+                            {{ act.contratista | slice:0:28 }}{{ act.contratista.length > 28 ? '...' : '' }}
+                          </small>
+                        </div>
+                        <div class="text-end">
+                          <div class="small text-muted">{{ formatearFechaCorta(act.fecha) }}</div>
+                          <small>{{ act.responsable }}</small>
+                        </div>
+                      </div>
+                    </div>
+                  </ng-container>
+                  <div *ngIf="!stats.actividadReciente?.length" class="text-center py-5 text-muted">
+                    Sin actividad reciente en este período
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </ng-container>
 
-    <!-- Documentos Pendientes -->
-    <ng-container *ngFor="let doc of stats.documentosPendientes || []"> <!-- Este sí necesita ? -->
-      <div class="list-group-item px-3 py-3">
-        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
-          <div>
-            <div class="mb-1">
-              <strong>{{ doc.numeroRadicado }}</strong>
-              <span class="badge ms-2" [ngClass]="getBadgeClass(doc.estado)">{{ doc.estado }}</span>
+      <!-- PENDIENTES -->
+      <div *ngSwitchCase="'pendientes'">
+        <div class="card shadow-sm">
+          <div class="list-group list-group-flush">
+            <ng-container *ngFor="let doc of stats.documentosPendientes || []">
+              <div class="list-group-item px-3 py-3">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                  <div>
+                    <div class="mb-1">
+                      <strong>{{ doc.numeroRadicado }}</strong>
+                      <span class="badge ms-2" [ngClass]="getBadgeClass(doc.estado)">{{ doc.estado }}</span>
+                    </div>
+                    <small class="text-muted d-block mb-1">
+                      {{ doc.contratista | slice:0:40 }}{{ doc.contratista.length > 40 ? '...' : '' }}
+                    </small>
+                    <div class="small text-muted">
+                      Asignado: {{ formatearFechaCorta(doc.fechaAsignacion) }}
+                      <span *ngIf="doc.responsableAsignado"> • {{ doc.responsableAsignado }}</span>
+                    </div>
+                    <div *ngIf="doc.observaciones" class="small text-warning">
+                      <i class="fas fa-exclamation-triangle me-1"></i>
+                      {{ doc.observaciones | slice:0:50 }}{{ doc.observaciones.length > 50 ? '...' : '' }}
+                    </div>
+                  </div>
+                  <div class="text-end">
+                    <button class="btn btn-sm btn-outline-primary" (click)="verDocumento(doc.id)">
+                      <i class="fas fa-eye me-1"></i> Ver
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </ng-container>
+
+            <div *ngIf="!stats.documentosPendientes?.length" class="text-center py-5 text-muted">
+              No hay documentos pendientes en este período
             </div>
-            <small class="text-muted d-block mb-1">
-              {{ doc.contratista | slice:0:40 }}{{ doc.contratista.length > 40 ? '...' : '' }}
-            </small>
-            <div class="small text-muted">
-              Asignado: {{ formatearFechaCorta(doc.fechaAsignacion) }}
-              <span *ngIf="doc.responsableAsignado"> • {{ doc.responsableAsignado }}</span>
-            </div>
-            <div *ngIf="doc.observaciones" class="small text-warning">
-              <i class="fas fa-exclamation-triangle me-1"></i>
-              {{ doc.observaciones | slice:0:50 }}{{ doc.observaciones.length > 50 ? '...' : '' }}
-            </div>
-          </div>
-          <div class="text-end">
-            <button class="btn btn-sm btn-outline-primary" (click)="verDocumento(doc.id)">
-              <i class="fas fa-eye me-1"></i> Ver
-            </button>
           </div>
         </div>
       </div>
-    </ng-container>
 
-    <!-- Documentos Procesados -->
-    <ng-container *ngFor="let doc of stats.documentosProcesados || []"> <!-- Este sí necesita ? -->
-      <!-- mismo contenido que pendientes pero con fechaDecision -->
-    </ng-container>
+      <!-- PROCESADOS -->
+      <div *ngSwitchCase="'procesados'">
+        <div class="card shadow-sm">
+          <div class="list-group list-group-flush">
+            <ng-container *ngFor="let doc of stats.documentosProcesados || []">
+              <div class="list-group-item px-3 py-3">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                  <div>
+                    <div class="mb-1">
+                      <strong>{{ doc.numeroRadicado }}</strong>
+                      <span class="badge ms-2" [ngClass]="getBadgeClass(doc.estado)">{{ doc.estado }}</span>
+                    </div>
+                    <small class="text-muted d-block mb-1">
+                      {{ doc.contratista | slice:0:40 }}{{ doc.contratista.length > 40 ? '...' : '' }}
+                    </small>
+                    <div class="small text-muted">
+                      Procesado: {{ formatearFechaCorta(doc.fechaDecision) }}
+                      <span *ngIf="doc.responsableAsignado"> • {{ doc.responsableAsignado }}</span>
+                    </div>
+                    <div *ngIf="doc.observaciones" class="small text-warning">
+                      <i class="fas fa-exclamation-triangle me-1"></i>
+                      {{ doc.observaciones | slice:0:50 }}{{ doc.observaciones.length > 50 ? '...' : '' }}
+                    </div>
+                  </div>
+                  <div class="text-end">
+                    <button class="btn btn-sm btn-outline-primary" (click)="verDocumento(doc.id)">
+                      <i class="fas fa-eye me-1"></i> Ver
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </ng-container>
+
+            <div *ngIf="!stats.documentosProcesados?.length" class="text-center py-5 text-muted">
+              No hay documentos procesados en este período
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
 
     <!-- Mis métricas -->
     <div class="row g-3 mt-3" *ngIf="stats.misMetricas">
@@ -214,25 +292,25 @@
               <div class="col-md-3">
                 <div class="text-center">
                   <h6>Pendientes</h6>
-                  <h5>{{ stats.misMetricas.pendientes || 0 }}</h5> <!-- Cambiado -->
+                  <h5>{{ stats.misMetricas.pendientes || 0 }}</h5>
                 </div>
               </div>
               <div class="col-md-3">
                 <div class="text-center">
                   <h6>Procesados Hoy</h6>
-                  <h5>{{ stats.misMetricas.procesadosHoy || 0 }}</h5> <!-- Cambiado -->
+                  <h5>{{ stats.misMetricas.procesadosHoy || 0 }}</h5>
                 </div>
               </div>
               <div class="col-md-3">
                 <div class="text-center">
                   <h6>Procesados Semana</h6>
-                  <h5>{{ stats.misMetricas.procesadosSemana || 0 }}</h5> <!-- Cambiado -->
+                  <h5>{{ stats.misMetricas.procesadosSemana || 0 }}</h5>
                 </div>
               </div>
               <div class="col-md-3">
                 <div class="text-center">
                   <h6>Promedio Respuesta</h6>
-                  <h5>{{ stats.misMetricas.promedioRespuesta || 0 }} hrs</h5> <!-- Cambiado -->
+                  <h5>{{ stats.misMetricas.promedioRespuesta || 0 }} hrs</h5>
                 </div>
               </div>
             </div>

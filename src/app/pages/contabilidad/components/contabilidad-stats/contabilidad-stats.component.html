@@ -1,7 +1,7 @@
 <!-- src/app/pages/contabilidad/components/contabilidad-stats/contabilidad-stats.component.html -->
 <div class="stats-container p-3">
 
-  <!-- Header -->
+  <!-- Header - IGUAL que auditoría -->
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h4 class="mb-0">
       <i class="fas fa-chart-pie me-2 text-primary"></i>
@@ -10,85 +10,51 @@
         {{ getResumenPeriodo() }}
       </small>
     </h4>
-    <div class="d-flex gap-2">
-      <button class="btn btn-sm btn-outline-secondary" (click)="exportarEstadisticas()" [disabled]="cargando">
-        <i class="fas fa-download me-1"></i>
-        Exportar
-      </button>
-      <button class="btn btn-sm btn-outline-primary" (click)="cargarEstadisticas()" [disabled]="cargando">
-        <i class="fas fa-sync-alt me-1" [class.fa-spin]="cargando"></i>
-        Actualizar
-      </button>
-    </div>
+    <button class="btn btn-sm btn-outline-primary" (click)="cargarEstadisticas()" [disabled]="cargando">
+      <i class="fas fa-sync-alt me-1" [class.fa-spin]="cargando"></i>
+      Actualizar
+    </button>
   </div>
 
-  <!-- Filtros -->
+  <!-- DEBUG - Mostrar valores para verificar (puedes eliminar después) -->
+  <div class="alert alert-info mb-3" *ngIf="estadisticas">
+    <strong>🔍 DEBUG - Valores recibidos:</strong><br>
+    aprobados: {{ estadisticas.misDocumentos?.aprobados }} | 
+    rechazados: {{ estadisticas.misDocumentos?.rechazados }} |
+    observados: {{ estadisticas.misDocumentos?.observados }} |
+    completados: {{ estadisticas.misDocumentos?.completados }} |
+    eficiencia: {{ estadisticas.eficiencia }}% |
+    últimos: {{ estadisticas.ultimosProcesados?.length }}
+  </div>
+
+  <!-- Filtros - IGUAL que auditoría -->
   <div class="card mb-3 shadow-sm">
     <div class="card-body py-2">
       <div class="row align-items-center g-3">
-        <div class="col-md-3 col-sm-6">
+        <div class="col-md-4 col-sm-6">
           <select class="form-select form-select-sm" [(ngModel)]="filtros.periodo" (ngModelChange)="cargarEstadisticas()">
             <option *ngFor="let p of periodos" [value]="p.value">{{ p.label }}</option>
           </select>
         </div>
 
-        <div class="col-md-3 col-sm-6" *ngIf="isAdmin">
-          <select class="form-select form-select-sm" [(ngModel)]="filtros.contadorId" (ngModelChange)="cargarEstadisticas()">
-            <option value="">Todos los contadores</option>
-            <option *ngFor="let contador of listaContadores" [value]="contador.id">
-              {{ contador.nombre || contador.fullName || contador.username }}
-            </option>
-          </select>
-        </div>
-
-        <div class="col-md-3 col-sm-6">
-          <select class="form-select form-select-sm" [(ngModel)]="filtros.estado" (ngModelChange)="cargarEstadisticas()">
-            <option value="">Todos los estados</option>
-            <option *ngFor="let e of estadosContabilidad" [value]="e.value">{{ e.label }}</option>
-          </select>
-        </div>
-
-        <div class="col-md-3 col-sm-6">
-          <select class="form-select form-select-sm" [(ngModel)]="filtros.tipoCausacion" (ngModelChange)="cargarEstadisticas()">
-            <option value="">Todos los tipos</option>
-            <option *ngFor="let t of tiposCausacion" [value]="t.value">{{ t.label }}</option>
-          </select>
-        </div>
-
-        <div class="col-md-3 col-sm-6">
-          <select class="form-select form-select-sm" [(ngModel)]="filtros.tieneGlosa" (ngModelChange)="cargarEstadisticas()">
-            <option value="">Todas las glosas</option>
-            <option value="true">Con glosa</option>
-            <option value="false">Sin glosa</option>
-          </select>
-        </div>
-
-        <div class="col-md-3 col-sm-6">
-          <button class="btn btn-sm btn-secondary w-100" (click)="limpiarFiltros()">
-            <i class="fas fa-times me-1"></i> Limpiar filtros
-          </button>
-        </div>
-
         <div class="col-md-4 text-end text-muted small" *ngIf="estadisticas">
           <i class="fas fa-file-alt me-1"></i>
           {{ getTotalProcesados() }} procesos
+          <span class="ms-2 badge bg-info" *ngIf="estadisticas.misDocumentos?.glosados">
+            <i class="fas fa-exclamation-circle me-1"></i>{{ estadisticas.misDocumentos.glosados }} glosados
+          </span>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Mensajes -->
+  <!-- Error - IGUAL que auditoría -->
   <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show" role="alert">
-    <i class="fas fa-exclamation-triangle me-2"></i> {{ errorMessage }}
-    <button type="button" class="btn-close" (click)="errorMessage = null"></button>
+    {{ errorMessage }}
+    <button type="button" class="btn-close" (click)="errorMessage = null; cargarEstadisticas()"></button>
   </div>
 
-  <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show" role="alert">
-    <i class="fas fa-check-circle me-2"></i> {{ successMessage }}
-    <button type="button" class="btn-close" (click)="successMessage = null"></button>
-  </div>
-
-  <!-- Loading -->
+  <!-- Loading - IGUAL que auditoría -->
   <div *ngIf="cargando" class="text-center py-5 my-5">
     <div class="spinner-border text-primary" role="status">
       <span class="visually-hidden">Cargando...</span>
@@ -96,43 +62,17 @@
     <p class="mt-3 text-muted">Cargando estadísticas de contabilidad...</p>
   </div>
 
-  <!-- Contenido principal -->
+  <!-- Contenido principal - IGUAL que auditoría pero con datos de contabilidad -->
   <ng-container *ngIf="!cargando && !errorMessage && estadisticas as stats; else noDataBlock">
 
-    <!-- KPIs principales -->
+    <!-- KPIs principales - IGUAL que auditoría -->
     <div class="row g-3 mb-4">
-      <div class="col-lg-2 col-md-4 col-sm-6">
-        <div class="card border-primary shadow-sm h-100">
-          <div class="card-body text-center">
-            <h6 class="text-primary mb-1">En Revisión</h6>
-            <h3>{{ stats.enRevision || 0 }}</h3>
-          </div>
-        </div>
-      </div>
-
       <div class="col-lg-2 col-md-4 col-sm-6">
         <div class="card border-success shadow-sm h-100">
           <div class="card-body text-center">
-            <h6 class="text-success mb-1">Completados</h6>
-            <h3>{{ stats.completados || 0 }}</h3>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-lg-2 col-md-4 col-sm-6">
-        <div class="card border-info shadow-sm h-100">
-          <div class="card-body text-center">
-            <h6 class="text-info mb-1">Procesados</h6>
-            <h3>{{ stats.procesados || 0 }}</h3>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-lg-2 col-md-4 col-sm-6">
-        <div class="card border-warning shadow-sm h-100">
-          <div class="card-body text-center">
-            <h6 class="text-warning mb-1">Observados</h6>
-            <h3>{{ stats.observados || 0 }}</h3>
+            <h6 class="text-success mb-1">Aprobados</h6>
+            <h3>{{ stats.misDocumentos?.aprobados || 0 }}</h3>
+            <small class="text-muted">En este período</small>
           </div>
         </div>
       </div>
@@ -141,29 +81,61 @@
         <div class="card border-danger shadow-sm h-100">
           <div class="card-body text-center">
             <h6 class="text-danger mb-1">Rechazados</h6>
-            <h3>{{ stats.rechazados || 0 }}</h3>
+            <h3>{{ stats.misDocumentos?.rechazados || 0 }}</h3>
+            <small class="text-muted">Por ti</small>
           </div>
         </div>
       </div>
 
       <div class="col-lg-2 col-md-4 col-sm-6">
-        <div class="card border-purple shadow-sm h-100">
+        <div class="card border-warning shadow-sm h-100">
           <div class="card-body text-center">
-            <h6 class="text-purple mb-1">Glosados</h6>
-            <h3>{{ stats.glosados || 0 }}</h3>
+            <h6 class="text-warning mb-1">Observados</h6>
+            <h3>{{ stats.misDocumentos?.observados || 0 }}</h3>
+            <small class="text-muted">En este período</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="card border-info shadow-sm h-100">
+          <div class="card-body text-center">
+            <h6 class="text-info mb-1">En Revisión</h6>
+            <h3>{{ stats.misDocumentos?.enRevision || 0 }}</h3>
+            <small class="text-muted">Actuales</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="card border-secondary shadow-sm h-100">
+          <div class="card-body text-center">
+            <h6 class="text-secondary mb-1">Completados</h6>
+            <h3>{{ stats.misDocumentos?.completados || 0 }}</h3>
+            <small class="text-muted">En este período</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="card border-primary shadow-sm h-100">
+          <div class="card-body text-center">
+            <h6 class="text-primary mb-1">Disponibles</h6>
+            <h3>{{ stats.totalDocumentosDisponibles || 0 }}</h3>
+            <small class="text-muted">Por revisar</small>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Eficiencia y tiempo promedio -->
+    <!-- Eficiencia, tiempo promedio y rechazados globales - IGUAL que auditoría pero con datos de contabilidad -->
     <div class="row g-3 mb-4">
       <div class="col-lg-4">
         <div class="card border-primary shadow-sm h-100">
           <div class="card-body text-center">
             <h6 class="text-primary mb-1">Eficiencia</h6>
             <h3>{{ stats.eficiencia || 0 }}%</h3>
-            <small class="text-muted">Completados / Procesados</small>
+            <small class="text-muted">(Aprobados + Completados) / Procesados</small>
           </div>
         </div>
       </div>
@@ -172,107 +144,59 @@
         <div class="card border-secondary shadow-sm h-100">
           <div class="card-body text-center">
             <h6 class="text-secondary mb-1">Tiempo Promedio</h6>
-            <h3>{{ formatearTiempo(stats.tiempoPromedioHoras) }}</h3>
-            <small class="text-muted">Por proceso</small>
+            <h3>{{ stats.tiempoPromedioHoras || 0 }} h</h3>
+            <small class="text-muted">Por revisión</small>
           </div>
         </div>
       </div>
 
       <div class="col-lg-4">
-        <div class="card border-info shadow-sm h-100">
+        <div class="card border-danger shadow-sm h-100">
           <div class="card-body text-center">
-            <h6 class="text-info mb-1">Total Documentos</h6>
-            <h3>{{ stats.totalDocumentosRadicados || 0 }}</h3>
-            <small class="text-muted">Radicados</small>
+            <h6 class="text-danger mb-1">Rechazados Globales</h6>
+            <h3>{{ stats.rechazados?.total || 0 }}</h3>
+            <small class="text-muted">
+              Tuyos: {{ stats.rechazados?.rechazadosContador || 0 }} | 
+              Otras áreas: {{ stats.rechazados?.rechazadosOtrasAreas || 0 }}
+            </small>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Mi estadística personal -->
-    <div class="card mb-4 shadow-sm" *ngIf="miEstadistica && !cargandoMiEstadistica">
-      <div class="card-header bg-light">
-        <h5 class="mb-0"><i class="fas fa-user-chart me-2"></i>Mi Desempeño</h5>
-      </div>
-      <div class="card-body">
-        <div class="row">
-          <div class="col-md-3 col-sm-6">
-            <div class="text-center p-2">
-              <h6>Completados</h6>
-              <h4 class="text-success">{{ miEstadisticaSegura.resumen.completados || 0 }}</h4>
-            </div>
-          </div>
-          <div class="col-md-3 col-sm-6">
-            <div class="text-center p-2">
-              <h6>En Revisión</h6>
-              <h4 class="text-primary">{{ miEstadisticaSegura.resumen.enRevision || 0 }}</h4>
-            </div>
-          </div>
-          <div class="col-md-3 col-sm-6">
-            <div class="text-center p-2">
-              <h6>Tiempo Promedio</h6>
-              <h4 class="text-info">{{ formatearTiempo(miEstadisticaSegura.tiempos.promedioRevision) }}</h4>
-            </div>
-          </div>
-          <div class="col-md-3 col-sm-6">
-            <div class="text-center p-2">
-              <h6>Eficiencia</h6>
-              <h4 class="text-warning">{{ miEstadisticaSegura.eficiencia.documentosPorDia || 0 }}/día</h4>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Distribución por estado -->
+    <!-- Distribución por estado - IGUAL que auditoría -->
     <div class="card mb-4 shadow-sm">
       <div class="card-header bg-light">
         <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Distribución por Estado</h5>
       </div>
       <div class="card-body">
         <div class="progress mb-4" style="height: 30px; border-radius: 6px;">
-          <div *ngFor="let item of stats.distribucion" class="progress-bar"
+          <div *ngFor="let item of stats.distribucion; let i = index" class="progress-bar"
                [style.width.%]="item.porcentaje"
-               [ngStyle]="{'background-color': item.color}"
+               [ngStyle]="{'background-color': item.color || ['#4CAF50','#FF9800','#F44336','#2196F3','#9C27B0'][i % 5]}"
                [title]="item.estado + ': ' + item.cantidad">
             {{ item.porcentaje }}%
           </div>
         </div>
 
-        <div class="row g-2">
-          <div *ngFor="let item of stats.distribucion" class="col-6 col-md-4 col-lg-3">
+        <div class="row g-3">
+          <div *ngFor="let item of stats.distribucion" class="col-6 col-md-4 col-lg-2">
             <div class="d-flex align-items-center p-2 border rounded">
-              <span class="badge me-2 p-2 fs-6" [ngStyle]="{'background-color': item.color}">
+              <span class="badge me-2 p-2 fs-6"
+                    [ngStyle]="{'background-color': item.color || ['#4CAF50','#FF9800','#F44336','#2196F3','#9C27B0'][stats.distribucion.indexOf(item) % 5]}">
                 {{ item.cantidad }}
               </span>
-              <span class="fw-bold">{{ getNombreEstado(item.estado) }}</span>
+              <span class="fw-bold small">{{ item.estado }}</span>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Tipo de Causación -->
-    <div class="card mb-4 shadow-sm" *ngIf="stats.tipoCausacion.length > 0">
-      <div class="card-header bg-light">
-        <h5 class="mb-0"><i class="fas fa-file-contract me-2"></i>Tipo de Causación</h5>
-      </div>
-      <div class="card-body">
-        <div class="row g-2">
-          <div *ngFor="let item of stats.tipoCausacion" class="col-6 col-md-4">
-            <div class="d-flex justify-content-between align-items-center p-2 border rounded">
-              <span class="fw-bold">{{ item.tipo }}</span>
-              <span class="badge bg-primary">{{ item.cantidad }} ({{ formatearPorcentaje(item.porcentaje) }})</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Últimos documentos procesados -->
+    <!-- Últimos procesados - CORREGIDO para manejar undefined -->
     <div class="card shadow-sm">
       <div class="card-header bg-light">
-        <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Últimos Documentos</h5>
+        <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Últimos Procesos</h5>
       </div>
       <div class="card-body p-0">
         <div class="table-responsive">
@@ -281,30 +205,29 @@
               <tr>
                 <th>Radicado</th>
                 <th>Contratista</th>
+                <th>Fecha</th>
                 <th>Estado</th>
-                <th>Tiempo</th>
-                <th>Glosa</th>
+                <th *ngIf="tieneGlosado(stats.ultimosProcesados)">Glosado</th>
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let doc of stats.documentosRecientes">
-                <td class="fw-bold">{{ doc.numeroRadicado }}</td>
-                <td>{{ doc.nombreContratista }}</td>
+              <tr *ngFor="let proc of stats.ultimosProcesados || []">
+                <td class="fw-bold">{{ proc?.numeroRadicado || 'N/A' }}</td>
+                <td>{{ proc?.contratista || 'N/A' }}</td>
+                <td>{{ proc?.fecha | date:'dd/MM/yyyy HH:mm' }}</td>
                 <td>
-                  <span class="badge fs-6 px-3 py-2" [ngClass]="getBadgeClass(doc.estado)">
-                    {{ getNombreEstado(doc.estado) }}
+                  <span class="badge fs-6 px-3 py-2" [ngClass]="getBadgeClass(proc?.estado)">
+                    {{ proc?.estado || 'Desconocido' }}
                   </span>
                 </td>
-                <td>{{ formatearTiempo(doc.tiempoRevision) }}</td>
-                <td>
-                  <i *ngIf="doc.tieneGlosa" class="fas fa-check-circle text-success" title="Con glosa"></i>
-                  <i *ngIf="!doc.tieneGlosa" class="fas fa-times-circle text-muted" title="Sin glosa"></i>
+                <td *ngIf="tieneGlosado(stats.ultimosProcesados)">
+                  <i class="fas fa-exclamation-triangle text-warning" *ngIf="proc?.glosado" title="Documento glosado"></i>
                 </td>
               </tr>
 
-              <tr *ngIf="stats.documentosRecientes.length === 0">
-                <td colspan="5" class="text-center text-muted py-4">
-                  No hay documentos procesados en este período
+              <tr *ngIf="!stats.ultimosProcesados || stats.ultimosProcesados.length === 0">
+                <td [colSpan]="tieneGlosado(stats.ultimosProcesados) ? 5 : 4" class="text-center text-muted py-4">
+                  Aún no hay procesos en este período
                 </td>
               </tr>
             </tbody>
@@ -313,22 +236,18 @@
       </div>
     </div>
 
-    <!-- Footer -->
+    <!-- Footer - IGUAL que auditoría -->
     <div class="text-end text-muted small mt-4">
       <i class="fas fa-clock me-1"></i>
       Calculado: {{ stats.fechaConsulta | date:'dd/MM/yyyy HH:mm' }}
     </div>
   </ng-container>
 
-  <!-- Sin datos -->
+  <!-- Sin datos - IGUAL que auditoría -->
   <ng-template #noDataBlock>
     <div class="alert alert-info text-center py-5 my-5">
-      <i class="fas fa-info-circle fa-3x mb-3 text-info"></i>
       <h5>No hay datos para mostrar en este período</h5>
       <p>Intenta cambiar el filtro o actualizar.</p>
-      <button class="btn btn-primary mt-3" (click)="cargarEstadisticas()">
-        <i class="fas fa-sync-alt me-1"></i> Actualizar
-      </button>
     </div>
   </ng-template>
 

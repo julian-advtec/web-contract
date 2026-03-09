@@ -146,6 +146,16 @@ export class AuditorComponent implements OnInit, OnDestroy {
                 isActive: true
             },
             {
+                id: 'Rechazados',
+                title: 'Rechazados',
+                description: 'Rechazados de auditoría',
+                path: '/auditor/lista-rechazados',
+                route: '/auditor/lista-rechazados',
+                icon: 'chart-bar',
+                requiredRole: UserRole.AUDITOR_CUENTAS,
+                isActive: true
+            },
+            {
                 id: 'estadisticas',
                 title: 'Estadísticas',
                 description: 'Estadísticas de auditoría',

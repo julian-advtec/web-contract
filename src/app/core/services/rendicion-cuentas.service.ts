@@ -1,7 +1,7 @@
 // src/app/core/services/rendicion-cuentas.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, throwError } from 'rxjs';
+import { Observable, throwError, of } from 'rxjs'; // ← IMPORTAR 'of' aquí
 import { map, catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
@@ -123,25 +123,63 @@ descargarCarpeta(documentoId: string): Observable<Blob> {
    * GET /rendicion-cuentas/todos-documentos
    */
   obtenerTodosDocumentos(): Observable<any[]> {
+    console.log('📥 Solicitando todos los documentos de rendición...');
+    
     return this.http.get<any>(`${this.apiUrl}/todos-documentos`).pipe(
       map(res => {
         console.log('📥 Respuesta todos documentos:', res);
         
+        // Si la respuesta es directamente un array
         if (Array.isArray(res)) {
+          console.log(`📊 Array directo con ${res.length} documentos`);
           return res;
         }
         
+        // Si tiene estructura { ok: true, data: [...] }
         if (res?.ok === true && Array.isArray(res.data)) {
+          console.log(`📊 Respuesta con ok y data: ${res.data.length} documentos`);
           return res.data;
         }
         
+        // Si tiene estructura { data: [...] }
         if (res?.data && Array.isArray(res.data)) {
+          console.log(`📊 Respuesta con data: ${res.data.length} documentos`);
           return res.data;
         }
         
+        // Si tiene estructura { documentos: [...] }
+        if (res?.documentos && Array.isArray(res.documentos)) {
+          console.log(`📊 Respuesta con documentos: ${res.documentos.length} documentos`);
+          return res.documentos;
+        }
+        
+        // Si tiene estructura { items: [...] }
+        if (res?.items && Array.isArray(res.items)) {
+          console.log(`📊 Respuesta con items: ${res.items.length} documentos`);
+          return res.items;
+        }
+        
+        // Si es un objeto, verificar si tiene alguna propiedad que sea array
+        if (res && typeof res === 'object') {
+          const possibleArrays: any[][] = [];
+          Object.values(res).forEach((val: any) => {
+            if (Array.isArray(val)) {
+              possibleArrays.push(val);
+            }
+          });
+          if (possibleArrays.length > 0) {
+            console.log(`📊 Usando primera propiedad array con ${possibleArrays[0].length} documentos`);
+            return possibleArrays[0];
+          }
+        }
+        
+        console.warn('⚠️ No se pudo extraer array de la respuesta:', res);
         return [];
       }),
-      catchError(err => this.handleError(err, 'cargar todos los documentos'))
+      catchError(err => {
+        console.error('❌ Error en obtenerTodosDocumentos:', err);
+        return of([]); // ← AHORA 'of' está importado
+      })
     );
   }
 
@@ -171,7 +209,10 @@ descargarCarpeta(documentoId: string): Observable<Blob> {
         
         return [];
       }),
-      catchError(err => this.handleError(err, 'cargar historial'))
+      catchError(err => {
+        console.error('❌ Error en obtenerHistorial:', err);
+        return of([]);
+      })
     );
   }
 

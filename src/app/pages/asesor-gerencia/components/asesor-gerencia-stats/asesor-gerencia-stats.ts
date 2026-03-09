@@ -5,7 +5,6 @@ import { FormsModule } from '@angular/forms';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { debounceTime, Subject } from 'rxjs';
 
-// IMPORTACIONES CORREGIDAS - IGUAL A TESORERÍA
 import { EstadisticasAsesorGerenciaService } from '../../../../core/services/estadisticas-asesor-gerencia';
 import { AuthService } from '../../../../core/services/auth.service';
 import { EstadisticasAsesorGerencia, FiltrosStats, PeriodoStats } from '../../../../core/models/estadisticas-asesor-gerencia.model';
@@ -16,17 +15,18 @@ import Chart from 'chart.js/auto';
   selector: 'app-asesor-gerencia-stats',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  // EL NOMBRE DEL ARCHIVO DEBE SER EXACTAMENTE ESTE
   templateUrl: './asesor-gerencia-stats.html',
   styleUrls: ['./asesor-gerencia-stats.scss'],
   providers: [CurrencyPipe, DatePipe]
 })
 export class AsesorGerenciaStatsComponent implements OnInit, OnDestroy, AfterViewInit {
-  estadisticas: EstadisticasAsesorGerencia | null = null;
-  isLoading = true;
-  errorMessage: string | null = null;
+  periodos = [
+    { value: PeriodoStats.HOY, label: 'Hoy' },
+    { value: PeriodoStats.SEMANA, label: 'Última semana' },
+    { value: PeriodoStats.MES, label: 'Último mes' },
+    { value: PeriodoStats.TRIMESTRE, label: 'Último trimestre' }
+  ];
 
-  currentUserRole: string = '';
   filtros: FiltrosStats = {
     periodo: PeriodoStats.MES,
     soloMios: false
@@ -39,12 +39,10 @@ export class AsesorGerenciaStatsComponent implements OnInit, OnDestroy, AfterVie
 
   private filtrosSubject = new Subject<void>();
 
-  periodos = [
-    { value: PeriodoStats.HOY, label: 'Hoy' },
-    { value: PeriodoStats.SEMANA, label: 'Última semana' },
-    { value: PeriodoStats.MES, label: 'Último mes' },
-    { value: PeriodoStats.TRIMESTRE, label: 'Último trimestre' }
-  ];
+  isLoading = false;
+  errorMessage: string | null = null;
+  estadisticas: EstadisticasAsesorGerencia | null = null;
+  currentUserRole: string = '';
 
   activeTab: 'resumen' | 'pendientes' | 'procesados' = 'resumen';
   private chartInstance: any = null;
@@ -55,12 +53,12 @@ export class AsesorGerenciaStatsComponent implements OnInit, OnDestroy, AfterVie
     private currencyPipe: CurrencyPipe,
     private datePipe: DatePipe,
     private cdr: ChangeDetectorRef
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.currentUserRole = this.authService.getCurrentUser()?.role || 'USUARIO';
 
-    this.filtrosSubject.pipe(debounceTime(1200)).subscribe(() => {
+    this.filtrosSubject.pipe(debounceTime(800)).subscribe(() => {
       this.cargarEstadisticas();
     });
 
@@ -69,7 +67,7 @@ export class AsesorGerenciaStatsComponent implements OnInit, OnDestroy, AfterVie
 
   ngAfterViewInit(): void {
     if (this.estadisticas?.distribucion?.length && this.activeTab === 'resumen') {
-      this.renderizarGrafico();
+      setTimeout(() => this.renderizarGrafico(), 300);
     }
   }
 
@@ -81,44 +79,53 @@ export class AsesorGerenciaStatsComponent implements OnInit, OnDestroy, AfterVie
     this.filtrosSubject.complete();
   }
 
-  cargarEstadisticas(): void {
-    if (
-      this.filtros.periodo === this.filtrosAnteriores.periodo &&
-      this.filtros.soloMios === this.filtrosAnteriores.soloMios
-    ) {
+cargarEstadisticas(): void {
+  if (
+    this.filtros.periodo === this.filtrosAnteriores.periodo &&
+    this.filtros.soloMios === this.filtrosAnteriores.soloMios
+  ) {
+    console.log('[DEBUG] Filtros iguales → no recargo');
+    this.isLoading = false;
+    this.cdr.detectChanges();
+    return;
+  }
+
+  this.filtrosAnteriores = { ...this.filtros };
+
+  this.isLoading = true;
+  this.errorMessage = null;
+  this.estadisticas = null;
+  this.cdr.detectChanges();
+
+  this.estadisticasService.obtenerEstadisticas(this.filtros).subscribe({
+    next: (data) => {
+      console.log('[DEBUG] Datos recibidos:', data);
+      
+      // Verificar que data tiene la estructura esperada
+      if (data && data.documentos) {
+        this.estadisticas = data;
+        console.log('[DEBUG] Estadísticas asignadas:', this.estadisticas);
+        console.log('[DEBUG] documentos.pendientes:', this.estadisticas.documentos.pendientes);
+      } else {
+        console.warn('[DEBUG] Datos recibidos no tienen la estructura esperada:', data);
+        this.errorMessage = 'La estructura de datos recibida no es válida';
+      }
+      
       this.isLoading = false;
       this.cdr.detectChanges();
-      return;
-    }
 
-    this.filtrosAnteriores = { ...this.filtros };
-
-    this.isLoading = true;
-    this.errorMessage = null;
-    this.estadisticas = null;
-    this.cdr.detectChanges();
-
-    this.estadisticasService.obtenerEstadisticas(this.filtros).subscribe({
-      next: (data: EstadisticasAsesorGerencia) => {
-        console.log('[DEBUG] Datos recibidos:', data);
-        this.estadisticas = data;
-        this.isLoading = false;
-        this.cdr.detectChanges();
-
-        setTimeout(() => {
-          if (this.activeTab === 'resumen' && this.estadisticas?.distribucion?.length) {
-            this.renderizarGrafico();
-          }
-        }, 500);
-      },
-      error: (err: any) => {
-        console.error('[ERROR] Falló:', err);
-        this.errorMessage = 'Error al cargar estadísticas.';
-        this.isLoading = false;
-        this.cdr.detectChanges();
+      if (this.activeTab === 'resumen' && this.estadisticas?.distribucion?.length) {
+        setTimeout(() => this.renderizarGrafico(), 300);
       }
-    });
-  }
+    },
+    error: (err) => {
+      console.error('[ERROR] Falló:', err);
+      this.errorMessage = err.message || 'Error al cargar estadísticas.';
+      this.isLoading = false;
+      this.cdr.detectChanges();
+    }
+  });
+}
 
   aplicarFiltros(): void {
     this.filtrosSubject.next();
@@ -162,8 +169,8 @@ export class AsesorGerenciaStatsComponent implements OnInit, OnDestroy, AfterVie
     if (upper.includes('APROBADO') || upper.includes('COMPLETADO')) return 'badge bg-success';
     if (upper.includes('OBSERVADO')) return 'badge bg-warning text-dark';
     if (upper.includes('RECHAZADO')) return 'badge bg-danger';
-    if (upper.includes('PENDIENTE')) return 'badge bg-secondary';
-    return 'badge bg-dark';
+    if (upper.includes('PENDIENTE') || upper.includes('REVISION')) return 'badge bg-warning';
+    return 'badge bg-secondary';
   }
 
   getResumenPeriodo(): string {
@@ -186,14 +193,12 @@ export class AsesorGerenciaStatsComponent implements OnInit, OnDestroy, AfterVie
     }
 
     const rect = canvas.getBoundingClientRect();
-    console.log('[DEBUG] Tamaño canvas:', rect.width, 'x', rect.height);
     if (rect.width <= 0 || rect.height <= 0) {
-      console.warn('[DEBUG] Canvas tiene tamaño 0 → NO se crea el gráfico (evita freeze)');
+      console.warn('[DEBUG] Canvas tiene tamaño 0 → NO se crea el gráfico');
       return;
     }
 
     if (this.chartInstance) {
-      console.log('[DEBUG] Destruyendo gráfico anterior');
       this.chartInstance.destroy();
       this.chartInstance = null;
     }
@@ -222,7 +227,20 @@ export class AsesorGerenciaStatsComponent implements OnInit, OnDestroy, AfterVie
                 label: (context: any) => {
                   const label = context.label || '';
                   const value = context.raw as number;
-                  return `${label}: ${value} docs`;
+                  const total = this.estadisticas!.distribucion.reduce((sum, d) => sum + d.cantidad, 0);
+                  const porcentaje = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
+
+                  // CORREGIDO: Usar los montos por índice de forma segura
+                  const montosArray = [
+                    this.estadisticas!.montos.pendiente,
+                    this.estadisticas!.montos.aprobado,
+                    this.estadisticas!.montos.observado,
+                    this.estadisticas!.montos.rechazado,
+                    this.estadisticas!.montos.completado
+                  ];
+                  const monto = montosArray[context.dataIndex] || 0;
+
+                  return `${label}: ${value} (${porcentaje}%) - ${this.formatearMoneda(monto)}`;
                 }
               }
             }

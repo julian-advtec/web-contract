@@ -11,14 +11,6 @@ export interface TesoreriaEstado {
   ANULADO: 'ANULADO';
 }
 
-export interface MetodoPago {
-  TRANSFERENCIA: 'TRANSFERENCIA';
-  CHEQUE: 'CHEQUE';
-  EFECTIVO: 'EFECTIVO';
-  TARJETA_CREDITO: 'TARJETA_CREDITO';
-  TARJETA_DEBITO: 'TARJETA_DEBITO';
-}
-
 export interface FiltrosEstadisticasTesoreria {
   fechaInicio?: Date;
   fechaFin?: Date;

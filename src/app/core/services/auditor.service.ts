@@ -5,6 +5,13 @@ import { catchError, map, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { Documento } from '../models/documento.model';
 
+interface HistorialResponse {
+  data?: any[];
+  historial?: any[];
+  items?: any[];
+  [key: string]: any;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -249,8 +256,65 @@ export class AuditorService {
     }));
   }
 
-  obtenerHistorial(): Observable<any> {
-    return this.http.get(`${this.baseUrl}/historial`, { headers: this.getAuthHeaders() });
+  obtenerHistorial(): Observable<any[]> {
+    console.log('[AUDITOR SERVICE] Solicitando historial...');
+
+    return this.http.get<any>(`${this.baseUrl}/historial`, {
+      headers: this.getAuthHeaders()
+    }).pipe(
+      map((response: any) => {
+        console.log('[AUDITOR SERVICE] Respuesta cruda del historial:', response);
+
+        // CASO 1: Si la respuesta es directamente un array
+        if (Array.isArray(response)) {
+          console.log(`[AUDITOR SERVICE] Es array directo con ${response.length} registros`);
+          return response;
+        }
+
+        // CASO 2: Si la respuesta tiene propiedad 'data' que es array
+        if (response && typeof response === 'object') {
+          // Verificar si existe data y es array
+          if (response.data && Array.isArray(response.data)) {
+            console.log(`[AUDITOR SERVICE] Usando response.data con ${response.data.length} registros`);
+            return response.data;
+          }
+
+          // Verificar si existe 'historial' y es array
+          if (response.historial && Array.isArray(response.historial)) {
+            console.log(`[AUDITOR SERVICE] Usando response.historial con ${response.historial.length} registros`);
+            return response.historial;
+          }
+
+          // Verificar si existe 'items' y es array
+          if (response.items && Array.isArray(response.items)) {
+            console.log(`[AUDITOR SERVICE] Usando response.items con ${response.items.length} registros`);
+            return response.items;
+          }
+
+          // Buscar cualquier propiedad que sea array
+          const possibleArrays: any[][] = [];
+          Object.keys(response).forEach(key => {
+            const value = response[key];
+            if (Array.isArray(value)) {
+              possibleArrays.push(value);
+            }
+          });
+
+          if (possibleArrays.length > 0) {
+            console.log(`[AUDITOR SERVICE] Usando primera propiedad array encontrada con ${possibleArrays[0].length} registros`);
+            return possibleArrays[0];
+          }
+        }
+
+        // CASO 3: Si no encontramos ningún array, retornar array vacío
+        console.warn('[AUDITOR SERVICE] No se pudo encontrar un array en la respuesta:', response);
+        return [];
+      }),
+      catchError((error: any) => {
+        console.error('[AUDITOR SERVICE] Error obteniendo historial:', error);
+        return of([]); // Retornar array vacío en caso de error
+      })
+    );
   }
 
   obtenerDocumentoParaAuditoria(id: string): Observable<any> {
@@ -319,24 +383,24 @@ export class AuditorService {
     return this.tomarParaRevision(id);
   }
 
-obtenerDocumentoParaVista(id: string, esDesdeContabilidad: boolean = false): Observable<any> {
-  const params: any = {};
-  if (esDesdeContabilidad) {
-    params.vistaDesde = 'contabilidad';
-    params.soloLectura = 'true';
-  }
+  obtenerDocumentoParaVista(id: string, esDesdeContabilidad: boolean = false): Observable<any> {
+    const params: any = {};
+    if (esDesdeContabilidad) {
+      params.vistaDesde = 'contabilidad';
+      params.soloLectura = 'true';
+    }
 
-  return this.http.get<any>(`${this.apiUrl}/documentos/${id}/vista`, {
-    headers: this.getAuthHeaders(),
-    params
-  }).pipe(
-    map(res => res?.data || res),
-    catchError(err => {
-      console.error('[AuditorService] Error en /vista:', err);
-      return of(null);
-    })
-  );
-}
+    return this.http.get<any>(`${this.apiUrl}/documentos/${id}/vista`, {
+      headers: this.getAuthHeaders(),
+      params
+    }).pipe(
+      map(res => res?.data || res),
+      catchError(err => {
+        console.error('[AuditorService] Error en /vista:', err);
+        return of(null);
+      })
+    );
+  }
 
   verificarArchivosExistentes(documentoId: string): Observable<any> {
     return this.http.get<any>(`${this.apiUrl}/documentos/${documentoId}/vista`, {
@@ -465,6 +529,43 @@ obtenerDocumentoParaVista(id: string, esDesdeContabilidad: boolean = false): Obs
         });
 
         return throwError(() => err);
+      })
+    );
+  }
+
+  // src/app/core/services/auditor.service.ts
+  // AÑADIR este método completo
+
+  /**
+   * Previsualizar archivo radicado (cuenta cobro, seguridad social, informe)
+   * @param documentoId ID del documento
+   * @param numeroArchivo Número de archivo (1, 2 o 3)
+   */
+  previsualizarArchivoRadicado(documentoId: string, numeroArchivo: number): void {
+    const url = `${this.apiUrl}/documentos/${documentoId}/descargar-radicado/${numeroArchivo}?download=false`;
+    console.log('[PREVISUALIZAR RADICADO]', url);
+    window.open(url, '_blank');
+  }
+
+
+
+  descargarArchivoAuditor(documentoId: string, tipo: string): Observable<Blob> {
+    return this.http.get(
+      `${this.apiUrl}/documentos/${documentoId}/descargar-auditor/${tipo}?download=true`,
+      { responseType: 'blob', headers: this.getAuthHeaders() }
+    );
+  }
+
+  getTodosDocumentos(): Observable<any[]> {
+    return this.http.get<any>(`${this.apiUrl}/todos-documentos`, { headers: this.getAuthHeaders() }).pipe(
+      map(response => {
+        console.log('[SERVICE] Todos documentos - respuesta:', response);
+        const data = response?.data || response || [];
+        return Array.isArray(data) ? data : [];
+      }),
+      catchError(err => {
+        console.error('[SERVICE] Error obteniendo todos los documentos:', err);
+        return throwError(() => new Error('No se pudieron cargar todos los documentos'));
       })
     );
   }
