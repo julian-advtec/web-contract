@@ -16,7 +16,8 @@ $color-info: #0dcaf0;
 $color-info-light: rgba(13, 202, 240, 0.1);
 $color-secondary: #6c757d;
 $color-secondary-light: rgba(108, 117, 125, 0.1);
-$color-secondary-dark: #5a6268; /* Variable agregada */
+$color-secondary-dark: #5a6268;
+/* Variable agregada */
 
 /* ===== CONTENEDOR PRINCIPAL ===== */
 .rendicion-rechazados-container {
@@ -25,7 +26,7 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
   min-height: calc(100vh - 80px);
   background-color: #f8f9fa;
   overflow-y: auto;
-  
+
   &.sidebar-collapsed {
     margin-left: 0;
   }
@@ -44,7 +45,7 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
   width: 100%;
   margin: 0 auto 20px;
   max-width: 600px;
-  
+
   .search-group {
     width: 100%;
     border: 2px solid $color-primary-light;
@@ -52,37 +53,37 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
     overflow: hidden;
     background: white;
     transition: all 0.3s ease;
-    
+
     &:focus-within {
       border-color: $color-primary;
       box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
     }
-    
+
     .input-group-text {
       background-color: white;
       border: none;
       color: $color-primary;
     }
-    
+
     .form-control {
       border: none;
       padding: 0.6rem 0;
       font-size: 0.95rem;
-      
+
       &:focus {
         box-shadow: none;
       }
-      
+
       &::placeholder {
         color: #adb5bd;
         font-size: 0.9rem;
       }
     }
-    
+
     .btn-outline-secondary {
       border: none;
       color: $color-secondary;
-      
+
       &:hover {
         background-color: $color-secondary-light;
         color: $color-secondary-dark;
@@ -129,7 +130,7 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
     justify-content: center;
     min-width: 0;
   }
-  
+
   .acciones-header {
     text-align: center;
   }
@@ -165,7 +166,7 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
     background: linear-gradient(90deg, $color-info-light 0%, white 100%) !important;
     border-left: 4px solid $color-info;
   }
-  
+
   // Documento observado
   &.observado {
     border-left: 4px solid $color-warning;
@@ -179,7 +180,7 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
     text-align: center;
   }
 
-  & > * {
+  &>* {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -215,37 +216,37 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
   white-space: nowrap;
   background-color: white;
   border: 1px solid;
-  
+
   &.badge-success {
     color: $color-success;
     border-color: $color-success;
     background-color: $color-success-light;
   }
-  
+
   &.badge-danger {
     color: $color-danger;
     border-color: $color-danger;
     background-color: $color-danger-light;
   }
-  
+
   &.badge-warning {
     color: #856404;
     border-color: $color-warning;
     background-color: $color-warning-light;
   }
-  
+
   &.badge-info {
     color: $color-info;
     border-color: $color-info;
     background-color: $color-info-light;
   }
-  
+
   &.badge-secondary {
     color: $color-secondary;
     border-color: $color-secondary;
     background-color: $color-secondary-light;
   }
-  
+
   &.badge-primary {
     color: $color-primary;
     border-color: $color-primary;
@@ -263,17 +264,17 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
   font-size: 0.8em;
   font-weight: 500;
   white-space: nowrap;
-  
+
   &.bg-warning {
     background-color: $color-warning !important;
     color: #212529 !important;
   }
-  
+
   &.bg-danger {
     background-color: $color-danger !important;
     color: white !important;
   }
-  
+
   &.bg-secondary {
     background-color: $color-secondary !important;
     color: white !important;
@@ -340,7 +341,7 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
     overflow-wrap: break-word;
     max-width: 100%;
     line-height: 1.3;
-    
+
     strong {
       display: block;
       margin-bottom: 0.2rem;
@@ -380,20 +381,20 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
       display: flex;
       align-items: center;
       justify-content: center;
-      
+
       &.text-danger {
         color: $color-danger !important;
         font-weight: bold;
       }
-      
+
       &.text-warning {
         color: $color-warning !important;
       }
-      
+
       &.text-primary {
         color: $color-primary !important;
       }
-      
+
       &.text-secondary {
         color: $color-secondary !important;
       }
@@ -413,13 +414,14 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
 .documento-acciones {
   .acciones-buttons {
     width: 100%;
-    
+
     .d-flex {
       width: 100%;
       gap: 0.4rem;
     }
 
-    .btn-primary, .btn-outline-info {
+    .btn-primary,
+    .btn-outline-info {
       padding: 0.4rem 0.8rem !important;
       font-size: 0.8rem !important;
       border-radius: 6px !important;
@@ -428,38 +430,38 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
       justify-content: center !important;
       transition: all 0.3s ease !important;
       white-space: nowrap;
-      
+
       i {
         margin-right: 0.3rem !important;
         font-size: 0.8rem !important;
       }
-      
+
       &:hover:not(:disabled) {
         transform: translateY(-2px) !important;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
       }
-      
+
       &:disabled {
         opacity: 0.5;
         cursor: not-allowed;
       }
     }
-    
+
     .btn-primary {
       background-color: $color-primary !important;
       color: white !important;
       border: 1px solid $color-primary !important;
-      
+
       &:hover:not(:disabled) {
         background-color: $color-primary-dark !important;
         border-color: $color-primary-dark !important;
       }
     }
-    
+
     .btn-outline-info {
       color: $color-info !important;
       border-color: $color-info !important;
-      
+
       &:hover:not(:disabled) {
         background-color: $color-info !important;
         color: white !important;
@@ -477,7 +479,7 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
   margin-top: 1.2rem;
   border-top: 1px solid $color-primary-light;
   gap: 1rem;
-  
+
   .pagination-info {
     font-size: 0.9rem;
     color: #6B7280;
@@ -500,28 +502,28 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
       font-size: 0.85rem;
       font-weight: 500;
       transition: all 0.3s ease;
-      
+
       &:hover:not(:disabled) {
         transform: translateY(-2px);
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
       }
-      
+
       &.btn-outline-primary {
         color: $color-primary;
         border-color: $color-primary;
-        
+
         &:hover:not(:disabled) {
           background-color: $color-primary;
           color: white;
         }
       }
-      
+
       &.btn-primary {
         background-color: $color-primary;
         border-color: $color-primary;
         color: white;
       }
-      
+
       &:disabled {
         opacity: 0.5;
         cursor: not-allowed;
@@ -543,7 +545,7 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
         justify-content: center;
       }
     }
-    
+
     .current-page-indicator {
       font-size: 0.9rem;
       font-weight: 500;
@@ -570,7 +572,9 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
 }
 
 @keyframes spinner-border {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .text-primary {
@@ -612,13 +616,13 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
     max-width: 400px;
     margin: 0 auto;
     text-align: left;
-    
+
     li {
       margin-bottom: 0.5rem;
       font-size: 0.9rem;
       display: flex;
       align-items: flex-start;
-      
+
       i {
         font-size: 0.8rem;
         margin-top: 0.2rem;
@@ -637,15 +641,15 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
   .documentos-header {
     display: none;
   }
-  
+
   .documento-card {
     padding: 1rem;
-    
+
     .reciente-badge {
       font-size: 0.65rem;
     }
   }
-  
+
   .acciones-buttons {
     .btn {
       padding: 0.35rem 0.6rem !important;
@@ -658,23 +662,23 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
   .rendicion-rechazados-inner {
     padding: 10px;
   }
-  
+
   .search-container {
     margin-bottom: 15px;
   }
-  
+
   .documento-card {
     .documento-numero {
       font-size: 0.9rem;
     }
   }
-  
+
   .pagination-controls {
     .btn {
       padding: 0.3rem 0.6rem !important;
       font-size: 0.8rem !important;
     }
-    
+
     .page-numbers {
       .btn {
         min-width: 32px;
@@ -688,7 +692,7 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
   .rendicion-rechazados-inner {
     padding: 8px;
   }
-  
+
   .search-container {
     .search-group {
       .form-control {
@@ -696,18 +700,18 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
       }
     }
   }
-  
+
   .documento-card {
     padding: 0.8rem;
   }
-  
+
   .pagination-info {
     font-size: 0.8rem;
   }
-  
+
   .pagination-controls {
     gap: 0.3rem;
-    
+
     .btn {
       padding: 0.25rem 0.5rem !important;
       min-width: 30px;
@@ -733,4 +737,29 @@ $color-secondary-dark: #5a6268; /* Variable agregada */
   &:hover {
     background: $color-primary-dark;
   }
+}
+
+#chart-estados {
+  position: relative !important;
+  pointer-events: auto !important;
+  z-index: 1 !important;
+}
+
+// Si hay wrapper alrededor del canvas
+.card-body:has(canvas) {
+  overflow: hidden;
+  position: relative;
+}
+#chart-estados {
+  pointer-events: auto !important;
+  touch-action: auto !important;
+  position: relative !important;
+  z-index: 1 !important;
+  max-width: 100%;
+  height: 100% !important;
+}
+
+.card-body:has(#chart-estados) {
+  position: relative;
+  overflow: hidden;
 }

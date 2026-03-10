@@ -1,0 +1,406 @@
+<div class="juridica-creacion-container">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="page-title">
+      <i class="fas fa-file-contract me-2"></i>
+      {{ isEditMode ? 'Editar Contrato' : 'Crear Nuevo Contrato' }}
+    </h2>
+    <a routerLink="/juridica/list" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left me-2"></i>
+      Volver a la lista
+    </a>
+  </div>
+
+  <!-- Alertas -->
+  <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show mb-4">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    {{ errorMessage }}
+    <button type="button" class="btn-close" (click)="dismissError()"></button>
+  </div>
+
+  <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show mb-4">
+    <i class="fas fa-check-circle me-2"></i>
+    {{ successMessage }}
+    <button type="button" class="btn-close" (click)="dismissSuccess()"></button>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="isLoading" class="text-center py-5">
+    <div class="spinner-border text-primary"></div>
+    <p class="mt-2">Cargando datos del contrato...</p>
+  </div>
+
+  <!-- Progress Steps -->
+  <div *ngIf="!isLoading" class="progress-steps mb-4">
+    <div class="step" [class.active]="pasoActual === 1" [class.completed]="pasoActual > 1">
+      <div class="step-number">1</div>
+      <div class="step-label">Generales</div>
+    </div>
+    <div class="step-connector"></div>
+    <div class="step" [class.active]="pasoActual === 2" [class.completed]="pasoActual > 2">
+      <div class="step-number">2</div>
+      <div class="step-label">Valores</div>
+    </div>
+    <div class="step-connector"></div>
+    <div class="step" [class.active]="pasoActual === 3" [class.completed]="pasoActual > 3">
+      <div class="step-number">3</div>
+      <div class="step-label">Presupuesto</div>
+    </div>
+    <div class="step-connector"></div>
+    <div class="step" [class.active]="pasoActual === 4">
+      <div class="step-number">4</div>
+      <div class="step-label">Anticipo</div>
+    </div>
+  </div>
+
+  <!-- Formulario -->
+  <form *ngIf="!isLoading" [formGroup]="contratoForm" (ngSubmit)="guardarContrato()" #contratoFormElement>
+    <!-- PASO 1: DATOS GENERALES -->
+    <div class="card mb-4" *ngIf="pasoActual === 1">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Datos Generales del Contrato</h5>
+      </div>
+      
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <label class="form-label required-field">Vigencia</label>
+            <select class="form-control" formControlName="vigencia"
+                    [ngClass]="{'is-invalid': submitted && f['vigencia'].errors}">
+              <option value="">Seleccione vigencia</option>
+              <option *ngFor="let year of vigencias" [value]="year">{{ year }}</option>
+            </select>
+            <div *ngIf="submitted && f['vigencia'].errors" class="invalid-feedback">
+              La vigencia es requerida
+            </div>
+          </div>
+
+          <div class="col-md-4 mb-3">
+            <label class="form-label required-field">Número de Contrato</label>
+            <input type="text" class="form-control" formControlName="numeroContrato"
+                   [ngClass]="{'is-invalid': submitted && f['numeroContrato'].errors}"
+                   placeholder="Ej: 001-2026">
+            <div *ngIf="submitted && f['numeroContrato'].errors" class="invalid-feedback">
+              El número de contrato es requerido
+            </div>
+          </div>
+
+          <div class="col-md-4 mb-3">
+            <label class="form-label required-field">Tipo de Contrato</label>
+            <select class="form-control" formControlName="tipoContrato"
+                    [ngClass]="{'is-invalid': submitted && f['tipoContrato'].errors}">
+              <option value="">Seleccione tipo</option>
+              <option *ngFor="let tipo of tiposContrato" [value]="tipo.value">
+                {{ tipo.label }}
+              </option>
+            </select>
+            <div *ngIf="submitted && f['tipoContrato'].errors" class="invalid-feedback">
+              El tipo de contrato es requerido
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-3">
+          <div class="card-header bg-light">
+            <h6 class="mb-0">Datos del Proveedor</h6>
+          </div>
+          
+          <div class="card-body" formGroupName="proveedor">
+            <div class="row">
+              <div class="col-md-3 mb-3">
+                <label class="form-label required-field">Tipo ID</label>
+                <select class="form-control" formControlName="tipoIdentificacion">
+                  <option *ngFor="let tipo of tiposIdentificacion" [value]="tipo.value">
+                    {{ tipo.label }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="col-md-3 mb-3">
+                <label class="form-label required-field">Número</label>
+                <input type="text" class="form-control" formControlName="numeroIdentificacion"
+                       [ngClass]="{'is-invalid': submitted && f['proveedor'].get('numeroIdentificacion')?.errors}"
+                       placeholder="NIT o CC">
+                <div *ngIf="submitted && f['proveedor'].get('numeroIdentificacion')?.errors" 
+                     class="invalid-feedback">
+                  El número de identificación es requerido
+                </div>
+              </div>
+
+              <div class="col-md-6 mb-3">
+                <label class="form-label required-field">Nombre/Razón Social</label>
+                <input type="text" class="form-control" formControlName="nombreRazonSocial"
+                       [ngClass]="{'is-invalid': submitted && f['proveedor'].get('nombreRazonSocial')?.errors}"
+                       placeholder="Nombre completo o razón social">
+                <div *ngIf="submitted && f['proveedor'].get('nombreRazonSocial')?.errors" 
+                     class="invalid-feedback">
+                  El nombre es requerido
+                </div>
+              </div>
+
+              <div class="col-md-4 mb-3">
+                <label class="form-label">Dirección</label>
+                <input type="text" class="form-control" formControlName="direccion"
+                       placeholder="Dirección">
+              </div>
+
+              <div class="col-md-4 mb-3">
+                <label class="form-label">Teléfono</label>
+                <input type="text" class="form-control" formControlName="telefono"
+                       placeholder="Teléfono">
+              </div>
+
+              <div class="col-md-4 mb-3">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-control" formControlName="email"
+                       placeholder="correo@ejemplo.com"
+                       [ngClass]="{'is-invalid': submitted && f['proveedor'].get('email')?.errors}">
+                <div *ngIf="submitted && f['proveedor'].get('email')?.errors" 
+                     class="invalid-feedback">
+                  Email inválido
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3">
+          <label class="form-label required-field">Objeto del Contrato</label>
+          <textarea class="form-control" formControlName="objeto" rows="4"
+                    [ngClass]="{'is-invalid': submitted && f['objeto'].errors}"
+                    placeholder="Describa el objeto del contrato..."></textarea>
+          <div *ngIf="submitted && f['objeto'].errors" class="invalid-feedback">
+            El objeto del contrato es requerido
+          </div>
+        </div>
+      </div>
+
+      <div class="card-footer text-end">
+        <button type="button" class="btn btn-primary px-4" (click)="siguientePaso()">
+          Siguiente <i class="fas fa-arrow-right ms-2"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- PASO 2: VALORES Y PLAZOS -->
+    <div class="card mb-4" *ngIf="pasoActual === 2">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0">Valores y Plazos</h5>
+      </div>
+      
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label required-field">Valor del Contrato</label>
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              <input type="number" class="form-control" formControlName="valor"
+                     [ngClass]="{'is-invalid': submitted && f['valor'].errors}"
+                     placeholder="0" min="1">
+            </div>
+            <div *ngIf="submitted && f['valor'].errors" class="invalid-feedback d-block">
+              El valor es requerido y debe ser mayor a 0
+            </div>
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label class="form-label required-field">Plazo (días)</label>
+            <input type="number" class="form-control" formControlName="plazoDias"
+                   [ngClass]="{'is-invalid': submitted && f['plazoDias'].errors}"
+                   placeholder="Días de ejecución" min="1">
+            <div *ngIf="submitted && f['plazoDias'].errors" class="invalid-feedback">
+              El plazo es requerido y debe ser mayor a 0
+            </div>
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label class="form-label required-field">Fecha de Inicio</label>
+            <input type="date" class="form-control" formControlName="fechaInicio"
+                   [ngClass]="{'is-invalid': submitted && f['fechaInicio'].errors}">
+            <div *ngIf="submitted && f['fechaInicio'].errors" class="invalid-feedback">
+              La fecha de inicio es requerida
+            </div>
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label class="form-label required-field">Fecha de Terminación</label>
+            <input type="date" class="form-control" formControlName="fechaTerminacion" readonly>
+            <small class="text-muted">Calculada automáticamente según el plazo</small>
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label class="form-label required-field">Fecha de Firma</label>
+            <input type="date" class="form-control" formControlName="fechaFirma"
+                   [ngClass]="{'is-invalid': submitted && f['fechaFirma'].errors}">
+            <div *ngIf="submitted && f['fechaFirma'].errors" class="invalid-feedback">
+              La fecha de firma es requerida
+            </div>
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label class="form-label required-field">Supervisor</label>
+            <select class="form-control" formControlName="supervisor"
+                    [ngClass]="{'is-invalid': submitted && f['supervisor'].errors}">
+              <option value="">Seleccione supervisor</option>
+              <option *ngFor="let sup of supervisores" [value]="sup.id">
+                {{ sup.nombre }}
+              </option>
+            </select>
+            <div *ngIf="submitted && f['supervisor'].errors" class="invalid-feedback">
+              El supervisor es requerido
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-footer d-flex justify-content-between">
+        <button type="button" class="btn btn-outline-secondary px-4" (click)="pasoAnterior()">
+          <i class="fas fa-arrow-left me-2"></i> Anterior
+        </button>
+        <button type="button" class="btn btn-primary px-4" (click)="siguientePaso()">
+          Siguiente <i class="fas fa-arrow-right ms-2"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- PASO 3: PRESUPUESTAL -->
+    <div class="card mb-4" *ngIf="pasoActual === 3">
+      <div class="card-header bg-warning text-dark">
+        <h5 class="mb-0">Información Presupuestal</h5>
+      </div>
+      
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">CDP</label>
+            <input type="text" class="form-control" formControlName="cdp"
+                   placeholder="Número de CDP">
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label class="form-label">RP</label>
+            <input type="text" class="form-control" formControlName="rp"
+                   placeholder="Número de RP">
+          </div>
+        </div>
+      </div>
+
+      <div class="card-footer d-flex justify-content-between">
+        <button type="button" class="btn btn-outline-secondary px-4" (click)="pasoAnterior()">
+          <i class="fas fa-arrow-left me-2"></i> Anterior
+        </button>
+        <button type="button" class="btn btn-primary px-4" (click)="siguientePaso()">
+          Siguiente <i class="fas fa-arrow-right ms-2"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- PASO 4: ANTICIPO -->
+    <div class="card mb-4" *ngIf="pasoActual === 4">
+      <div class="card-header bg-info text-white">
+        <h5 class="mb-0">Anticipo y Finalización</h5>
+      </div>
+      
+      <div class="card-body">
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" formControlName="seDesembolsaAnticipo" id="anticipo">
+          <label class="form-check-label fw-bold" for="anticipo">
+            ¿Se desembolsa anticipo?
+          </label>
+        </div>
+
+        <div *ngIf="contratoForm.get('seDesembolsaAnticipo')?.value" class="anticipo-fields">
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label required-field">% Anticipo</label>
+              <div class="input-group">
+                <input type="number" class="form-control" formControlName="porcentajeAnticipo"
+                       placeholder="0" min="1" max="100">
+                <span class="input-group-text">%</span>
+              </div>
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label class="form-label">Valor Anticipo</label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="number" class="form-control" formControlName="valorAnticipo" readonly>
+              </div>
+            </div>
+
+            <div class="col-md-4 mb-3">
+              <label class="form-label required-field">Fecha Desembolso</label>
+              <input type="date" class="form-control" formControlName="fechaDesembolsoAnticipo">
+            </div>
+          </div>
+        </div>
+
+        <div class="row mt-3">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Adiciones (Valor)</label>
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              <input type="number" class="form-control" formControlName="adiciones"
+                     placeholder="0" min="0">
+            </div>
+            <small class="text-muted">Inicialmente 0, se puede modificar después</small>
+          </div>
+        </div>
+
+        <!-- Resumen -->
+        <div class="resumen-financiero mt-4 p-4 rounded">
+          <h6 class="text-white mb-3">
+            <i class="fas fa-chart-line me-2"></i>
+            Resumen Financiero
+          </h6>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="d-flex justify-content-between mb-2">
+                <span class="text-white-50">Valor Inicial:</span>
+                <span class="text-white fw-bold">{{ contratoForm.get('valor')?.value | currency:'COP':'symbol':'1.0-0' }}</span>
+              </div>
+              <div class="d-flex justify-content-between mb-2">
+                <span class="text-white-50">Adiciones:</span>
+                <span class="text-white fw-bold">{{ contratoForm.get('adiciones')?.value | currency:'COP':'symbol':'1.0-0' }}</span>
+              </div>
+              <hr class="bg-white">
+              <div class="d-flex justify-content-between">
+                <span class="text-white fw-bold">Valor Total:</span>
+                <span class="text-white fw-bold fs-5">{{ valorTotal | currency:'COP':'symbol':'1.0-0' }}</span>
+              </div>
+            </div>
+            <div class="col-md-6" *ngIf="contratoForm.get('seDesembolsaAnticipo')?.value">
+              <div class="d-flex justify-content-between mb-2">
+                <span class="text-white-50">Anticipo:</span>
+                <span class="text-white">{{ contratoForm.get('porcentajeAnticipo')?.value }}%</span>
+              </div>
+              <div class="d-flex justify-content-between">
+                <span class="text-white-50">Valor Anticipo:</span>
+                <span class="text-white">{{ contratoForm.get('valorAnticipo')?.value | currency:'COP':'symbol':'1.0-0' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-footer d-flex justify-content-between">
+        <button type="button" class="btn btn-outline-secondary px-4" (click)="pasoAnterior()">
+          <i class="fas fa-arrow-left me-2"></i> Anterior
+        </button>
+        <div>
+          <button type="button" class="btn btn-outline-danger me-2 px-4" (click)="cancelar()">
+            <i class="fas fa-times me-2"></i> Cancelar
+          </button>
+          <button type="submit" class="btn btn-success px-4" [disabled]="isSubmitting">
+            <span *ngIf="!isSubmitting">
+              <i class="fas fa-save me-2"></i> {{ isEditMode ? 'Actualizar' : 'Guardar' }} Contrato
+            </span>
+            <span *ngIf="isSubmitting">
+              <i class="fas fa-spinner fa-spin me-2"></i> Guardando...
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>

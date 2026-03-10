@@ -557,7 +557,8 @@ ngOnInit() {
       [UserRole.CONTABILIDAD]: 'Contabilidad',
       [UserRole.TESORERIA]: 'Tesorería',
       [UserRole.ASESOR_GERENCIA]: 'Asesor de Gerencia',
-      [UserRole.RENDICION_CUENTAS]: 'Rendición de Cuentas'
+      [UserRole.RENDICION_CUENTAS]: 'Rendición de Cuentas',
+      [UserRole.JURIDICA]: 'Jurídica' // 👈 AGREGAR
     };
 
     return roleNames[role] || role;

@@ -1,4 +1,14 @@
 // src/app/core/models/estadisticas-rendicion-cuentas.model.ts
+export type RendicionCuentasEstado =
+  | 'PENDIENTE'
+  | 'EN_REVISION'
+  | 'APROBADO'
+  | 'OBSERVADO'
+  | 'RECHAZADO'
+  | 'COMPLETADO'
+  | 'ESPERA_APROBACION_GERENCIA'
+  | 'APROBADO_POR_GERENCIA';
+
 export enum PeriodoStats {
   HOY = 'hoy',
   SEMANA = 'semana',
@@ -8,7 +18,7 @@ export enum PeriodoStats {
 
 export interface FiltrosStats {
   periodo: PeriodoStats;
-  soloMios: boolean;
+  soloMios?: boolean;
 }
 
 export interface ResumenRendicion {
@@ -18,8 +28,8 @@ export interface ResumenRendicion {
   observados: number;
   rechazados: number;
   completados: number;
-  esperaAprobacionGerencia: number;
-  aprobadoPorGerencia: number;
+  esperaAprobacionGerencia: number;     // ← importante
+  aprobadoPorGerencia: number;          // ← importante
   total: number;
 }
 
@@ -51,11 +61,11 @@ export interface DocumentoItem {
   numeroRadicado: string;
   contratista: string;
   contrato: string;
-  estado: string;
-  fechaAsignacion: Date;
-  fechaDecision?: Date;
+  estado: RendicionCuentasEstado | string;
+  fechaAsignacion: Date | string;
+  fechaDecision?: Date | string | null;
   responsableAsignado?: string;
-  observaciones?: string;
+  observaciones?: string | null;
 }
 
 export interface ActividadItem {
@@ -63,8 +73,9 @@ export interface ActividadItem {
   tipo: string;
   numeroRadicado: string;
   contratista: string;
-  fecha: Date;
+  fecha: Date | string;
   responsable: string;
+  // estado?: RendicionCuentasEstado;   // opcional
 }
 
 export interface Tiempos {
@@ -82,16 +93,18 @@ export interface MisMetricas {
 }
 
 export interface EstadisticasRendicionCuentas {
-  desde: Date;
-  hasta: Date;
-  fechaCalculo: Date;
-  resumen: ResumenRendicion;
-  rendimiento: Rendimiento;
-  metricas: Metricas;
-  distribucion: DistribucionItem[];
+  desde:          Date | string | null;
+  hasta:          Date | string | null;
+  fechaCalculo:   Date | string | null;
+  resumen:        ResumenRendicion;
+  rendimiento:    Rendimiento;
+  metricas:       Metricas;
+  distribucion:   DistribucionItem[];
   documentosPendientes: DocumentoItem[];
   documentosProcesados: DocumentoItem[];
   actividadReciente: ActividadItem[];
-  tiempos: Tiempos;
-  misMetricas?: MisMetricas;
+  tiempos:        Tiempos;
+  cumplimiento?:  any;
+  tendencias?:    any[];
+  misMetricas?:   MisMetricas;
 }

@@ -1,0 +1,217 @@
+@import '../../../../shared/layout-styles.scss';
+
+$color-primary: #1D4ED8;
+$color-primary-light: rgba(29, 78, 216, 0.1);
+$color-primary-medium: rgba(29, 78, 216, 0.2);
+$color-primary-dark: #2563EB;
+
+.juridica-creacion-container {
+  padding: 20px;
+  min-height: calc(100vh - 100px);
+  background-color: #f8f9fa;
+
+  .page-title {
+    color: $color-primary;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .progress-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2rem;
+
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+
+      .step-number {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: #e9ecef;
+        color: #6c757d;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        margin-bottom: 8px;
+        transition: all 0.3s ease;
+      }
+
+      .step-label {
+        font-size: 0.9rem;
+        color: #6c757d;
+        font-weight: 500;
+      }
+
+      &.active {
+        .step-number {
+          background-color: $color-primary;
+          color: white;
+          box-shadow: 0 0 0 4px $color-primary-light;
+        }
+        .step-label {
+          color: $color-primary;
+          font-weight: 600;
+        }
+      }
+
+      &.completed {
+        .step-number {
+          background-color: #10b981;
+          color: white;
+        }
+        .step-label {
+          color: #10b981;
+        }
+      }
+    }
+
+    .step-connector {
+      width: 60px;
+      height: 2px;
+      background-color: #e9ecef;
+      margin: 0 10px;
+      margin-bottom: 30px;
+    }
+  }
+
+  .card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border: 1px solid $color-primary-light;
+
+    .card-header {
+      border-radius: 12px 12px 0 0 !important;
+      padding: 1rem 1.5rem;
+      font-weight: 600;
+    }
+
+    .card-body {
+      padding: 1.5rem;
+    }
+
+    .card-footer {
+      padding: 1rem 1.5rem;
+      background-color: white;
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+    }
+  }
+
+  .form-label {
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+
+    &.required-field::after {
+      content: ' *';
+      color: #dc3545;
+      font-weight: bold;
+    }
+  }
+
+  .form-control, .form-select {
+    border: 1px solid $color-primary-light;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+
+    &:focus {
+      border-color: $color-primary;
+      box-shadow: 0 0 0 0.25rem $color-primary-light;
+    }
+
+    &.is-invalid {
+      border-color: #dc3545;
+      &:focus {
+        box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+      }
+    }
+
+    &:read-only, &:disabled {
+      background-color: #e9ecef;
+      opacity: 0.8;
+    }
+  }
+
+  .input-group-text {
+    background-color: #f8f9fa;
+    border: 1px solid $color-primary-light;
+  }
+
+  .invalid-feedback {
+    display: block;
+    font-size: 0.875rem;
+  }
+
+  .resumen-financiero {
+    background: linear-gradient(135deg, $color-primary 0%, $color-primary-dark 100%);
+    border-radius: 10px;
+
+    hr {
+      border-top-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .text-white-50 {
+      color: rgba(255, 255, 255, 0.7) !important;
+    }
+  }
+
+  .btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+
+    &.btn-primary {
+      background: $color-primary;
+      border-color: $color-primary;
+
+      &:hover:not(:disabled) {
+        background: $color-primary-dark;
+        border-color: $color-primary-dark;
+      }
+    }
+
+    &.btn-success {
+      background: #10b981;
+      border-color: #10b981;
+
+      &:hover:not(:disabled) {
+        background: #059669;
+        border-color: #059669;
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .juridica-creacion-container {
+    padding: 10px;
+
+    .page-title {
+      font-size: 1.5rem;
+    }
+
+    .progress-steps {
+      .step-connector {
+        width: 20px;
+      }
+
+      .step {
+        .step-label {
+          font-size: 0.8rem;
+        }
+      }
+    }
+
+    .card {
+      .card-body {
+        padding: 1rem;
+      }
+    }
+  }
+}

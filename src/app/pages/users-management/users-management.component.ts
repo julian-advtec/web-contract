@@ -252,9 +252,10 @@ export class UsersManagementComponent implements OnInit, OnDestroy {
       [UserRole.CONTABILIDAD]: 'Contabilidad',
       [UserRole.TESORERIA]: 'Tesorería',
       [UserRole.ASESOR_GERENCIA]: 'Asesor de Gerencia',
-      [UserRole.RENDICION_CUENTAS]: 'Rendición de Cuentas'
+      [UserRole.RENDICION_CUENTAS]: 'Rendición de Cuentas',
+      [UserRole.JURIDICA]: 'Jurídica' // 👈 AGREGAR
     };
-    
+
     return roleNames[role] || role;
   }
 
@@ -296,7 +297,7 @@ export class UsersManagementComponent implements OnInit, OnDestroy {
   toggleUserStatus(user: User): void {
     const action = user.isActive ? 'desactivar' : 'activar';
     const userName = user.fullName || user.username;
-    
+
     this.notificationService.confirm(
       `${user.isActive ? 'Desactivar' : 'Activar'} Usuario`,
       `¿Está seguro de ${action} al usuario "${userName}"?`,
@@ -320,7 +321,7 @@ export class UsersManagementComponent implements OnInit, OnDestroy {
 
   deleteUser(user: User): void {
     const userName = user.fullName || user.username;
-    
+
     this.notificationService.confirm(
       'Eliminar Usuario',
       `¿Está seguro de eliminar al usuario "${userName}"? Esta acción no se puede deshacer.`,

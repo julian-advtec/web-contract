@@ -1,0 +1,166 @@
+@import '../../../../shared/layout-styles.scss';
+
+$color-primary: #1D4ED8;
+$color-primary-light: rgba(29, 78, 216, 0.1);
+$color-primary-medium: rgba(29, 78, 216, 0.2);
+$color-primary-dark: #2563EB;
+$color-warning: #F59E0B;
+$color-danger: #EF4444;
+
+.juridica-list-container {
+  width: 100%;
+  height: 100%;
+  min-height: calc(100vh - 80px);
+  background-color: #f8f9fa;
+  
+  .juridica-list-inner {
+    padding: 15px;
+    max-width: 1600px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}
+
+.page-title {
+  color: $color-primary;
+  font-weight: 600;
+  margin: 0;
+}
+
+.search-container-smaller {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  
+  .input-group {
+    width: 100%;
+    border: 4px solid $color-primary-light;
+    border-radius: 12px;
+    overflow: hidden;
+    
+    .input-group-text {
+      background-color: $color-primary-light;
+      border: none;
+      color: $color-primary;
+    }
+    
+    .form-control {
+      border: none;
+      
+      &:focus {
+        box-shadow: none;
+      }
+    }
+  }
+}
+
+.filters-container {
+  .form-select {
+    border: 2px solid $color-primary-light;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    
+    &:focus {
+      border-color: $color-primary;
+      box-shadow: 0 0 0 0.2rem $color-primary-light;
+    }
+  }
+}
+
+.main-card {
+  border: none;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+  border: 2px solid $color-primary-light;
+
+  .table {
+    th {
+      background-color: #f8f9fa;
+      color: $color-primary-dark;
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 1rem;
+      border-bottom: 2px solid $color-primary-light;
+    }
+
+    td {
+      padding: 1rem;
+      vertical-align: middle;
+    }
+
+    .objeto-cell {
+      max-width: 250px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .badge {
+      padding: 0.5rem 0.75rem;
+      border-radius: 20px;
+      font-weight: 500;
+      font-size: 0.85rem;
+    }
+
+    .btn-group {
+      .btn {
+        padding: 0.25rem 0.5rem;
+        border-radius: 6px;
+        
+        &:hover {
+          transform: translateY(-2px);
+        }
+      }
+    }
+  }
+}
+
+.pagination {
+  .page-link {
+    cursor: pointer;
+    color: $color-primary;
+    
+    &:hover {
+      background-color: $color-primary-light;
+    }
+  }
+
+  .page-item.active .page-link {
+    background-color: $color-primary;
+    border-color: $color-primary;
+    color: white;
+  }
+
+  .page-item.disabled .page-link {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+}
+
+@media (max-width: 992px) {
+  .juridica-list-inner {
+    padding: 12px;
+  }
+  
+  .table-responsive {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .juridica-list-container {
+    .juridica-list-inner {
+      padding: 10px;
+    }
+  }
+  
+  .page-title {
+    font-size: 1.5rem;
+  }
+  
+  .filters-container {
+    .row > div {
+      margin-bottom: 0.5rem;
+    }
+  }
+}

@@ -1,4 +1,3 @@
-// src/app/core/models/user.types.ts
 import { Signature } from '../services/signature.service';
 
 // ENUM de roles
@@ -10,7 +9,8 @@ export enum UserRole {
   CONTABILIDAD = 'contabilidad',
   TESORERIA = 'tesoreria',
   ASESOR_GERENCIA = 'asesor_gerencia',
-  RENDICION_CUENTAS = 'rendicion_cuentas'
+  RENDICION_CUENTAS = 'rendicion_cuentas',
+  JURIDICA = 'juridica' // 👈 NUEVO ROL AGREGADO
 }
 
 // Función para obtener el valor string del enum
@@ -37,7 +37,8 @@ export function getUserRoleName(role: UserRole | string): string {
     'tesorería': 'Tesorería',
     'asesor_gerencia': 'Asesor de Gerencia',
     'rendicion_cuentas': 'Rendición de Cuentas',
-    'rendición_cuentas': 'Rendición de Cuentas'
+    'rendición_cuentas': 'Rendición de Cuentas',
+    'juridica': 'Jurídica' // 👈 NUEVO
   };
   
   return roleNames[roleStr.toLowerCase()] || 'Usuario';
@@ -78,6 +79,8 @@ export function stringToUserRole(roleStr: string): UserRole {
     case 'rendicion_cuentas':
     case 'rendición_cuentas':
       return UserRole.RENDICION_CUENTAS;
+    case 'juridica': // 👈 NUEVO
+      return UserRole.JURIDICA;
     default:
       const validValues = Object.values(UserRole) as string[];
       if (validValues.includes(lowerRole)) {
@@ -99,7 +102,7 @@ export interface User {
   updatedAt?: Date | string;
   lastLogin?: Date | string;
   profileImage?: string;
-  signature?: Signature | null; // 👈 NUEVO
+  signature?: Signature | null;
 }
 
 // INTERFAZ CreateUserRequest

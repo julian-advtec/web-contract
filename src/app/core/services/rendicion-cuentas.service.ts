@@ -21,7 +21,7 @@ import {
 export class RendicionCuentasService {
   private apiUrl = `${environment.apiUrl}/rendicion-cuentas`;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   // ==============================================
   // MÉTODOS PRINCIPALES
@@ -49,7 +49,7 @@ export class RendicionCuentasService {
     if (!documentoId) return throwError(() => new Error('ID requerido'));
 
     console.log('📤 Tomando documento para revisión:', documentoId);
-    
+
     return this.http.post<any>(`${this.apiUrl}/documentos/${documentoId}/tomar`, {}).pipe(
       map(res => {
         console.log('📥 Respuesta tomar documento:', res);
@@ -76,40 +76,40 @@ export class RendicionCuentasService {
    * Obtener detalle de una rendición por su ID
    * GET /rendicion-cuentas/rendiciones/:rendicionId/detalle
    */
-obtenerDetalleRendicion(rendicionId: string): Observable<RendicionCuentasProceso> {
-  if (!rendicionId) return throwError(() => new Error('ID de rendición requerido'));
+  obtenerDetalleRendicion(rendicionId: string): Observable<RendicionCuentasProceso> {
+    if (!rendicionId) return throwError(() => new Error('ID de rendición requerido'));
 
-  console.log(`[Service] Obteniendo detalle rendición: ${rendicionId}`);
+    console.log(`[Service] Obteniendo detalle rendición: ${rendicionId}`);
 
-  return this.http.get<any>(`${this.apiUrl}/rendiciones/${rendicionId}/detalle`).pipe(
-    map(res => {
-      console.log('[Service] Respuesta cruda de detalle rendición:', res);
-      
-      let datos = res.data || res;
-      if (!datos) throw new Error('No se encontraron datos en la respuesta');
+    return this.http.get<any>(`${this.apiUrl}/rendiciones/${rendicionId}/detalle`).pipe(
+      map(res => {
+        console.log('[Service] Respuesta cruda de detalle rendición:', res);
 
-      return this.mapearProceso(datos);
-    }),
-    catchError(err => this.handleError(err, `obtener detalle rendición ${rendicionId}`))
-  );
-}
+        let datos = res.data || res;
+        if (!datos) throw new Error('No se encontraron datos en la respuesta');
 
-tomarDecision(rendicionId: string, dto: TomarDecisionDto): Observable<RendicionCuentasProceso> {
-  console.log(`[Service] Tomando decisión en rendición ${rendicionId}:`, dto);
+        return this.mapearProceso(datos);
+      }),
+      catchError(err => this.handleError(err, `obtener detalle rendición ${rendicionId}`))
+    );
+  }
 
-  return this.http.patch<any>(`${this.apiUrl}/documentos/${rendicionId}/decision`, dto).pipe(
-    map(res => this.handleActionResponse(res)),
-    catchError(err => this.handleError(err, `tomar decisión en ${rendicionId}`))
-  );
-}
+  tomarDecision(rendicionId: string, dto: TomarDecisionDto): Observable<RendicionCuentasProceso> {
+    console.log(`[Service] Tomando decisión en rendición ${rendicionId}:`, dto);
 
-descargarCarpeta(documentoId: string): Observable<Blob> {
-  console.log(`[Service] Descargando carpeta completa del documento: ${documentoId}`);
-  
-  return this.http.get(`${this.apiUrl}/documentos/${documentoId}/descargar`, {
-    responseType: 'blob'
-  });
-}
+    return this.http.patch<any>(`${this.apiUrl}/documentos/${rendicionId}/decision`, dto).pipe(
+      map(res => this.handleActionResponse(res)),
+      catchError(err => this.handleError(err, `tomar decisión en ${rendicionId}`))
+    );
+  }
+
+  descargarCarpeta(documentoId: string): Observable<Blob> {
+    console.log(`[Service] Descargando carpeta completa del documento: ${documentoId}`);
+
+    return this.http.get(`${this.apiUrl}/documentos/${documentoId}/descargar`, {
+      responseType: 'blob'
+    });
+  }
 
   /**
    * Alias para mantener compatibilidad
@@ -124,61 +124,56 @@ descargarCarpeta(documentoId: string): Observable<Blob> {
    */
   obtenerTodosDocumentos(): Observable<any[]> {
     console.log('📥 Solicitando todos los documentos de rendición...');
-    
+
     return this.http.get<any>(`${this.apiUrl}/todos-documentos`).pipe(
       map(res => {
-        console.log('📥 Respuesta todos documentos:', res);
-        
-        // Si la respuesta es directamente un array
+        console.log('📥 Respuesta completa de todos-documentos:', JSON.stringify(res, null, 2));
+
+        // Caso 1: Respuesta directa array
         if (Array.isArray(res)) {
-          console.log(`📊 Array directo con ${res.length} documentos`);
+          console.log(`→ Array directo (${res.length} docs)`);
           return res;
         }
-        
-        // Si tiene estructura { ok: true, data: [...] }
+
+        // Caso 2: { ok: true, data: [...] }
         if (res?.ok === true && Array.isArray(res.data)) {
-          console.log(`📊 Respuesta con ok y data: ${res.data.length} documentos`);
+          console.log(`→ ok + data array (${res.data.length} docs)`);
           return res.data;
         }
-        
-        // Si tiene estructura { data: [...] }
+
+        // Caso 3: { data: [...] }
         if (res?.data && Array.isArray(res.data)) {
-          console.log(`📊 Respuesta con data: ${res.data.length} documentos`);
+          console.log(`→ data array (${res.data.length} docs)`);
           return res.data;
         }
-        
-        // Si tiene estructura { documentos: [...] }
-        if (res?.documentos && Array.isArray(res.documentos)) {
-          console.log(`📊 Respuesta con documentos: ${res.documentos.length} documentos`);
-          return res.documentos;
+
+        // Caso 4: doble anidamiento { ok: true, data: { ok: true, data: [...] } }
+        if (res?.ok && res.data?.ok && Array.isArray(res.data.data)) {
+          console.log(`→ doble anidamiento ok + data.data (${res.data.data.length} docs)`);
+          return res.data.data;
         }
-        
-        // Si tiene estructura { items: [...] }
-        if (res?.items && Array.isArray(res.items)) {
-          console.log(`📊 Respuesta con items: ${res.items.length} documentos`);
-          return res.items;
+
+        // Caso 5: { data: { documentos: [...] } }
+        if (res?.data?.documentos && Array.isArray(res.data.documentos)) {
+          console.log(`→ data.documentos (${res.data.documentos.length} docs)`);
+          return res.data.documentos;
         }
-        
-        // Si es un objeto, verificar si tiene alguna propiedad que sea array
-        if (res && typeof res === 'object') {
-          const possibleArrays: any[][] = [];
-          Object.values(res).forEach((val: any) => {
-            if (Array.isArray(val)) {
-              possibleArrays.push(val);
-            }
-          });
-          if (possibleArrays.length > 0) {
-            console.log(`📊 Usando primera propiedad array con ${possibleArrays[0].length} documentos`);
-            return possibleArrays[0];
-          }
+
+        // Caso 6: cualquier propiedad que sea array
+        const arraysPosibles = Object.values(res || {}).filter(val => Array.isArray(val)) as any[];
+        if (arraysPosibles.length > 0) {
+          const primerArray = arraysPosibles[0];
+          console.log(`→ Primer array encontrado (${primerArray.length} docs)`);
+          return primerArray;
         }
-        
-        console.warn('⚠️ No se pudo extraer array de la respuesta:', res);
+
+        // Fallo total
+        console.warn('⚠️ No se encontró array en la respuesta:', res);
         return [];
       }),
       catchError(err => {
         console.error('❌ Error en obtenerTodosDocumentos:', err);
-        return of([]); // ← AHORA 'of' está importado
+        return of([]);
       })
     );
   }
@@ -191,22 +186,22 @@ descargarCarpeta(documentoId: string): Observable<Blob> {
     return this.http.get<any>(`${this.apiUrl}/historial`).pipe(
       map(res => {
         console.log('📥 Respuesta historial:', res);
-        
+
         // Si la respuesta es directamente un array
         if (Array.isArray(res)) {
           return res;
         }
-        
+
         // Si tiene estructura { ok: true, data: [...] }
         if (res?.ok === true && Array.isArray(res.data)) {
           return res.data;
         }
-        
+
         // Si tiene estructura { data: [...] }
         if (res?.data && Array.isArray(res.data)) {
           return res.data;
         }
-        
+
         return [];
       }),
       catchError(err => {
@@ -270,7 +265,7 @@ descargarCarpeta(documentoId: string): Observable<Blob> {
     }
 
     const procesoData = data.data || data;
-    
+
     const posiblesIds = [
       procesoData.id,
       procesoData.documentoId,
@@ -308,8 +303,8 @@ descargarCarpeta(documentoId: string): Observable<Blob> {
       documentoContratista: procesoData.documento?.documentoContratista || procesoData.documentoContratista,
       numeroContrato: procesoData.documento?.numeroContrato || procesoData.numeroContrato,
       contadorAsignado: procesoData.documento?.contadorAsignado || procesoData.contadorAsignado,
-      fechaCompletadoContabilidad: procesoData.documento?.fechaCompletadoContabilidad 
-        ? new Date(procesoData.documento.fechaCompletadoContabilidad) 
+      fechaCompletadoContabilidad: procesoData.documento?.fechaCompletadoContabilidad
+        ? new Date(procesoData.documento.fechaCompletadoContabilidad)
         : undefined,
       disponible: estaDisponible,
 
@@ -337,7 +332,7 @@ descargarCarpeta(documentoId: string): Observable<Blob> {
     if (upper.includes('PENDIENTE')) return RendicionCuentasEstado.PENDIENTE;
     if (upper.includes('OBSERVADO')) return RendicionCuentasEstado.OBSERVADO;
     if (upper.includes('RECHAZADO')) return RendicionCuentasEstado.RECHAZADO;
-    
+
     return upper;
   }
 

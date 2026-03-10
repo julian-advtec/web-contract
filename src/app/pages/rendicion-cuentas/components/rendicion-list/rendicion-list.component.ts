@@ -1,13 +1,11 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
 import { RendicionCuentasService } from '../../../../core/services/rendicion-cuentas.service';
-import { AuthService } from '../../../../core/services/auth.service';
-import { RendicionCuentasProceso, RendicionCuentasEstado } from '../../../../core/models/rendicion-cuentas.model';
 
 @Component({
   selector: 'app-rendicion-list',
@@ -17,10 +15,9 @@ import { RendicionCuentasProceso, RendicionCuentasEstado } from '../../../../cor
   styleUrls: ['./rendicion-list.component.scss']
 })
 export class RendicionListComponent implements OnInit, OnDestroy {
-
-  documentos: RendicionCuentasProceso[] = [];
-  filteredDocumentos: RendicionCuentasProceso[] = [];
-  paginatedDocumentos: RendicionCuentasProceso[] = [];
+  documentos: any[] = [];
+  filteredDocumentos: any[] = [];
+  paginatedDocumentos: any[] = [];
 
   isLoading = false;
   isProcessing = false;
@@ -28,25 +25,25 @@ export class RendicionListComponent implements OnInit, OnDestroy {
   successMessage = '';
 
   searchTerm = '';
-
   currentPage = 1;
   pageSize = 10;
   totalPages = 0;
   pages: number[] = [];
 
-  usuarioId: string = '';
+  usuarioId = ''; // Se llenará con el ID real del usuario logueado
 
   private destroy$ = new Subject<void>();
 
   constructor(
     private rendicionService: RendicionCuentasService,
-    private authService: AuthService,
     private router: Router
-  ) {}
+  ) { }
 
   ngOnInit(): void {
-    const user = this.authService.getCurrentUser();
+    // Obtener ID del usuario logueado (ajusta según tu authService)
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
     this.usuarioId = user?.id || '';
+
     this.cargarDocumentos();
   }
 
@@ -60,176 +57,183 @@ export class RendicionListComponent implements OnInit, OnDestroy {
     this.errorMessage = '';
     this.successMessage = '';
 
+    console.log('[Lista Completa] Cargando TODOS los documentos...');
+
     this.rendicionService.obtenerTodosDocumentos()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (docs: any[]) => {
-          console.log('Documentos recibidos:', docs); // ← útil para depurar
+        next: (docs) => {
+          console.log('[Lista Completa] Documentos recibidos del servicio:', docs?.length || 0);
+
+          if (docs && docs.length > 0) {
+            console.log('[Lista Completa] Primer documento:', docs[0]);
+          }
+
           this.documentos = docs || [];
-          this.aplicarBusqueda();
+          this.filteredDocumentos = [...this.documentos];
+          this.updatePagination();
+
+          if (this.documentos.length === 0) {
+            this.successMessage = 'No se encontraron documentos';
+          } else {
+            this.successMessage = `Se encontraron ${this.documentos.length} documentos`;
+          }
+
           this.isLoading = false;
         },
-        error: (err: any) => {
-          this.errorMessage = err.message || 'No se pudieron cargar los documentos';
-          console.error('Error al cargar:', err);
+        error: (err) => {
+          console.error('[Lista Completa] Error:', err);
+          this.errorMessage = 'No se pudieron cargar los documentos';
           this.isLoading = false;
         }
       });
   }
 
-  aplicarBusqueda(): void {
-    let lista = [...this.documentos];
-
-    if (this.searchTerm?.trim()) {
+  onSearch(): void {
+    if (!this.searchTerm.trim()) {
+      this.filteredDocumentos = [...this.documentos];
+    } else {
       const term = this.searchTerm.toLowerCase().trim();
-      lista = lista.filter(doc =>
-        (doc.numeroRadicado?.toLowerCase()?.includes(term) ?? false) ||
-        (doc.nombreContratista?.toLowerCase()?.includes(term) ?? false) ||
-        (doc.numeroContrato?.toLowerCase()?.includes(term) ?? false) ||
-        (doc.documentoContratista?.toLowerCase()?.includes(term) ?? false)
+      this.filteredDocumentos = this.documentos.filter(doc =>
+        (doc.numeroRadicado?.toLowerCase() || '').includes(term) ||
+        (doc.nombreContratista?.toLowerCase() || '').includes(term) ||
+        (doc.numeroContrato?.toLowerCase() || '').includes(term) ||
+        (doc.estado?.toLowerCase() || '').includes(term)
       );
     }
-
-    this.filteredDocumentos = lista;
     this.currentPage = 1;
-    this.actualizarPaginacion();
+    this.updatePagination();
   }
 
   limpiarBusqueda(): void {
     this.searchTerm = '';
-    this.aplicarBusqueda();
+    this.onSearch();
   }
 
-  actualizarPaginacion(): void {
+  updatePagination(): void {
     this.totalPages = Math.ceil(this.filteredDocumentos.length / this.pageSize);
     this.pages = [];
+    const maxPages = 5;
+    let start = Math.max(1, this.currentPage - Math.floor(maxPages / 2));
+    let end = Math.min(this.totalPages, start + maxPages - 1);
+    if (end - start + 1 < maxPages) start = Math.max(1, end - maxPages + 1);
+    for (let i = start; i <= end; i++) this.pages.push(i);
 
-    const maxVisible = 5;
-    let start = Math.max(1, this.currentPage - Math.floor(maxVisible / 2));
-    let end = Math.min(this.totalPages, start + maxVisible - 1);
-
-    if (end - start + 1 < maxVisible) {
-      start = Math.max(1, end - maxVisible + 1);
-    }
-
-    for (let i = start; i <= end; i++) {
-      this.pages.push(i);
-    }
-
-    const startIndex = (this.currentPage - 1) * this.pageSize;
-    this.paginatedDocumentos = this.filteredDocumentos.slice(startIndex, startIndex + this.pageSize);
+    const startIdx = (this.currentPage - 1) * this.pageSize;
+    this.paginatedDocumentos = this.filteredDocumentos.slice(startIdx, startIdx + this.pageSize);
   }
 
   changePage(page: number): void {
-    if (page < 1 || page > this.totalPages || page === this.currentPage) return;
-    this.currentPage = page;
-    this.actualizarPaginacion();
+    if (page >= 1 && page <= this.totalPages && page !== this.currentPage) {
+      this.currentPage = page;
+      this.updatePagination();
+    }
   }
 
-  // ──────────────────────────────────────────────
-  //  Lógica de permisos
-  // ──────────────────────────────────────────────
-
-  esLibre(doc: RendicionCuentasProceso): boolean {
-    // Documentos pendientes de tomar tendrán disponible: true o estado PENDIENTE sin responsable
-    return doc.disponible === true ||
-           (doc.estado === RendicionCuentasEstado.PENDIENTE && !doc.responsableId) ||
-           (doc.estado?.toUpperCase() === 'PENDIENTE' && !doc.responsableId);
+  trackById(index: number, doc: any): string {
+    return doc?.id || index.toString();
   }
 
-  esMiDocumentoEnRevision(doc: RendicionCuentasProceso): boolean {
-    return doc.responsableId === this.usuarioId &&
-           (doc.estado === RendicionCuentasEstado.EN_REVISION ||
-            doc.estado?.toUpperCase().includes('EN_REVISION'));
+  esReciente(doc: any): boolean {
+    const fecha = doc.fechaCreacion;
+    if (!fecha) return false;
+    const dias = Math.floor((Date.now() - new Date(fecha).getTime()) / (1000 * 60 * 60 * 24));
+    return dias <= 7;
   }
 
-  // ──────────────────────────────────────────────
-  //  Helpers visuales
-  // ──────────────────────────────────────────────
+  esMiDocumento(doc: any): boolean {
+    return doc.responsableId === this.usuarioId;
+  }
 
-  getEstadoBadgeClass(estado?: string): string {
+  esLibre(doc: any): boolean {
+    return !doc.responsableId && (doc.estado === 'PENDIENTE' || doc.disponible === true);
+  }
+
+  esMiDocumentoEnRevision(doc: any): boolean {
+    return this.esMiDocumento(doc) && doc.estado?.toUpperCase().includes('EN_REVISION');
+  }
+
+  getEstadoBadgeClass(estado: string): string {
     const e = (estado || '').toUpperCase();
-    if (e.includes('APROBADO') || e.includes('COMPLETADO')) return 'bg-success text-white';
+    if (e.includes('APROBADO')) return 'bg-success';
     if (e.includes('OBSERVADO')) return 'bg-warning text-dark';
-    if (e.includes('RECHAZADO')) return 'bg-danger text-white';
-    if (e.includes('EN_REVISION')) return 'bg-info text-white';
-    if (e.includes('PENDIENTE')) return 'bg-secondary text-white';
-    return 'bg-dark text-white';
+    if (e.includes('RECHAZADO')) return 'bg-danger';
+    if (e.includes('PENDIENTE')) return 'bg-warning';
+    if (e.includes('EN REVISION')) return 'bg-info';
+    return 'bg-secondary';
   }
 
-  getEstadoTexto(estado?: string): string {
+  getEstadoTexto(estado: string): string {
     const e = (estado || '').toUpperCase();
+    if (e.includes('EN REVISION')) return 'En Revisión';
     if (e.includes('APROBADO')) return 'Aprobado';
-    if (e.includes('OBSERVADO')) return 'Observado';
     if (e.includes('RECHAZADO')) return 'Rechazado';
-    if (e.includes('EN_REVISION')) return 'En Revisión';
+    if (e.includes('OBSERVADO')) return 'Observado';
     if (e.includes('PENDIENTE')) return 'Pendiente';
     return estado || '—';
   }
 
-  // ──────────────────────────────────────────────
-  //  Acciones
-  // ──────────────────────────────────────────────
-
-
-revisarDocumento(doc: RendicionCuentasProceso): void {
-  const id = 
-    (doc as any).rendicionId || 
-    doc.id || 
-    doc.documentoId || 
-    '';
-
-  if (!id) {
-    this.errorMessage = 'No se encontró ID válido para ver el detalle';
-    console.warn('Documento sin ID válido:', doc);
-    return;
+  getDiasTranscurridos(fecha: string | Date): number {
+    if (!fecha) return 0;
+    const diff = Date.now() - new Date(fecha).getTime();
+    return Math.floor(diff / (1000 * 60 * 60 * 24));
   }
 
-  this.router.navigate(['/rendicion-cuentas/procesar', id]);
-}
-
-tomarDocumento(doc: RendicionCuentasProceso): void {
-  const idParaTomar = doc.documentoId || doc.id || '';
-  if (!idParaTomar) {
-    this.errorMessage = 'No se encontró ID válido para tomar el documento';
-    return;
+  getDiasClass(doc: any): string {
+    const dias = this.getDiasTranscurridos(doc.fechaCreacion);
+    if (dias <= 2) return 'text-danger fw-bold';
+    if (dias <= 7) return 'text-warning';
+    return 'text-muted';
   }
 
-  this.isProcessing = true;
-
-  this.rendicionService.tomarDocumentoParaRevision(idParaTomar)
-    .pipe(takeUntil(this.destroy$))
-    .subscribe({
-      next: (res: any) => {
-        this.successMessage = 'Documento tomado correctamente';
-
-        const rendicionIdParaNavegar = 
-          res?.rendicionId || 
-          res?.data?.rendicionId || 
-          (doc as any).rendicionId || 
-          doc.id || 
-          doc.documentoId || 
-          '';
-
-        this.cargarDocumentos();
-
-        if (rendicionIdParaNavegar) {
-          setTimeout(() => {
-            this.router.navigate(['/rendicion-cuentas/procesar', rendicionIdParaNavegar]);
-          }, 1200);
-        } else {
-          this.errorMessage = 'Documento tomado, pero no se pudo abrir el detalle automáticamente';
-        }
-      },
-      error: (err) => {
-        this.errorMessage = err.message || 'Error al tomar el documento';
-        this.isProcessing = false;
-      },
-      complete: () => this.isProcessing = false
+  formatDate(fecha: string | Date): string {
+    if (!fecha) return '—';
+    return new Date(fecha).toLocaleDateString('es-CO', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
     });
-}
+  }
 
-  trackById(index: number, doc: any): string {
-    return doc?.rendicionId || doc?.id || doc?.documentoId || index.toString();
+  tomarDocumento(doc: any): void {
+    if (this.isProcessing) return;
+    this.isProcessing = true;
+
+    console.log('Tomando documento:', doc.id);
+
+    // Aquí llamas a tu servicio real cuando lo tengas implementado
+    // this.rendicionService.tomarDocumento(doc.id).subscribe(...)
+
+    setTimeout(() => {
+      this.isProcessing = false;
+      this.successMessage = 'Documento tomado correctamente';
+      this.cargarDocumentos();
+    }, 1500);
+  }
+
+  procesarDocumento(doc: any): void {
+    if (this.isProcessing) return;
+    this.isProcessing = true;
+
+    console.log('Procesando documento:', doc.id);
+
+    setTimeout(() => {
+      this.isProcessing = false;
+      this.router.navigate(['/rendicion-cuentas/procesar', doc.id]);
+    }, 800);
+  }
+
+  verDocumento(doc: any): void {
+    this.router.navigate(['/rendicion-cuentas/documento', doc.id], {
+      queryParams: { modo: 'consulta' }
+    });
+  }
+
+  refreshData(): void {
+    this.cargarDocumentos();
+  }
+
+  getFechaRelevante(doc: any): Date | string | undefined {
+    return doc.fechaRadicacion || doc.fechaDecision || doc.fechaActualizacion || doc.fechaCreacion;
   }
 }

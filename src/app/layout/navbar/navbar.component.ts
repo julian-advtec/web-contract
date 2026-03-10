@@ -21,11 +21,11 @@ export class NavbarComponent implements OnInit {
   currentPageSubtitle: string = 'Panel principal';
   currentUrl: string = '';
 
-  constructor(private router: Router) {}
+  constructor(private router: Router) { }
 
   ngOnInit() {
     this.updateTitle();
-    
+
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationEnd) {
         this.updateTitle();
@@ -40,180 +40,180 @@ export class NavbarComponent implements OnInit {
 
   isUserManagementPage(): boolean {
     const cleanUrl = this.currentUrl || this.router.url.split('?')[0];
-    return cleanUrl === '/gestion-usuarios' || 
-           cleanUrl === '/gestion-usuarios/nuevo' ||
-           cleanUrl.startsWith('/gestion-usuarios/editar/');
+    return cleanUrl === '/gestion-usuarios' ||
+      cleanUrl === '/gestion-usuarios/nuevo' ||
+      cleanUrl.startsWith('/gestion-usuarios/editar/');
   }
 
   isRadicacionPage(): boolean {
     const cleanUrl = this.currentUrl || this.router.url.split('?')[0];
     return cleanUrl === '/radicacion' ||
-           cleanUrl === '/radicacion/nuevo' ||
-           cleanUrl.startsWith('/radicacion/editar/');
+      cleanUrl === '/radicacion/nuevo' ||
+      cleanUrl.startsWith('/radicacion/editar/');
   }
 
   isSupervisorPage(): boolean {
     const cleanUrl = this.currentUrl || this.router.url.split('?')[0];
-    return cleanUrl === '/supervisor' || 
-           cleanUrl === '/supervisor/pendientes' ||
-           cleanUrl === '/supervisor/historial' ||
-           cleanUrl === '/supervisor/estadisticas' ||
-           cleanUrl.startsWith('/supervisor/revisar/');
+    return cleanUrl === '/supervisor' ||
+      cleanUrl === '/supervisor/pendientes' ||
+      cleanUrl === '/supervisor/historial' ||
+      cleanUrl === '/supervisor/estadisticas' ||
+      cleanUrl.startsWith('/supervisor/revisar/');
   }
 
   // NUEVO: Método para verificar si es página de auditor
   isAuditorPage(): boolean {
     const cleanUrl = this.currentUrl || this.router.url.split('?')[0];
-    return cleanUrl === '/auditor' || 
-           cleanUrl === '/auditor/disponibles' ||
-           cleanUrl === '/auditor/en-revision' ||
-           cleanUrl === '/auditor/historial' ||
-           cleanUrl === '/auditor/estadisticas' ||
-           cleanUrl.startsWith('/auditor/revisar/') ||
-           cleanUrl.startsWith('/auditor/documentos/');
+    return cleanUrl === '/auditor' ||
+      cleanUrl === '/auditor/disponibles' ||
+      cleanUrl === '/auditor/en-revision' ||
+      cleanUrl === '/auditor/historial' ||
+      cleanUrl === '/auditor/estadisticas' ||
+      cleanUrl.startsWith('/auditor/revisar/') ||
+      cleanUrl.startsWith('/auditor/documentos/');
   }
 
   isContabilidadPage(): boolean {
-  const cleanUrl = this.currentUrl || this.router.url.split('?')[0];
-  return cleanUrl === '/contabilidad' ||
-         cleanUrl === '/contabilidad/pendientes' ||
-         cleanUrl.startsWith('/contabilidad/procesar/');
-}
+    const cleanUrl = this.currentUrl || this.router.url.split('?')[0];
+    return cleanUrl === '/contabilidad' ||
+      cleanUrl === '/contabilidad/pendientes' ||
+      cleanUrl.startsWith('/contabilidad/procesar/');
+  }
 
   private updateTitle() {
     this.currentUrl = this.router.url.split('?')[0];
     const cleanUrl = this.currentUrl;
-    
+
     if (this.isDashboardPage()) {
       this.currentPageTitle = 'Dashboard';
       this.currentPageSubtitle = 'Panel principal';
       return;
     }
-    
+
     const titleMap: Record<string, { title: string, subtitle?: string }> = {
-      '/gestion-usuarios': { 
-        title: 'Gestión de Usuarios', 
-        subtitle: 'Administración de usuarios' 
+      '/gestion-usuarios': {
+        title: 'Gestión de Usuarios',
+        subtitle: 'Administración de usuarios'
       },
-      '/gestion-usuarios/nuevo': { 
-        title: 'Nuevo Usuario', 
-        subtitle: 'Administración de usuarios' 
+      '/gestion-usuarios/nuevo': {
+        title: 'Nuevo Usuario',
+        subtitle: 'Administración de usuarios'
       },
-      '/radicacion': { 
-        title: 'Radicación', 
-        subtitle: 'Radicación de documentos' 
+      '/radicacion': {
+        title: 'Radicación',
+        subtitle: 'Radicación de documentos'
       },
-      '/radicacion/nuevo': { 
-        title: 'Nueva Radicación', 
-        subtitle: 'Radicación de documentos' 
+      '/radicacion/nuevo': {
+        title: 'Nueva Radicación',
+        subtitle: 'Radicación de documentos'
       },
-      '/radicacion/lista': { 
-        title: 'Lista de Radicaciones', 
-        subtitle: 'Radicación de documentos' 
+      '/radicacion/lista': {
+        title: 'Lista de Radicaciones',
+        subtitle: 'Radicación de documentos'
       },
-      '/radicacion/mis-radicaciones': { 
-        title: 'Mis Radicaciones', 
-        subtitle: 'Radicación de documentos' 
+      '/radicacion/mis-radicaciones': {
+        title: 'Mis Radicaciones',
+        subtitle: 'Radicación de documentos'
       },
-      '/radicacion/rechazados': { 
-        title: 'Documentos Rechazados', 
-        subtitle: 'Radicación de documentos' 
+      '/radicacion/rechazados': {
+        title: 'Documentos Rechazados',
+        subtitle: 'Radicación de documentos'
       },
       // =========== SUPERVISOR ===========
-      '/supervisor': { 
-        title: 'Supervisión', 
-        subtitle: 'Revisión y aprobación de documentos' 
+      '/supervisor': {
+        title: 'Supervisión',
+        subtitle: 'Revisión y aprobación de documentos'
       },
-      '/supervisor/pendientes': { 
-        title: 'Pendientes de Supervisión', 
-        subtitle: 'Documentos pendientes de revisión' 
+      '/supervisor/pendientes': {
+        title: 'Pendientes de Supervisión',
+        subtitle: 'Documentos pendientes de revisión'
       },
-      '/supervisor/historial': { 
-        title: 'Historial de Supervisión', 
-        subtitle: 'Historial de supervisiones realizadas' 
+      '/supervisor/historial': {
+        title: 'Historial de Supervisión',
+        subtitle: 'Historial de supervisiones realizadas'
       },
-      '/supervisor/estadisticas': { 
-        title: 'Estadísticas de Supervisión', 
-        subtitle: 'Estadísticas de actividad' 
+      '/supervisor/estadisticas': {
+        title: 'Estadísticas de Supervisión',
+        subtitle: 'Estadísticas de actividad'
       },
       // =========== AUDITOR ===========
-      '/auditor': { 
-        title: 'Auditor de Cuentas', 
-        subtitle: 'Auditoría de documentos contables' 
+      '/auditor': {
+        title: 'Auditor de Cuentas',
+        subtitle: 'Auditoría de documentos contables'
       },
-      '/auditor/disponibles': { 
-        title: 'Documentos Disponibles', 
-        subtitle: 'Documentos para auditoría' 
+      '/auditor/disponibles': {
+        title: 'Documentos Disponibles',
+        subtitle: 'Documentos para auditoría'
       },
-      '/auditor/en-revision': { 
-        title: 'En Revisión', 
-        subtitle: 'Documentos en auditoría' 
+      '/auditor/en-revision': {
+        title: 'En Revisión',
+        subtitle: 'Documentos en auditoría'
       },
-      '/auditor/historial': { 
-        title: 'Historial de Auditoría', 
-        subtitle: 'Historial de auditorías realizadas' 
+      '/auditor/historial': {
+        title: 'Historial de Auditoría',
+        subtitle: 'Historial de auditorías realizadas'
       },
-      '/auditor/estadisticas': { 
-        title: 'Estadísticas de Auditoría', 
-        subtitle: 'Estadísticas de actividad' 
+      '/auditor/estadisticas': {
+        title: 'Estadísticas de Auditoría',
+        subtitle: 'Estadísticas de actividad'
       },
       // =================================
-      '/reportes': { 
-        title: 'Reportes', 
-        subtitle: 'Reportes y estadísticas del sistema' 
+      '/reportes': {
+        title: 'Reportes',
+        subtitle: 'Reportes y estadísticas del sistema'
       },
-      '/contabilidad': { 
-        title: 'Contabilidad', 
-        subtitle: 'Gestión contable' 
+      '/contabilidad': {
+        title: 'Contabilidad',
+        subtitle: 'Gestión contable'
       },
-      '/tesoreria': { 
-        title: 'Tesorería', 
-        subtitle: 'Gestión de tesorería' 
+      '/tesoreria': {
+        title: 'Tesorería',
+        subtitle: 'Gestión de tesorería'
       },
-      '/asesor-gerencia': { 
-        title: 'Asesoría de Gerencia', 
-        subtitle: 'Revisión gerencial de documentos' 
+      '/asesor-gerencia': {
+        title: 'Asesoría de Gerencia',
+        subtitle: 'Revisión gerencial de documentos'
       },
-      '/rendicion-cuentas': { 
-        title: 'Rendición de Cuentas', 
-        subtitle: 'Proceso de rendición de cuentas' 
+      '/rendicion-cuentas': {
+        title: 'Rendición de Cuentas',
+        subtitle: 'Proceso de rendición de cuentas'
       },
-      '/configuracion': { 
-        title: 'Configuración', 
-        subtitle: 'Configuración del sistema' 
+      '/configuracion': {
+        title: 'Configuración',
+        subtitle: 'Configuración del sistema'
       }
     };
-    
+
     if (titleMap[cleanUrl]) {
       this.currentPageTitle = titleMap[cleanUrl].title;
       this.currentPageSubtitle = titleMap[cleanUrl].subtitle || '';
       return;
     }
-    
+
     if (cleanUrl.startsWith('/gestion-usuarios/editar/')) {
       this.currentPageTitle = 'Editar Usuario';
       this.currentPageSubtitle = 'Administración de usuarios';
       return;
     }
-    
+
     if (cleanUrl.startsWith('/radicacion/editar/')) {
       this.currentPageTitle = 'Editar Radicado';
       this.currentPageSubtitle = 'Radicación de documentos';
       return;
     }
-    
+
     if (cleanUrl.startsWith('/supervisor/revisar/')) {
       this.currentPageTitle = 'Revisar Documento';
       this.currentPageSubtitle = 'Supervisión de documento';
       return;
     }
-    
+
     if (cleanUrl.startsWith('/auditor/revisar/')) {
       this.currentPageTitle = 'Revisar Documento';
       this.currentPageSubtitle = 'Auditoría de documento';
       return;
     }
-    
+
     if (cleanUrl.startsWith('/auditor/documentos/')) {
       this.currentPageTitle = 'Detalle de Documento';
       this.currentPageSubtitle = 'Auditoría de cuentas';
@@ -221,15 +221,15 @@ export class NavbarComponent implements OnInit {
     }
 
     if (this.isContabilidadPage()) {
-    this.currentPageTitle = 'Contabilidad';
-    this.currentPageSubtitle = 'Gestión contable y glosas';
-    return;
-  }
-    
+      this.currentPageTitle = 'Contabilidad';
+      this.currentPageSubtitle = 'Gestión contable y glosas';
+      return;
+    }
+
     const segments = cleanUrl.split('/').filter(seg => seg.trim() !== '');
     if (segments.length > 0) {
       const lastSegment = segments[segments.length - 1];
-      
+
       if (cleanUrl.startsWith('/gestion-usuarios')) {
         this.currentPageTitle = 'Gestión de Usuarios';
         this.currentPageSubtitle = 'Administración de usuarios';
@@ -274,8 +274,8 @@ export class NavbarComponent implements OnInit {
     return text
       .replace(/-/g, ' ')
       .split(' ')
-      .map(word => 
-        word.charAt(0).toUpperCase() + 
+      .map(word =>
+        word.charAt(0).toUpperCase() +
         word.slice(1).toLowerCase()
       )
       .join(' ');
@@ -284,7 +284,7 @@ export class NavbarComponent implements OnInit {
   getUserRoleName(role: UserRole | undefined | null): string {
     if (!role) return 'Usuario';
 
-    const roles: Record<UserRole, string> = {
+    const roleNames: Record<UserRole, string> = {
       [UserRole.ADMIN]: 'Administrador',
       [UserRole.RADICADOR]: 'Radicador',
       [UserRole.SUPERVISOR]: 'Supervisor',
@@ -292,8 +292,9 @@ export class NavbarComponent implements OnInit {
       [UserRole.CONTABILIDAD]: 'Contabilidad',
       [UserRole.TESORERIA]: 'Tesorería',
       [UserRole.ASESOR_GERENCIA]: 'Asesor de Gerencia',
-      [UserRole.RENDICION_CUENTAS]: 'Rendición de Cuentas'
+      [UserRole.RENDICION_CUENTAS]: 'Rendición de Cuentas',
+      [UserRole.JURIDICA]: 'Jurídica' // 👈 AGREGAR
     };
-    return roles[role] || role;
+    return roleNames[role] || role;
   }
 }

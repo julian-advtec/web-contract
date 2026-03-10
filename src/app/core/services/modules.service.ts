@@ -1,4 +1,3 @@
-// src/app/core/services/modules.service.ts
 import { Injectable } from '@angular/core';
 import { UserRole } from '../models/user.types';
 
@@ -48,7 +47,6 @@ export class ModulesService {
       requiredRole: UserRole.RADICADOR,
       isActive: true
     },
-    
     {
       id: 'supervisor',
       title: 'Supervisor',
@@ -59,7 +57,6 @@ export class ModulesService {
       requiredRole: UserRole.SUPERVISOR,
       isActive: true
     },
-
     {
       id: 'auditoria',
       title: 'Auditoría',
@@ -75,7 +72,7 @@ export class ModulesService {
       title: 'Contabilidad',
       description: 'Módulo de contabilidad',
       path: '/contabilidad',
-      route: '/contabilidad',           // opcional, pero ponlo para consistencia
+      route: '/contabilidad',
       icon: 'contabilidad',
       requiredRole: UserRole.CONTABILIDAD,
       isActive: true
@@ -110,7 +107,17 @@ export class ModulesService {
       requiredRole: UserRole.RENDICION_CUENTAS,
       isActive: true
     },
-    
+    // ✅ NUEVO MÓDULO DE JURÍDICA
+    {
+      id: 'juridica',
+      title: 'Jurídica',
+      description: 'Gestión de contratos',
+      path: '/juridica',
+      route: '/juridica',
+      icon: 'juridica', // Asegúrate de tener este icono en tu sistema
+      requiredRole: UserRole.JURIDICA,
+      isActive: true
+    }
   ];
 
   constructor() { }
@@ -130,14 +137,17 @@ export class ModulesService {
 
     // Mapeo de jerarquías de roles
     const roleHierarchy: Record<UserRole, UserRole[]> = {
-      [UserRole.ADMIN]: [UserRole.ADMIN],
-      [UserRole.SUPERVISOR]: [UserRole.SUPERVISOR, UserRole.RADICADOR],
+      [UserRole.ADMIN]: [UserRole.ADMIN, UserRole.RADICADOR, UserRole.SUPERVISOR, UserRole.AUDITOR_CUENTAS,
+      UserRole.CONTABILIDAD, UserRole.TESORERIA, UserRole.ASESOR_GERENCIA,
+      UserRole.RENDICION_CUENTAS, UserRole.JURIDICA],
       [UserRole.RADICADOR]: [UserRole.RADICADOR],
+      [UserRole.SUPERVISOR]: [UserRole.SUPERVISOR],
       [UserRole.AUDITOR_CUENTAS]: [UserRole.AUDITOR_CUENTAS],
       [UserRole.CONTABILIDAD]: [UserRole.CONTABILIDAD],
       [UserRole.TESORERIA]: [UserRole.TESORERIA],
       [UserRole.ASESOR_GERENCIA]: [UserRole.ASESOR_GERENCIA],
-      [UserRole.RENDICION_CUENTAS]: [UserRole.RENDICION_CUENTAS]
+      [UserRole.RENDICION_CUENTAS]: [UserRole.RENDICION_CUENTAS],
+      [UserRole.JURIDICA]: [UserRole.JURIDICA]
     };
 
     return roleHierarchy[userRole]?.includes(requiredRole) || false;

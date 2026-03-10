@@ -20,37 +20,37 @@ export const routes: Routes = [
     canActivate: [AuthGuard],
     data: { roles: ['admin'] }
   },
- /* {
-    path: 'radicacion',
-    loadComponent: () => import('./pages/radicacion/radicacion.component').then(m => m.RadicacionComponent),
-    canActivate: [AuthGuard, RoleGuard],
-    data: { roles: ['admin', 'radicador'] },
-    children: [
-      { path: '', redirectTo: 'lista', pathMatch: 'full' },
-      {
-        path: 'lista',
-        loadComponent: () => import('./pages/radicacion/components/radicacion-list/radicacion-list.component')
-          .then(m => m.RadicacionListComponent)
-      },
-      {
-        path: 'nuevo',
-        loadComponent: () => import('./pages/radicacion/components/radicacion-form/radicacion-form.component')
-          .then(m => m.RadicacionFormComponent)
-      },
-      {
-        path: 'mis-radicaciones',
-        loadComponent: () => import('./pages/radicacion/components/mis-radicaciones/mis-radicaciones.component')
-          .then(m => m.MisRadicacionesComponent)
-      },
-      {
-        path: 'rechazados',
-        loadComponent: () => import('./pages/radicacion/components/lista-rechazados/lista-rechazados.component')
-          .then(m => m.ListaRechazadosComponent)
-      }
-    ]
-  }, */
+  /* {
+     path: 'radicacion',
+     loadComponent: () => import('./pages/radicacion/radicacion.component').then(m => m.RadicacionComponent),
+     canActivate: [AuthGuard, RoleGuard],
+     data: { roles: ['admin', 'radicador'] },
+     children: [
+       { path: '', redirectTo: 'lista', pathMatch: 'full' },
+       {
+         path: 'lista',
+         loadComponent: () => import('./pages/radicacion/components/radicacion-list/radicacion-list.component')
+           .then(m => m.RadicacionListComponent)
+       },
+       {
+         path: 'nuevo',
+         loadComponent: () => import('./pages/radicacion/components/radicacion-form/radicacion-form.component')
+           .then(m => m.RadicacionFormComponent)
+       },
+       {
+         path: 'mis-radicaciones',
+         loadComponent: () => import('./pages/radicacion/components/mis-radicaciones/mis-radicaciones.component')
+           .then(m => m.MisRadicacionesComponent)
+       },
+       {
+         path: 'rechazados',
+         loadComponent: () => import('./pages/radicacion/components/lista-rechazados/lista-rechazados.component')
+           .then(m => m.ListaRechazadosComponent)
+       }
+     ]
+   }, */
 
-    {
+  {
     path: 'radicacion',
     loadChildren: () => import('./pages/radicacion/radicacion-routing.module').then(m => m.RadicacionRoutingModule),
     canActivate: [AuthGuard, RoleGuard],
@@ -92,13 +92,22 @@ export const routes: Routes = [
     data: { roles: [UserRole.ASESOR_GERENCIA, UserRole.ADMIN] }
   },
   // ── NUEVO MÓDULO DE RENDICIÓN DE CUENTAS ────────────────────────────
- {
-  path: 'rendicion-cuentas',
-  loadChildren: () => import('./pages/rendicion-cuentas/rendicion-cuentas-routing.module')
-    .then(m => m.RendicionCuentasRoutingModule),
-  canActivate: [AuthGuard, RoleGuard],
-  data: { roles: [UserRole.RENDICION_CUENTAS, UserRole.ADMIN] }
-},
+  {
+    path: 'rendicion-cuentas',
+    loadChildren: () => import('./pages/rendicion-cuentas/rendicion-cuentas-routing.module')
+      .then(m => m.RendicionCuentasRoutingModule),
+    canActivate: [AuthGuard, RoleGuard],
+    data: { roles: [UserRole.RENDICION_CUENTAS, UserRole.ADMIN] }
+  },
+  {
+    path: 'juridica',
+    loadChildren: () => import('./pages/juridica/juridica.module').then(m => m.JuridicaModule),
+    canActivate: [AuthGuard, RoleGuard],
+    data: {
+      roles: [UserRole.JURIDICA, UserRole.ADMIN, 'admin', 'juridica'],
+      title: 'Gestión Jurídica'
+    }
+  },
   // ────────────────────────────────────────────────────────────────────
   {
     path: '',
