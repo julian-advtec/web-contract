@@ -88,11 +88,11 @@ export class AuthService {
    */
   login(username: string, password: string): Observable<LoginResponse> {
     const loginRequest: LoginRequest = { username, password };
-    
+
     return this.http.post<LoginResponse>(`${this.apiUrl}/auth/login`, loginRequest).pipe(
       tap(response => {
         console.log('🔐 AuthService - Login response:', response);
-        
+
         if (response.requiresTwoFactor && response.userId) {
           // Guardar userId para 2FA
           this.setPendingUserId(response.userId);
@@ -116,7 +116,7 @@ export class AuthService {
    */
   verify2FA(userId: string, code: string): Observable<TwoFactorResponse> {
     const request: TwoFactorRequest = { userId, code };
-    
+
     return this.http.post<TwoFactorResponse>(`${this.apiUrl}/auth/verify-2fa`, request).pipe(
       tap(response => {
         console.log('🔐 AuthService - 2FA verification successful:', response);
@@ -169,17 +169,28 @@ export class AuthService {
   /**
    * Completar login
    */
-    public completeLogin(token: string, user: User): void {
+  public completeLogin(token: string, user: User): void {
     try {
-      console.log('🔐 Completing login process...');
-      
-      // Establecer token y usuario
-      this.setToken(token);
-      this.setUser(user);
-      
-      console.log('🔐 ✅ Login completed successfully for user:', user.username);
+      console.log('🔐 Completando login...');
+
+      // Guardar en localStorage
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+
+      // Actualizar subjects
+      this.currentUserSubject.next(user);
+      this.isLoggedInSubject.next(true);
+
+      console.log('🔐 ✅ Login completado para:', user.username);
+
+      // Forzar actualización de todos los suscriptores
+      this.currentUserSubject.complete();
+      this.currentUserSubject = new BehaviorSubject<User | null>(user);
+      this.isLoggedInSubject.complete();
+      this.isLoggedInSubject = new BehaviorSubject<boolean>(true);
+
     } catch (error) {
-      console.error('🔐 ❌ Error completing login:', error);
+      console.error('🔐 ❌ Error completando login:', error);
     }
   }
 
@@ -349,7 +360,31 @@ export class AuthService {
     const user = this.getCurrentUser();
     return user ? roles.includes(user.role) : false;
   }
+
+  public forceAuthState(token: string, user: User): void {
+    console.log('🔐 Forzando estado de autenticación...');
+
+    // Guardar en localStorage
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));
+
+    // Backup storage
+    localStorage.setItem('auth_force_token', token);
+    localStorage.setItem('auth_force_user', JSON.stringify(user));
+
+    // Session storage como respaldo
+    sessionStorage.setItem('auth_token', token);
+    sessionStorage.setItem('auth_user', JSON.stringify(user));
+
+    // Actualizar subjects
+    this.currentUserSubject.next(user);
+    this.isLoggedInSubject.next(true);
+
+    console.log('🔐 Estado de autenticación forzado exitosamente');
+  }
 }
+
+
 
 // Export types from here for backward compatibility
 export { User, UserRole };

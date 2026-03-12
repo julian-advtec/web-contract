@@ -36,6 +36,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.setBackgroundByRole();
     this.loadAvailableModules();
 
+    console.log('🏠 Dashboard cargado');
+    console.log('Usuario:', this.auth.getCurrentUser());
+    console.log('Token:', this.auth.getToken());
+    console.log('¿Autenticado?', this.auth.isAuthenticated());
+
     // En desktop, por defecto abierto
     if (!this.isMobile()) {
       this.sidebarCollapsed = false;
@@ -46,7 +51,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Debug: Verificar módulos cargados
     console.log('🔍 Dashboard - Usuario actual:', this.currentUser);
     console.log('🔍 Dashboard - Módulos disponibles:', this.availableModules);
-    
+
     // Verificar específicamente el módulo de supervisión
     const supervisionModule = this.availableModules.find(m => m.id === 'supervision');
     console.log('🔍 Dashboard - Módulo de supervisión:', supervisionModule);
@@ -115,7 +120,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private loadAvailableModules(): void {
     if (this.currentUser?.role) {
       this.availableModules = this.modulesService.getModulesForUser(this.currentUser.role);
-      
+
       // DEBUG: Verificar cada módulo
       this.availableModules.forEach(module => {
         console.log(`📋 Módulo: ${module.id} - Path: ${module.path} - Rol requerido: ${module.requiredRole}`);
@@ -123,7 +128,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     } else {
       this.availableModules = this.modulesService.getDefaultModules();
     }
-    
+
     console.log('📋 Módulos disponibles cargados:', this.availableModules);
   }
 
@@ -147,7 +152,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // ✅ Clase CSS según rol
   getRoleClass(role: UserRole | null | undefined): string {
     if (!role) return 'default';
-    
+
     switch (role) {
       case UserRole.ADMIN:
         return 'admin';
