@@ -34,34 +34,26 @@
   <div *ngIf="!isLoading" class="progress-steps mb-4">
     <div class="step" [class.active]="pasoActual === 1" [class.completed]="pasoActual > 1">
       <div class="step-number">1</div>
-      <div class="step-label">Generales</div>
+      <div class="step-label">Generales y Valores</div>
     </div>
     <div class="step-connector"></div>
     <div class="step" [class.active]="pasoActual === 2" [class.completed]="pasoActual > 2">
       <div class="step-number">2</div>
-      <div class="step-label">Valores</div>
-    </div>
-    <div class="step-connector"></div>
-    <div class="step" [class.active]="pasoActual === 3" [class.completed]="pasoActual > 3">
-      <div class="step-number">3</div>
-      <div class="step-label">Presupuesto</div>
-    </div>
-    <div class="step-connector"></div>
-    <div class="step" [class.active]="pasoActual === 4">
-      <div class="step-number">4</div>
-      <div class="step-label">Anticipo</div>
+      <div class="step-label">Presupuesto y Anticipo</div>
     </div>
   </div>
 
   <!-- Formulario -->
   <form *ngIf="!isLoading" [formGroup]="contratoForm" (ngSubmit)="guardarContrato()" #contratoFormElement>
-    <!-- PASO 1: DATOS GENERALES -->
+
+    <!-- PASO 1 -->
     <div class="card mb-4" *ngIf="pasoActual === 1">
       <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">Datos Generales del Contrato</h5>
+        <h5 class="mb-0">1. Datos Generales y Valores del Contrato</h5>
       </div>
       
       <div class="card-body">
+        <h6 class="mb-3 text-primary">Información General</h6>
         <div class="row">
           <div class="col-md-4 mb-3">
             <label class="form-label required-field">Vigencia</label>
@@ -104,7 +96,6 @@
           <div class="card-header bg-light">
             <h6 class="mb-0">Datos del Proveedor</h6>
           </div>
-          
           <div class="card-body" formGroupName="proveedor">
             <div class="row">
               <div class="col-md-3 mb-3">
@@ -140,14 +131,12 @@
 
               <div class="col-md-4 mb-3">
                 <label class="form-label">Dirección</label>
-                <input type="text" class="form-control" formControlName="direccion"
-                       placeholder="Dirección">
+                <input type="text" class="form-control" formControlName="direccion" placeholder="Dirección">
               </div>
 
               <div class="col-md-4 mb-3">
                 <label class="form-label">Teléfono</label>
-                <input type="text" class="form-control" formControlName="telefono"
-                       placeholder="Teléfono">
+                <input type="text" class="form-control" formControlName="telefono" placeholder="Teléfono">
               </div>
 
               <div class="col-md-4 mb-3">
@@ -164,7 +153,7 @@
           </div>
         </div>
 
-        <div class="mt-3">
+        <div class="mt-4">
           <label class="form-label required-field">Objeto del Contrato</label>
           <textarea class="form-control" formControlName="objeto" rows="4"
                     [ngClass]="{'is-invalid': submitted && f['objeto'].errors}"
@@ -173,22 +162,10 @@
             El objeto del contrato es requerido
           </div>
         </div>
-      </div>
 
-      <div class="card-footer text-end">
-        <button type="button" class="btn btn-primary px-4" (click)="siguientePaso()">
-          Siguiente <i class="fas fa-arrow-right ms-2"></i>
-        </button>
-      </div>
-    </div>
+        <hr class="my-4">
 
-    <!-- PASO 2: VALORES Y PLAZOS -->
-    <div class="card mb-4" *ngIf="pasoActual === 2">
-      <div class="card-header bg-success text-white">
-        <h5 class="mb-0">Valores y Plazos</h5>
-      </div>
-      
-      <div class="card-body">
+        <h6 class="mb-3 text-primary">Valores y Plazos de Ejecución</h6>
         <div class="row">
           <div class="col-md-6 mb-3">
             <label class="form-label required-field">Valor del Contrato</label>
@@ -253,63 +230,88 @@
         </div>
       </div>
 
-      <div class="card-footer d-flex justify-content-between">
-        <button type="button" class="btn btn-outline-secondary px-4" (click)="pasoAnterior()">
-          <i class="fas fa-arrow-left me-2"></i> Anterior
-        </button>
+      <div class="card-footer text-end">
         <button type="button" class="btn btn-primary px-4" (click)="siguientePaso()">
           Siguiente <i class="fas fa-arrow-right ms-2"></i>
         </button>
       </div>
     </div>
 
-    <!-- PASO 3: PRESUPUESTAL -->
-    <div class="card mb-4" *ngIf="pasoActual === 3">
-      <div class="card-header bg-warning text-dark">
-        <h5 class="mb-0">Información Presupuestal</h5>
+    <!-- PASO 2: Presupuesto + Anticipo + Archivos mejorados -->
+    <div class="card mb-4" *ngIf="pasoActual === 2">
+      <div class="card-header bg-info text-white">
+        <h5 class="mb-0">2. Información Presupuestal y Anticipo</h5>
       </div>
       
       <div class="card-body">
-        <div class="row">
-          <div class="col-md-6 mb-3">
-            <label class="form-label">CDP</label>
-            <input type="text" class="form-control" formControlName="cdp"
-                   placeholder="Número de CDP">
+        <!-- Presupuestal con archivos -->
+        <h6 class="mb-3 text-primary">Datos Presupuestales</h6>
+        <div class="row g-4">
+          <!-- CDP -->
+          <div class="col-md-6">
+            <label class="form-label">Número de CDP</label>
+            <input type="text" class="form-control mb-2" formControlName="cdp"
+                   placeholder="Ej: CDP-2025-000123">
+
+            <label class="form-label d-block mb-1" [class.text-danger]="cdpRequerido">
+              Soporte documental CDP (PDF)
+            </label>
+            <div class="upload-container" [class.invalid]="submitted && cdpFileError">
+              <input type="file" class="file-input" id="cdpFile" 
+                     (change)="onFileSelected($event, 'cdp')" accept=".pdf">
+              <label for="cdpFile" class="upload-label">
+                <i class="fas fa-cloud-upload-alt me-2"></i>
+                {{ cdpFileName ? 'Cambiar archivo' : 'Seleccionar archivo PDF' }}
+              </label>
+              <small class="text-muted d-block mt-1">Máximo 5 MB - Solo PDF</small>
+              <div *ngIf="cdpFileName" class="file-name mt-2 text-success">
+                <i class="fas fa-file-pdf me-2"></i>{{ cdpFileName }}
+              </div>
+              <div *ngIf="submitted && cdpFileError" class="text-danger mt-1 small">
+                {{ cdpFileError }}
+              </div>
+            </div>
           </div>
 
-          <div class="col-md-6 mb-3">
-            <label class="form-label">RP</label>
-            <input type="text" class="form-control" formControlName="rp"
-                   placeholder="Número de RP">
+          <!-- RP -->
+          <div class="col-md-6">
+            <label class="form-label">Número de RP</label>
+            <input type="text" class="form-control mb-2" formControlName="rp"
+                   placeholder="Ej: RP-2025-000456">
+
+            <label class="form-label d-block mb-1" [class.text-danger]="rpRequerido">
+              Soporte documental RP (PDF)
+            </label>
+            <div class="upload-container" [class.invalid]="submitted && rpFileError">
+              <input type="file" class="file-input" id="rpFile" 
+                     (change)="onFileSelected($event, 'rp')" accept=".pdf">
+              <label for="rpFile" class="upload-label">
+                <i class="fas fa-cloud-upload-alt me-2"></i>
+                {{ rpFileName ? 'Cambiar archivo' : 'Seleccionar archivo PDF' }}
+              </label>
+              <small class="text-muted d-block mt-1">Máximo 5 MB - Solo PDF</small>
+              <div *ngIf="rpFileName" class="file-name mt-2 text-success">
+                <i class="fas fa-file-pdf me-2"></i>{{ rpFileName }}
+              </div>
+              <div *ngIf="submitted && rpFileError" class="text-danger mt-1 small">
+                {{ rpFileError }}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="card-footer d-flex justify-content-between">
-        <button type="button" class="btn btn-outline-secondary px-4" (click)="pasoAnterior()">
-          <i class="fas fa-arrow-left me-2"></i> Anterior
-        </button>
-        <button type="button" class="btn btn-primary px-4" (click)="siguientePaso()">
-          Siguiente <i class="fas fa-arrow-right ms-2"></i>
-        </button>
-      </div>
-    </div>
+        <hr class="my-4">
 
-    <!-- PASO 4: ANTICIPO -->
-    <div class="card mb-4" *ngIf="pasoActual === 4">
-      <div class="card-header bg-info text-white">
-        <h5 class="mb-0">Anticipo y Finalización</h5>
-      </div>
-      
-      <div class="card-body">
-        <div class="form-check mb-3">
-          <input class="form-check-input" type="checkbox" formControlName="seDesembolsaAnticipo" id="anticipo">
-          <label class="form-check-label fw-bold" for="anticipo">
+        <!-- Anticipo -->
+        <h6 class="mb-3 text-primary">Anticipo</h6>
+        <div class="form-check mb-4">
+          <input class="form-check-input" type="checkbox" formControlName="seDesembolsaAnticipo" id="anticipoCheck">
+          <label class="form-check-label fw-bold" for="anticipoCheck">
             ¿Se desembolsa anticipo?
           </label>
         </div>
 
-        <div *ngIf="contratoForm.get('seDesembolsaAnticipo')?.value" class="anticipo-fields">
+        <div *ngIf="contratoForm.get('seDesembolsaAnticipo')?.value" class="anticipo-fields mb-4">
           <div class="row">
             <div class="col-md-4 mb-3">
               <label class="form-label required-field">% Anticipo</label>
@@ -335,7 +337,7 @@
           </div>
         </div>
 
-        <div class="row mt-3">
+        <div class="row">
           <div class="col-md-6 mb-3">
             <label class="form-label">Adiciones (Valor)</label>
             <div class="input-group">
@@ -347,7 +349,7 @@
           </div>
         </div>
 
-        <!-- Resumen -->
+        <!-- Resumen Financiero -->
         <div class="resumen-financiero mt-4 p-4 rounded">
           <h6 class="text-white mb-3">
             <i class="fas fa-chart-line me-2"></i>
@@ -402,5 +404,6 @@
         </div>
       </div>
     </div>
+
   </form>
 </div>

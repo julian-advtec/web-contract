@@ -215,3 +215,74 @@ $color-primary-dark: #2563EB;
     }
   }
 }
+
+/* Mejoras para la sección de subida de archivos */
+.upload-container {
+  position: relative;
+  border: 2px dashed $color-primary-light;
+  border-radius: 8px;
+  padding: 1rem;
+  background-color: rgba(29, 78, 216, 0.03);
+  transition: all 0.3s ease;
+  text-align: center;
+
+  &:hover {
+    border-color: $color-primary;
+    background-color: rgba(29, 78, 216, 0.06);
+  }
+
+  &.invalid {
+    border-color: #dc3545;
+    background-color: rgba(220, 53, 69, 0.05);
+  }
+
+  .file-input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+  }
+
+  .upload-label {
+    display: inline-block;
+    padding: 0.75rem 1.25rem;
+    background-color: $color-primary;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+
+    &:hover {
+      background-color: $color-primary-dark;
+    }
+  }
+
+  .file-name {
+    background-color: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 6px;
+    padding: 0.5rem;
+    word-break: break-all;
+  }
+}
+
+/* Icono de PDF cuando hay archivo seleccionado */
+.fas.fa-file-pdf {
+  color: #e74c3c;
+}
+
+/* Ajuste para pantallas pequeñas */
+@media (max-width: 768px) {
+  .upload-container {
+    padding: 0.75rem;
+  }
+
+  .upload-label {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+}

@@ -30,6 +30,15 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   supervisores: any[] = [];
   valorTotal = 0;
 
+  cdpFile: File | null = null;
+  rpFile: File | null = null;
+
+  cdpFileName: string = '';
+  rpFileName: string = '';
+
+  cdpFileError: string | null = null;
+  rpFileError: string | null = null;
+
   tiposContrato = [
     { value: 'PRESTACION_SERVICIOS', label: 'Prestación de Servicios' },
     { value: 'SUMINISTRO', label: 'Suministro' },
@@ -87,7 +96,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       vigencia: ['', Validators.required],
       numeroContrato: ['', Validators.required],
       tipoContrato: ['', Validators.required],
-      
+
       proveedor: this.fb.group({
         tipoIdentificacion: ['NIT', Validators.required],
         numeroIdentificacion: ['', Validators.required],
@@ -96,7 +105,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
         telefono: [''],
         email: ['', [Validators.email]]
       }),
-      
+
       objeto: ['', Validators.required],
 
       // Paso 2: Valores y plazos
@@ -216,7 +225,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     });
 
     this.valorTotal = contrato.valorTotal;
-    
+
     if (contrato.seDesembolsaAnticipo) {
       this.contratoForm.get('porcentajeAnticipo')?.enable();
       this.contratoForm.get('valorAnticipo')?.enable();
@@ -249,34 +258,37 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   }
 
   private validarPasoActual(): boolean {
+    this.submitted = true;
     let isValid = true;
 
-    switch (this.pasoActual) {
-      case 1:
-        if (this.contratoForm.get('vigencia')?.invalid) isValid = false;
-        if (this.contratoForm.get('numeroContrato')?.invalid) isValid = false;
-        if (this.contratoForm.get('tipoContrato')?.invalid) isValid = false;
-        if (this.contratoForm.get('objeto')?.invalid) isValid = false;
-        
-        const proveedorGroup = this.contratoForm.get('proveedor') as FormGroup;
-        if (proveedorGroup.get('numeroIdentificacion')?.invalid) isValid = false;
-        if (proveedorGroup.get('nombreRazonSocial')?.invalid) isValid = false;
-        break;
+    if (this.pasoActual === 1) {
+      // Campos obligatorios del paso 1 (generales + valores/plazos)
+      const camposObligatorios = [
+        'vigencia', 'numeroContrato', 'tipoContrato', 'objeto',
+        'valor', 'plazoDias', 'fechaInicio', 'fechaFirma', 'supervisor'
+      ];
 
-      case 2:
-        if (this.contratoForm.get('valor')?.invalid) isValid = false;
-        if (this.contratoForm.get('plazoDias')?.invalid) isValid = false;
-        if (this.contratoForm.get('fechaInicio')?.invalid) isValid = false;
-        if (this.contratoForm.get('fechaFirma')?.invalid) isValid = false;
-        if (this.contratoForm.get('supervisor')?.invalid) isValid = false;
-        break;
+      camposObligatorios.forEach(campo => {
+        if (this.contratoForm.get(campo)?.invalid) {
+          isValid = false;
+        }
+      });
 
-      default:
-        return true;
+      const proveedor = this.contratoForm.get('proveedor') as FormGroup;
+      if (proveedor?.get('numeroIdentificacion')?.invalid) isValid = false;
+      if (proveedor?.get('nombreRazonSocial')?.invalid) isValid = false;
+    }
+
+    // Paso 2: solo validamos anticipo SI está activado
+    if (this.pasoActual === 2) {
+      if (this.contratoForm.get('seDesembolsaAnticipo')?.value === true) {
+        if (this.contratoForm.get('porcentajeAnticipo')?.invalid) isValid = false;
+        if (this.contratoForm.get('fechaDesembolsoAnticipo')?.invalid) isValid = false;
+      }
     }
 
     if (!isValid) {
-      this.markStepFieldsAsTouched();
+      this.contratoForm.markAllAsTouched();
     }
 
     return isValid;
@@ -289,7 +301,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
         this.contratoForm.get('numeroContrato')?.markAsTouched();
         this.contratoForm.get('tipoContrato')?.markAsTouched();
         this.contratoForm.get('objeto')?.markAsTouched();
-        
+
         const proveedorGroup = this.contratoForm.get('proveedor') as FormGroup;
         proveedorGroup.get('numeroIdentificacion')?.markAsTouched();
         proveedorGroup.get('nombreRazonSocial')?.markAsTouched();
@@ -363,10 +375,10 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
 
     if (this.contratoForm.invalid) {
       this.errorMessage = 'Por favor complete todos los campos requeridos';
-      
+
       if (this.contratoForm.get('vigencia')?.invalid) this.pasoActual = 1;
       else if (this.contratoForm.get('valor')?.invalid) this.pasoActual = 2;
-      
+
       this.markStepFieldsAsTouched();
       return;
     }
@@ -375,7 +387,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     this.errorMessage = '';
 
     const formValue = this.contratoForm.getRawValue();
-    
+
     const dto: CreateContratoDto = {
       vigencia: formValue.vigencia,
       numeroContrato: formValue.numeroContrato,
@@ -413,7 +425,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       next: (contrato) => {
         this.successMessage = this.isEditMode ? 'Contrato actualizado exitosamente' : 'Contrato creado exitosamente';
         this.isSubmitting = false;
-        
+
         setTimeout(() => {
           this.router.navigate(['/juridica/list']);
         }, 1500);
@@ -452,5 +464,44 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
 
   dismissSuccess(): void {
     this.successMessage = '';
+  }
+
+  // Opcional: si quieres que el archivo sea obligatorio solo cuando hay número
+  get cdpRequerido(): boolean {
+    return !!this.contratoForm.get('cdp')?.value && !this.cdpFile;
+  }
+  get rpRequerido(): boolean {
+    return !!this.contratoForm.get('rp')?.value && !this.rpFile;
+  }
+
+  // Método para manejar selección de archivo
+  onFileSelected(event: any, tipo: 'cdp' | 'rp'): void {
+    const file: File = event.target.files[0];
+
+    if (!file) return;
+
+    // Validaciones básicas
+    if (file.type !== 'application/pdf' && file.type !== 'application/PDF') {
+      if (tipo === 'cdp') this.cdpFileError = 'Solo se permiten archivos PDF';
+      else this.rpFileError = 'Solo se permiten archivos PDF';
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) { // 5MB
+      if (tipo === 'cdp') this.cdpFileError = 'El archivo es demasiado grande (máx. 5MB)';
+      else this.rpFileError = 'El archivo es demasiado grande (máx. 5MB)';
+      return;
+    }
+
+    // Limpia error anterior
+    if (tipo === 'cdp') {
+      this.cdpFileError = null;
+      this.cdpFile = file;
+      this.cdpFileName = file.name;
+    } else {
+      this.rpFileError = null;
+      this.rpFile = file;
+      this.rpFileName = file.name;
+    }
   }
 }
