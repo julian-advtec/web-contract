@@ -11,22 +11,22 @@
     <div class="form-grid">
       <!-- Fila 1: Número de Radicado y Contrato -->
       <div class="form-row">
-        <!-- Número de Radicado -->
+        <!-- Número de Radicado - ACTUALIZADO -->
         <div class="form-group">
           <label for="numeroRadicado" class="form-label">
             <i class="fas fa-hashtag"></i> Número de Radicado *
           </label>
           <input type="text" id="numeroRadicado" class="form-control" formControlName="numeroRadicado"
-            placeholder="Ej: R2024-001" [class.is-invalid]="radicacionForm.get('numeroRadicado')?.invalid && 
-                                    radicacionForm.get('numeroRadicado')?.touched">
+            placeholder="Ej: R2025-0001" [class.is-invalid]="radicacionForm.get('numeroRadicado')?.invalid && 
+                            radicacionForm.get('numeroRadicado')?.touched">
           <div *ngIf="radicacionForm.get('numeroRadicado')?.invalid && 
-                     radicacionForm.get('numeroRadicado')?.touched" class="invalid-feedback">
+             radicacionForm.get('numeroRadicado')?.touched" class="invalid-feedback">
             {{ getNumeroRadicadoError() }}
           </div>
           <small class="form-text text-muted">
-            Formato: RAAAA-NNN (Año y número consecutivo)
+            Formato: RAAAA-NNNN (Año y número consecutivo de 4 a 8 dígitos, ej: R2025-0001, R2025-12345678)
           </small>
-          <!-- ✅ Mostrar año detectado -->
+          <!-- Mostrar año detectado -->
           <div *ngIf="getAnoRadicado()" class="text-info small mt-1">
             <i class="fas fa-calendar-alt"></i> Año detectado: {{ getAnoRadicado() }}
           </div>
@@ -273,52 +273,47 @@
 
 
       <!-- Campo Primer Radicado del Año -->
-<div class="form-row">
-  <div class="form-group full-width">
-    <div class="checkbox-container">
-      <div class="form-check">
-        <input 
-          type="checkbox" 
-          id="primerRadicadoDelAno" 
-          class="form-check-input"
-          formControlName="primerRadicadoDelAno"
-          (change)="onPrimerRadicadoChange($event)"
-        >
-        <label class="form-check-label" for="primerRadicadoDelAno">
-          <i class="fas fa-star text-warning me-2"></i>
-          <strong>Marcar como primer radicado del contrato</strong>
+      <div class="form-row">
+        <div class="form-group full-width">
+          <div class="checkbox-container">
+            <div class="form-check">
+              <input type="checkbox" id="primerRadicadoDelAno" class="form-check-input"
+                formControlName="primerRadicadoDelAno" (change)="onPrimerRadicadoChange($event)">
+              <label class="form-check-label" for="primerRadicadoDelAno">
+                <i class="fas fa-star text-warning me-2"></i>
+                <strong>Marcar como primer radicado del contrato</strong>
 
-          <span *ngIf="verificandoPrimerRadicado" class="text-muted ms-2">
-            <i class="fas fa-spinner fa-spin"></i> Verificando...
-          </span>
+                <span *ngIf="verificandoPrimerRadicado" class="text-muted ms-2">
+                  <i class="fas fa-spinner fa-spin"></i> Verificando...
+                </span>
 
-          <span *ngIf="!verificandoPrimerRadicado && mensajePrimerRadicado" class="ms-2" [ngClass]="{
+                <span *ngIf="!verificandoPrimerRadicado && mensajePrimerRadicado" class="ms-2" [ngClass]="{
             'text-success': primerRadicadoDisponible,
             'text-danger': !primerRadicadoDisponible
           }">
-            <i class="fas" [class.fa-check-circle]="primerRadicadoDisponible"
-               [class.fa-exclamation-circle]="!primerRadicadoDisponible"></i>
-            {{ mensajePrimerRadicado }}
-          </span>
-        </label>
+                  <i class="fas" [class.fa-check-circle]="primerRadicadoDisponible"
+                    [class.fa-exclamation-circle]="!primerRadicadoDisponible"></i>
+                  {{ mensajePrimerRadicado }}
+                </span>
+              </label>
+            </div>
+
+            <small class="form-text text-muted d-block mt-1">
+              <i class="fas fa-info-circle"></i>
+              Marque esta opción si este es el primer documento radicado para este **contrato**.
+              Puede haber varios primeros radicados (uno por contrato).
+            </small>
+
+            <div *ngIf="radicacionForm.get('primerRadicadoDelAno')?.value" class="alert alert-success mt-2 small">
+              <i class="fas fa-check-circle me-2"></i>
+              <strong>Confirmado:</strong> Se marcará como primer radicado del contrato.
+            </div>
+          </div>
+        </div>
       </div>
 
-      <small class="form-text text-muted d-block mt-1">
-        <i class="fas fa-info-circle"></i>
-        Marque esta opción si este es el primer documento radicado para este **contrato**.
-        Puede haber varios primeros radicados (uno por contrato).
-      </small>
 
-      <div *ngIf="radicacionForm.get('primerRadicadoDelAno')?.value" class="alert alert-success mt-2 small">
-        <i class="fas fa-check-circle me-2"></i>
-        <strong>Confirmado:</strong> Se marcará como primer radicado del contrato.
-      </div>
-    </div>
-  </div>
-</div>
-
-
-      <!-- Sección de Documentos -->
+      <!-- Sección de Documentos - VERSIÓN CORREGIDA -->
       <div class="documentos-section">
         <h4 class="section-title">
           <i class="fas fa-file-upload"></i> Documentos a Adjuntar (3 obligatorios)
@@ -338,7 +333,7 @@
 
               <div class="file-upload-area" [class.has-file]="documentosSeleccionados[0]">
                 <input type="file" id="file1" class="file-input" (change)="onFileSelected($event, 0)"
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" #fileInput0>
 
                 <label for="file1" class="file-label">
                   <i class="fas fa-cloud-upload-alt"></i>
@@ -374,7 +369,7 @@
 
               <div class="file-upload-area" [class.has-file]="documentosSeleccionados[1]">
                 <input type="file" id="file2" class="file-input" (change)="onFileSelected($event, 1)"
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" #fileInput1>
 
                 <label for="file2" class="file-label">
                   <i class="fas fa-cloud-upload-alt"></i>
@@ -410,7 +405,7 @@
 
               <div class="file-upload-area" [class.has-file]="documentosSeleccionados[2]">
                 <input type="file" id="file3" class="file-input" (change)="onFileSelected($event, 2)"
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" #fileInput2>
 
                 <label for="file3" class="file-label">
                   <i class="fas fa-cloud-upload-alt"></i>

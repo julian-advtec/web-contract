@@ -196,117 +196,123 @@
   }
 
   // ============ SECCIÓN DOCUMENTOS ============
-  .documentos-section {
-    margin-top: 20px;
+ .documentos-section {
+  margin-top: 20px;
 
-    .section-title {
-      color: #374151;
-      margin-bottom: 20px;
+  .section-title {
+    color: #374151;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+
+    i {
+      color: #10B981;
+    }
+  }
+
+  .documentos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+  }
+
+  .documento-card {
+    background: #F9FAFB;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    padding: 16px;
+    transition: all 0.3s ease;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+
+    &:hover {
+      border-color: #10B981;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
+    }
+
+    .documento-header {
       display: flex;
       align-items: center;
       gap: 10px;
-      font-size: 18px;
+      margin-bottom: 16px;
 
-      i {
+      .documento-icon {
         color: #10B981;
+        font-size: 20px;
+      }
+
+      h5 {
+        margin: 0;
+        color: #374151;
+        font-weight: 600;
+        font-size: 16px;
       }
     }
 
-    .documentos-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 20px;
+    .documento-body {
+      flex-grow: 1;
+    }
+  }
+
+  // ÁREA DE SUBIDA DE ARCHIVOS - ÚNICA DEFINICIÓN
+  .file-upload-area {
+    position: relative;
+    border: 2px dashed #D1D5DB;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-bottom: 8px;
+    background: white;
+    min-height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      border-color: #10B981;
+      background: rgba(16, 185, 129, 0.02);
     }
 
-    .documento-card {
-      background: #F9FAFB;
-      border: 1px solid #E5E7EB;
-      border-radius: 10px;
-      padding: 16px;
-      transition: all 0.3s ease;
+    &.has-file {
+      border-color: #10B981;
+      background: rgba(16, 185, 129, 0.05);
+    }
+
+    .file-input {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
       height: 100%;
+      opacity: 0;
+      cursor: pointer;
+      z-index: 10; // Aumentado para mejor captura de clics
+    }
+
+    .file-label {
       display: flex;
       flex-direction: column;
-
-      &:hover {
-        border-color: #10B981;
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
-      }
-
-      .documento-header {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 16px;
-
-        .documento-icon {
-          color: #10B981;
-          font-size: 20px;
-        }
-
-        h5 {
-          margin: 0;
-          color: #374151;
-          font-weight: 600;
-          font-size: 16px;
-        }
-      }
-
-      .documento-body {
-        flex-grow: 1;
-      }
-    }
-
-    .file-upload-area {
-      position: relative;
-      border: 2px dashed #D1D5DB;
-      border-radius: 8px;
-      padding: 20px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      margin-bottom: 8px;
-      background: white;
-      min-height: 100px;
-      display: flex;
       align-items: center;
-      justify-content: center;
+      gap: 8px;
+      color: #6B7280;
+      width: 100%;
+      height: 100%;
+      cursor: pointer; // Asegurar que el label también muestre cursor pointer
 
-      &:hover {
-        border-color: #10B981;
-        background: rgba(16, 185, 129, 0.02);
+      i {
+        font-size: 32px; // Aumentado para mejor visibilidad
+        color: #9CA3AF;
       }
 
-      &.has-file {
-        border-color: #10B981;
-        background: rgba(16, 185, 129, 0.05);
-      }
-
-      .file-input {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        opacity: 0;
-        cursor: pointer;
-        z-index: 2;
-      }
-
-      .file-label {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-        color: #6B7280;
-        z-index: 1;
-
-        i {
-          font-size: 24px;
-          color: #9CA3AF;
-        }
-
-        .file-name {
+      span {
+        font-size: 14px;
+        
+        &.file-name {
           font-weight: 500;
           color: #374151;
           word-break: break-all;
@@ -317,34 +323,36 @@
           padding: 0 8px;
         }
       }
+    }
 
-      .file-actions {
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        z-index: 3;
-      }
+    .file-actions {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 15; // Mayor que el input para poder hacer clic
+    }
 
-      .btn-remove {
-        background: #EF4444;
-        color: white;
-        border: none;
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        font-size: 12px;
+    .btn-remove {
+      background: #EF4444;
+      color: white;
+      border: none;
+      width: 28px; // Ligeramente más grande
+      height: 28px; // Ligeramente más grande
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 14px;
 
-        &:hover {
-          background: #DC2626;
-        }
+      &:hover {
+        background: #DC2626;
+        transform: scale(1.1);
       }
     }
   }
+}
 
   // ============ BOTONES DE ACCIÓN ============
   .form-actions {

@@ -137,80 +137,83 @@ export class RadicacionComponent implements OnInit {
     });
   }
 
-  // En RadicacionComponent, actualiza loadAvailableModules():
-  loadAvailableModules(): void {
-    if (!this.currentUser) {
-      this.availableModules = [];
-      return;
-    }
-
-    // SOLUCIÓN TEMPORAL: Crear manualmente los módulos
-    this.availableModules = [
-      {
-        id: 'dashboard',
-        title: 'Dashboard',
-        description: 'Panel principal del sistema',
-        path: '/dashboard',
-        route: '/dashboard',
-        icon: 'dashboard',
-        requiredRole: UserRole.RADICADOR,
-        isActive: true
-      },
-      {
-        id: 'nuevo-radicado',
-        title: 'Nuevo Radicado',
-        description: 'Crear nuevo radicado',
-        path: '/radicacion/nuevo',
-        route: '/radicacion/nuevo',
-        icon: 'lista-radicacion',
-        requiredRole: UserRole.RADICADOR,
-        isActive: true
-      },
-      {
-        id: 'lista-radicacion',
-        title: 'Lista General',
-        description: 'Ver todos los documentos radicados',
-        path: '/radicacion/lista',
-        route: '/radicacion/lista',
-        icon: 'lista-radicacion',
-        requiredRole: UserRole.RADICADOR,
-        isActive: true
-      },
-      {
-        id: 'mis-radicaciones',
-        title: 'Mis Radicaciones',
-        description: 'Ver mis documentos radicados',
-        path: '/radicacion/mis-radicaciones',
-        route: '/radicacion/mis-radicaciones',
-        icon: 'mis-radicaciones',
-        requiredRole: UserRole.RADICADOR,
-        isActive: true
-      },
-      {
-        id: 'rechazados',
-        title: 'Documentos Rechazados',
-        description: 'Ver documentos con estado rechazado',
-        path: '/radicacion/rechazados', // <-- CORRECTO
-        route: '/radicacion/rechazados',
-        icon: 'rechazados',
-        requiredRole: UserRole.RADICADOR,
-        isActive: true
-      },
-      {
-        id: 'mis-estadisticas',
-        title: 'Mis Estadísticas',
-        description: 'Ver mis estadísticas de radicación',
-        path: '/radicacion/mis-estadisticas',
-        route: '/radicacion/mis-estadisticas',
-        icon: 'chart-bar',           // o el icono que prefieras (fas fa-chart-bar)
-        requiredRole: UserRole.RADICADOR,
-        isActive: true
-      },
-
-    ];
-
-    console.log('📋 Módulos disponibles (manual):', this.availableModules);
+  // ✅ CORREGIDO: Nombres de iconos correctos para FontAwesome
+loadAvailableModules(): void {
+  if (!this.currentUser) {
+    this.availableModules = [];
+    return;
   }
+
+  // ✅ IDs CORREGIDOS para que coincidan con getModuleIcon()
+  this.availableModules = [
+    {
+      id: 'dashboard',  // Este ID existe en getModuleIcon()
+      title: 'Dashboard',
+      description: 'Panel principal del sistema',
+      path: '/dashboard',
+      route: '/dashboard',
+      icon: 'dashboard',
+      requiredRole: UserRole.RADICADOR,
+      isActive: true
+    },
+    {
+      id: 'nueva-radicacion',  // Este ID existe en getModuleIcon() (está en tu código)
+      title: 'Nuevo Radicado',
+      description: 'Crear nuevo radicado',
+      path: '/radicacion/nuevo',
+      route: '/radicacion/nuevo',
+      icon: 'nueva-radicacion',
+      requiredRole: UserRole.RADICADOR,
+      isActive: true
+    },
+    {
+      id: 'lista-radicacion',  // ✅ CORREGIDO: este ID existe en getModuleIcon()
+      title: 'Lista General',
+      description: 'Ver todos los documentos radicados',
+      path: '/radicacion/lista',
+      route: '/radicacion/lista',
+      icon: 'lista-radicacion',
+      requiredRole: UserRole.RADICADOR,
+      isActive: true
+    },
+    {
+      id: 'mis-radicaciones',  // ✅ CORREGIDO: este ID existe en getModuleIcon()
+      title: 'Mis Radicaciones',
+      description: 'Ver mis documentos radicados',
+      path: '/radicacion/mis-radicaciones',
+      route: '/radicacion/mis-radicaciones',
+      icon: 'mis-radicaciones',
+      requiredRole: UserRole.RADICADOR,
+      isActive: true
+    },
+    {
+      id: 'rechazados',  // ✅ CORREGIDO: este ID existe en getModuleIcon()
+      title: 'Documentos Rechazados',
+      description: 'Ver documentos con estado rechazado',
+      path: '/radicacion/rechazados',
+      route: '/radicacion/rechazados',
+      icon: 'rechazados',
+      requiredRole: UserRole.RADICADOR,
+      isActive: true
+    },
+    {
+      id: 'mis-estadisticas',  // Agregar este ID en getModuleIcon() después
+      title: 'Mis Estadísticas',
+      description: 'Ver mis estadísticas de radicación',
+      path: '/radicacion/mis-estadisticas',
+      route: '/radicacion/mis-estadisticas',
+      icon: 'chart-bar',
+      requiredRole: UserRole.RADICADOR,
+      isActive: true
+    }
+  ];
+
+  console.log('📋 Módulos disponibles (IDs corregidos):', this.availableModules.map(m => ({
+    id: m.id,
+    title: m.title,
+    path: m.path
+  })));
+}
 
   getUserRoleName(): string {
     if (!this.currentUser) {
