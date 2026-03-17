@@ -64,7 +64,6 @@ export interface Documento {
 
   // ────────────────────────────────────────────────────────────────
   // PROPIEDADES AGREGADAS SOLO PARA EL MÓDULO DE AUDITOR
-  // (enriquecidas en AuditorService y usadas en auditor-pending-list)
   // ────────────────────────────────────────────────────────────────
   puedeTomar?: boolean;
   enRevision?: boolean;

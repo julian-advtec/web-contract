@@ -27,13 +27,21 @@
               "src/assets"
             ],
             "styles": [
-             "node_modules/bootstrap/dist/css/bootstrap.min.css",
+              "node_modules/bootstrap/dist/css/bootstrap.min.css",
               "node_modules/@fortawesome/fontawesome-free/css/all.min.css",
               "src/styles.scss"
             ],
             "scripts": [
               "node_modules/@popperjs/core/dist/umd/popper.min.js",
               "node_modules/bootstrap/dist/js/bootstrap.min.js"
+            ],
+            "allowedCommonJsDependencies": [
+              "pdfjs-dist",
+              "jspdf",
+              "jspdf-autotable",
+              "xlsx",
+              "file-saver",
+              "html2canvas"
             ]
           },
           "configurations": {
@@ -41,8 +49,8 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kb",
-                  "maximumError": "1mb"
+                  "maximumWarning": "2mb",
+                  "maximumError": "5mb"
                 },
                 {
                   "type": "anyComponentStyle",
@@ -61,7 +69,8 @@
               "buildOptimizer": true,
               "extractLicenses": true,
               "vendorChunk": false,
-              "namedChunks": false
+              "namedChunks": false,
+              "sourceMap": false
             },
             "development": {
               "buildOptimizer": false,
@@ -119,6 +128,9 @@
     }
   },
   "cli": {
-    "analytics": "ba31f4c8-7261-4035-a622-989651db358c"
+    "analytics": "ba31f4c8-7261-4035-a622-989651db358c",
+    "schematicCollections": [
+      "@angular/cli"
+    ]
   }
 }

@@ -4,7 +4,7 @@ import { AuditorComponent } from './auditor.component'; // componente padre/layo
 import { AuditorListComponent } from './components/auditor-list/auditor-list.component';
 import { AuditorFormComponent } from './components/auditor-form/auditor-form.component';
 import { AuditorHistoryComponent } from './components/auditor-history/auditor-history.component';
-import { EstadisticasAuditorComponent } from './components/auditor-stats/auditor-stats.component';
+import { AuditorStatsComponent } from './components/auditor-stats/auditor-stats.component';
 import { ListaRechazadosComponent } from './components/lista-rechazados/lista-rechazados.component';
 import { RoleGuard } from '../../core/guards/role.guard';
 import { UserRole } from '../../core/models/user.types';
@@ -44,7 +44,7 @@ const routes: Routes = [
       },
       {
         path: 'estadisticas',
-        component: EstadisticasAuditorComponent,
+        component: AuditorStatsComponent  ,
         title: 'Estadísticas de Auditor'
       },
       {

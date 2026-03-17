@@ -38,7 +38,7 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
   isLoading = false;
   mensaje = '';
   tipoMensaje: 'success' | 'error' | 'warning' = 'success';
-  maxFileSize = 10 * 1024 * 1024;
+  maxFileSize = 10 * 1024 * 1024; // 10MB
 
   verificandoPrimerRadicado = false;
   primerRadicadoDisponible = true;
@@ -89,8 +89,8 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
     return this.fb.group({
       numeroRadicado: ['', [
         Validators.required,
-        Validators.pattern(/^R\d{4}-d{4,8}$/),  // Ahora permite 4 dígitos al final
-        Validators.maxLength(11)
+        Validators.pattern(/^R\d{4}-\d{4,8}$/),
+        Validators.maxLength(13)
       ]],
       numeroContrato: ['', [Validators.required, Validators.maxLength(50)]],
       nombreContratista: ['', [Validators.required, Validators.maxLength(200)]],
@@ -594,11 +594,9 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
 
   private setupRadicadoListeners(): void {
     const radicadoSub = this.radicacionForm.get('numeroRadicado')?.valueChanges.subscribe(value => {
-      if (value && value.match(/^R\d{4}-\d{4}$/)) {
+      if (value && value.match(/^R\d{4}-\d{4,8}$/)) {
         const ano = value.substring(1, 5);
-        this.mostrarMensaje(`Año detectado: ${ano}`, 'success');
-      } else if (value) {
-        this.mostrarMensaje('Formato inválido. Use RAAAA-NNNN (ej: R2025-0001)', 'error');
+        console.log(`✅ Año detectado: ${ano}`);
       }
     });
 
@@ -627,10 +625,8 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
     this.mensajePrimerRadicado = 'Verificando si ya existe un primer radicado para este contrato...';
     this.cdRef.detectChanges();
 
-    // Aquí podrías llamar a un servicio que verifique por contrato
-    // Por ahora simulamos que siempre está disponible
     setTimeout(() => {
-      const yaExiste = false; // Cambia esta lógica según tu necesidad
+      const yaExiste = false;
 
       this.primerRadicadoDisponible = !yaExiste;
       this.mensajePrimerRadicado = yaExiste
@@ -704,113 +700,96 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
     return this.documentosSeleccionados[index]?.name || 'Sin archivo';
   }
 
-onSubmit(): void {
-  console.log('======= INICIANDO ENVÍO DE RADICACIÓN =======');
+  onSubmit(): void {
+    console.log('======= INICIANDO ENVÍO DE RADICACIÓN =======');
 
-  console.log('Valor de primerRadicadoDelAno antes de enviar:',
-    this.radicacionForm.get('primerRadicadoDelAno')?.value,
-    'Tipo:', typeof this.radicacionForm.get('primerRadicadoDelAno')?.value
-  );
+    if (this.radicacionForm.invalid) {
+      console.log('❌ Formulario inválido');
+      this.marcarControlesComoSucios();
+      this.mostrarMensaje('Por favor complete todos los campos requeridos correctamente', 'error');
+      return;
+    }
 
-  if (this.radicacionForm.invalid) {
-    console.log('Formulario inválido');
-    this.marcarControlesComoSucios();
-    this.mostrarMensaje('Por favor complete todos los campos requeridos correctamente', 'error');
-    return;
-  }
+    // ✅ Validación del número de radicado
+    const numeroRadicado = this.radicacionForm.get('numeroRadicado')?.value;
+    const radicadoRegex = /^R\d{4}-\d{4,8}$/;
+    if (!radicadoRegex.test(numeroRadicado)) {
+      this.mostrarMensaje('El número de radicado debe tener formato RAAAA-NNNN (ej: R2025-0001)', 'error');
+      return;
+    }
 
-  // ✅ Validación específica para el número de radicado
-  const numeroRadicado = this.radicacionForm.get('numeroRadicado')?.value;
-  const radicadoRegex = /^R\d{4}-\d{4,8}$/;
-  if (!radicadoRegex.test(numeroRadicado)) {
-    this.mostrarMensaje('El número de radicado debe tener formato RAAAA-NNNN (ej: R2025-0001) donde NNNN puede ser de 4 a 8 dígitos', 'error');
-    return;
-  }
+    const archivosSeleccionados = this.documentosSeleccionados.filter(file => file !== null);
+    if (archivosSeleccionados.length !== 3) {
+      console.log('❌ Archivos insuficientes:', archivosSeleccionados.length);
+      this.mostrarMensaje('Debe seleccionar exactamente 3 archivos', 'error');
+      return;
+    }
 
-  const archivosSeleccionados = this.documentosSeleccionados.filter(file => file !== null);
-  if (archivosSeleccionados.length !== 3) {
-    console.log('Archivos insuficientes:', archivosSeleccionados.length);
-    this.mostrarMensaje('Debe seleccionar exactamente 3 archivos', 'error');
-    return;
-  }
+    const fechaInicioStr = String(this.radicacionForm.value.fechaInicio).trim();
+    const fechaFinStr = String(this.radicacionForm.value.fechaFin).trim();
 
-  const fechaInicioStr = String(this.radicacionForm.value.fechaInicio).trim();
-  const fechaFinStr = String(this.radicacionForm.value.fechaFin).trim();
+    if (!fechaInicioStr || fechaInicioStr === 'undefined' || fechaInicioStr === 'null') {
+      this.mostrarMensaje('La fecha de inicio es requerida', 'error');
+      return;
+    }
 
-  if (!fechaInicioStr || fechaInicioStr === 'undefined' || fechaInicioStr === 'null') {
-    this.mostrarMensaje('La fecha de inicio es requerida', 'error');
-    return;
-  }
+    if (!fechaFinStr || fechaFinStr === 'undefined' || fechaFinStr === 'null') {
+      this.mostrarMensaje('La fecha de fin es requerida', 'error');
+      return;
+    }
 
-  if (!fechaFinStr || fechaFinStr === 'undefined' || fechaFinStr === 'null') {
-    this.mostrarMensaje('La fecha de fin es requerida', 'error');
-    return;
-  }
+    const fechaInicio = new Date(fechaInicioStr);
+    const fechaFin = new Date(fechaFinStr);
 
-  const fechaInicio = new Date(fechaInicioStr);
-  const fechaFin = new Date(fechaFinStr);
+    if (isNaN(fechaInicio.getTime()) || isNaN(fechaFin.getTime())) {
+      this.mostrarMensaje('Fechas inválidas. Formato esperado: YYYY-MM-DD', 'error');
+      return;
+    }
 
-  if (isNaN(fechaInicio.getTime()) || isNaN(fechaFin.getTime())) {
-    this.mostrarMensaje('Fechas inválidas. Formato esperado: YYYY-MM-DD', 'error');
-    return;
-  }
+    if (fechaInicio > fechaFin) {
+      this.mostrarMensaje('La fecha de inicio no puede ser mayor que la fecha de fin', 'error');
+      return;
+    }
 
-  if (fechaInicio > fechaFin) {
-    this.mostrarMensaje('La fecha de inicio no puede ser mayor que la fecha de fin', 'error');
-    return;
-  }
+    this.isLoading = true;
+    this.mostrarMensaje('Radicando documento...', 'success');
+    this.cdRef.detectChanges();
 
-  this.isLoading = true;
-  this.mostrarMensaje('Radicando documento...', 'success');
-  this.cdRef.detectChanges();
+    const createDocumentoDto: CreateDocumentoDto = {
+      numeroRadicado: this.radicacionForm.value.numeroRadicado.toUpperCase().trim(),
+      numeroContrato: this.radicacionForm.value.numeroContrato.trim(),
+      nombreContratista: this.radicacionForm.value.nombreContratista.trim(),
+      documentoContratista: this.radicacionForm.value.documentoContratista.trim(),
+      fechaInicio: fechaInicioStr,
+      fechaFin: fechaFinStr,
+      descripcionCuentaCobro: this.radicacionForm.value.descripcionCuentaCobro?.trim() || 'Cuenta de Cobro',
+      descripcionSeguridadSocial: this.radicacionForm.value.descripcionSeguridadSocial?.trim() || 'Seguridad Social',
+      descripcionInformeActividades: this.radicacionForm.value.descripcionInformeActividades?.trim() || 'Informe de Actividades',
+      observacion: this.radicacionForm.value.observacion?.trim() || '',
+      primerRadicadoDelAno: this.radicacionForm.get('primerRadicadoDelAno')?.value ?? false
+    };
 
-  const createDocumentoDto: CreateDocumentoDto = {
-    numeroRadicado: this.radicacionForm.value.numeroRadicado.toUpperCase().trim(),
-    numeroContrato: this.radicacionForm.value.numeroContrato.trim(),
-    nombreContratista: this.radicacionForm.value.nombreContratista.trim(),
-    documentoContratista: this.radicacionForm.value.documentoContratista.trim(),
-    fechaInicio: fechaInicioStr,
-    fechaFin: fechaFinStr,
-    descripcionCuentaCobro: this.radicacionForm.value.descripcionCuentaCobro?.trim() || 'Cuenta de Cobro',
-    descripcionSeguridadSocial: this.radicacionForm.value.descripcionSeguridadSocial?.trim() || 'Seguridad Social',
-    descripcionInformeActividades: this.radicacionForm.value.descripcionInformeActividades?.trim() || 'Informe de Actividades',
-    observacion: this.radicacionForm.value.observacion?.trim() || '',
-    primerRadicadoDelAno: this.radicacionForm.get('primerRadicadoDelAno')?.value ?? false
-  };
+    console.log('📦 DTO a enviar:', createDocumentoDto);
 
-  console.log('DTO que se envía al backend:', createDocumentoDto);
+    const archivos = archivosSeleccionados as File[];
 
-  const archivos = archivosSeleccionados as File[];
-
-  this.radicacionService.crearDocumento(createDocumentoDto, archivos).subscribe({
-    next: (documentoCreado: any) => {
-      console.log('Documento radicado exitosamente:', documentoCreado);
-
-      if (documentoCreado && documentoCreado.id && documentoCreado.numeroRadicado) {
-        const mensaje = documentoCreado.primerRadicadoDelAno
-          ? `Documento radicado exitosamente - Marcado como primer radicado del contrato`
-          : 'Documento radicado exitosamente';
-
-        this.mostrarMensaje(mensaje, 'success');
+    this.radicacionService.crearDocumento(createDocumentoDto, archivos).subscribe({
+      next: (documentoCreado: any) => {
+        console.log('✅ Documento radicado exitosamente:', documentoCreado);
+        this.mostrarMensaje('Documento radicado exitosamente', 'success');
         this.documentoRadicado.emit(documentoCreado);
         this.resetForm();
-      } else {
-        console.warn('Respuesta inesperada:', documentoCreado);
-        this.mostrarMensaje('Documento creado pero respuesta inesperada', 'success');
-        this.resetForm();
+        this.isLoading = false;
+        this.cdRef.detectChanges();
+      },
+      error: (error) => {
+        console.error('❌ Error en radicación:', error);
+        this.mostrarMensaje(error.message || 'Error al radicar documento', 'error');
+        this.isLoading = false;
+        this.cdRef.detectChanges();
       }
-      this.isLoading = false;
-      this.cdRef.detectChanges();
-    },
-    error: (error) => {
-      console.error('Error en radicación:', error);
-      let mensajeError = error.message || 'Error desconocido al radicar documento';
-      this.mostrarMensaje(mensajeError, 'error');
-      this.isLoading = false;
-      this.cdRef.detectChanges();
-    }
-  });
-}
+    });
+  }
 
   onCancel(): void {
     this.cancelar.emit();
@@ -870,40 +849,19 @@ onSubmit(): void {
     this.cdRef.detectChanges();
   }
 
-getNumeroRadicadoError(): string {
-  const control = this.radicacionForm.get('numeroRadicado');
-  if (control?.errors?.['required']) return 'Requerido';
-  if (control?.errors?.['pattern']) return 'Formato: RAAAA-NNNN (ej: R2025-0001) donde NNNN puede ser de 4 a 8 dígitos';
-  if (control?.errors?.['maxlength']) return 'Máx 13 caracteres';
-  return '';
-}
-
-getAnoRadicado(): string {
-  const numeroRadicado = this.radicacionForm.get('numeroRadicado')?.value;
-  if (numeroRadicado && numeroRadicado.match(/^R\d{4}-\d{4,8}$/)) {
-    return numeroRadicado.substring(1, 5);
+  getNumeroRadicadoError(): string {
+    const control = this.radicacionForm.get('numeroRadicado');
+    if (control?.errors?.['required']) return 'Requerido';
+    if (control?.errors?.['pattern']) return 'Formato: RAAAA-NNNN (ej: R2025-0001)';
+    if (control?.errors?.['maxlength']) return 'Máx 13 caracteres';
+    return '';
   }
-  return '';
-}
 
-  cargarTodosContratistasParaDropdown(): void {
-    if (this.contratistas.length === 0) {
-      this.cargandoContratistas = true;
-      this.contratistasService.obtenerTodos().subscribe({
-        next: (contratistas) => {
-          this.contratistas = contratistas;
-          this.contratistasFiltrados = contratistas.slice(0, 10);
-          this.cargandoContratistas = false;
-          this.cdRef.detectChanges();
-        },
-        error: () => {
-          this.cargandoContratistas = false;
-          this.cdRef.detectChanges();
-        }
-      });
-    } else {
-      this.contratistasFiltrados = this.contratistas.slice(0, 10);
-      this.cdRef.detectChanges();
+  getAnoRadicado(): string {
+    const numeroRadicado = this.radicacionForm.get('numeroRadicado')?.value;
+    if (numeroRadicado && numeroRadicado.match(/^R\d{4}-\d{4,8}$/)) {
+      return numeroRadicado.substring(1, 5);
     }
+    return '';
   }
 }
