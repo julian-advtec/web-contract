@@ -129,26 +129,9 @@
                 </div>
               </div>
 
-              <div class="col-md-4 mb-3">
-                <label class="form-label">Dirección</label>
-                <input type="text" class="form-control" formControlName="direccion" placeholder="Dirección">
-              </div>
+           
 
-              <div class="col-md-4 mb-3">
-                <label class="form-label">Teléfono</label>
-                <input type="text" class="form-control" formControlName="telefono" placeholder="Teléfono">
-              </div>
-
-              <div class="col-md-4 mb-3">
-                <label class="form-label">Email</label>
-                <input type="email" class="form-control" formControlName="email"
-                       placeholder="correo@ejemplo.com"
-                       [ngClass]="{'is-invalid': submitted && f['proveedor'].get('email')?.errors}">
-                <div *ngIf="submitted && f['proveedor'].get('email')?.errors" 
-                     class="invalid-feedback">
-                  Email inválido
-                </div>
-              </div>
+              
             </div>
           </div>
         </div>
