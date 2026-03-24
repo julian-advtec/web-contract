@@ -1,0 +1,124 @@
+// src/app/contratistas/components/contratista-list/contratista-list.component.scss
+@import '../../../../shared/layout-styles.scss';
+
+$color-primary: #1D4ED8;
+$color-primary-light: rgba(29, 78, 216, 0.1);
+$color-primary-dark: #2563EB;
+
+.contratista-list-container {
+  padding: 20px;
+  min-height: calc(100vh - 100px);
+  background-color: #f8f9fa;
+
+  .contratista-list-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .page-title {
+    color: $color-primary;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .search-container {
+    max-width: 500px;
+    
+    .input-group {
+      border: 2px solid $color-primary-light;
+      border-radius: 12px;
+      overflow: hidden;
+      
+      .input-group-text {
+        background-color: $color-primary-light;
+        border: none;
+        color: $color-primary;
+      }
+      
+      .form-control {
+        border: none;
+        
+        &:focus {
+          box-shadow: none;
+        }
+      }
+    }
+  }
+
+  .filters-container {
+    .form-select {
+      border: 2px solid $color-primary-light;
+      border-radius: 8px;
+      
+      &:focus {
+        border-color: $color-primary;
+        box-shadow: 0 0 0 0.2rem $color-primary-light;
+      }
+    }
+  }
+
+  .main-card {
+    border: none;
+    border-radius: 14px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+    border: 2px solid $color-primary-light;
+
+    .table {
+      th {
+        background-color: #f8f9fa;
+        color: $color-primary-dark;
+        font-weight: 600;
+        padding: 1rem;
+        border-bottom: 2px solid $color-primary-light;
+      }
+
+      td {
+        padding: 1rem;
+        vertical-align: middle;
+      }
+
+      .badge {
+        padding: 0.5rem 0.75rem;
+        border-radius: 20px;
+        font-weight: 500;
+      }
+    }
+  }
+
+  .pagination-container {
+    .page-link {
+      cursor: pointer;
+      color: $color-primary;
+      
+      &:hover {
+        background-color: $color-primary-light;
+      }
+    }
+
+    .page-item.active .page-link {
+      background-color: $color-primary;
+      border-color: $color-primary;
+      color: white;
+    }
+  }
+
+  .alert {
+    border-radius: 10px;
+    border: none;
+    padding: 1rem 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .contratista-list-container {
+    padding: 10px;
+    
+    .page-title {
+      font-size: 1.5rem;
+    }
+    
+    .table-responsive {
+      overflow-x: auto;
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -14,8 +14,6 @@ import { CreateContratoDto, Contrato, TipoContrato } from '../../../../core/mode
   styleUrls: ['./juridica-creacion.component.scss']
 })
 export class JuridicaCreacionComponent implements OnInit, OnDestroy {
-  @ViewChild('contratoFormElement') formElement!: ElementRef;
-
   contratoForm!: FormGroup;
   isEditMode = false;
   contratoId: string | null = null;
@@ -24,26 +22,33 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   submitted = false;
   errorMessage = '';
   successMessage = '';
-
   pasoActual = 1;
+  anioActual = new Date().getFullYear();
   vigencias: number[] = [];
   supervisores: any[] = [];
   valorTotal = 0;
 
   cdpFile: File | null = null;
   rpFile: File | null = null;
+  polizaCumplimientoFile: File | null = null;
+  polizaCalidadFile: File | null = null;
+  polizaRCFile: File | null = null;
 
   cdpFileName: string = '';
   rpFileName: string = '';
+  polizaCumplimientoFileName: string = '';
+  polizaCalidadFileName: string = '';
+  polizaRCFileName: string = '';
 
   cdpFileError: string | null = null;
   rpFileError: string | null = null;
+  polizaCumplimientoFileError: string | null = null;
 
   tiposContrato = [
-    { value: 'PRESTACION_SERVICIOS', label: 'Prestación de Servicios' },
+    { value: 'PRESTACION_SERVICIOS', label: 'Prestacion de Servicios' },
     { value: 'SUMINISTRO', label: 'Suministro' },
     { value: 'OBRA', label: 'Obra' },
-    { value: 'CONSULTORIA', label: 'Consultoría' },
+    { value: 'CONSULTORIA', label: 'Consultoria' },
     { value: 'COMPRAVENTA', label: 'Compraventa' },
     { value: 'ARRENDAMIENTO', label: 'Arrendamiento' },
     { value: 'OTRO', label: 'Otro' }
@@ -51,9 +56,21 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
 
   tiposIdentificacion = [
     { value: 'NIT', label: 'NIT' },
-    { value: 'CC', label: 'Cédula de Ciudadanía' },
-    { value: 'CE', label: 'Cédula de Extranjería' },
+    { value: 'CC', label: 'Cedula de Ciudadania' },
+    { value: 'CE', label: 'Cedula de Extranjeria' },
     { value: 'PAS', label: 'Pasaporte' }
+  ];
+
+  aseguradoras = [
+    'Seguros Bolivar',
+    'Seguros Sura',
+    'Allianz Seguros',
+    'Seguros Mundial',
+    'AXA Colpatria',
+    'Liberty Seguros',
+    'Seguros Generales Suramericana',
+    'Mapfre Seguros',
+    'Otro'
   ];
 
   private subscriptions: Subscription[] = [];
@@ -81,77 +98,121 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     return this.contratoForm.controls;
   }
 
+  get valorNumerico(): number {
+    return this.contratoForm.get('valor')?.value || 0;
+  }
+
+  get valorAnticipoNumerico(): number {
+    return this.contratoForm.get('valorAnticipo')?.value || 0;
+  }
+
+  get adicionesNumerico(): number {
+    return this.contratoForm.get('adiciones')?.value || 0;
+  }
+
+  get valorTotalNumerico(): number {
+    return this.valorNumerico + this.adicionesNumerico;
+  }
+
+  get polizaCumplimientoValorNumerico(): number {
+    return this.contratoForm.get('polizaCumplimientoValor')?.value || 0;
+  }
+
+  get polizaCalidadValorNumerico(): number {
+    return this.contratoForm.get('polizaCalidadValor')?.value || 0;
+  }
+
+  get polizaRCValorNumerico(): number {
+    return this.contratoForm.get('polizaRCValor')?.value || 0;
+  }
+
+  formatearNumeroConPuntos(numero: number): string {
+    if (!numero && numero !== 0) return '0';
+    return numero.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+
+  get valorInicialFormateado(): string {
+    const valor = this.contratoForm.get('valor')?.value || 0;
+    return this.formatearNumeroConPuntos(valor);
+  }
+
+  get adicionesFormateado(): string {
+    const valor = this.contratoForm.get('adiciones')?.value || 0;
+    return this.formatearNumeroConPuntos(valor);
+  }
+
+  get valorTotalFormateado(): string {
+    const total = this.valorNumerico + this.adicionesNumerico;
+    return this.formatearNumeroConPuntos(total);
+  }
+
+  get valorAnticipoFormateado(): string {
+    const valor = this.contratoForm.get('valorAnticipo')?.value || 0;
+    return this.formatearNumeroConPuntos(valor);
+  }
+
   private generarVigencias(): void {
-    const añoActual = new Date().getFullYear();
     for (let i = 0; i < 5; i++) {
-      this.vigencias.push(añoActual + i);
+      this.vigencias.push(this.anioActual + i);
     }
   }
 
   private initializeForm(): void {
-    const hoy = new Date().toISOString().split('T')[0];
-
     this.contratoForm = this.fb.group({
-      // Paso 1: Datos generales
-      vigencia: ['', Validators.required],
+      vigencia: [this.anioActual.toString(), Validators.required],
       numeroContrato: ['', Validators.required],
       tipoContrato: ['', Validators.required],
-
       proveedor: this.fb.group({
         tipoIdentificacion: ['NIT', Validators.required],
         numeroIdentificacion: ['', Validators.required],
         nombreRazonSocial: ['', Validators.required],
-        direccion: [''],
         telefono: [''],
         email: ['', [Validators.email]]
       }),
-
       objeto: ['', Validators.required],
-
-      // Paso 2: Valores y plazos
       valor: ['', [Validators.required, Validators.min(1)]],
       plazoDias: ['', [Validators.required, Validators.min(1)]],
       fechaInicio: ['', Validators.required],
       fechaTerminacion: [{ value: '', disabled: true }, Validators.required],
       fechaFirma: ['', Validators.required],
       supervisor: ['', Validators.required],
-
-      // Paso 3: Presupuestal
       cdp: [''],
       rp: [''],
-
-      // Paso 4: Anticipo
       seDesembolsaAnticipo: [false],
       porcentajeAnticipo: [{ value: '', disabled: true }],
       valorAnticipo: [{ value: '', disabled: true }],
       fechaDesembolsoAnticipo: [{ value: '', disabled: true }],
-      adiciones: [0]
+      adiciones: [0],
+      requierePolizas: [false],
+      polizaCumplimientoNumero: [''],
+      polizaCumplimientoAseguradora: [''],
+      polizaCumplimientoValor: [''],
+      polizaCumplimientoVigenciaDesde: [''],
+      polizaCumplimientoVigenciaHasta: [''],
+      requierePolizaCalidad: [false],
+      polizaCalidadNumero: [''],
+      polizaCalidadAseguradora: [''],
+      polizaCalidadValor: [''],
+      polizaCalidadVigenciaDesde: [''],
+      polizaCalidadVigenciaHasta: [''],
+      requierePolizaRC: [false],
+      polizaRCNumero: [''],
+      polizaRCAseguradora: [''],
+      polizaRCValor: [''],
+      polizaRCVigenciaDesde: [''],
+      polizaRCVigenciaHasta: ['']
     });
 
-    // Suscripciones para cálculos
-    const fechaInicioSub = this.contratoForm.get('fechaInicio')?.valueChanges.subscribe(() => {
-      this.calcularFechaFin();
-    });
-
-    const plazoSub = this.contratoForm.get('plazoDias')?.valueChanges.subscribe(() => {
-      this.calcularFechaFin();
-    });
-
+    const fechaInicioSub = this.contratoForm.get('fechaInicio')?.valueChanges.subscribe(() => this.calcularFechaFin());
+    const plazoSub = this.contratoForm.get('plazoDias')?.valueChanges.subscribe(() => this.calcularFechaFin());
     const valorSub = this.contratoForm.get('valor')?.valueChanges.subscribe(() => {
       this.calcularValores();
-    });
-
-    const adicionesSub = this.contratoForm.get('adiciones')?.valueChanges.subscribe(() => {
-      this.calcularValores();
-    });
-
-    const anticipoSub = this.contratoForm.get('seDesembolsaAnticipo')?.valueChanges.subscribe((tieneAnticipo) => {
-      this.onAnticipoChange(tieneAnticipo);
-    });
-
-    const porcentajeSub = this.contratoForm.get('porcentajeAnticipo')?.valueChanges.subscribe(() => {
       this.calcularValorAnticipo();
     });
+    const adicionesSub = this.contratoForm.get('adiciones')?.valueChanges.subscribe(() => this.calcularValores());
+    const anticipoSub = this.contratoForm.get('seDesembolsaAnticipo')?.valueChanges.subscribe((tieneAnticipo) => this.onAnticipoChange(tieneAnticipo));
+    const porcentajeSub = this.contratoForm.get('porcentajeAnticipo')?.valueChanges.subscribe(() => this.calcularValorAnticipo());
+    const requierePolizasSub = this.contratoForm.get('requierePolizas')?.valueChanges.subscribe((requiere) => this.onRequierePolizasChange(requiere));
 
     if (fechaInicioSub) this.subscriptions.push(fechaInicioSub);
     if (plazoSub) this.subscriptions.push(plazoSub);
@@ -159,6 +220,140 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     if (adicionesSub) this.subscriptions.push(adicionesSub);
     if (anticipoSub) this.subscriptions.push(anticipoSub);
     if (porcentajeSub) this.subscriptions.push(porcentajeSub);
+    if (requierePolizasSub) this.subscriptions.push(requierePolizasSub);
+  }
+
+  convertirAPalabras(valor: number): string {
+    if (!valor || valor === 0) return '';
+   
+    const unidades = ['', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];
+    const especiales = ['diez', 'once', 'doce', 'trece', 'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve'];
+    const decenas = ['', '', 'veinte', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa'];
+    const centenas = ['', 'cien', 'doscientos', 'trescientos', 'cuatrocientos', 'quinientos', 'seiscientos', 'setecientos', 'ochocientos', 'novecientos'];
+   
+    const convertirTresDigitos = (num: number): string => {
+      if (num === 0) return '';
+     
+      const centena = Math.floor(num / 100);
+      const decena = Math.floor((num % 100) / 10);
+      const unidad = num % 10;
+     
+      let resultado = '';
+     
+      if (centena > 0) {
+        if (centena === 1 && (decena > 0 || unidad > 0)) {
+          resultado += 'cien ';
+        } else {
+          resultado += centenas[centena] + ' ';
+        }
+      }
+     
+      const resto = num % 100;
+      if (resto >= 10 && resto <= 19) {
+        resultado += especiales[resto - 10];
+      } else if (resto >= 20) {
+        resultado += decenas[decena];
+        if (unidad > 0) {
+          resultado += (decena === 2 ? ' y ' : ' y ') + unidades[unidad];
+        }
+      } else if (resto > 0 && resto < 10) {
+        resultado += unidades[resto];
+      }
+     
+      return resultado.trim();
+    };
+   
+    const millones = Math.floor(valor / 1000000);
+    const miles = Math.floor((valor % 1000000) / 1000);
+    const resto = valor % 1000;
+   
+    let resultado = '';
+   
+    if (millones > 0) {
+      if (millones === 1) {
+        resultado += 'un millón ';
+      } else {
+        resultado += convertirTresDigitos(millones) + ' millones ';
+      }
+    }
+   
+    if (miles > 0) {
+      if (miles === 1) {
+        resultado += 'mil ';
+      } else {
+        resultado += convertirTresDigitos(miles) + ' mil ';
+      }
+    }
+   
+    if (resto > 0) {
+      resultado += convertirTresDigitos(resto);
+    }
+   
+    return resultado.trim() + ' pesos colombianos';
+  }
+
+  getRemainingChars(fieldName: string): number {
+    const control = this.contratoForm.get(fieldName);
+    if (!control) return 0;
+    const currentValue = control.value || '';
+    const maxLength = 500;
+    return maxLength - currentValue.length;
+  }
+
+  formatearValor(campo: string): void {
+    let valor = this.contratoForm.get(campo)?.value;
+    if (valor) {
+      if (typeof valor === 'string') {
+        valor = valor.replace(/\D/g, '');
+      }
+      if (valor) {
+        const numero = parseInt(valor);
+        this.contratoForm.get(campo)?.setValue(numero, { emitEvent: false });
+      }
+    } else {
+      if (campo === 'valor' || campo === 'adiciones') {
+        this.contratoForm.get(campo)?.setValue(0, { emitEvent: false });
+      }
+    }
+  }
+
+  private calcularValores(): void {
+    const valorInicial = this.contratoForm.get('valor')?.value || 0;
+    const adiciones = this.contratoForm.get('adiciones')?.value || 0;
+    this.valorTotal = valorInicial + adiciones;
+  }
+
+  private calcularValorAnticipo(): void {
+    const valorContrato = this.contratoForm.get('valor')?.value || 0;
+    const porcentaje = this.contratoForm.get('porcentajeAnticipo')?.value || 0;
+    if (valorContrato && porcentaje) {
+      const valorAnticipo = (valorContrato * porcentaje) / 100;
+      this.contratoForm.patchValue({ valorAnticipo: Math.round(valorAnticipo) });
+    }
+  }
+
+  private onRequierePolizasChange(requiere: boolean): void {
+    if (!requiere) {
+      this.contratoForm.patchValue({
+        requierePolizaCalidad: false,
+        requierePolizaRC: false,
+        polizaCumplimientoNumero: '',
+        polizaCumplimientoAseguradora: '',
+        polizaCumplimientoValor: '',
+        polizaCumplimientoVigenciaDesde: '',
+        polizaCumplimientoVigenciaHasta: '',
+        polizaCalidadNumero: '',
+        polizaCalidadAseguradora: '',
+        polizaCalidadValor: '',
+        polizaCalidadVigenciaDesde: '',
+        polizaCalidadVigenciaHasta: '',
+        polizaRCNumero: '',
+        polizaRCAseguradora: '',
+        polizaRCValor: '',
+        polizaRCVigenciaDesde: '',
+        polizaRCVigenciaHasta: ''
+      });
+    }
   }
 
   private checkEditMode(): void {
@@ -174,11 +369,8 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     const sub = this.juridicaService.obtenerContratoPorId(id).subscribe({
       next: (contrato) => {
-        if (contrato) {
-          this.cargarDatosEnFormulario(contrato);
-        } else {
-          this.errorMessage = 'Contrato no encontrado';
-        }
+        if (contrato) this.cargarDatosEnFormulario(contrato);
+        else this.errorMessage = 'Contrato no encontrado';
         this.isLoading = false;
       },
       error: (error) => {
@@ -196,7 +388,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     const fechaFirma = contrato.fechaFirma ? new Date(contrato.fechaFirma).toISOString().split('T')[0] : '';
     const fechaDesembolso = contrato.fechaDesembolsoAnticipo ? new Date(contrato.fechaDesembolsoAnticipo).toISOString().split('T')[0] : '';
 
-    this.contratoForm.patchValue({
+    const patchData: any = {
       vigencia: contrato.vigencia,
       numeroContrato: contrato.numeroContrato,
       tipoContrato: contrato.tipoContrato,
@@ -204,7 +396,6 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
         tipoIdentificacion: contrato.proveedor.tipoIdentificacion,
         numeroIdentificacion: contrato.proveedor.numeroIdentificacion,
         nombreRazonSocial: contrato.proveedor.nombreRazonSocial,
-        direccion: contrato.proveedor.direccion || '',
         telefono: contrato.proveedor.telefono || '',
         email: contrato.proveedor.email || ''
       },
@@ -222,25 +413,43 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       valorAnticipo: contrato.valorAnticipo || '',
       fechaDesembolsoAnticipo: fechaDesembolso,
       adiciones: contrato.adiciones || 0
-    });
+    };
 
-    this.valorTotal = contrato.valorTotal;
+    if (contrato.requierePolizas !== undefined) patchData.requierePolizas = contrato.requierePolizas;
+    if (contrato.polizaCumplimientoNumero !== undefined) patchData.polizaCumplimientoNumero = contrato.polizaCumplimientoNumero;
+    if (contrato.polizaCumplimientoAseguradora !== undefined) patchData.polizaCumplimientoAseguradora = contrato.polizaCumplimientoAseguradora;
+    if (contrato.polizaCumplimientoValor !== undefined) patchData.polizaCumplimientoValor = contrato.polizaCumplimientoValor;
+    if (contrato.polizaCumplimientoVigenciaDesde !== undefined) patchData.polizaCumplimientoVigenciaDesde = contrato.polizaCumplimientoVigenciaDesde;
+    if (contrato.polizaCumplimientoVigenciaHasta !== undefined) patchData.polizaCumplimientoVigenciaHasta = contrato.polizaCumplimientoVigenciaHasta;
+    if (contrato.requierePolizaCalidad !== undefined) patchData.requierePolizaCalidad = contrato.requierePolizaCalidad;
+    if (contrato.polizaCalidadNumero !== undefined) patchData.polizaCalidadNumero = contrato.polizaCalidadNumero;
+    if (contrato.polizaCalidadAseguradora !== undefined) patchData.polizaCalidadAseguradora = contrato.polizaCalidadAseguradora;
+    if (contrato.polizaCalidadValor !== undefined) patchData.polizaCalidadValor = contrato.polizaCalidadValor;
+    if (contrato.polizaCalidadVigenciaDesde !== undefined) patchData.polizaCalidadVigenciaDesde = contrato.polizaCalidadVigenciaDesde;
+    if (contrato.polizaCalidadVigenciaHasta !== undefined) patchData.polizaCalidadVigenciaHasta = contrato.polizaCalidadVigenciaHasta;
+    if (contrato.requierePolizaRC !== undefined) patchData.requierePolizaRC = contrato.requierePolizaRC;
+    if (contrato.polizaRCNumero !== undefined) patchData.polizaRCNumero = contrato.polizaRCNumero;
+    if (contrato.polizaRCAseguradora !== undefined) patchData.polizaRCAseguradora = contrato.polizaRCAseguradora;
+    if (contrato.polizaRCValor !== undefined) patchData.polizaRCValor = contrato.polizaRCValor;
+    if (contrato.polizaRCVigenciaDesde !== undefined) patchData.polizaRCVigenciaDesde = contrato.polizaRCVigenciaDesde;
+    if (contrato.polizaRCVigenciaHasta !== undefined) patchData.polizaRCVigenciaHasta = contrato.polizaRCVigenciaHasta;
+
+    this.contratoForm.patchValue(patchData);
+    this.valorTotal = contrato.valorTotal || 0;
 
     if (contrato.seDesembolsaAnticipo) {
       this.contratoForm.get('porcentajeAnticipo')?.enable();
       this.contratoForm.get('valorAnticipo')?.enable();
       this.contratoForm.get('fechaDesembolsoAnticipo')?.enable();
     }
+
+    this.calcularValores();
   }
 
   cargarSupervisores(): void {
     const sub = this.juridicaService.obtenerSupervisores().subscribe({
-      next: (supervisores) => {
-        this.supervisores = supervisores;
-      },
-      error: (error) => {
-        console.error('Error cargando supervisores:', error);
-      }
+      next: (supervisores) => this.supervisores = supervisores,
+      error: (error) => console.error('Error cargando supervisores:', error)
     });
     this.subscriptions.push(sub);
   }
@@ -252,9 +461,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   }
 
   pasoAnterior(): void {
-    if (this.pasoActual > 1) {
-      this.pasoActual--;
-    }
+    if (this.pasoActual > 1) this.pasoActual--;
   }
 
   private validarPasoActual(): boolean {
@@ -262,59 +469,32 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     let isValid = true;
 
     if (this.pasoActual === 1) {
-      // Campos obligatorios del paso 1 (generales + valores/plazos)
-      const camposObligatorios = [
-        'vigencia', 'numeroContrato', 'tipoContrato', 'objeto',
-        'valor', 'plazoDias', 'fechaInicio', 'fechaFirma', 'supervisor'
-      ];
-
+      const camposObligatorios = ['vigencia', 'numeroContrato', 'tipoContrato', 'objeto', 'valor', 'plazoDias', 'fechaInicio', 'fechaFirma', 'supervisor'];
       camposObligatorios.forEach(campo => {
-        if (this.contratoForm.get(campo)?.invalid) {
-          isValid = false;
-        }
+        if (this.contratoForm.get(campo)?.invalid) isValid = false;
       });
-
       const proveedor = this.contratoForm.get('proveedor') as FormGroup;
       if (proveedor?.get('numeroIdentificacion')?.invalid) isValid = false;
       if (proveedor?.get('nombreRazonSocial')?.invalid) isValid = false;
     }
 
-    // Paso 2: solo validamos anticipo SI está activado
     if (this.pasoActual === 2) {
       if (this.contratoForm.get('seDesembolsaAnticipo')?.value === true) {
         if (this.contratoForm.get('porcentajeAnticipo')?.invalid) isValid = false;
         if (this.contratoForm.get('fechaDesembolsoAnticipo')?.invalid) isValid = false;
       }
+      if (this.contratoForm.get('requierePolizas')?.value === true) {
+        if (!this.contratoForm.get('polizaCumplimientoNumero')?.value) isValid = false;
+        if (!this.contratoForm.get('polizaCumplimientoAseguradora')?.value) isValid = false;
+        if (!this.contratoForm.get('polizaCumplimientoValor')?.value) isValid = false;
+        if (!this.contratoForm.get('polizaCumplimientoVigenciaDesde')?.value) isValid = false;
+        if (!this.contratoForm.get('polizaCumplimientoVigenciaHasta')?.value) isValid = false;
+        if (!this.polizaCumplimientoFile) isValid = false;
+      }
     }
 
-    if (!isValid) {
-      this.contratoForm.markAllAsTouched();
-    }
-
+    if (!isValid) this.contratoForm.markAllAsTouched();
     return isValid;
-  }
-
-  private markStepFieldsAsTouched(): void {
-    switch (this.pasoActual) {
-      case 1:
-        this.contratoForm.get('vigencia')?.markAsTouched();
-        this.contratoForm.get('numeroContrato')?.markAsTouched();
-        this.contratoForm.get('tipoContrato')?.markAsTouched();
-        this.contratoForm.get('objeto')?.markAsTouched();
-
-        const proveedorGroup = this.contratoForm.get('proveedor') as FormGroup;
-        proveedorGroup.get('numeroIdentificacion')?.markAsTouched();
-        proveedorGroup.get('nombreRazonSocial')?.markAsTouched();
-        break;
-
-      case 2:
-        this.contratoForm.get('valor')?.markAsTouched();
-        this.contratoForm.get('plazoDias')?.markAsTouched();
-        this.contratoForm.get('fechaInicio')?.markAsTouched();
-        this.contratoForm.get('fechaFirma')?.markAsTouched();
-        this.contratoForm.get('supervisor')?.markAsTouched();
-        break;
-    }
   }
 
   private onAnticipoChange(tieneAnticipo: boolean): void {
@@ -334,7 +514,6 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       this.contratoForm.get('fechaDesembolsoAnticipo')?.clearValidators();
       this.contratoForm.get('fechaDesembolsoAnticipo')?.setValue('');
     }
-
     this.contratoForm.get('porcentajeAnticipo')?.updateValueAndValidity();
     this.contratoForm.get('fechaDesembolsoAnticipo')?.updateValueAndValidity();
   }
@@ -342,7 +521,6 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   private calcularFechaFin(): void {
     const fechaInicio = this.contratoForm.get('fechaInicio')?.value;
     const plazo = this.contratoForm.get('plazoDias')?.value;
-
     if (fechaInicio && plazo) {
       const fecha = new Date(fechaInicio);
       fecha.setDate(fecha.getDate() + parseInt(plazo));
@@ -352,33 +530,10 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     }
   }
 
-  private calcularValorAnticipo(): void {
-    const valorContrato = this.contratoForm.get('valor')?.value || 0;
-    const porcentaje = this.contratoForm.get('porcentajeAnticipo')?.value || 0;
-
-    if (valorContrato && porcentaje) {
-      const valorAnticipo = (valorContrato * porcentaje) / 100;
-      this.contratoForm.patchValue({
-        valorAnticipo: Math.round(valorAnticipo)
-      });
-    }
-  }
-
-  private calcularValores(): void {
-    const valorInicial = this.contratoForm.get('valor')?.value || 0;
-    const adiciones = this.contratoForm.get('adiciones')?.value || 0;
-    this.valorTotal = valorInicial + adiciones;
-  }
-
   guardarContrato(): void {
     this.submitted = true;
-
     if (this.contratoForm.invalid) {
       this.errorMessage = 'Por favor complete todos los campos requeridos';
-
-      if (this.contratoForm.get('vigencia')?.invalid) this.pasoActual = 1;
-      else if (this.contratoForm.get('valor')?.invalid) this.pasoActual = 2;
-
       this.markStepFieldsAsTouched();
       return;
     }
@@ -387,7 +542,6 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     this.errorMessage = '';
 
     const formValue = this.contratoForm.getRawValue();
-
     const dto: CreateContratoDto = {
       vigencia: formValue.vigencia,
       numeroContrato: formValue.numeroContrato,
@@ -405,7 +559,25 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       adiciones: formValue.adiciones || 0,
       valorTotal: this.valorTotal,
       supervisor: formValue.supervisor,
-      creadoPor: this.obtenerUsuarioActual()
+      creadoPor: this.obtenerUsuarioActual(),
+      requierePolizas: formValue.requierePolizas,
+      polizaCumplimientoNumero: formValue.polizaCumplimientoNumero,
+      polizaCumplimientoAseguradora: formValue.polizaCumplimientoAseguradora,
+      polizaCumplimientoValor: formValue.polizaCumplimientoValor,
+      polizaCumplimientoVigenciaDesde: formValue.polizaCumplimientoVigenciaDesde,
+      polizaCumplimientoVigenciaHasta: formValue.polizaCumplimientoVigenciaHasta,
+      requierePolizaCalidad: formValue.requierePolizaCalidad,
+      polizaCalidadNumero: formValue.polizaCalidadNumero,
+      polizaCalidadAseguradora: formValue.polizaCalidadAseguradora,
+      polizaCalidadValor: formValue.polizaCalidadValor,
+      polizaCalidadVigenciaDesde: formValue.polizaCalidadVigenciaDesde,
+      polizaCalidadVigenciaHasta: formValue.polizaCalidadVigenciaHasta,
+      requierePolizaRC: formValue.requierePolizaRC,
+      polizaRCNumero: formValue.polizaRCNumero,
+      polizaRCAseguradora: formValue.polizaRCAseguradora,
+      polizaRCValor: formValue.polizaRCValor,
+      polizaRCVigenciaDesde: formValue.polizaRCVigenciaDesde,
+      polizaRCVigenciaHasta: formValue.polizaRCVigenciaHasta
     };
 
     if (formValue.seDesembolsaAnticipo) {
@@ -425,17 +597,13 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       next: (contrato) => {
         this.successMessage = this.isEditMode ? 'Contrato actualizado exitosamente' : 'Contrato creado exitosamente';
         this.isSubmitting = false;
-
-        setTimeout(() => {
-          this.router.navigate(['/juridica/list']);
-        }, 1500);
+        setTimeout(() => this.router.navigate(['/juridica/list']), 1500);
       },
       error: (error) => {
         this.errorMessage = error.message || 'Error al guardar el contrato';
         this.isSubmitting = false;
       }
     });
-
     this.subscriptions.push(sub);
   }
 
@@ -452,6 +620,23 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     return 'Sistema';
   }
 
+  private markStepFieldsAsTouched(): void {
+    if (this.pasoActual === 1) {
+      this.contratoForm.get('vigencia')?.markAsTouched();
+      this.contratoForm.get('numeroContrato')?.markAsTouched();
+      this.contratoForm.get('tipoContrato')?.markAsTouched();
+      this.contratoForm.get('objeto')?.markAsTouched();
+      this.contratoForm.get('valor')?.markAsTouched();
+      this.contratoForm.get('plazoDias')?.markAsTouched();
+      this.contratoForm.get('fechaInicio')?.markAsTouched();
+      this.contratoForm.get('fechaFirma')?.markAsTouched();
+      this.contratoForm.get('supervisor')?.markAsTouched();
+      const proveedorGroup = this.contratoForm.get('proveedor') as FormGroup;
+      proveedorGroup.get('numeroIdentificacion')?.markAsTouched();
+      proveedorGroup.get('nombreRazonSocial')?.markAsTouched();
+    }
+  }
+
   cancelar(): void {
     if (confirm('¿Cancelar? Los datos no guardados se perderán.')) {
       this.router.navigate(['/juridica/list']);
@@ -466,42 +651,50 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     this.successMessage = '';
   }
 
-  // Opcional: si quieres que el archivo sea obligatorio solo cuando hay número
   get cdpRequerido(): boolean {
     return !!this.contratoForm.get('cdp')?.value && !this.cdpFile;
   }
+
   get rpRequerido(): boolean {
     return !!this.contratoForm.get('rp')?.value && !this.rpFile;
   }
 
-  // Método para manejar selección de archivo
-  onFileSelected(event: any, tipo: 'cdp' | 'rp'): void {
+  onFileSelected(event: any, tipo: 'cdp' | 'rp' | 'polizaCumplimiento' | 'polizaCalidad' | 'polizaRC'): void {
     const file: File = event.target.files[0];
-
     if (!file) return;
 
-    // Validaciones básicas
-    if (file.type !== 'application/pdf' && file.type !== 'application/PDF') {
+    if (file.type !== 'application/pdf') {
       if (tipo === 'cdp') this.cdpFileError = 'Solo se permiten archivos PDF';
-      else this.rpFileError = 'Solo se permiten archivos PDF';
+      else if (tipo === 'rp') this.rpFileError = 'Solo se permiten archivos PDF';
+      else if (tipo === 'polizaCumplimiento') this.polizaCumplimientoFileError = 'Solo se permiten archivos PDF';
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) { // 5MB
-      if (tipo === 'cdp') this.cdpFileError = 'El archivo es demasiado grande (máx. 5MB)';
-      else this.rpFileError = 'El archivo es demasiado grande (máx. 5MB)';
+    if (file.size > 5 * 1024 * 1024) {
+      if (tipo === 'cdp') this.cdpFileError = 'El archivo es demasiado grande (max. 5MB)';
+      else if (tipo === 'rp') this.rpFileError = 'El archivo es demasiado grande (max. 5MB)';
+      else if (tipo === 'polizaCumplimiento') this.polizaCumplimientoFileError = 'El archivo es demasiado grande (max. 5MB)';
       return;
     }
 
-    // Limpia error anterior
     if (tipo === 'cdp') {
       this.cdpFileError = null;
       this.cdpFile = file;
       this.cdpFileName = file.name;
-    } else {
+    } else if (tipo === 'rp') {
       this.rpFileError = null;
       this.rpFile = file;
       this.rpFileName = file.name;
+    } else if (tipo === 'polizaCumplimiento') {
+      this.polizaCumplimientoFileError = null;
+      this.polizaCumplimientoFile = file;
+      this.polizaCumplimientoFileName = file.name;
+    } else if (tipo === 'polizaCalidad') {
+      this.polizaCalidadFile = file;
+      this.polizaCalidadFileName = file.name;
+    } else if (tipo === 'polizaRC') {
+      this.polizaRCFile = file;
+      this.polizaRCFileName = file.name;
     }
   }
 }

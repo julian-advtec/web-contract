@@ -1,0 +1,273 @@
+<!-- src/app/pages/contratistas/components/contratista-creacion/contratista-creacion.component.html -->
+<div class="contratista-creacion-container">
+  <div class="contratista-creacion-inner">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2 class="page-title">
+        <i class="fas fa-user-plus me-2"></i>
+        {{ isEditMode ? 'Editar Contratista' : 'Nuevo Contratista' }}
+      </h2>
+      <button class="btn btn-outline-secondary" (click)="cancelar()">
+        <i class="fas fa-arrow-left me-2"></i> Volver
+      </button>
+    </div>
+
+    <!-- Mensajes -->
+    <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show">
+      <i class="fas fa-exclamation-triangle me-2"></i>
+      {{ errorMessage }}
+      <button type="button" class="btn-close" (click)="dismissError()"></button>
+    </div>
+
+    <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show">
+      <i class="fas fa-check-circle me-2"></i>
+      {{ successMessage }}
+      <button type="button" class="btn-close" (click)="dismissSuccess()"></button>
+    </div>
+
+    <!-- Loading -->
+    <div *ngIf="isLoading" class="text-center py-5">
+      <div class="spinner-border text-primary"></div>
+      <p class="mt-2">Cargando datos del contratista...</p>
+    </div>
+
+    <!-- Progress Steps -->
+    <div *ngIf="!isLoading" class="progress-steps mb-4">
+      <div class="step" [class.active]="pasoActual === 1" [class.completed]="pasoActual > 1">
+        <div class="step-number">1</div>
+        <div class="step-label">Datos Personales</div>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step" [class.active]="pasoActual === 2" [class.completed]="pasoActual > 2">
+        <div class="step-number">2</div>
+        <div class="step-label">Informacion Adicional</div>
+      </div>
+      <div class="step-connector"></div>
+      <div class="step" [class.active]="pasoActual === 3" [class.completed]="pasoActual > 3">
+        <div class="step-number">3</div>
+        <div class="step-label">Documentos</div>
+      </div>
+    </div>
+
+    <!-- Formulario -->
+    <form *ngIf="!isLoading" [formGroup]="contratistaForm" (ngSubmit)="guardarContratista()" class="main-card">
+
+      <!-- PASO 1: DATOS PERSONALES -->
+      <div class="card-section" *ngIf="pasoActual === 1">
+        <div class="section-header">
+          <h5 class="mb-0">Datos Personales</h5>
+        </div>
+        <div class="section-body">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label required-field">Tipo de Documento</label>
+              <select class="form-control" formControlName="tipoDocumento">
+                <option value="CC">Cedula de Ciudadania</option>
+                <option value="NIT">NIT</option>
+                <option value="CE">Cedula de Extranjeria</option>
+                <option value="PAS">Pasaporte</option>
+              </select>
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <label class="form-label required-field">Numero de Documento</label>
+              <input type="text" class="form-control" formControlName="documentoIdentidad"
+                     [ngClass]="{'is-invalid': submitted && f['documentoIdentidad'].errors}"
+                     placeholder="Ej: 123456789" maxlength="20"
+                     (blur)="verificarDocumento()">
+              <div *ngIf="submitted && f['documentoIdentidad'].errors" class="invalid-feedback">
+                El documento es requerido (minimo 3 caracteres)
+              </div>
+              <div *ngIf="documentoExistente" class="text-danger small mt-1">
+                <i class="fas fa-exclamation-triangle me-1"></i> Ya existe un contratista con este documento
+              </div>
+            </div>
+
+            <div class="col-md-12 mb-3">
+              <label class="form-label required-field">Nombre Completo / Razon Social</label>
+              <input type="text" class="form-control" formControlName="nombreCompleto"
+                     [ngClass]="{'is-invalid': submitted && f['nombreCompleto'].errors}"
+                     placeholder="Nombre completo o razon social" maxlength="200">
+              <div *ngIf="submitted && f['nombreCompleto'].errors" class="invalid-feedback">
+                El nombre es requerido
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Email</label>
+              <input type="email" class="form-control" formControlName="email" placeholder="correo@ejemplo.com">
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Telefono</label>
+              <input type="text" class="form-control" formControlName="telefono" placeholder="Ej: 3001234567">
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-12 mb-3">
+              <label class="form-label">Direccion</label>
+              <textarea class="form-control" formControlName="direccion" rows="2" placeholder="Direccion de correspondencia"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-footer text-end">
+          <button type="button" class="btn btn-primary px-4" (click)="siguientePaso()">
+            Siguiente <i class="fas fa-arrow-right ms-2"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- PASO 2: INFORMACION ADICIONAL -->
+      <div class="card-section" *ngIf="pasoActual === 2">
+        <div class="section-header">
+          <h5 class="mb-0">Informacion Adicional</h5>
+        </div>
+        <div class="section-body">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Numero de Contrato</label>
+              <input type="text" class="form-control" formControlName="numeroContrato" placeholder="Ej: 001-2026">
+              <small class="text-muted">Opcional - Se puede asignar despues</small>
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Tipo de Contratista</label>
+              <select class="form-control" formControlName="tipoContratista">
+                <option value="">Seleccione tipo</option>
+                <option value="PERSONA_NATURAL">Persona Natural</option>
+                <option value="PERSONA_JURIDICA">Persona Juridica</option>
+                <option value="CONSORCIO">Consorcio</option>
+                <option value="UNION_TEMPORAL">Union Temporal</option>
+              </select>
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Cargo / Rol</label>
+              <input type="text" class="form-control" formControlName="cargo" placeholder="Ej: Director, Representante Legal">
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Estado</label>
+              <select class="form-control" formControlName="estado">
+                <option value="ACTIVO">Activo</option>
+                <option value="INACTIVO">Inactivo</option>
+                <option value="SUSPENDIDO">Suspendido</option>
+              </select>
+            </div>
+
+            <div class="col-md-12 mb-3">
+              <label class="form-label">Observaciones</label>
+              <textarea class="form-control" formControlName="observaciones" rows="3" placeholder="Observaciones adicionales..."></textarea>
+              <small class="text-muted">{{ getRemainingChars('observaciones') }} caracteres restantes</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-footer d-flex justify-content-between">
+          <button type="button" class="btn btn-outline-secondary px-4" (click)="pasoAnterior()">
+            <i class="fas fa-arrow-left me-2"></i> Anterior
+          </button>
+          <button type="button" class="btn btn-primary px-4" (click)="siguientePaso()">
+            Siguiente <i class="fas fa-arrow-right ms-2"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- PASO 3: DOCUMENTOS -->
+      <div class="card-section" *ngIf="pasoActual === 3">
+        <div class="section-header">
+          <h5 class="mb-0">Documentos Requeridos</h5>
+        </div>
+        <div class="section-body">
+
+          <div class="alert alert-info mb-4">
+            <i class="fas fa-info-circle me-2"></i>
+            Todos los documentos son requeridos para completar el registro. Formatos permitidos: PDF (max. 5MB cada uno)
+          </div>
+
+          <!-- Lista de documentos requeridos -->
+          <div class="documentos-grid">
+            <div *ngFor="let doc of tiposDocumento" class="documento-card" 
+                 [class.completed]="documentoCompletado(doc.value)"
+                 [class.pending]="!documentoCompletado(doc.value)">
+              <div class="documento-header">
+                <i class="fas" [class.fa-check-circle]="documentoCompletado(doc.value)" 
+                   [class.fa-file-pdf]="!documentoCompletado(doc.value)"></i>
+                <h6 class="documento-titulo">{{ doc.label }}</h6>
+              </div>
+              <div class="documento-body">
+                <div *ngIf="getDocumentoInfo(doc.value) as info" class="documento-info">
+                  <div class="info-row">
+                    <span class="info-label">Archivo:</span>
+                    <span class="info-value">{{ info.nombre }}</span>
+                  </div>
+                  <div class="info-row" *ngIf="info.tamano">
+                    <span class="info-label">Tamano:</span>
+                    <span class="info-value">{{ formatearTamano(info.tamano) }}</span>
+                  </div>
+                  <button class="btn-remove" (click)="eliminarDocumentoPorTipo(doc.value)" title="Eliminar">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </div>
+                <div *ngIf="!getDocumentoInfo(doc.value)" class="upload-area">
+                  <input type="file" [id]="'file_' + doc.value" class="file-input" 
+                         (change)="onFileSelectedPorTipo($event, doc.value)" accept=".pdf">
+                  <label [for]="'file_' + doc.value" class="upload-label">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <span>Seleccionar archivo</span>
+                  </label>
+                  <small class="text-muted">PDF max. 5MB</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Resumen de documentos -->
+          <div class="documentos-resumen">
+            <div class="resumen-header">
+              <i class="fas fa-file-alt me-2"></i>
+              <span>Progreso de documentos</span>
+            </div>
+            <div class="progress-bar-container">
+              <div class="progress-bar" [style.width.%]="porcentajeDocumentos"></div>
+            </div>
+            <div class="resumen-stats">
+              <span>{{ documentosCompletados }} de {{ totalDocumentos }} documentos subidos</span>
+              <span class="porcentaje">{{ porcentajeDocumentos }}%</span>
+            </div>
+          </div>
+
+          <div class="alert alert-warning mt-4" *ngIf="!todosDocumentosCompletados">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Debe subir todos los documentos requeridos antes de guardar el contratista.
+          </div>
+        </div>
+
+        <div class="section-footer d-flex justify-content-between">
+          <button type="button" class="btn btn-outline-secondary px-4" (click)="pasoAnterior()">
+            <i class="fas fa-arrow-left me-2"></i> Anterior
+          </button>
+          <div>
+            <button type="button" class="btn btn-outline-danger me-2 px-4" (click)="cancelar()">
+              <i class="fas fa-times me-2"></i> Cancelar
+            </button>
+            <button type="submit" class="btn btn-success px-4" [disabled]="isSubmitting || !todosDocumentosCompletados">
+              <span *ngIf="!isSubmitting">
+                <i class="fas fa-save me-2"></i> {{ isEditMode ? 'Actualizar' : 'Guardar' }} Contratista
+              </span>
+              <span *ngIf="isSubmitting">
+                <i class="fas fa-spinner fa-spin me-2"></i> Guardando...
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </form>
+  </div>
+</div>

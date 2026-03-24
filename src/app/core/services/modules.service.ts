@@ -1,3 +1,4 @@
+// src/app/core/services/modules.service.ts
 import { Injectable } from '@angular/core';
 import { UserRole } from '../models/user.types';
 
@@ -107,15 +108,25 @@ export class ModulesService {
       requiredRole: UserRole.RENDICION_CUENTAS,
       isActive: true
     },
-    // ✅ NUEVO MÓDULO DE JURÍDICA
     {
       id: 'juridica',
       title: 'Jurídica',
       description: 'Gestión de contratos',
       path: '/juridica',
       route: '/juridica',
-      icon: 'juridica', // Asegúrate de tener este icono en tu sistema
+      icon: 'juridica',
       requiredRole: UserRole.JURIDICA,
+      isActive: true
+    },
+    // ✅ NUEVO MÓDULO DE CONTRATISTAS
+    {
+      id: 'contratistas',
+      title: 'Contratistas',
+      description: 'Gestión de contratistas y proveedores',
+      path: '/contratistas',
+      route: '/contratistas',
+      icon: 'contratistas',
+      requiredRole: UserRole.RADICADOR,
       isActive: true
     }
   ];
@@ -138,8 +149,8 @@ export class ModulesService {
     // Mapeo de jerarquías de roles
     const roleHierarchy: Record<UserRole, UserRole[]> = {
       [UserRole.ADMIN]: [UserRole.ADMIN, UserRole.RADICADOR, UserRole.SUPERVISOR, UserRole.AUDITOR_CUENTAS,
-      UserRole.CONTABILIDAD, UserRole.TESORERIA, UserRole.ASESOR_GERENCIA,
-      UserRole.RENDICION_CUENTAS, UserRole.JURIDICA],
+        UserRole.CONTABILIDAD, UserRole.TESORERIA, UserRole.ASESOR_GERENCIA,
+        UserRole.RENDICION_CUENTAS, UserRole.JURIDICA],
       [UserRole.RADICADOR]: [UserRole.RADICADOR],
       [UserRole.SUPERVISOR]: [UserRole.SUPERVISOR],
       [UserRole.AUDITOR_CUENTAS]: [UserRole.AUDITOR_CUENTAS],

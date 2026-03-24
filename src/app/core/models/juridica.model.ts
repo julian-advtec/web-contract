@@ -52,6 +52,26 @@ export interface Contrato {
   updatedAt: Date | string;
   creadoPor?: string;
   ultimoUsuario?: string;
+  
+  // Propiedades de polizas
+  requierePolizas?: boolean;
+  polizaCumplimientoNumero?: string;
+  polizaCumplimientoAseguradora?: string;
+  polizaCumplimientoValor?: number;
+  polizaCumplimientoVigenciaDesde?: Date | string;
+  polizaCumplimientoVigenciaHasta?: Date | string;
+  requierePolizaCalidad?: boolean;
+  polizaCalidadNumero?: string;
+  polizaCalidadAseguradora?: string;
+  polizaCalidadValor?: number;
+  polizaCalidadVigenciaDesde?: Date | string;
+  polizaCalidadVigenciaHasta?: Date | string;
+  requierePolizaRC?: boolean;
+  polizaRCNumero?: string;
+  polizaRCAseguradora?: string;
+  polizaRCValor?: number;
+  polizaRCVigenciaDesde?: Date | string;
+  polizaRCVigenciaHasta?: Date | string;
 }
 
 export interface CreateContratoDto {
@@ -75,6 +95,26 @@ export interface CreateContratoDto {
   valorTotal: number;
   supervisor?: string;
   creadoPor?: string;
+  
+  // Propiedades de polizas
+  requierePolizas?: boolean;
+  polizaCumplimientoNumero?: string;
+  polizaCumplimientoAseguradora?: string;
+  polizaCumplimientoValor?: number;
+  polizaCumplimientoVigenciaDesde?: Date | string;
+  polizaCumplimientoVigenciaHasta?: Date | string;
+  requierePolizaCalidad?: boolean;
+  polizaCalidadNumero?: string;
+  polizaCalidadAseguradora?: string;
+  polizaCalidadValor?: number;
+  polizaCalidadVigenciaDesde?: Date | string;
+  polizaCalidadVigenciaHasta?: Date | string;
+  requierePolizaRC?: boolean;
+  polizaRCNumero?: string;
+  polizaRCAseguradora?: string;
+  polizaRCValor?: number;
+  polizaRCVigenciaDesde?: Date | string;
+  polizaRCVigenciaHasta?: Date | string;
 }
 
 export interface UpdateContratoDto {
@@ -99,6 +139,26 @@ export interface UpdateContratoDto {
   supervisor?: string;
   estado?: EstadoContrato;
   ultimoUsuario?: string;
+  
+  // Propiedades de polizas
+  requierePolizas?: boolean;
+  polizaCumplimientoNumero?: string;
+  polizaCumplimientoAseguradora?: string;
+  polizaCumplimientoValor?: number;
+  polizaCumplimientoVigenciaDesde?: Date | string;
+  polizaCumplimientoVigenciaHasta?: Date | string;
+  requierePolizaCalidad?: boolean;
+  polizaCalidadNumero?: string;
+  polizaCalidadAseguradora?: string;
+  polizaCalidadValor?: number;
+  polizaCalidadVigenciaDesde?: Date | string;
+  polizaCalidadVigenciaHasta?: Date | string;
+  requierePolizaRC?: boolean;
+  polizaRCNumero?: string;
+  polizaRCAseguradora?: string;
+  polizaRCValor?: number;
+  polizaRCVigenciaDesde?: Date | string;
+  polizaRCVigenciaHasta?: Date | string;
 }
 
 export interface FiltrosContratoDto {

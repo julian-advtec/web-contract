@@ -1,4 +1,4 @@
-// app.routes.ts - VERSIÓN CORREGIDA Y OPTIMIZADA
+// app.routes.ts - VERSIÓN ACTUALIZADA CON CONTRATISTAS
 import { Routes } from '@angular/router';
 import { AuthGuard } from './core/guards/auth-guard';
 import { RoleGuard } from './core/guards/role.guard';
@@ -70,6 +70,16 @@ export const routes: Routes = [
     data: { 
       roles: [UserRole.JURIDICA, UserRole.ADMIN], 
       title: 'Gestión Jurídica' 
+    }
+  },
+  // ✅ NUEVO MÓDULO DE CONTRATISTAS
+  {
+    path: 'contratistas',
+    loadChildren: () => import('./pages/contratistas/contratistas.module').then(m => m.ContratistasModule),
+    canActivate: [AuthGuard, RoleGuard],
+    data: { 
+      roles: [UserRole.RADICADOR, UserRole.ADMIN, UserRole.JURIDICA], 
+      title: 'Gestión de Contratistas' 
     }
   },
   {

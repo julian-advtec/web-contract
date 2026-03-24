@@ -1,0 +1,705 @@
+// src/app/contratistas/contratistas.component.scss
+@import '../../shared/layout-styles.scss';
+
+$color-primary: #1D4ED8;
+$color-primary-light: rgba(29, 78, 216, 0.1);
+$color-primary-medium: rgba(29, 78, 216, 0.2);
+$color-primary-dark: #2563EB;
+$color-verde: #10B981;
+$color-verde-light: rgba(16, 185, 129, 0.1);
+$color-verde-medium: rgba(16, 185, 129, 0.2);
+$color-warning: #F59E0B;
+$color-warning-light: rgba(245, 158, 11, 0.1);
+$color-danger: #EF4444;
+$color-pending: #6B7280;
+
+// Estilos generales
+.contratista-list-container,
+.contratista-creacion-container,
+.contratista-detalle-container {
+  width: 100%;
+  min-height: calc(100vh - 80px);
+  background-color: #f8f9fa;
+  
+  .contratista-list-inner,
+  .contratista-creacion-inner,
+  .contratista-detalle-inner {
+    padding: 15px;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}
+
+.page-title {
+  color: $color-primary;
+  font-weight: 600;
+  margin: 0;
+}
+
+// Barra de búsqueda
+.search-container-smaller {
+  width: 100%;
+  margin: 0 auto 20px;
+  max-width: 800px;
+  
+  .input-group {
+    width: 100%;
+    border: 4px solid $color-primary-light;
+    border-radius: 12px;
+    overflow: hidden;
+    background: white;
+    
+    .input-group-text {
+      background-color: $color-primary-light;
+      border: none;
+      color: $color-primary;
+      padding: 0.7rem 1rem;
+    }
+    
+    .form-control {
+      border: none;
+      padding: 0.7rem 1rem;
+      
+      &:focus {
+        box-shadow: none;
+      }
+    }
+  }
+}
+
+// Filtros bar
+.filters-bar {
+  .filters-container {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    
+    .form-select-sm {
+      width: auto;
+      min-width: 150px;
+      border: 2px solid $color-primary-light;
+      border-radius: 8px;
+      
+      &:focus {
+        border-color: $color-primary;
+        box-shadow: 0 0 0 0.2rem $color-primary-light;
+      }
+    }
+  }
+}
+
+// Tarjeta principal
+.main-card {
+  border: none;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+  border: 2px solid $color-primary-light;
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+// Header de lista
+.users-header {
+  display: grid;
+  grid-template-columns: 1fr 1.8fr 0.9fr 0.8fr 0.8fr 1.2fr 1.2fr;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-bottom: 2px solid $color-primary-light;
+  font-weight: 700;
+  color: $color-primary-dark;
+  font-size: 0.85rem;
+  
+  .header-item {
+    text-align: center;
+  }
+}
+
+// Card de contratista
+.user-card {
+  display: grid;
+  grid-template-columns: 1fr 1.8fr 0.9fr 0.8fr 0.8fr 1.2fr 1.2fr;
+  gap: 1rem;
+  padding: 1rem;
+  background: white;
+  border-bottom: 1px solid $color-primary-light;
+  transition: all 0.3s ease;
+  align-items: center;
+  text-align: center;
+  
+  &:hover {
+    background-color: $color-primary-light;
+  }
+  
+  > * {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.user-info {
+  .user-details {
+    text-align: center;
+    
+    .user-name {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: $color-primary-dark;
+    }
+    
+    .user-username {
+      margin: 0.25rem 0 0 0;
+      font-size: 0.75rem;
+      color: #6c757d;
+    }
+  }
+}
+
+.user-email {
+  .email-text {
+    margin: 0;
+    font-size: 0.85rem;
+    word-break: break-word;
+    
+    .text-muted {
+      font-size: 0.7rem;
+      margin-top: 0.2rem;
+    }
+  }
+}
+
+.user-role {
+  .role-badge {
+    display: inline-block;
+    padding: 0.3em 0.7em;
+    border-radius: 50px;
+    font-size: 0.8em;
+    font-weight: 500;
+    background-color: $color-primary-light;
+    color: $color-primary-dark;
+    border: 1px solid $color-primary;
+    white-space: nowrap;
+    
+    &.no-contrato {
+      background-color: #e9ecef;
+      border-color: #6c757d;
+      color: #6c757d;
+    }
+  }
+}
+
+.user-status {
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.3em 0.7em;
+    border-radius: 50px;
+    font-size: 0.8em;
+    font-weight: 500;
+    background-color: white;
+    border: 1px solid;
+    
+    &.active {
+      color: $color-verde;
+      border-color: $color-verde;
+    }
+    
+    &.inactive {
+      color: $color-danger;
+      border-color: $color-danger;
+    }
+    
+    &.warning {
+      color: $color-warning;
+      border-color: $color-warning;
+    }
+    
+    &.pending {
+      color: $color-pending;
+      border-color: $color-pending;
+    }
+    
+    &.bg-primary {
+      background-color: $color-primary-light !important;
+      color: $color-primary-dark !important;
+      border: 1px solid $color-primary;
+    }
+    
+    &.bg-success {
+      background-color: rgba(16, 185, 129, 0.1) !important;
+      color: $color-verde !important;
+      border: 1px solid $color-verde;
+    }
+    
+    &.bg-warning {
+      background-color: rgba(245, 158, 11, 0.1) !important;
+      color: $color-warning !important;
+      border: 1px solid $color-warning;
+    }
+    
+    &.bg-info {
+      background-color: rgba(59, 130, 246, 0.1) !important;
+      color: #3b82f6 !important;
+      border: 1px solid #3b82f6;
+    }
+  }
+}
+
+.user-last-access {
+  .contact-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .contact-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    
+    i {
+      color: $color-primary;
+      width: 14px;
+    }
+    
+    .contact-value {
+      color: $color-primary-dark;
+    }
+  }
+}
+
+.user-actions {
+  .actions-buttons {
+    display: flex;
+    gap: 0.4rem;
+    justify-content: center;
+    
+    .btn-action {
+      padding: 0.3rem 0.6rem;
+      font-size: 0.75rem;
+      border-radius: 6px;
+      transition: all 0.3s ease;
+      
+      &.btn-primary {
+        background-color: $color-primary;
+        color: white;
+        border: none;
+        
+        &:hover {
+          background-color: $color-primary-dark;
+          transform: translateY(-2px);
+        }
+      }
+      
+      &.btn-warning {
+        background-color: $color-warning;
+        color: white;
+        border: none;
+        
+        &:hover {
+          background-color: #d97706;
+          transform: translateY(-2px);
+        }
+      }
+      
+      &.btn-info {
+        background-color: #3b82f6;
+        color: white;
+        border: none;
+        
+        &:hover {
+          background-color: #2563eb;
+          transform: translateY(-2px);
+        }
+      }
+    }
+  }
+}
+
+// Footer y paginación
+.users-footer {
+  padding: 1.5rem;
+  border-top: 1px solid $color-primary-light;
+  
+  .footer-content-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .footer-pagination {
+    display: flex;
+    justify-content: center;
+    gap: 0.3rem;
+    
+    .page-btn {
+      width: 35px;
+      height: 35px;
+      border-radius: 8px;
+      border: 1px solid $color-primary;
+      background: white;
+      color: $color-primary;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      
+      &:hover:not(:disabled) {
+        background: $color-primary;
+        color: white;
+      }
+      
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
+    
+    .page-number {
+      width: 35px;
+      height: 35px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      cursor: pointer;
+      color: $color-primary-dark;
+      
+      &:hover {
+        background: $color-primary-light;
+      }
+      
+      &.active {
+        background: $color-primary;
+        color: white;
+        font-weight: 600;
+      }
+    }
+  }
+  
+  .footer-actions {
+    display: flex;
+    justify-content: flex-end;
+    
+    .btn-primary {
+      background: $color-primary;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 10px;
+      font-weight: 600;
+      
+      &:hover {
+        background: $color-primary-dark;
+        transform: translateY(-2px);
+      }
+    }
+  }
+}
+
+// Formulario
+.card-section {
+  .section-header {
+    padding: 1rem 1.5rem;
+    background: $color-primary-light;
+    border-bottom: 2px solid $color-primary;
+    
+    h5 {
+      color: $color-primary-dark;
+      font-weight: 600;
+    }
+  }
+  
+  .section-body {
+    padding: 1.5rem;
+  }
+  
+  .section-footer {
+    padding: 1rem 1.5rem;
+    background: #f8f9fa;
+    border-top: 1px solid $color-primary-light;
+  }
+}
+
+.form-label {
+  font-weight: 600;
+  color: $color-primary-dark;
+  margin-bottom: 0.5rem;
+  
+  &.required-field::after {
+    content: ' *';
+    color: $color-danger;
+  }
+}
+
+.form-control, .form-select {
+  border: 1px solid $color-primary-light;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  
+  &:focus {
+    border-color: $color-primary;
+    box-shadow: 0 0 0 0.2rem $color-primary-light;
+  }
+  
+  &.is-invalid {
+    border-color: $color-danger;
+  }
+}
+
+// Progress steps
+.progress-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2rem;
+  
+  .step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    
+    .step-number {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: #e9ecef;
+      color: #6c757d;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      margin-bottom: 8px;
+      transition: all 0.3s ease;
+    }
+    
+    .step-label {
+      font-size: 0.85rem;
+      color: #6c757d;
+    }
+    
+    &.active {
+      .step-number {
+        background-color: $color-primary;
+        color: white;
+        box-shadow: 0 0 0 4px $color-primary-light;
+      }
+      .step-label {
+        color: $color-primary;
+        font-weight: 600;
+      }
+    }
+    
+    &.completed {
+      .step-number {
+        background-color: $color-verde;
+        color: white;
+      }
+      .step-label {
+        color: $color-verde;
+      }
+    }
+  }
+  
+  .step-connector {
+    width: 80px;
+    height: 2px;
+    background-color: #e9ecef;
+    margin: 0 10px;
+    margin-bottom: 30px;
+  }
+}
+
+// Upload container
+.upload-container {
+  position: relative;
+  border: 2px dashed $color-primary-light;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  background-color: rgba(29, 78, 216, 0.03);
+  text-align: center;
+  display: inline-block;
+  
+  .file-input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+  }
+  
+  .upload-label {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background-color: $color-primary;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    
+    &:hover {
+      background-color: $color-primary-dark;
+    }
+  }
+}
+
+.add-document-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.document-item {
+  background-color: #f8f9fa;
+  border: 1px solid $color-primary-light;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  margin-bottom: 0.5rem;
+}
+
+// Info card para detalle
+.info-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid $color-primary-light;
+  overflow: hidden;
+  
+  .info-card-header {
+    background: $color-primary-light;
+    padding: 0.8rem 1rem;
+    font-weight: 600;
+    color: $color-primary-dark;
+    border-bottom: 2px solid $color-primary;
+  }
+  
+  .info-card-body {
+    padding: 1rem;
+  }
+  
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e9ecef;
+    
+    &:last-child {
+      border-bottom: none;
+    }
+    
+    .info-label {
+      font-weight: 500;
+      color: #6c757d;
+    }
+    
+    .info-value {
+      font-weight: 600;
+      color: $color-primary-dark;
+      text-align: right;
+    }
+  }
+}
+
+// Responsive
+@media (max-width: 1200px) {
+  .users-header, .user-card {
+    grid-template-columns: 1fr 1.6fr 0.8fr 0.7fr 0.7fr 1fr 1.1fr;
+    gap: 0.8rem;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 992px) {
+  .users-header {
+    display: none;
+  }
+  
+  .user-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto auto auto auto;
+    gap: 0.8rem;
+    text-align: left;
+    
+    > * {
+      justify-content: flex-start;
+    }
+    
+    .user-info { grid-column: 1 / 3; grid-row: 1; }
+    .user-email { grid-column: 1 / 3; grid-row: 2; text-align: left; }
+    .user-role { grid-column: 1; grid-row: 3; }
+    .user-status { grid-column: 2; grid-row: 3; }
+    .user-last-access { grid-column: 1; grid-row: 4; }
+    .user-actions { grid-column: 2; grid-row: 4; }
+  }
+  
+  .footer-content-row {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  
+  .footer-pagination {
+    order: 2;
+  }
+  
+  .footer-actions {
+    order: 1;
+    justify-content: center !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .contratista-list-inner,
+  .contratista-creacion-inner,
+  .contratista-detalle-inner {
+    padding: 10px;
+  }
+  
+  .progress-steps {
+    .step-connector {
+      width: 40px;
+    }
+    .step .step-label {
+      font-size: 0.7rem;
+    }
+  }
+  
+  .user-card {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    
+    > * {
+      grid-column: 1 !important;
+      grid-row: auto !important;
+    }
+  }
+  
+  .add-document-row {
+    flex-direction: column;
+    align-items: stretch;
+    
+    .form-select-sm {
+      width: 100%;
+    }
+    
+    .upload-container {
+      width: 100%;
+      
+      .upload-label {
+        width: 100%;
+        text-align: center;
+      }
+    }
+  }
+}
