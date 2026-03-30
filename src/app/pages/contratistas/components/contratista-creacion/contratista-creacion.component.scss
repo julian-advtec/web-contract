@@ -1,14 +1,10 @@
-// src/app/pages/contratistas/components/contratista-creacion/contratista-creacion.component.scss
 @import '../../../../shared/layout-styles.scss';
 
 $color-primary: #1D4ED8;
 $color-primary-light: rgba(29, 78, 216, 0.1);
 $color-primary-dark: #2563EB;
 $color-success: #10B981;
-$color-success-light: rgba(16, 185, 129, 0.1);
-$color-warning: #F59E0B;
 $color-danger: #EF4444;
-$color-gray: #6B7280;
 
 .contratista-creacion-container {
   padding: 20px;
@@ -16,7 +12,7 @@ $color-gray: #6B7280;
   background-color: #f8f9fa;
 
   .contratista-creacion-inner {
-    max-width: 1200px;
+    max-width: 1000px;
     margin: 0 auto;
   }
 
@@ -24,72 +20,9 @@ $color-gray: #6B7280;
     color: $color-primary;
     font-weight: 600;
     margin: 0;
+    font-size: 1.5rem;
   }
 
-  // Progress Steps
-  .progress-steps {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 2rem;
-
-    .step {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-
-      .step-number {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background-color: #e9ecef;
-        color: #6c757d;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        margin-bottom: 8px;
-        transition: all 0.3s ease;
-      }
-
-      .step-label {
-        font-size: 0.85rem;
-        color: #6c757d;
-      }
-
-      &.active {
-        .step-number {
-          background-color: $color-primary;
-          color: white;
-          box-shadow: 0 0 0 4px $color-primary-light;
-        }
-        .step-label {
-          color: $color-primary;
-          font-weight: 600;
-        }
-      }
-
-      &.completed {
-        .step-number {
-          background-color: $color-success;
-          color: white;
-        }
-        .step-label {
-          color: $color-success;
-        }
-      }
-    }
-
-    .step-connector {
-      width: 80px;
-      height: 2px;
-      background-color: #e9ecef;
-      margin: 0 10px;
-      margin-bottom: 30px;
-    }
-  }
-
-  // Card Sections
   .main-card {
     border: none;
     border-radius: 14px;
@@ -122,7 +55,6 @@ $color-gray: #6B7280;
     }
   }
 
-  // Form elements
   .form-label {
     font-weight: 600;
     color: $color-primary-dark;
@@ -157,221 +89,10 @@ $color-gray: #6B7280;
     margin-top: 0.25rem;
   }
 
-  // Documentos Grid
-  .documentos-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .documento-card {
-    border: 2px solid $color-primary-light;
-    border-radius: 12px;
-    overflow: hidden;
-    transition: all 0.3s ease;
-    background: white;
-
-    &.completed {
-      border-color: $color-success;
-      background: $color-success-light;
-    }
-
-    &.pending {
-      border-color: $color-warning;
-      background: rgba(245, 158, 11, 0.05);
-    }
-
-    .documento-header {
-      padding: 1rem;
-      background: #f8f9fa;
-      border-bottom: 1px solid #e9ecef;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-
-      i {
-        font-size: 1.25rem;
-        
-        &.fa-check-circle {
-          color: $color-success;
-        }
-        
-        &.fa-file-pdf {
-          color: $color-danger;
-        }
-      }
-
-      .documento-titulo {
-        margin: 0;
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: $color-primary-dark;
-      }
-    }
-
-    .documento-body {
-      padding: 1rem;
-    }
-
-    .documento-info {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      position: relative;
-
-      .info-row {
-        display: flex;
-        justify-content: space-between;
-        font-size: 0.8rem;
-
-        .info-label {
-          color: $color-gray;
-        }
-
-        .info-value {
-          font-weight: 500;
-          color: $color-primary-dark;
-          word-break: break-all;
-          text-align: right;
-          max-width: 60%;
-        }
-      }
-
-      .btn-remove {
-        position: absolute;
-        top: -0.5rem;
-        right: -0.5rem;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        background: $color-danger;
-        color: white;
-        border: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.3s ease;
-
-        &:hover {
-          transform: scale(1.1);
-          background: darken($color-danger, 10%);
-        }
-      }
-    }
-
-    .upload-area {
-      text-align: center;
-      position: relative;
-
-      .file-input {
-        position: absolute;
-        opacity: 0;
-        width: 100%;
-        height: 100%;
-        cursor: pointer;
-        top: 0;
-        left: 0;
-      }
-
-      .upload-label {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 1rem;
-        border: 2px dashed $color-primary-light;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-
-        i {
-          font-size: 2rem;
-          color: $color-primary;
-        }
-
-        span {
-          color: $color-primary-dark;
-          font-weight: 500;
-        }
-
-        &:hover {
-          border-color: $color-primary;
-          background: $color-primary-light;
-        }
-      }
-
-      small {
-        display: block;
-        margin-top: 0.5rem;
-        color: $color-gray;
-        font-size: 0.7rem;
-      }
-    }
-  }
-
-  // Documentos Resumen
-  .documentos-resumen {
-    background: $color-primary-light;
-    border-radius: 12px;
-    padding: 1rem;
-    margin-top: 1rem;
-
-    .resumen-header {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-weight: 600;
-      color: $color-primary-dark;
-      margin-bottom: 0.75rem;
-    }
-
-    .progress-bar-container {
-      background: #e9ecef;
-      border-radius: 10px;
-      height: 8px;
-      overflow: hidden;
-      margin-bottom: 0.75rem;
-
-      .progress-bar {
-        background: $color-success;
-        height: 100%;
-        border-radius: 10px;
-        transition: width 0.3s ease;
-      }
-    }
-
-    .resumen-stats {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.85rem;
-      color: $color-primary-dark;
-
-      .porcentaje {
-        font-weight: 700;
-        color: $color-success;
-      }
-    }
-  }
-
-  // Alerts
   .alert {
     border-radius: 10px;
     border: none;
     padding: 1rem 1.5rem;
-
-    &.alert-info {
-      background: $color-primary-light;
-      color: $color-primary-dark;
-      border-left: 4px solid $color-primary;
-    }
-
-    &.alert-success {
-      background: $color-success-light;
-      color: $color-success;
-      border-left: 4px solid $color-success;
-    }
 
     &.alert-danger {
       background: rgba(239, 68, 68, 0.1);
@@ -379,31 +100,18 @@ $color-gray: #6B7280;
       border-left: 4px solid $color-danger;
     }
 
-    &.alert-warning {
-      background: rgba(245, 158, 11, 0.1);
-      color: $color-warning;
-      border-left: 4px solid $color-warning;
+    &.alert-success {
+      background: rgba(16, 185, 129, 0.1);
+      color: $color-success;
+      border-left: 4px solid $color-success;
     }
   }
 
-  // Buttons
   .btn {
     padding: 0.6rem 1.2rem;
     border-radius: 8px;
     font-weight: 500;
     transition: all 0.3s ease;
-
-    &.btn-primary {
-      background: $color-primary;
-      border: none;
-      color: white;
-
-      &:hover:not(:disabled) {
-        background: $color-primary-dark;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(29, 78, 216, 0.3);
-      }
-    }
 
     &.btn-success {
       background: $color-success;
@@ -443,25 +151,11 @@ $color-gray: #6B7280;
     }
   }
 
-  // Responsive
   @media (max-width: 768px) {
     padding: 10px;
 
     .page-title {
-      font-size: 1.5rem;
-    }
-
-    .progress-steps {
-      .step-connector {
-        width: 40px;
-      }
-      .step .step-label {
-        font-size: 0.7rem;
-      }
-    }
-
-    .documentos-grid {
-      grid-template-columns: 1fr;
+      font-size: 1.2rem;
     }
 
     .section-footer {

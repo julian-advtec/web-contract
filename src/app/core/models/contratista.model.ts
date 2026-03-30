@@ -1,87 +1,68 @@
-// src/app/core/models/contratista.model.ts
 export interface Contratista {
   id: string;
+  tipoDocumento: string;
   documentoIdentidad: string;
-  numeroContrato?: string;
-  nombreCompleto: string;
-  email?: string;
+  razonSocial?: string;
+  nombreCompleto?: string;
+  representanteLegal?: string;
+  documentoRepresentante?: string;
   telefono?: string;
+  email?: string;
   direccion?: string;
+  departamento?: string;
+  ciudad?: string;
   tipoContratista?: string;
-  estado?: string;
-  fechaCreacion?: Date;
-  fechaActualizacion?: Date;
-  observaciones?: string;
-  [key: string]: any; // Para propiedades adicionales
-  createdAt?: Date | string;
+  estado: 'ACTIVO' | 'INACTIVO';
+  numeroContrato?: string;
+  createdAt: Date | string;
+  updatedAt?: Date | string;
 }
-
-export interface DocumentoContratista {
-  id: string;
-  contratistaId: string;
-  tipo: TipoDocumento;
-  nombreArchivo: string;
-  rutaArchivo: string;
-  tipoMime: string;
-  tamanoBytes: number;
-  fechaSubida: Date | string;
-  subidoPor: string;
-}
-
-export type TipoDocumento = 
-  | 'CEDULA'
-  | 'CERTIFICADO_BANCARIO'
-  | 'CERTIFICADO_EXPERIENCIA'
-  | 'CERTIFICADO_NO_PLANTA'
-  | 'CERTIFICADO_ANTECEDENTES'
-  | 'CERTIFICADO_IDONEIDAD'
-  | 'DECLARACION_BIENES'
-  | 'DECLARACION_INHABILIDADES'
-  | 'EXAMEN_INGRESO'
-  | 'GARANTIA'
-  | 'HOJA_VIDA_SIGEP'
-  | 'LIBRETA_MILITAR'
-  | 'PANTALLAZO_SECOP'
-  | 'PROPUESTA'
-  | 'PUBLICACION_GT'
-  | 'REDAM'
-  | 'RUT'
-  | 'SARLAFT'
-  | 'SEGURIDAD_SOCIAL'
-  | 'TARJETA_PROFESIONAL';
 
 export interface CreateContratistaDto {
+  tipoDocumento?: string;
   documentoIdentidad: string;
-  nombreCompleto: string;
-  numeroContrato?: string;
-  email?: string;
+  razonSocial?: string;
+  nombreCompleto?: string;
+  representanteLegal?: string;
+  documentoRepresentante?: string;
   telefono?: string;
+  email?: string;
   direccion?: string;
+  departamento?: string;
+  ciudad?: string;
   tipoContratista?: string;
-  estado?: string;
-  observaciones?: string;
+  numeroContrato?: string;
+  estado?: 'ACTIVO' | 'INACTIVO';
 }
 
 export interface UpdateContratistaDto {
-  documentoIdentidad?: string;
+  razonSocial?: string;
   nombreCompleto?: string;
-  numeroContrato?: string;
-  email?: string;
+  representanteLegal?: string;
   telefono?: string;
+  email?: string;
   direccion?: string;
   tipoContratista?: string;
-  estado?: string;
-  observaciones?: string;
+  numeroContrato?: string;
+  estado?: 'ACTIVO' | 'INACTIVO';
 }
 
 export interface FiltrosContratistaDto {
-  nombre?: string;
-  documento?: string;
-  contrato?: string;
-  tipoContratista?: string;
-  estado?: string;
-  fechaDesde?: Date | string;
-  fechaHasta?: Date | string;
   limit?: number;
   offset?: number;
+  nombre?: string;
+  documento?: string;
+  tipoContratista?: string;
+  estado?: string;
+}
+
+export type TipoDocumento = 'CC' | 'NIT' | 'CE' | 'PASAPORTE' | 'OTRO';
+
+export interface DocumentoContratista {
+  id: string;
+  tipo: TipoDocumento;
+  nombreArchivo: string;
+  tamanoBytes: number;
+  fechaSubida: Date | string;
+  ruta?: string;
 }

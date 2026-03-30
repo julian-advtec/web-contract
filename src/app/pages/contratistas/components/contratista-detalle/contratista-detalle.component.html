@@ -1,15 +1,14 @@
-<!-- src/app/pages/contratistas/components/contratista-detalle/contratista-detalle.component.html -->
 <div class="contratista-detalle-container">
   <div class="contratista-detalle-inner">
 
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="page-title">
-        <i class="fas fa-user-circle me-2"></i>
+        <i class="fas fa-building me-2"></i>
         Detalle del Contratista
       </h2>
       <div>
-        <button class="btn btn-outline-primary me-2" (click)="editar()">
+        <button class="btn btn-outline-secondary me-2" (click)="editarContratista()">
           <i class="fas fa-edit me-2"></i> Editar
         </button>
         <button class="btn btn-outline-secondary" (click)="volver()">
@@ -24,170 +23,130 @@
       <p class="mt-2">Cargando datos del contratista...</p>
     </div>
 
-    <!-- Error -->
-    <div *ngIf="errorMessage" class="alert alert-danger">
-      <i class="fas fa-exclamation-triangle me-2"></i>
-      {{ errorMessage }}
-    </div>
-
     <!-- Contenido -->
-    <div *ngIf="!isLoading && contratista" class="row">
-      
-      <!-- Tarjeta de informacion principal -->
-      <div class="col-md-4 mb-4">
-        <div class="info-card">
-          <div class="info-card-header">
-            <i class="fas fa-id-card me-2"></i>
-            Identificacion
-          </div>
-          <div class="info-card-body">
-            <div class="info-row">
-              <span class="info-label">Documento:</span>
-              <span class="info-value">{{ contratista.documentoIdentidad }}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Nombre:</span>
-              <span class="info-value">{{ contratista.nombreCompleto }}</span>
-            </div>
-            <div class="info-row" *ngIf="contratista['tipoContratista']">
-              <span class="info-label">Tipo:</span>
-              <span class="info-value">{{ getTipoTexto(contratista['tipoContratista']) }}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Estado:</span>
-              <span class="info-value">
-                <span class="status-badge" [ngClass]="getEstadoClass(contratista['estado'])">
-                  {{ getEstadoTexto(contratista['estado']) }}
-                </span>
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div *ngIf="!isLoading && contratista" class="main-card">
 
-      <!-- Tarjeta de informacion de contacto -->
-      <div class="col-md-4 mb-4">
-        <div class="info-card">
-          <div class="info-card-header">
-            <i class="fas fa-address-card me-2"></i>
-            Contacto
-          </div>
-          <div class="info-card-body">
-            <div class="info-row" *ngIf="contratista.email">
-              <span class="info-label">Email:</span>
-              <span class="info-value">{{ contratista.email }}</span>
-            </div>
-            <div class="info-row" *ngIf="contratista.telefono">
-              <span class="info-label">Telefono:</span>
-              <span class="info-value">{{ contratista.telefono }}</span>
-            </div>
-            <div class="info-row" *ngIf="contratista.direccion">
-              <span class="info-label">Direccion:</span>
-              <span class="info-value">{{ contratista.direccion }}</span>
-            </div>
-            <div class="info-row" *ngIf="contratista['cargo']">
-              <span class="info-label">Cargo:</span>
-              <span class="info-value">{{ contratista['cargo'] }}</span>
-            </div>
-          </div>
+      <!-- Información Principal -->
+      <div class="card-section">
+        <div class="section-header">
+          <h5 class="mb-0">Información General</h5>
         </div>
-      </div>
-
-      <!-- Tarjeta de informacion del contrato -->
-      <div class="col-md-4 mb-4">
-        <div class="info-card">
-          <div class="info-card-header">
-            <i class="fas fa-file-contract me-2"></i>
-            Informacion del Contrato
-          </div>
-          <div class="info-card-body">
-            <div class="info-row">
-              <span class="info-label">Numero Contrato:</span>
-              <span class="info-value" [class.text-muted]="!contratista.numeroContrato">
-                {{ contratista.numeroContrato || 'No asignado' }}
-              </span>
+        <div class="section-body">
+          <div class="row">
+            <div class="col-md-12">
+              <div class="info-grid">
+                <div class="info-row">
+                  <span class="info-label">Tipo Documento:</span>
+                  <span class="info-value">{{ getTipoDocumentoLabel(contratista.tipoDocumento) }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Número Documento:</span>
+                  <span class="info-value">{{ contratista.documentoIdentidad }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Razón Social:</span>
+                  <span class="info-value">{{ contratista.razonSocial }}</span>
+                </div>
+                <div class="info-row" *ngIf="contratista.representanteLegal">
+                  <span class="info-label">Representante Legal:</span>
+                  <span class="info-value">{{ contratista.representanteLegal }}</span>
+                </div>
+                <div class="info-row" *ngIf="contratista.documentoRepresentante">
+                  <span class="info-label">Documento Representante:</span>
+                  <span class="info-value">{{ contratista.documentoRepresentante }}</span>
+                </div>
+                <div class="info-row" *ngIf="contratista.telefono">
+                  <span class="info-label">Teléfono:</span>
+                  <span class="info-value">{{ contratista.telefono }}</span>
+                </div>
+                <div class="info-row" *ngIf="contratista.email">
+                  <span class="info-label">Email:</span>
+                  <span class="info-value">{{ contratista.email }}</span>
+                </div>
+                <div class="info-row" *ngIf="contratista.direccion">
+                  <span class="info-label">Dirección:</span>
+                  <span class="info-value">{{ contratista.direccion }}</span>
+                </div>
+                <div class="info-row" *ngIf="contratista.departamento">
+                  <span class="info-label">Departamento:</span>
+                  <span class="info-value">{{ contratista.departamento }}</span>
+                </div>
+                <div class="info-row" *ngIf="contratista.ciudad">
+                  <span class="info-label">Ciudad:</span>
+                  <span class="info-value">{{ contratista.ciudad }}</span>
+                </div>
+                <div class="info-row" *ngIf="contratista.tipoContratista">
+                  <span class="info-label">Tipo Contratista:</span>
+                  <span class="info-value">{{ getTipoContratistaLabel(contratista.tipoContratista) }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Estado:</span>
+                  <span class="info-value">
+                    <span class="badge" [ngClass]="contratista.estado === 'ACTIVO' ? 'badge-success' : 'badge-danger'">
+                      {{ contratista.estado === 'ACTIVO' ? 'Activo' : 'Inactivo' }}
+                    </span>
+                  </span>
+                </div>
+                <div class="info-row" *ngIf="contratista.createdAt">
+                  <span class="info-label">Fecha Creación:</span>
+                  <span class="info-value">{{ formatearFecha(contratista.createdAt) }}</span>
+                </div>
+                <div class="info-row" *ngIf="contratista.updatedAt">
+                  <span class="info-label">Última Actualización:</span>
+                  <span class="info-value">{{ formatearFecha(contratista.updatedAt) }}</span>
+                </div>
+              </div>
             </div>
-            <div class="info-row">
-              <span class="info-label">Fecha Creacion:</span>
-              <span class="info-value">{{ formatearFecha(contratista.createdAt) }}</span>
-            </div>
-            <div class="info-row" *ngIf="contratista['fechaActualizacion']">
-              <span class="info-label">Ultima Actualizacion:</span>
-              <span class="info-value">{{ formatearFecha(contratista['fechaActualizacion']) }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Observaciones -->
-      <div class="col-12 mb-4" *ngIf="contratista.observaciones">
-        <div class="info-card">
-          <div class="info-card-header">
-            <i class="fas fa-comment me-2"></i>
-            Observaciones
-          </div>
-          <div class="info-card-body">
-            <p class="mb-0">{{ contratista.observaciones }}</p>
           </div>
         </div>
       </div>
 
       <!-- Documentos -->
-      <div class="col-12">
-        <div class="info-card">
-          <div class="info-card-header">
-            <i class="fas fa-file-pdf me-2"></i>
-            Documentos ({{ documentos.length }})
-          </div>
-          <div class="info-card-body">
-            <div *ngIf="documentos.length === 0" class="text-center py-3 text-muted">
-              <i class="fas fa-folder-open fa-2x mb-2"></i>
-              <p>No hay documentos asociados</p>
-            </div>
-            
-            <div *ngIf="documentos.length > 0" class="table-responsive">
-              <table class="table table-hover">
-                <thead>
-                  <tr>
-                    <th>Tipo</th>
-                    <th>Nombre del Archivo</th>
-                    <th>Tamano</th>
-                    <th>Fecha de Subida</th>
-                    <th>Subido por</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let doc of documentos">
-                    <td>
-                      <span class="badge bg-info">
-                        {{ getTipoDocumentoLabel(doc.tipo) }}
-                      </span>
-                    </td>
-                    <td>{{ doc.nombreArchivo }}</td>
-                    <td>{{ formatearTamano(doc.tamanoBytes) }}</td>
-                    <td>{{ formatearFecha(doc.fechaSubida) }}</td>
-                    <td>{{ doc.subidoPor || 'Sistema' }}</td>
-                    <td>
-                      <button class="btn btn-sm btn-outline-primary me-1" 
-                              (click)="descargarDocumento(doc)"
-                              title="Descargar">
-                        <i class="fas fa-download"></i>
-                      </button>
-                      <button class="btn btn-sm btn-outline-danger" 
-                              (click)="eliminarDocumento(doc)"
-                              title="Eliminar">
-                        <i class="fas fa-trash"></i>
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+      <div class="card-section mt-4" *ngIf="documentos.length > 0">
+        <div class="section-header">
+          <h5 class="mb-0">Documentos</h5>
+        </div>
+        <div class="section-body">
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Tipo</th>
+                  <th>Nombre Archivo</th>
+                  <th>Tamaño</th>
+                  <th>Fecha Subida</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let doc of documentos">
+                  <td>{{ getTipoDocumentoLabel(doc.tipo) }}</td>
+                  <td>{{ doc.nombreArchivo }}</td>
+                  <td>{{ formatearTamano(doc.tamanoBytes) }}</td>
+                  <td>{{ formatearFecha(doc.fechaSubida) }}</td>
+                  <td>
+                    <button class="btn btn-sm btn-primary" (click)="descargarDocumento(doc.id)">
+                      <i class="fas fa-download"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger ms-2" (click)="eliminarDocumento(doc.id)">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
 
     </div>
+
+    <!-- No encontrado -->
+    <div *ngIf="!isLoading && !contratista" class="text-center py-5">
+      <i class="fas fa-user-slash fa-4x text-muted mb-3"></i>
+      <h5>Contratista no encontrado</h5>
+      <button class="btn btn-primary mt-3" (click)="volver()">Volver al listado</button>
+    </div>
+
   </div>
 </div>
