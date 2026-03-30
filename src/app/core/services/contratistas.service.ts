@@ -1,4 +1,3 @@
-// src/app/core/services/contratistas.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, of, throwError } from 'rxjs';
@@ -21,33 +20,22 @@ export class ContratistasService {
     });
   }
 
-  /**
-   * Método Helper para extraer datos del autocomplete
-   */
   private extraerDatosAutocomplete(response: any): any[] {
     console.log('🔍 Extrayendo datos de autocomplete...');
 
-    // Nivel 1: response.data.data.data (estructura anidada)
     if (response?.data?.data?.data && Array.isArray(response.data.data.data)) {
-      console.log('✅ Nivel 3: response.data.data.data');
       return response.data.data.data;
     }
 
-    // Nivel 2: response.data.data
     if (response?.data?.data && Array.isArray(response.data.data)) {
-      console.log('✅ Nivel 2: response.data.data');
       return response.data.data;
     }
 
-    // Nivel 3: response.data
     if (response?.data && Array.isArray(response.data)) {
-      console.log('✅ Nivel 1: response.data');
       return response.data;
     }
 
-    // Nivel 4: response directo (array)
     if (Array.isArray(response)) {
-      console.log('✅ Nivel 0: response (array directo)');
       return response;
     }
 
@@ -55,32 +43,32 @@ export class ContratistasService {
     return [];
   }
 
-  /**
-   * Mapear respuesta a Contratista
-   */
   private mapearContratista(item: any): Contratista {
     return {
       id: item.id || item._id || '',
-      nombreCompleto: item.nombreCompleto || item.nombre || item.label || item.value || 'Nombre no disponible',
-      documentoIdentidad: item.documentoIdentidad || item.documento || item.documentoIdentidad || '',
-      numeroContrato: item.numeroContrato || item.numero_contrato || '',
-      email: item.email || '',
+      tipoDocumento: item.tipoDocumento || 'CC',
+      documentoIdentidad: item.documentoIdentidad || item.documento || '',
+      razonSocial: item.razonSocial || item.nombreCompleto || item.nombre || item.label || item.value || 'Nombre no disponible',
+      representanteLegal: item.representanteLegal || '',
+      documentoRepresentante: item.documentoRepresentante || '',
       telefono: item.telefono || '',
+      email: item.email || '',
       direccion: item.direccion || '',
+      departamento: item.departamento || '',
+      ciudad: item.ciudad || '',
       tipoContratista: item.tipoContratista || item.tipo || '',
       estado: item.estado || 'ACTIVO',
+      numeroContrato: item.numeroContrato || item.numero_contrato || '',
+      cargo: item.cargo || '',
       observaciones: item.observaciones || '',
       createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
-      fechaCreacion: item.fechaCreacion ? new Date(item.fechaCreacion) : new Date(),
-      fechaActualizacion: item.fechaActualizacion ? new Date(item.fechaActualizacion) : new Date()
+      updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date(),
+      nombreCompleto: item.razonSocial || item.nombreCompleto || item.nombre || '',
+      fechaCreacion: item.createdAt ? new Date(item.createdAt) : new Date(),
+      fechaActualizacion: item.updatedAt ? new Date(item.updatedAt) : new Date()
     };
   }
 
-  // ==================== AUTOCOMPLETADO ====================
-
-  /**
-   * Buscar contratistas por documento
-   */
   buscarPorDocumento(documento: string): Observable<Contratista[]> {
     const headers = this.getAuthHeaders();
 
@@ -92,8 +80,6 @@ export class ContratistasService {
     if (!documento || documento.trim().length < 1) {
       return of([]);
     }
-
-    console.log(`🔍 FRONTEND: Buscando contratista por documento: "${documento}"`);
 
     return this.http.get<any>(
       `${this.apiUrl}/autocomplete/documento?q=${encodeURIComponent(documento.trim())}`,
@@ -110,9 +96,6 @@ export class ContratistasService {
     );
   }
 
-  /**
-   * Buscar contratistas por nombre
-   */
   buscarPorNombre(nombre: string): Observable<Contratista[]> {
     const headers = this.getAuthHeaders();
 
@@ -136,9 +119,6 @@ export class ContratistasService {
     );
   }
 
-  /**
-   * Buscar contratistas por número de contrato
-   */
   buscarPorNumeroContrato(numeroContrato: string): Observable<Contratista[]> {
     const headers = this.getAuthHeaders();
 
@@ -162,11 +142,10 @@ export class ContratistasService {
     );
   }
 
-  // ==================== CRUD CONTRATISTAS ====================
+  buscarPorRazonSocial(razonSocial: string): Observable<Contratista[]> {
+    return this.buscarPorNombre(razonSocial);
+  }
 
-  /**
-   * Obtener todos los contratistas
-   */
   obtenerTodos(filtros?: FiltrosContratistaDto): Observable<Contratista[]> {
     const headers = this.getAuthHeaders();
 
@@ -199,9 +178,6 @@ export class ContratistasService {
     );
   }
 
-  /**
-   * Obtener contratista por ID
-   */
   obtenerPorId(id: string): Observable<Contratista | null> {
     const headers = this.getAuthHeaders();
 
@@ -223,9 +199,6 @@ export class ContratistasService {
     );
   }
 
-  /**
-   * Obtener contratista completo con documentos
-   */
   obtenerCompleto(id: string): Observable<any> {
     const headers = this.getAuthHeaders();
     return this.http.get<any>(`${this.apiUrl}/${id}/completo`, { headers }).pipe(
@@ -239,9 +212,6 @@ export class ContratistasService {
     );
   }
 
-  /**
-   * Buscar por término general
-   */
   buscarPorTermino(termino: string): Observable<Contratista[]> {
     const headers = this.getAuthHeaders();
     return this.http.get<any>(`${this.apiUrl}/buscar`, { headers, params: { termino } }).pipe(
@@ -253,9 +223,6 @@ export class ContratistasService {
     );
   }
 
-  /**
-   * Búsqueda combinada
-   */
   buscarCombinado(tipo: 'nombre' | 'documento' | 'contrato', termino: string): Observable<Contratista[]> {
     const headers = this.getAuthHeaders();
     return this.http.get<any>(`${this.apiUrl}/buscar/combinado`, { headers, params: { tipo, termino } }).pipe(
@@ -267,9 +234,6 @@ export class ContratistasService {
     );
   }
 
-  /**
-   * Búsqueda avanzada
-   */
   buscarAvanzado(filtros: FiltrosContratistaDto): Observable<{ contratistas: Contratista[]; total: number }> {
     const headers = this.getAuthHeaders();
     let params = new HttpParams();
@@ -298,9 +262,6 @@ export class ContratistasService {
     );
   }
 
-  /**
-   * Crear contratista
-   */
   crearContratista(contratista: CreateContratistaDto): Observable<Contratista> {
     const headers = this.getAuthHeaders();
 
@@ -322,52 +283,23 @@ export class ContratistasService {
     );
   }
 
-  /**
-   * Crear contratista con documentos
-   */
   crearConDocumentos(formData: FormData): Observable<any> {
-    console.log('📤 Servicio: Enviando petición POST a /contratistas/completo');
-
-    // Log de todos los campos del FormData
-    console.log('📋 Contenido del FormData:');
-    formData.forEach((value, key) => {
-      if (value instanceof File) {
-        console.log(`  - ${key}: [File] ${value.name} (${value.size} bytes, ${value.type})`);
-      } else {
-        console.log(`  - ${key}: ${value}`);
-      }
-    });
-
     const headers = this.getAuthHeaders();
-    console.log('🔑 Headers de autenticación:', headers.get('Authorization') ? 'Presentes' : 'Faltantes');
-
-    // IMPORTANTE: No eliminar Content-Type para que el navegador lo configure automáticamente con boundary
-    // headers.delete('Content-Type'); // ❌ NO HACER ESTO
 
     return this.http.post<any>(`${this.apiUrl}/completo`, formData, { headers }).pipe(
       map(response => {
-        console.log('✅ Respuesta del servidor:', response);
         if (response?.data?.data) {
           return response.data.data;
         }
         throw new Error('Error al crear contratista con documentos');
       }),
       catchError(error => {
-        console.error('❌ Error en la petición HTTP:');
-        console.error('  - Status:', error.status);
-        console.error('  - Message:', error.message);
-        console.error('  - Error:', error.error);
-        if (error.error?.message) {
-          console.error('  - Mensaje del servidor:', error.error.message);
-        }
+        console.error('❌ Error en la petición HTTP:', error);
         throw error;
       })
     );
   }
 
-  /**
-   * Actualizar contratista
-   */
   actualizarContratista(id: string, contratista: UpdateContratistaDto): Observable<Contratista> {
     const headers = this.getAuthHeaders();
 
@@ -389,9 +321,6 @@ export class ContratistasService {
     );
   }
 
-  /**
-   * Verificar si existe documento
-   */
   verificarDocumento(documento: string): Observable<{ existe: boolean }> {
     const headers = this.getAuthHeaders();
     return this.http.get<any>(`${this.apiUrl}/verificar/documento/${documento}`, { headers }).pipe(
@@ -405,11 +334,6 @@ export class ContratistasService {
     );
   }
 
-  // ==================== DOCUMENTOS ====================
-
-  /**
-   * Subir documento
-   */
   subirDocumento(contratistaId: string, tipo: TipoDocumento, archivo: File): Observable<DocumentoContratista> {
     const headers = this.getAuthHeaders();
     headers.delete('Content-Type');
@@ -432,9 +356,6 @@ export class ContratistasService {
     );
   }
 
-  /**
-   * Obtener documentos de un contratista
-   */
   obtenerDocumentos(contratistaId: string): Observable<DocumentoContratista[]> {
     const headers = this.getAuthHeaders();
     return this.http.get<any>(`${this.apiUrl}/${contratistaId}/documentos`, { headers }).pipe(
@@ -448,9 +369,6 @@ export class ContratistasService {
     );
   }
 
-  /**
-   * Descargar documento
-   */
   descargarDocumento(contratistaId: string, documentoId: string): Observable<Blob> {
     const headers = this.getAuthHeaders();
     return this.http.get(`${this.apiUrl}/${contratistaId}/documentos/${documentoId}/descargar`, {
@@ -464,9 +382,6 @@ export class ContratistasService {
     );
   }
 
-  /**
-   * Eliminar documento
-   */
   eliminarDocumento(contratistaId: string, documentoId: string): Observable<void> {
     const headers = this.getAuthHeaders();
     return this.http.delete<any>(`${this.apiUrl}/${contratistaId}/documentos/${documentoId}`, { headers }).pipe(
@@ -483,11 +398,6 @@ export class ContratistasService {
     );
   }
 
-  // ==================== ESTADÍSTICAS ====================
-
-  /**
-   * Obtener estadísticas
-   */
   obtenerEstadisticas(): Observable<any> {
     const headers = this.getAuthHeaders();
     return this.http.get<any>(`${this.apiUrl}/estadisticas`, { headers }).pipe(
@@ -501,9 +411,6 @@ export class ContratistasService {
     );
   }
 
-  /**
-   * Obtener contratistas recientes
-   */
   obtenerRecientes(limit: number = 10): Observable<Contratista[]> {
     const headers = this.getAuthHeaders();
     return this.http.get<any>(`${this.apiUrl}/recientes`, { headers, params: { limit: limit.toString() } }).pipe(
@@ -515,23 +422,14 @@ export class ContratistasService {
     );
   }
 
-  // ==================== UTILIDADES ====================
-
-  /**
-   * Health check
-   */
   healthCheck(): Observable<any> {
     return this.http.get(`${this.apiUrl}/health`).pipe(
       catchError(() => of({ status: 'error' }))
     );
   }
 
-  /**
-   * Método de prueba para verificar endpoint
-   */
   probarEndpointDocumento(documento: string): Observable<any> {
     const headers = this.getAuthHeaders();
-
     return this.http.get<any>(
       `${this.apiUrl}/autocomplete/documento?q=${encodeURIComponent(documento)}`,
       { headers }
@@ -541,8 +439,6 @@ export class ContratistasService {
       })
     );
   }
-
-
 
   verificarPermisosUsuario(): Observable<any> {
     const headers = this.getAuthHeaders();

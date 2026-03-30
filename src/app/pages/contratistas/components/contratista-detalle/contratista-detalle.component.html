@@ -2,7 +2,6 @@
 <div class="contratista-detalle-container">
   <div class="contratista-detalle-inner">
 
-    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="page-title">
         <i class="fas fa-user-circle me-2"></i>
@@ -18,22 +17,18 @@
       </div>
     </div>
 
-    <!-- Loading -->
     <div *ngIf="isLoading" class="text-center py-5">
       <div class="spinner-border text-primary"></div>
       <p class="mt-2">Cargando datos del contratista...</p>
     </div>
 
-    <!-- Error -->
     <div *ngIf="errorMessage" class="alert alert-danger">
       <i class="fas fa-exclamation-triangle me-2"></i>
       {{ errorMessage }}
     </div>
 
-    <!-- Contenido -->
     <div *ngIf="!isLoading && contratista" class="row">
       
-      <!-- Tarjeta de informacion principal -->
       <div class="col-md-4 mb-4">
         <div class="info-card">
           <div class="info-card-header">
@@ -46,18 +41,22 @@
               <span class="info-value">{{ contratista.documentoIdentidad }}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">Nombre:</span>
-              <span class="info-value">{{ contratista.nombreCompleto }}</span>
+              <span class="info-label">Razón Social:</span>
+              <span class="info-value">{{ contratista.razonSocial || contratista.nombreCompleto }}</span>
             </div>
-            <div class="info-row" *ngIf="contratista['tipoContratista']">
+            <div class="info-row" *ngIf="contratista.representanteLegal">
+              <span class="info-label">Representante Legal:</span>
+              <span class="info-value">{{ contratista.representanteLegal }}</span>
+            </div>
+            <div class="info-row" *ngIf="contratista.tipoContratista">
               <span class="info-label">Tipo:</span>
-              <span class="info-value">{{ getTipoTexto(contratista['tipoContratista']) }}</span>
+              <span class="info-value">{{ getTipoTexto(contratista.tipoContratista) }}</span>
             </div>
             <div class="info-row">
               <span class="info-label">Estado:</span>
               <span class="info-value">
-                <span class="status-badge" [ngClass]="getEstadoClass(contratista['estado'])">
-                  {{ getEstadoTexto(contratista['estado']) }}
+                <span class="status-badge" [ngClass]="getEstadoClass(contratista.estado)">
+                  {{ getEstadoTexto(contratista.estado) }}
                 </span>
               </span>
             </div>
@@ -65,7 +64,6 @@
         </div>
       </div>
 
-      <!-- Tarjeta de informacion de contacto -->
       <div class="col-md-4 mb-4">
         <div class="info-card">
           <div class="info-card-header">
@@ -78,48 +76,50 @@
               <span class="info-value">{{ contratista.email }}</span>
             </div>
             <div class="info-row" *ngIf="contratista.telefono">
-              <span class="info-label">Telefono:</span>
+              <span class="info-label">Teléfono:</span>
               <span class="info-value">{{ contratista.telefono }}</span>
             </div>
             <div class="info-row" *ngIf="contratista.direccion">
-              <span class="info-label">Direccion:</span>
+              <span class="info-label">Dirección:</span>
               <span class="info-value">{{ contratista.direccion }}</span>
             </div>
-            <div class="info-row" *ngIf="contratista['cargo']">
+            <div class="info-row" *ngIf="contratista.departamento || contratista.ciudad">
+              <span class="info-label">Ubicación:</span>
+              <span class="info-value">{{ contratista.departamento }}{{ contratista.departamento && contratista.ciudad ? ', ' : '' }}{{ contratista.ciudad }}</span>
+            </div>
+            <div class="info-row" *ngIf="contratista.cargo">
               <span class="info-label">Cargo:</span>
-              <span class="info-value">{{ contratista['cargo'] }}</span>
+              <span class="info-value">{{ contratista.cargo }}</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Tarjeta de informacion del contrato -->
       <div class="col-md-4 mb-4">
         <div class="info-card">
           <div class="info-card-header">
             <i class="fas fa-file-contract me-2"></i>
-            Informacion del Contrato
+            Información del Contrato
           </div>
           <div class="info-card-body">
             <div class="info-row">
-              <span class="info-label">Numero Contrato:</span>
+              <span class="info-label">Número Contrato:</span>
               <span class="info-value" [class.text-muted]="!contratista.numeroContrato">
                 {{ contratista.numeroContrato || 'No asignado' }}
               </span>
             </div>
             <div class="info-row">
-              <span class="info-label">Fecha Creacion:</span>
+              <span class="info-label">Fecha Creación:</span>
               <span class="info-value">{{ formatearFecha(contratista.createdAt) }}</span>
             </div>
-            <div class="info-row" *ngIf="contratista['fechaActualizacion']">
-              <span class="info-label">Ultima Actualizacion:</span>
-              <span class="info-value">{{ formatearFecha(contratista['fechaActualizacion']) }}</span>
+            <div class="info-row" *ngIf="contratista.updatedAt">
+              <span class="info-label">Última Actualización:</span>
+              <span class="info-value">{{ formatearFecha(contratista.updatedAt) }}</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Observaciones -->
       <div class="col-12 mb-4" *ngIf="contratista.observaciones">
         <div class="info-card">
           <div class="info-card-header">
@@ -132,7 +132,6 @@
         </div>
       </div>
 
-      <!-- Documentos -->
       <div class="col-12">
         <div class="info-card">
           <div class="info-card-header">
@@ -151,11 +150,11 @@
                   <tr>
                     <th>Tipo</th>
                     <th>Nombre del Archivo</th>
-                    <th>Tamano</th>
+                    <th>Tamaño</th>
                     <th>Fecha de Subida</th>
                     <th>Subido por</th>
                     <th>Acciones</th>
-                  </tr>
+                   </tr>
                 </thead>
                 <tbody>
                   <tr *ngFor="let doc of documentos">

@@ -1,3 +1,4 @@
+// src/app/pages/radicacion/components/radicacion-form/radicacion-form.component.ts
 import {
   Component,
   Output,
@@ -38,19 +39,19 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
   isLoading = false;
   mensaje = '';
   tipoMensaje: 'success' | 'error' | 'warning' = 'success';
-  maxFileSize = 10 * 1024 * 1024; // 10MB
+  maxFileSize = 10 * 1024 * 1024;
 
   verificandoPrimerRadicado = false;
   primerRadicadoDisponible = true;
   mensajePrimerRadicado = '';
 
   contratistas: Contratista[] = [];
-  contratistasFiltrados: Contratista[] = [];
+  contratistasFiltrados: any[] = [];
   mostrarDropdownNombre = false;
   mostrarDropdownDocumento = false;
   mostrarDropdownContrato = false;
   cargandoContratistas = false;
-  contratistaSeleccionado: Contratista | null = null;
+  contratistaSeleccionado: any = null;
 
   private debounceTimer?: Subscription;
   private clickSubscription?: Subscription;
@@ -183,7 +184,7 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
       if (!nombre || this.contratistaSeleccionado?.nombreCompleto === nombre) return;
 
       const contratista = this.contratistas.find(c =>
-        c.nombreCompleto?.toLowerCase().includes(nombre.toLowerCase())
+        (c.razonSocial || c.nombreCompleto || '').toLowerCase().includes(nombre.toLowerCase())
       );
 
       if (contratista &&
@@ -206,10 +207,10 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
       );
 
       if (contratista &&
-        this.radicacionForm.get('nombreContratista')?.value !== contratista.nombreCompleto) {
+        this.radicacionForm.get('nombreContratista')?.value !== (contratista.razonSocial || contratista.nombreCompleto)) {
         this.contratistaSeleccionado = contratista;
         this.radicacionForm.patchValue({
-          nombreContratista: contratista.nombreCompleto,
+          nombreContratista: contratista.razonSocial || contratista.nombreCompleto,
           numeroContrato: contratista.numeroContrato || ''
         }, { emitEvent: false });
       }
@@ -225,11 +226,11 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
       );
 
       if (contratista &&
-        (this.radicacionForm.get('nombreContratista')?.value !== contratista.nombreCompleto ||
+        (this.radicacionForm.get('nombreContratista')?.value !== (contratista.razonSocial || contratista.nombreCompleto) ||
           this.radicacionForm.get('documentoContratista')?.value !== contratista.documentoIdentidad)) {
         this.contratistaSeleccionado = contratista;
         this.radicacionForm.patchValue({
-          nombreContratista: contratista.nombreCompleto,
+          nombreContratista: contratista.razonSocial || contratista.nombreCompleto,
           documentoContratista: contratista.documentoIdentidad
         }, { emitEvent: false });
       }
@@ -289,7 +290,14 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
         this.buscarContratistasPorDocumento(valor);
         this.mostrarDropdownDocumento = true;
       } else {
-        this.contratistasFiltrados = this.contratistas.slice(0, 10);
+        this.contratistasFiltrados = this.contratistas.slice(0, 10).map(c => ({
+          id: c.id,
+          nombreCompleto: c.razonSocial || c.nombreCompleto || 'Nombre no disponible',
+          razonSocial: c.razonSocial || c.nombreCompleto || '',
+          documentoIdentidad: c.documentoIdentidad,
+          numeroContrato: c.numeroContrato || '',
+          createdAt: c.createdAt
+        }));
         this.mostrarDropdownDocumento = this.contratistasFiltrados.length > 0;
       }
       this.mostrarDropdownNombre = false;
@@ -404,7 +412,14 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
       next: (contratistas) => {
         const valorActual = this.radicacionForm.get('nombreContratista')?.value?.trim() || '';
         if (valorActual && valorActual.toLowerCase().includes(nombre.toLowerCase())) {
-          this.contratistasFiltrados = contratistas.slice(0, 10);
+          this.contratistasFiltrados = contratistas.slice(0, 10).map(c => ({
+            id: c.id,
+            nombreCompleto: c.razonSocial || c.nombreCompleto || 'Nombre no disponible',
+            razonSocial: c.razonSocial || c.nombreCompleto || '',
+            documentoIdentidad: c.documentoIdentidad,
+            numeroContrato: c.numeroContrato || '',
+            createdAt: c.createdAt
+          }));
           this.mostrarDropdownNombre = contratistas.length > 0;
         } else {
           this.contratistasFiltrados = [];
@@ -446,11 +461,12 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
       next: (contratistas) => {
         if (contratistas && contratistas.length > 0) {
           this.contratistasFiltrados = contratistas.map(c => ({
-            id: c.id || '',
-            nombreCompleto: c.nombreCompleto || 'Nombre no disponible',
-            documentoIdentidad: c.documentoIdentidad || documento,
+            id: c.id,
+            nombreCompleto: c.razonSocial || c.nombreCompleto || 'Nombre no disponible',
+            razonSocial: c.razonSocial || c.nombreCompleto || '',
+            documentoIdentidad: c.documentoIdentidad,
             numeroContrato: c.numeroContrato || '',
-            createdAt: c.createdAt || new Date()
+            createdAt: c.createdAt
           }));
 
           this.mostrarDropdownDocumento = true;
@@ -494,7 +510,14 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
       next: (contratistas) => {
         const valorActual = this.radicacionForm.get('numeroContrato')?.value?.trim() || '';
         if (valorActual && valorActual.toLowerCase().includes(contrato.toLowerCase())) {
-          this.contratistasFiltrados = contratistas.slice(0, 10);
+          this.contratistasFiltrados = contratistas.slice(0, 10).map(c => ({
+            id: c.id,
+            nombreCompleto: c.razonSocial || c.nombreCompleto || 'Nombre no disponible',
+            razonSocial: c.razonSocial || c.nombreCompleto || '',
+            documentoIdentidad: c.documentoIdentidad,
+            numeroContrato: c.numeroContrato || '',
+            createdAt: c.createdAt
+          }));
           this.mostrarDropdownContrato = contratistas.length > 0;
         } else {
           this.contratistasFiltrados = [];
@@ -516,7 +539,7 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
     });
   }
 
-  seleccionarContratista(contratista: Contratista): void {
+  seleccionarContratista(contratista: any): void {
     this.contratistaSeleccionado = contratista;
 
     this.radicacionForm.patchValue({
@@ -531,7 +554,7 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
     this.cdRef.detectChanges();
   }
 
-  seleccionarContratistaPorContrato(contratista: Contratista): void {
+  seleccionarContratistaPorContrato(contratista: any): void {
     this.contratistaSeleccionado = contratista;
 
     this.radicacionForm.patchValue({
@@ -546,7 +569,7 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
     this.cdRef.detectChanges();
   }
 
-  esContratistaSeleccionado(contratista: Contratista): boolean {
+  esContratistaSeleccionado(contratista: any): boolean {
     return this.contratistaSeleccionado?.id === contratista.id;
   }
 
@@ -573,12 +596,22 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
     this.isLoading = true;
     this.contratistasService.crearContratista({
       documentoIdentidad: documento,
-      nombreCompleto: nombre,
-      numeroContrato: contrato || undefined
+      razonSocial: nombre,
+      numeroContrato: contrato || undefined,
+      tipoDocumento: 'CC',
+      estado: 'ACTIVO'
     }).subscribe({
       next: (nuevoContratista) => {
         this.contratistas.push(nuevoContratista);
-        this.seleccionarContratista(nuevoContratista);
+        const contratistaParaSeleccion = {
+          id: nuevoContratista.id,
+          nombreCompleto: nuevoContratista.razonSocial,
+          razonSocial: nuevoContratista.razonSocial,
+          documentoIdentidad: nuevoContratista.documentoIdentidad,
+          numeroContrato: nuevoContratista.numeroContrato || '',
+          createdAt: nuevoContratista.createdAt
+        };
+        this.seleccionarContratista(contratistaParaSeleccion);
         this.mostrarMensaje('Contratista creado exitosamente', 'success');
         this.isLoading = false;
         this.cdRef.detectChanges();
@@ -710,7 +743,6 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
       return;
     }
 
-    // ✅ Validación del número de radicado
     const numeroRadicado = this.radicacionForm.get('numeroRadicado')?.value;
     const radicadoRegex = /^R\d{4}-\d{4,8}$/;
     if (!radicadoRegex.test(numeroRadicado)) {
@@ -812,6 +844,7 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
     this.primerRadicadoDisponible = true;
     this.mensajePrimerRadicado = '';
     this.contratistaSeleccionado = null;
+    this.contratistasFiltrados = [];
     this.cdRef.detectChanges();
   }
 

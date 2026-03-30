@@ -157,10 +157,66 @@ $color-gray: #6B7280;
     margin-top: 0.25rem;
   }
 
+  // Documentos Selector
+  .documento-selector {
+    .form-label {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .d-flex {
+      gap: 1rem;
+      
+      select {
+        flex: 1;
+      }
+      
+      button {
+        white-space: nowrap;
+      }
+    }
+  }
+
+  // Drag & Drop Area
+  .drag-drop-area {
+    border: 2px dashed $color-primary-light;
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    background: #fafafa;
+
+    &:hover, &.dragging {
+      border-color: $color-primary;
+      background: $color-primary-light;
+    }
+
+    .drag-drop-content {
+      i {
+        color: $color-primary;
+      }
+
+      h6 {
+        color: $color-primary-dark;
+        margin-bottom: 0.5rem;
+      }
+
+      p {
+        margin-bottom: 0.25rem;
+        font-size: 0.9rem;
+      }
+
+      small {
+        color: $color-gray;
+      }
+    }
+  }
+
   // Documentos Grid
   .documentos-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 1rem;
     margin-bottom: 1.5rem;
   }
@@ -177,13 +233,8 @@ $color-gray: #6B7280;
       background: $color-success-light;
     }
 
-    &.pending {
-      border-color: $color-warning;
-      background: rgba(245, 158, 11, 0.05);
-    }
-
     .documento-header {
-      padding: 1rem;
+      padding: 0.75rem 1rem;
       background: #f8f9fa;
       border-bottom: 1px solid #e9ecef;
       display: flex;
@@ -204,14 +255,36 @@ $color-gray: #6B7280;
 
       .documento-titulo {
         margin: 0;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         font-weight: 600;
         color: $color-primary-dark;
+        flex: 1;
+
+        .opcional-badge {
+          font-size: 0.7rem;
+          font-weight: normal;
+          background: $color-warning;
+          color: white;
+          padding: 0.15rem 0.4rem;
+          border-radius: 12px;
+          margin-left: 0.5rem;
+        }
+
+        .required-badge {
+          font-size: 0.7rem;
+          font-weight: normal;
+          background: $color-danger;
+          color: white;
+          padding: 0.15rem 0.4rem;
+          border-radius: 12px;
+          margin-left: 0.5rem;
+        }
       }
     }
 
     .documento-body {
       padding: 1rem;
+      min-height: 80px;
     }
 
     .documento-info {
@@ -223,7 +296,7 @@ $color-gray: #6B7280;
       .info-row {
         display: flex;
         justify-content: space-between;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
 
         .info-label {
           color: $color-gray;
@@ -261,52 +334,19 @@ $color-gray: #6B7280;
       }
     }
 
-    .upload-area {
-      text-align: center;
-      position: relative;
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem;
 
-      .file-input {
-        position: absolute;
-        opacity: 0;
-        width: 100%;
-        height: 100%;
-        cursor: pointer;
-        top: 0;
-        left: 0;
+      i {
+        font-size: 1.5rem;
       }
 
-      .upload-label {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 1rem;
-        border: 2px dashed $color-primary-light;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-
-        i {
-          font-size: 2rem;
-          color: $color-primary;
-        }
-
-        span {
-          color: $color-primary-dark;
-          font-weight: 500;
-        }
-
-        &:hover {
-          border-color: $color-primary;
-          background: $color-primary-light;
-        }
-      }
-
-      small {
-        display: block;
-        margin-top: 0.5rem;
-        color: $color-gray;
-        font-size: 0.7rem;
+      span {
+        font-size: 0.75rem;
       }
     }
   }
@@ -352,6 +392,13 @@ $color-gray: #6B7280;
         font-weight: 700;
         color: $color-success;
       }
+    }
+
+    .opcional-nota {
+      font-size: 0.75rem;
+      color: $color-gray;
+      border-top: 1px solid rgba(0, 0, 0, 0.1);
+      padding-top: 0.5rem;
     }
   }
 
@@ -462,6 +509,20 @@ $color-gray: #6B7280;
 
     .documentos-grid {
       grid-template-columns: 1fr;
+    }
+
+    .documento-selector {
+      .d-flex {
+        flex-direction: column;
+        
+        select {
+          width: 100%;
+        }
+        
+        button {
+          width: 100%;
+        }
+      }
     }
 
     .section-footer {

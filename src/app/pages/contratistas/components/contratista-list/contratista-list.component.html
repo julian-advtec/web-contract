@@ -1,8 +1,6 @@
-<!-- src/app/contratistas/components/contratista-list/contratista-list.component.html -->
 <div class="contratista-list-container" [class.sidebar-collapsed]="sidebarCollapsed">
   <div class="contratista-list-inner">
 
-    <!-- Barra de búsqueda -->
     <div class="search-container-smaller">
       <div class="input-group">
         <span class="input-group-text">
@@ -13,7 +11,6 @@
       </div>
     </div>
 
-    <!-- Filtros rápidos -->
     <div class="filters-bar mt-3 mb-3">
       <div class="filters-container">
         <select class="form-select form-select-sm" [(ngModel)]="filtroTipoContratista" (change)="aplicarFiltros()">
@@ -30,7 +27,6 @@
       </div>
     </div>
 
-    <!-- Mensajes de estado -->
     <div *ngIf="showError" class="alert alert-danger mt-2 d-flex justify-content-between align-items-center">
       <span>{{ errorMessage }}</span>
       <button type="button" class="btn-close" (click)="dismissError()"></button>
@@ -44,13 +40,11 @@
     <div class="card shadow main-card mt-3">
       <div class="card-body p-0">
 
-        <!-- Loading -->
         <div *ngIf="isLoading" class="text-center py-5">
           <div class="spinner-border text-primary"></div>
           <p class="mt-2">Cargando contratistas...</p>
         </div>
 
-        <!-- Empty -->
         <div *ngIf="!isLoading && filteredContratistas.length === 0" class="text-center py-5">
           <i class="fas fa-users fa-3x text-muted mb-3"></i>
           <h5 class="text-muted" *ngIf="searchTerm">
@@ -64,13 +58,11 @@
           </button>
         </div>
 
-        <!-- Lista de contratistas en formato cards -->
         <div *ngIf="!isLoading && filteredContratistas.length > 0" class="users-list-container">
 
-          <!-- Header -->
           <div class="users-header">
             <div class="header-item">Documento</div>
-            <div class="header-item">Nombre</div>
+            <div class="header-item">Razón Social</div>
             <div class="header-item">Contrato</div>
             <div class="header-item">Tipo</div>
             <div class="header-item">Estado</div>
@@ -78,11 +70,9 @@
             <div class="header-item">Acciones</div>
           </div>
 
-          <!-- Filas -->
           <div class="users-list">
             <div *ngFor="let contratista of paginatedContratistas" class="user-card">
 
-              <!-- Documento -->
               <div class="user-info">
                 <div class="user-details">
                   <h4 class="user-name">{{ contratista.documentoIdentidad }}</h4>
@@ -90,24 +80,21 @@
                 </div>
               </div>
 
-              <!-- Nombre -->
               <div class="user-email">
                 <p class="email-text">
-                  {{ contratista.nombreCompleto }}
-              <span class="text-muted d-block small" *ngIf="contratista['cargo']">
-  {{ contratista['cargo'] }}
-</span>
+                  {{ contratista.razonSocial || contratista.nombreCompleto }}
+                  <span class="text-muted d-block small" *ngIf="contratista.cargo">
+                    {{ contratista.cargo }}
+                  </span>
                 </p>
               </div>
 
-              <!-- Contrato -->
               <div class="user-role">
                 <span class="role-badge" [class.no-contrato]="!contratista.numeroContrato">
                   {{ contratista.numeroContrato || 'Sin contrato' }}
                 </span>
               </div>
 
-              <!-- Tipo -->
               <div class="user-status">
                 <span class="status-badge" [ngClass]="getTipoClass(contratista.tipoContratista)">
                   <i class="fas" [class.fa-user]="contratista.tipoContratista === 'PERSONA_NATURAL'"
@@ -119,7 +106,6 @@
                 </span>
               </div>
 
-              <!-- Estado -->
               <div class="user-status">
                 <span class="status-badge" [ngClass]="getEstadoClass(contratista.estado)">
                   <i class="fas" [class.fa-check-circle]="contratista.estado === 'ACTIVO'"
@@ -130,7 +116,6 @@
                 </span>
               </div>
 
-              <!-- Contacto -->
               <div class="user-last-access">
                 <div class="contact-container">
                   <div class="contact-line" *ngIf="contratista.email">
@@ -147,7 +132,6 @@
                 </div>
               </div>
 
-              <!-- Acciones -->
               <div class="user-actions">
                 <div class="actions-buttons">
                   <button class="btn-action btn-primary" title="Ver detalle" (click)="verDetalle(contratista)">
@@ -165,7 +149,6 @@
             </div>
           </div>
 
-          <!-- Footer / Paginación -->
           <div class="users-footer">
             <div class="footer-content-row">
               <div class="footer-empty"></div>

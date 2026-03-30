@@ -1,4 +1,3 @@
-// src/app/pages/contratistas/components/contratista-creacion/contratista-creacion.component.ts
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -13,6 +12,8 @@ interface DocumentoInfo {
   archivo: File;
   nombre: string;
   tamano: number;
+  label: string;
+  value: string;
 }
 
 @Component({
@@ -39,28 +40,70 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
   documentosPorTipo: Map<string, DocumentoInfo> = new Map();
   documentoError = '';
   
-  tiposDocumento = [
-    { value: 'CEDULA', label: 'Cedula' },
+  // Tipos de documento para el dropdown
+  tiposDocumentoDisponibles = [
+    { value: 'CEDULA', label: 'Cédula de Ciudadanía' },
     { value: 'RUT', label: 'RUT' },
     { value: 'CERTIFICADO_BANCARIO', label: 'Certificado Bancario' },
     { value: 'CERTIFICADO_EXPERIENCIA', label: 'Certificado de Experiencia' },
     { value: 'CERTIFICADO_NO_PLANTA', label: 'Certificado No Planta' },
     { value: 'CERTIFICADO_ANTECEDENTES', label: 'Certificado de Antecedentes' },
     { value: 'CERTIFICADO_IDONEIDAD', label: 'Certificado de Idoneidad' },
-    { value: 'DECLARACION_BIENES', label: 'Declaracion de Bienes' },
-    { value: 'DECLARACION_INHABILIDADES', label: 'Declaracion de Inhabilidades' },
+    { value: 'DECLARACION_BIENES', label: 'Declaración de Bienes' },
+    { value: 'DECLARACION_INHABILIDADES', label: 'Declaración de Inhabilidades' },
     { value: 'EXAMEN_INGRESO', label: 'Examen de Ingreso' },
-    { value: 'GARANTIA', label: 'Garantia' },
+    { value: 'GARANTIA', label: 'Garantía' },
     { value: 'HOJA_VIDA_SIGEP', label: 'Hoja de Vida SIGEP' },
     { value: 'LIBRETA_MILITAR', label: 'Libreta Militar' },
     { value: 'PANTALLAZO_SECOP', label: 'Pantallazo SECOP' },
     { value: 'PROPUESTA', label: 'Propuesta' },
-    { value: 'PUBLICACION_GT', label: 'Publicacion GT' },
+    { value: 'PUBLICACION_GT', label: 'Publicación GT' },
     { value: 'REDAM', label: 'REDAM' },
     { value: 'SARLAFT', label: 'SARLAFT' },
     { value: 'SEGURIDAD_SOCIAL', label: 'Seguridad Social' },
     { value: 'TARJETA_PROFESIONAL', label: 'Tarjeta Profesional' }
   ];
+
+  // Tipos de documento requeridos (excluyendo libreta militar)
+  tiposDocumentoRequeridos = this.tiposDocumentoDisponibles.filter(
+    doc => doc.value !== 'LIBRETA_MILITAR'
+  );
+
+  // Todos los tipos de documento
+  get todosTiposDocumento() {
+    return this.tiposDocumentoDisponibles;
+  }
+
+  // Tipos pendientes (no subidos aún)
+  get tiposPendientes() {
+    return this.tiposDocumentoDisponibles.filter(doc => !this.documentosPorTipo.has(doc.value));
+  }
+
+  // Documentos subidos (para mostrar en la lista)
+  get documentosSubidosList() {
+    const list: any[] = [];
+    this.documentosPorTipo.forEach((value, key) => {
+      const tipoInfo = this.tiposDocumentoDisponibles.find(d => d.value === key);
+      list.push({
+        value: key,
+        label: tipoInfo?.label || key,
+        nombre: value.nombre,
+        tamano: value.tamano
+      });
+    });
+    return list;
+  }
+
+  get documentosSubidosCount(): number {
+    return this.documentosPorTipo.size;
+  }
+
+  get documentoLibretaSubido(): boolean {
+    return this.documentosPorTipo.has('LIBRETA_MILITAR');
+  }
+
+  tipoSeleccionado = '';
+  isDragging = false;
 
   private subscriptions: Subscription[] = [];
 
@@ -84,34 +127,40 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     return this.contratistaForm.controls;
   }
 
-  get totalDocumentos(): number {
-    return this.tiposDocumento.length;
+  get totalDocumentosRequeridos(): number {
+    return this.tiposDocumentoRequeridos.length;
   }
 
-  get documentosCompletados(): number {
-    return Array.from(this.documentosPorTipo.keys()).length;
+  get documentosCompletadosRequeridos(): number {
+    return this.tiposDocumentoRequeridos.filter(doc => 
+      this.documentosPorTipo.has(doc.value)
+    ).length;
   }
 
   get porcentajeDocumentos(): number {
-    return Math.round((this.documentosCompletados / this.totalDocumentos) * 100);
+    if (this.totalDocumentosRequeridos === 0) return 0;
+    return Math.round((this.documentosCompletadosRequeridos / this.totalDocumentosRequeridos) * 100);
   }
 
-  get todosDocumentosCompletados(): boolean {
-    return this.documentosCompletados === this.totalDocumentos;
+  get todosDocumentosRequeridosCompletados(): boolean {
+    return this.documentosCompletadosRequeridos === this.totalDocumentosRequeridos;
   }
 
   private initializeForm(): void {
     this.contratistaForm = this.fb.group({
-      tipoDocumento: ['CC'],
-      documentoIdentidad: ['', [Validators.required, Validators.minLength(3)]],
-      nombreCompleto: ['', Validators.required],
-      numeroContrato: [''],
+      tipoDocumento: ['CC', Validators.required],
+      documentoIdentidad: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(20)]],
+      razonSocial: ['', [Validators.required, Validators.maxLength(200)]],
+      representanteLegal: ['', Validators.maxLength(200)],
+      documentoRepresentante: ['', Validators.maxLength(20)],
+      telefono: ['', [Validators.maxLength(15)]],
       email: ['', [Validators.email]],
-      telefono: [''],
       direccion: [''],
-      cargo: [''],
+      departamento: ['', Validators.maxLength(50)],
+      ciudad: ['', Validators.maxLength(50)],
       tipoContratista: [''],
-      estado: ['ACTIVO'],
+      estado: ['ACTIVO', Validators.required],
+      numeroContrato: ['', Validators.maxLength(50)],
       observaciones: ['']
     });
   }
@@ -131,23 +180,21 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
       next: (data: any) => {
         if (data) {
           this.contratistaForm.patchValue({
+            tipoDocumento: data.tipoDocumento || 'CC',
             documentoIdentidad: data.documentoIdentidad,
-            nombreCompleto: data.nombreCompleto,
-            numeroContrato: data.numeroContrato,
-            email: data.email,
+            razonSocial: data.razonSocial || data.nombreCompleto,
+            representanteLegal: data.representanteLegal,
+            documentoRepresentante: data.documentoRepresentante,
             telefono: data.telefono,
+            email: data.email,
             direccion: data.direccion,
-            cargo: data.cargo,
+            departamento: data.departamento,
+            ciudad: data.ciudad,
             tipoContratista: data.tipoContratista,
             estado: data.estado || 'ACTIVO',
+            numeroContrato: data.numeroContrato,
             observaciones: data.observaciones
           });
-          
-          // Cargar documentos existentes si los hay
-          if (data.documentos && data.documentos.length > 0) {
-            // En modo edición, los documentos ya existen en el servidor
-            // No es necesario volver a subirlos
-          }
         } else {
           this.errorMessage = 'Contratista no encontrado';
         }
@@ -179,38 +226,113 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     }
   }
 
-  getRemainingChars(fieldName: string): number {
-    const control = this.contratistaForm.get(fieldName);
-    if (!control) return 500;
-    const currentValue = control.value || '';
-    const maxLength = 500;
-    return maxLength - currentValue.length;
+  // 🆕 Métodos para Drag & Drop
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragging = true;
+  }
+
+  onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragging = false;
+  }
+
+  onDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragging = false;
+
+    const files = event.dataTransfer?.files;
+    if (files && files.length > 0) {
+      this.procesarArchivo(files[0]);
+    }
+  }
+
+  onFileSelected(event: any): void {
+    const file = event.target.files[0];
+    if (file) {
+      this.procesarArchivo(file);
+    }
+  }
+
+  private procesarArchivo(file: File): void {
+    // Validar tipo de documento seleccionado
+    if (!this.tipoSeleccionado) {
+      this.documentoError = 'Por favor seleccione primero el tipo de documento';
+      setTimeout(() => this.documentoError = '', 3000);
+      return;
+    }
+
+    // Validar que no se haya subido ya este tipo
+    if (this.documentosPorTipo.has(this.tipoSeleccionado)) {
+      this.documentoError = `Ya se ha subido un documento tipo ${this.getTipoDocumentoLabel(this.tipoSeleccionado)}`;
+      setTimeout(() => this.documentoError = '', 3000);
+      return;
+    }
+
+    // Validar formato PDF
+    if (file.type !== 'application/pdf') {
+      this.documentoError = 'Solo se permiten archivos PDF';
+      setTimeout(() => this.documentoError = '', 3000);
+      return;
+    }
+
+    // Validar tamaño (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      this.documentoError = 'El archivo no puede exceder 5MB';
+      setTimeout(() => this.documentoError = '', 3000);
+      return;
+    }
+
+    const tipoInfo = this.tiposDocumentoDisponibles.find(d => d.value === this.tipoSeleccionado);
+    
+    // Guardar documento
+    this.documentosPorTipo.set(this.tipoSeleccionado, {
+      tipo: this.tipoSeleccionado,
+      archivo: file,
+      nombre: file.name,
+      tamano: file.size,
+      label: tipoInfo?.label || this.tipoSeleccionado,
+      value: this.tipoSeleccionado
+    });
+
+    // Limpiar selección para que desaparezca el área de drag & drop
+    this.tipoSeleccionado = '';
+    
+    // Limpiar input file
+    const fileInput = document.getElementById('fileInput') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+    
+    this.documentoError = '';
+  }
+
+  agregarDocumentoManual(): void {
+    if (!this.tipoSeleccionado) {
+      this.documentoError = 'Por favor seleccione primero el tipo de documento';
+      setTimeout(() => this.documentoError = '', 3000);
+      return;
+    }
+    const fileInput = document.getElementById('fileInput') as HTMLInputElement;
+    fileInput?.click();
+  }
+
+  eliminarDocumentoPorTipo(tipo: string): void {
+    this.documentosPorTipo.delete(tipo);
+  }
+
+  getDocumentoInfo(tipo: string): DocumentoInfo | undefined {
+    return this.documentosPorTipo.get(tipo);
+  }
+
+  documentoCompletado(tipo: string): boolean {
+    return this.documentosPorTipo.has(tipo);
   }
 
   getTipoDocumentoLabel(tipo: string): string {
-    const tipos: Record<string, string> = {
-      'CEDULA': 'Cedula',
-      'CERTIFICADO_BANCARIO': 'Certificado Bancario',
-      'CERTIFICADO_EXPERIENCIA': 'Certificado de Experiencia',
-      'CERTIFICADO_NO_PLANTA': 'Certificado No Planta',
-      'CERTIFICADO_ANTECEDENTES': 'Certificado de Antecedentes',
-      'CERTIFICADO_IDONEIDAD': 'Certificado de Idoneidad',
-      'DECLARACION_BIENES': 'Declaracion de Bienes',
-      'DECLARACION_INHABILIDADES': 'Declaracion de Inhabilidades',
-      'EXAMEN_INGRESO': 'Examen de Ingreso',
-      'GARANTIA': 'Garantia',
-      'HOJA_VIDA_SIGEP': 'Hoja de Vida SIGEP',
-      'LIBRETA_MILITAR': 'Libreta Militar',
-      'PANTALLAZO_SECOP': 'Pantallazo SECOP',
-      'PROPUESTA': 'Propuesta',
-      'PUBLICACION_GT': 'Publicacion GT',
-      'REDAM': 'REDAM',
-      'RUT': 'RUT',
-      'SARLAFT': 'SARLAFT',
-      'SEGURIDAD_SOCIAL': 'Seguridad Social',
-      'TARJETA_PROFESIONAL': 'Tarjeta Profesional'
-    };
-    return tipos[tipo] || tipo;
+    const encontrado = this.tiposDocumentoDisponibles.find(d => d.value === tipo);
+    return encontrado?.label || tipo;
   }
 
   formatearTamano(bytes: number): string {
@@ -220,47 +342,12 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
-  formatearFecha(fecha: Date | string): string {
-    if (!fecha) return 'N/A';
-    return new Date(fecha).toLocaleDateString('es-CO');
-  }
-
-  documentoCompletado(tipo: string): boolean {
-    return this.documentosPorTipo.has(tipo);
-  }
-
-  getDocumentoInfo(tipo: string): DocumentoInfo | undefined {
-    return this.documentosPorTipo.get(tipo);
-  }
-
-  onFileSelectedPorTipo(event: any, tipo: string): void {
-    const file: File = event.target.files[0];
-    if (!file) return;
-
-    if (file.type !== 'application/pdf') {
-      this.documentoError = `El documento ${this.getTipoDocumentoLabel(tipo)} solo permite archivos PDF`;
-      setTimeout(() => this.documentoError = '', 3000);
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      this.documentoError = `El documento ${this.getTipoDocumentoLabel(tipo)} es demasiado grande (max. 5MB)`;
-      setTimeout(() => this.documentoError = '', 3000);
-      return;
-    }
-
-    this.documentosPorTipo.set(tipo, {
-      tipo,
-      archivo: file,
-      nombre: file.name,
-      tamano: file.size
-    });
-    
-    event.target.value = '';
-  }
-
-  eliminarDocumentoPorTipo(tipo: string): void {
-    this.documentosPorTipo.delete(tipo);
+  getRemainingChars(fieldName: string): number {
+    const control = this.contratistaForm.get(fieldName);
+    if (!control) return 500;
+    const currentValue = control.value || '';
+    const maxLength = 500;
+    return maxLength - currentValue.length;
   }
 
   siguientePaso(): void {
@@ -281,7 +368,7 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
 
     if (this.pasoActual === 1) {
       if (this.contratistaForm.get('documentoIdentidad')?.invalid) isValid = false;
-      if (this.contratistaForm.get('nombreCompleto')?.invalid) isValid = false;
+      if (this.contratistaForm.get('razonSocial')?.invalid) isValid = false;
     }
 
     if (!isValid) {
@@ -291,105 +378,74 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     return isValid;
   }
 
-guardarContratista(): void {
-  console.log('🚀 INICIANDO GUARDADO DE CONTRATISTA');
-  console.log('📋 submitted:', this.submitted);
-  console.log('📋 formulario válido:', this.contratistaForm.valid);
-  console.log('📋 formulario errors:', this.contratistaForm.errors);
-  
-  this.submitted = true;
+  guardarContratista(): void {
+    console.log('🚀 INICIANDO GUARDADO DE CONTRATISTA');
+    
+    this.submitted = true;
 
-  // Validar formulario
-  if (this.contratistaForm.invalid) {
-    console.log('❌ Formulario inválido');
-    console.log('❌ Errores del formulario:', this.contratistaForm.errors);
-    Object.keys(this.contratistaForm.controls).forEach(key => {
-      const control = this.contratistaForm.get(key);
-      if (control?.invalid) {
-        console.log(`❌ Campo ${key} inválido:`, control.errors);
+    // Validar formulario
+    if (this.contratistaForm.invalid) {
+      console.log('❌ Formulario inválido');
+      this.errorMessage = 'Por favor complete todos los campos requeridos';
+      return;
+    }
+
+    // Validar documentos requeridos
+    if (!this.todosDocumentosRequeridosCompletados) {
+      console.log('❌ Documentos requeridos incompletos');
+      this.errorMessage = 'Debe subir todos los documentos requeridos';
+      return;
+    }
+
+    console.log('✅ Formulario válido y documentos requeridos completos');
+
+    this.isSubmitting = true;
+    this.errorMessage = '';
+
+    const formValue = this.contratistaForm.getRawValue();
+    console.log('📝 Datos del formulario:', formValue);
+
+    // Crear FormData con todos los documentos
+    const formData = new FormData();
+    
+    // Agregar todos los campos del formulario
+    Object.keys(formValue).forEach(key => {
+      const value = formValue[key];
+      if (value !== null && value !== undefined && value !== '') {
+        console.log(`📎 Agregando campo: ${key} = ${value}`);
+        formData.append(key, value);
       }
     });
-    this.errorMessage = 'Por favor complete todos los campos requeridos';
-    return;
+    
+    // Agregar todos los documentos
+    let index = 0;
+    this.documentosPorTipo.forEach((doc, tipo) => {
+      console.log(`📎 Agregando documento ${index}: tipo=${tipo}, archivo=${doc.nombre}`);
+      formData.append(`tipo_documento_${index}`, doc.tipo);
+      formData.append('documentos', doc.archivo);
+      index++;
+    });
+
+    console.log(`📤 Enviando petición con ${index} documentos`);
+
+    const sub = this.contratistaService.crearConDocumentos(formData).subscribe({
+      next: (response) => {
+        console.log('✅ Respuesta exitosa del servidor:', response);
+        this.successMessage = 'Contratista creado exitosamente';
+        this.isSubmitting = false;
+        setTimeout(() => this.router.navigate(['/contratistas/list']), 1500);
+      },
+      error: (error: any) => {
+        console.error('❌ Error en la petición:', error);
+        this.errorMessage = error.message || 'Error al guardar el contratista';
+        this.isSubmitting = false;
+      }
+    });
+    this.subscriptions.push(sub);
   }
-
-  // Validar documentos
-  if (!this.todosDocumentosCompletados) {
-    console.log('❌ Documentos incompletos');
-    console.log(`📄 Documentos completados: ${this.documentosCompletados} de ${this.totalDocumentos}`);
-    console.log('📄 Documentos por tipo:', Array.from(this.documentosPorTipo.keys()));
-    this.errorMessage = 'Debe subir todos los documentos requeridos';
-    return;
-  }
-
-  console.log('✅ Formulario válido y documentos completos');
-
-  this.isSubmitting = true;
-  this.errorMessage = '';
-
-  const formValue = this.contratistaForm.getRawValue();
-  console.log('📝 Datos del formulario:', formValue);
-
-  const contratistaData = {
-    documentoIdentidad: formValue.documentoIdentidad,
-    nombreCompleto: formValue.nombreCompleto,
-    numeroContrato: formValue.numeroContrato,
-    email: formValue.email,
-    telefono: formValue.telefono,
-    direccion: formValue.direccion,
-    cargo: formValue.cargo,
-    tipoContratista: formValue.tipoContratista,
-    estado: formValue.estado,
-    observaciones: formValue.observaciones
-  };
-  console.log('📝 Datos del contratista:', contratistaData);
-
-  // Crear FormData con todos los documentos
-  const formData = new FormData();
-  
-  Object.keys(contratistaData).forEach(key => {
-    const value = contratistaData[key as keyof typeof contratistaData];
-    if (value) {
-      console.log(`📎 Agregando campo: ${key} = ${value}`);
-      formData.append(key, value);
-    }
-  });
-  
-  // Agregar todos los documentos
-  let index = 0;
-  this.documentosPorTipo.forEach((doc, tipo) => {
-    console.log(`📎 Agregando documento ${index}: tipo=${tipo}, archivo=${doc.nombre}, tamaño=${doc.tamano} bytes`);
-    formData.append(`tipo_documento_${index}`, doc.tipo);
-    formData.append('documentos', doc.archivo);
-    index++;
-  });
-
-  console.log(`📤 Enviando petición con ${index} documentos`);
-
-  const sub = this.contratistaService.crearConDocumentos(formData).subscribe({
-    next: (response) => {
-      console.log('✅ Respuesta exitosa del servidor:', response);
-      this.successMessage = 'Contratista creado exitosamente';
-      this.isSubmitting = false;
-      setTimeout(() => this.router.navigate(['/contratistas/list']), 1500);
-    },
-    error: (error: any) => {
-      console.error('❌ Error en la petición:', error);
-      console.error('❌ Detalles del error:', {
-        status: error.status,
-        statusText: error.statusText,
-        message: error.message,
-        error: error.error
-      });
-      this.errorMessage = error.message || 'Error al guardar el contratista';
-      this.isSubmitting = false;
-    }
-  });
-  this.subscriptions.push(sub);
-}
 
   cancelar(): void {
-    if (confirm('Cancelar? Los datos no guardados se perderan.')) {
+    if (confirm('¿Cancelar? Los datos no guardados se perderán.')) {
       this.router.navigate(['/contratistas/list']);
     }
   }

@@ -1,4 +1,3 @@
-// src/app/contratistas/components/contratista-list/contratista-list.component.ts
 import { Component, OnInit, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -34,7 +33,6 @@ export class ContratistaListComponent implements OnInit {
   totalPages = 1;
   pages: number[] = [];
 
-  // Filtros
   filtroTipoContratista = '';
   filtroEstado = '';
 
@@ -97,7 +95,7 @@ export class ContratistaListComponent implements OnInit {
     if (this.searchTerm.trim()) {
       const term = this.searchTerm.toLowerCase().trim();
       filtrados = filtrados.filter(c =>
-        c.nombreCompleto.toLowerCase().includes(term) ||
+        (c.razonSocial || c.nombreCompleto || '').toLowerCase().includes(term) ||
         c.documentoIdentidad.includes(term) ||
         (c.numeroContrato && c.numeroContrato.toLowerCase().includes(term)) ||
         (c.email && c.email.toLowerCase().includes(term))

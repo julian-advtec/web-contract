@@ -1,19 +1,27 @@
-// src/app/core/models/contratista.model.ts
 export interface Contratista {
   id: string;
+  tipoDocumento: string;
   documentoIdentidad: string;
-  numeroContrato?: string;
-  nombreCompleto: string;
-  email?: string;
+  razonSocial: string;
+  representanteLegal?: string;
+  documentoRepresentante?: string;
   telefono?: string;
+  email?: string;
   direccion?: string;
+  departamento?: string;
+  ciudad?: string;
   tipoContratista?: string;
-  estado?: string;
-  fechaCreacion?: Date;
-  fechaActualizacion?: Date;
+  estado: string;
+  numeroContrato?: string;
+  cargo?: string;
   observaciones?: string;
-  [key: string]: any; // Para propiedades adicionales
   createdAt?: Date | string;
+  updatedAt?: Date | string;
+  
+  // Propiedad de compatibilidad con código antiguo
+  nombreCompleto?: string;
+  fechaCreacion?: Date | string;
+  fechaActualizacion?: Date | string;
 }
 
 export interface DocumentoContratista {
@@ -51,28 +59,24 @@ export type TipoDocumento =
   | 'TARJETA_PROFESIONAL';
 
 export interface CreateContratistaDto {
+  tipoDocumento?: string;
   documentoIdentidad: string;
-  nombreCompleto: string;
-  numeroContrato?: string;
-  email?: string;
+  razonSocial: string;
+  representanteLegal?: string;
+  documentoRepresentante?: string;
   telefono?: string;
+  email?: string;
   direccion?: string;
+  departamento?: string;
+  ciudad?: string;
   tipoContratista?: string;
   estado?: string;
+  numeroContrato?: string;
+  cargo?: string;
   observaciones?: string;
 }
 
-export interface UpdateContratistaDto {
-  documentoIdentidad?: string;
-  nombreCompleto?: string;
-  numeroContrato?: string;
-  email?: string;
-  telefono?: string;
-  direccion?: string;
-  tipoContratista?: string;
-  estado?: string;
-  observaciones?: string;
-}
+export interface UpdateContratistaDto extends Partial<CreateContratistaDto> {}
 
 export interface FiltrosContratistaDto {
   nombre?: string;

@@ -1,4 +1,3 @@
-<!-- src/app/pages/contratistas/components/contratista-creacion/contratista-creacion.component.html -->
 <div class="contratista-creacion-container">
   <div class="contratista-creacion-inner">
 
@@ -41,7 +40,7 @@
       <div class="step-connector"></div>
       <div class="step" [class.active]="pasoActual === 2" [class.completed]="pasoActual > 2">
         <div class="step-number">2</div>
-        <div class="step-label">Informacion Adicional</div>
+        <div class="step-label">Información Adicional</div>
       </div>
       <div class="step-connector"></div>
       <div class="step" [class.active]="pasoActual === 3" [class.completed]="pasoActual > 3">
@@ -60,24 +59,24 @@
         </div>
         <div class="section-body">
           <div class="row">
-            <div class="col-md-6 mb-3">
+            <div class="col-md-4 mb-3">
               <label class="form-label required-field">Tipo de Documento</label>
               <select class="form-control" formControlName="tipoDocumento">
-                <option value="CC">Cedula de Ciudadania</option>
+                <option value="CC">Cédula de Ciudadanía</option>
                 <option value="NIT">NIT</option>
-                <option value="CE">Cedula de Extranjeria</option>
+                <option value="CE">Cédula de Extranjería</option>
                 <option value="PAS">Pasaporte</option>
               </select>
             </div>
 
-            <div class="col-md-6 mb-3">
-              <label class="form-label required-field">Numero de Documento</label>
+            <div class="col-md-8 mb-3">
+              <label class="form-label required-field">Número de Documento</label>
               <input type="text" class="form-control" formControlName="documentoIdentidad"
                      [ngClass]="{'is-invalid': submitted && f['documentoIdentidad'].errors}"
                      placeholder="Ej: 123456789" maxlength="20"
                      (blur)="verificarDocumento()">
               <div *ngIf="submitted && f['documentoIdentidad'].errors" class="invalid-feedback">
-                El documento es requerido (minimo 3 caracteres)
+                El documento es requerido (mínimo 3 caracteres)
               </div>
               <div *ngIf="documentoExistente" class="text-danger small mt-1">
                 <i class="fas fa-exclamation-triangle me-1"></i> Ya existe un contratista con este documento
@@ -85,13 +84,25 @@
             </div>
 
             <div class="col-md-12 mb-3">
-              <label class="form-label required-field">Nombre Completo / Razon Social</label>
-              <input type="text" class="form-control" formControlName="nombreCompleto"
-                     [ngClass]="{'is-invalid': submitted && f['nombreCompleto'].errors}"
-                     placeholder="Nombre completo o razon social" maxlength="200">
-              <div *ngIf="submitted && f['nombreCompleto'].errors" class="invalid-feedback">
-                El nombre es requerido
+              <label class="form-label required-field">Razón Social / Nombre Completo</label>
+              <input type="text" class="form-control" formControlName="razonSocial"
+                     [ngClass]="{'is-invalid': submitted && f['razonSocial'].errors}"
+                     placeholder="Nombre completo o razón social" maxlength="200">
+              <div *ngIf="submitted && f['razonSocial'].errors" class="invalid-feedback">
+                La razón social es requerida
               </div>
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Representante Legal</label>
+              <input type="text" class="form-control" formControlName="representanteLegal" 
+                     placeholder="Nombre del representante legal" maxlength="200">
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Documento del Representante</label>
+              <input type="text" class="form-control" formControlName="documentoRepresentante" 
+                     placeholder="Documento del representante" maxlength="20">
             </div>
           </div>
 
@@ -102,15 +113,30 @@
             </div>
 
             <div class="col-md-6 mb-3">
-              <label class="form-label">Telefono</label>
-              <input type="text" class="form-control" formControlName="telefono" placeholder="Ej: 3001234567">
+              <label class="form-label">Teléfono</label>
+              <input type="text" class="form-control" formControlName="telefono" placeholder="Ej: 3001234567" maxlength="15">
             </div>
           </div>
 
           <div class="row">
             <div class="col-md-12 mb-3">
-              <label class="form-label">Direccion</label>
-              <textarea class="form-control" formControlName="direccion" rows="2" placeholder="Direccion de correspondencia"></textarea>
+              <label class="form-label">Dirección</label>
+              <textarea class="form-control" formControlName="direccion" rows="2" 
+                        placeholder="Dirección de correspondencia"></textarea>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Departamento</label>
+              <input type="text" class="form-control" formControlName="departamento" 
+                     placeholder="Departamento" maxlength="50">
+            </div>
+
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Ciudad</label>
+              <input type="text" class="form-control" formControlName="ciudad" 
+                     placeholder="Ciudad" maxlength="50">
             </div>
           </div>
         </div>
@@ -122,47 +148,43 @@
         </div>
       </div>
 
-      <!-- PASO 2: INFORMACION ADICIONAL -->
+      <!-- PASO 2: INFORMACIÓN ADICIONAL -->
       <div class="card-section" *ngIf="pasoActual === 2">
         <div class="section-header">
-          <h5 class="mb-0">Informacion Adicional</h5>
+          <h5 class="mb-0">Información Adicional</h5>
         </div>
         <div class="section-body">
           <div class="row">
             <div class="col-md-6 mb-3">
-              <label class="form-label">Numero de Contrato</label>
-              <input type="text" class="form-control" formControlName="numeroContrato" placeholder="Ej: 001-2026">
-              <small class="text-muted">Opcional - Se puede asignar despues</small>
+              <label class="form-label">Número de Contrato</label>
+              <input type="text" class="form-control" formControlName="numeroContrato" 
+                     placeholder="Ej: 001-2026" maxlength="50">
+              <small class="text-muted">Opcional - Se puede asignar después</small>
             </div>
 
             <div class="col-md-6 mb-3">
-              <label class="form-label">Tipo de Contratista</label>
+              <label class="form-label required-field">Tipo de Contratista</label>
               <select class="form-control" formControlName="tipoContratista">
                 <option value="">Seleccione tipo</option>
                 <option value="PERSONA_NATURAL">Persona Natural</option>
-                <option value="PERSONA_JURIDICA">Persona Juridica</option>
+                <option value="PERSONA_JURIDICA">Persona Jurídica</option>
                 <option value="CONSORCIO">Consorcio</option>
-                <option value="UNION_TEMPORAL">Union Temporal</option>
+                <option value="UNION_TEMPORAL">Unión Temporal</option>
               </select>
             </div>
 
             <div class="col-md-6 mb-3">
-              <label class="form-label">Cargo / Rol</label>
-              <input type="text" class="form-control" formControlName="cargo" placeholder="Ej: Director, Representante Legal">
-            </div>
-
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Estado</label>
+              <label class="form-label required-field">Estado</label>
               <select class="form-control" formControlName="estado">
                 <option value="ACTIVO">Activo</option>
                 <option value="INACTIVO">Inactivo</option>
-                <option value="SUSPENDIDO">Suspendido</option>
               </select>
             </div>
 
             <div class="col-md-12 mb-3">
               <label class="form-label">Observaciones</label>
-              <textarea class="form-control" formControlName="observaciones" rows="3" placeholder="Observaciones adicionales..."></textarea>
+              <textarea class="form-control" formControlName="observaciones" rows="3" 
+                        placeholder="Observaciones adicionales..."></textarea>
               <small class="text-muted">{{ getRemainingChars('observaciones') }} caracteres restantes</small>
             </div>
           </div>
@@ -178,7 +200,7 @@
         </div>
       </div>
 
-      <!-- PASO 3: DOCUMENTOS -->
+      <!-- PASO 3: DOCUMENTOS CON DROPDOWN Y SUBIDA SECUENCIAL -->
       <div class="card-section" *ngIf="pasoActual === 3">
         <div class="section-header">
           <h5 class="mb-0">Documentos Requeridos</h5>
@@ -187,64 +209,114 @@
 
           <div class="alert alert-info mb-4">
             <i class="fas fa-info-circle me-2"></i>
-            Todos los documentos son requeridos para completar el registro. Formatos permitidos: PDF (max. 5MB cada uno)
+            Los documentos marcados con <strong>*</strong> son obligatorios. 
+            La <strong>Libreta Militar</strong> es opcional.
+            Formatos permitidos: <strong>PDF</strong> (max. 5MB cada uno)
           </div>
 
-          <!-- Lista de documentos requeridos -->
-          <div class="documentos-grid">
-            <div *ngFor="let doc of tiposDocumento" class="documento-card" 
-                 [class.completed]="documentoCompletado(doc.value)"
-                 [class.pending]="!documentoCompletado(doc.value)">
-              <div class="documento-header">
-                <i class="fas" [class.fa-check-circle]="documentoCompletado(doc.value)" 
-                   [class.fa-file-pdf]="!documentoCompletado(doc.value)"></i>
-                <h6 class="documento-titulo">{{ doc.label }}</h6>
-              </div>
-              <div class="documento-body">
-                <div *ngIf="getDocumentoInfo(doc.value) as info" class="documento-info">
-                  <div class="info-row">
-                    <span class="info-label">Archivo:</span>
-                    <span class="info-value">{{ info.nombre }}</span>
-                  </div>
-                  <div class="info-row" *ngIf="info.tamano">
-                    <span class="info-label">Tamano:</span>
-                    <span class="info-value">{{ formatearTamano(info.tamano) }}</span>
-                  </div>
-                  <button class="btn-remove" (click)="eliminarDocumentoPorTipo(doc.value)" title="Eliminar">
-                    <i class="fas fa-trash-alt"></i>
-                  </button>
+          <!-- Dropdown para seleccionar tipo de documento (solo muestra los no subidos) -->
+          <div class="documento-selector mb-4" *ngIf="tiposPendientes.length > 0">
+            <label class="form-label">Seleccionar tipo de documento a subir</label>
+            <div class="d-flex gap-3">
+              <select class="form-control" [(ngModel)]="tipoSeleccionado" 
+                      [ngModelOptions]="{standalone: true}">
+                <option value="">-- Seleccione un tipo de documento --</option>
+                <option *ngFor="let doc of tiposPendientes" [value]="doc.value">
+                  {{ doc.label }} 
+                  <span *ngIf="doc.value === 'LIBRETA_MILITAR'">(Opcional)</span>
+                  <span *ngIf="doc.value !== 'LIBRETA_MILITAR'">*</span>
+                </option>
+              </select>
+              <button type="button" class="btn btn-primary" (click)="agregarDocumentoManual()" [disabled]="!tipoSeleccionado">
+                <i class="fas fa-plus me-2"></i> Agregar Documento
+              </button>
+            </div>
+            <input type="file" id="fileInput" class="d-none" (change)="onFileSelected($event)" accept=".pdf">
+          </div>
+
+          <!-- Mensaje cuando todos los documentos están subidos -->
+          <div *ngIf="tiposPendientes.length === 0" class="alert alert-success mb-4">
+            <i class="fas fa-check-circle me-2"></i>
+            ¡Todos los documentos requeridos han sido subidos!
+          </div>
+
+          <!-- Área de Drag & Drop (visible solo cuando hay tipo seleccionado) -->
+          <div class="drag-drop-area" 
+               *ngIf="tipoSeleccionado"
+               [class.dragging]="isDragging"
+               (dragenter)="onDragOver($event)"
+               (dragover)="onDragOver($event)"
+               (dragleave)="onDragLeave($event)"
+               (drop)="onDrop($event)">
+            <div class="drag-drop-content">
+              <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
+              <h6>Arrastra y suelta tu archivo aquí</h6>
+              <p class="text-muted">para subir el documento <strong>{{ getTipoDocumentoLabel(tipoSeleccionado) }}</strong></p>
+              <small>Archivos PDF hasta 5MB</small>
+            </div>
+          </div>
+
+          <!-- Error de documento -->
+          <div *ngIf="documentoError" class="alert alert-warning mt-3">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {{ documentoError }}
+          </div>
+
+          <!-- Lista de documentos subidos (se contrae cada documento subido) -->
+          <div class="documentos-subidos mt-4">
+            <h6 class="mb-3">Documentos Subidos ({{ documentosSubidosCount }} de {{ tiposDocumentoRequeridos.length }} requeridos)</h6>
+            
+            <div class="documentos-grid">
+              <div *ngFor="let doc of documentosSubidosList" class="documento-card completed">
+                <div class="documento-header">
+                  <i class="fas fa-check-circle text-success"></i>
+                  <h6 class="documento-titulo">
+                    {{ doc.label }}
+                    <span *ngIf="doc.value === 'LIBRETA_MILITAR'" class="opcional-badge">Opcional</span>
+                    <span *ngIf="doc.value !== 'LIBRETA_MILITAR'" class="required-badge">*</span>
+                  </h6>
                 </div>
-                <div *ngIf="!getDocumentoInfo(doc.value)" class="upload-area">
-                  <input type="file" [id]="'file_' + doc.value" class="file-input" 
-                         (change)="onFileSelectedPorTipo($event, doc.value)" accept=".pdf">
-                  <label [for]="'file_' + doc.value" class="upload-label">
-                    <i class="fas fa-cloud-upload-alt"></i>
-                    <span>Seleccionar archivo</span>
-                  </label>
-                  <small class="text-muted">PDF max. 5MB</small>
+                <div class="documento-body">
+                  <div class="documento-info">
+                    <div class="info-row">
+                      <span class="info-label">Archivo:</span>
+                      <span class="info-value">{{ doc.nombre }}</span>
+                    </div>
+                    <div class="info-row">
+                      <span class="info-label">Tamaño:</span>
+                      <span class="info-value">{{ formatearTamano(doc.tamano) }}</span>
+                    </div>
+                    <button class="btn-remove" (click)="eliminarDocumentoPorTipo(doc.value)" title="Eliminar">
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
           <!-- Resumen de documentos -->
-          <div class="documentos-resumen">
+          <div class="documentos-resumen mt-3">
             <div class="resumen-header">
               <i class="fas fa-file-alt me-2"></i>
-              <span>Progreso de documentos</span>
+              <span>Progreso de documentos requeridos</span>
             </div>
             <div class="progress-bar-container">
               <div class="progress-bar" [style.width.%]="porcentajeDocumentos"></div>
             </div>
             <div class="resumen-stats">
-              <span>{{ documentosCompletados }} de {{ totalDocumentos }} documentos subidos</span>
+              <span>{{ documentosCompletadosRequeridos }} de {{ totalDocumentosRequeridos }} documentos requeridos subidos</span>
               <span class="porcentaje">{{ porcentajeDocumentos }}%</span>
+            </div>
+            <div class="opcional-nota mt-2" *ngIf="!documentoLibretaSubido">
+              <i class="fas fa-info-circle me-1"></i>
+              <small>La Libreta Militar es opcional y no afecta el progreso</small>
             </div>
           </div>
 
-          <div class="alert alert-warning mt-4" *ngIf="!todosDocumentosCompletados">
+          <div class="alert alert-warning mt-4" *ngIf="!todosDocumentosRequeridosCompletados">
             <i class="fas fa-exclamation-triangle me-2"></i>
-            Debe subir todos los documentos requeridos antes de guardar el contratista.
+            Debe subir todos los documentos requeridos (marcados con *) antes de guardar el contratista.
           </div>
         </div>
 
@@ -256,7 +328,7 @@
             <button type="button" class="btn btn-outline-danger me-2 px-4" (click)="cancelar()">
               <i class="fas fa-times me-2"></i> Cancelar
             </button>
-            <button type="submit" class="btn btn-success px-4" [disabled]="isSubmitting || !todosDocumentosCompletados">
+            <button type="submit" class="btn btn-success px-4" [disabled]="isSubmitting || !todosDocumentosRequeridosCompletados">
               <span *ngIf="!isSubmitting">
                 <i class="fas fa-save me-2"></i> {{ isEditMode ? 'Actualizar' : 'Guardar' }} Contratista
               </span>
