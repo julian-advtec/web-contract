@@ -385,20 +385,21 @@ export class NavbarComponent implements OnInit {
       .join(' ');
   }
 
-  getUserRoleName(role: UserRole | undefined | null): string {
-    if (!role) return 'Usuario';
+getUserRoleName(role: UserRole | undefined | null): string {
+  if (!role) return 'Usuario';
 
-    const roleNames: Record<UserRole, string> = {
-      [UserRole.ADMIN]: 'Administrador',
-      [UserRole.RADICADOR]: 'Radicador',
-      [UserRole.SUPERVISOR]: 'Supervisor',
-      [UserRole.AUDITOR_CUENTAS]: 'Auditor de Cuentas',
-      [UserRole.CONTABILIDAD]: 'Contabilidad',
-      [UserRole.TESORERIA]: 'Tesorería',
-      [UserRole.ASESOR_GERENCIA]: 'Asesor de Gerencia',
-      [UserRole.RENDICION_CUENTAS]: 'Rendición de Cuentas',
-      [UserRole.JURIDICA]: 'Jurídica'
-    };
-    return roleNames[role] || role;
-  }
+  const roleNames: Record<UserRole, string> = {
+    [UserRole.ADMIN]: 'Administrador',
+    [UserRole.CONTRATISTA]: 'Contratista',  // 👈 AGREGADO
+    [UserRole.RADICADOR]: 'Radicador',
+    [UserRole.SUPERVISOR]: 'Supervisor',
+    [UserRole.AUDITOR_CUENTAS]: 'Auditor de Cuentas',
+    [UserRole.CONTABILIDAD]: 'Contabilidad',
+    [UserRole.TESORERIA]: 'Tesorería',
+    [UserRole.ASESOR_GERENCIA]: 'Asesor de Gerencia',
+    [UserRole.RENDICION_CUENTAS]: 'Rendición de Cuentas',
+    [UserRole.JURIDICA]: 'Jurídica'
+  };
+  return roleNames[role] || role;
+}
 }

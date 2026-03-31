@@ -1,4 +1,4 @@
-// src/app/core/services/modules.service.ts
+// core/services/modules.service.ts
 import { Injectable } from '@angular/core';
 import { UserRole } from '../models/user.types';
 
@@ -18,10 +18,9 @@ export interface AppModule {
 })
 export class ModulesService {
   private allModules: AppModule[] = [
-    // Módulos ordenados alfabéticamente por título
     {
       id: 'dashboard',
-      title: 'Inicio', // ✅ Cambiado de Dashboard a Inicio
+      title: 'Inicio',
       description: 'Panel principal del sistema',
       path: '/dashboard',
       route: '/dashboard',
@@ -69,7 +68,26 @@ export class ModulesService {
       requiredRole: UserRole.RADICADOR,
       isActive: true
     },
-
+    {
+      id: 'contratista-perfil',
+      title: 'Mi Perfil',
+      description: 'Perfil del contratista',
+      path: '/contratistas/perfil',
+      route: '/contratistas/perfil',
+      icon: 'user',
+      requiredRole: UserRole.CONTRATISTA,
+      isActive: true
+    },
+    {
+      id: 'contratista-documentos',
+      title: 'Mis Documentos',
+      description: 'Documentos del contratista',
+      path: '/contratistas/mis-documentos',
+      route: '/contratistas/mis-documentos',
+      icon: 'file-alt',
+      requiredRole: UserRole.CONTRATISTA,
+      isActive: true
+    },
     {
       id: 'gestion-usuarios',
       title: 'Gestión de Usuarios',
@@ -147,11 +165,12 @@ export class ModulesService {
       return true;
     }
 
-    // Mapeo de jerarquías de roles
+    // Mapeo de jerarquías de roles - INCLUYENDO CONTRATISTA
     const roleHierarchy: Record<UserRole, UserRole[]> = {
-      [UserRole.ADMIN]: [UserRole.ADMIN, UserRole.RADICADOR, UserRole.SUPERVISOR, UserRole.AUDITOR_CUENTAS,
-      UserRole.CONTABILIDAD, UserRole.TESORERIA, UserRole.ASESOR_GERENCIA,
-      UserRole.RENDICION_CUENTAS, UserRole.JURIDICA],
+      [UserRole.ADMIN]: [UserRole.ADMIN, UserRole.CONTRATISTA, UserRole.RADICADOR, UserRole.SUPERVISOR, 
+                         UserRole.AUDITOR_CUENTAS, UserRole.CONTABILIDAD, UserRole.TESORERIA, 
+                         UserRole.ASESOR_GERENCIA, UserRole.RENDICION_CUENTAS, UserRole.JURIDICA],
+      [UserRole.CONTRATISTA]: [UserRole.CONTRATISTA],
       [UserRole.RADICADOR]: [UserRole.RADICADOR],
       [UserRole.SUPERVISOR]: [UserRole.SUPERVISOR],
       [UserRole.AUDITOR_CUENTAS]: [UserRole.AUDITOR_CUENTAS],

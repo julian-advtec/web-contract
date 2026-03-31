@@ -1,3 +1,4 @@
+// core/models/contratista.model.ts
 export interface Contratista {
   id: string;
   tipoDocumento: string;
@@ -16,6 +17,7 @@ export interface Contratista {
   numeroContrato?: string;
   createdAt: Date | string;
   updatedAt?: Date | string;
+  userId?: string;  // 👈 Relación con usuario
 }
 
 export interface CreateContratistaDto {
@@ -33,6 +35,7 @@ export interface CreateContratistaDto {
   tipoContratista?: string;
   numeroContrato?: string;
   estado?: 'ACTIVO' | 'INACTIVO';
+  userId?: string;  // 👈 Para asociar con usuario
 }
 
 export interface UpdateContratistaDto {
@@ -45,6 +48,8 @@ export interface UpdateContratistaDto {
   tipoContratista?: string;
   numeroContrato?: string;
   estado?: 'ACTIVO' | 'INACTIVO';
+  departamento?: string;
+  ciudad?: string;
 }
 
 export interface FiltrosContratistaDto {
@@ -65,4 +70,7 @@ export interface DocumentoContratista {
   tamanoBytes: number;
   fechaSubida: Date | string;
   ruta?: string;
+  contratistaId?: string;
+  tipoMime?: string;
+  subidoPor?: string;
 }

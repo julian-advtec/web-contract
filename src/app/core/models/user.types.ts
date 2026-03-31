@@ -1,8 +1,10 @@
-import { Signature } from '../services/signature.service';
+// core/models/user.types.ts
+import { Signature } from './signature.types';
 
 // ENUM de roles
 export enum UserRole {
   ADMIN = 'admin',
+  CONTRATISTA = 'contratista',  // 👈 NUEVO ROL
   RADICADOR = 'radicador',
   SUPERVISOR = 'supervisor',
   AUDITOR_CUENTAS = 'auditor_cuentas',
@@ -10,7 +12,7 @@ export enum UserRole {
   TESORERIA = 'tesoreria',
   ASESOR_GERENCIA = 'asesor_gerencia',
   RENDICION_CUENTAS = 'rendicion_cuentas',
-  JURIDICA = 'juridica' // 👈 NUEVO ROL AGREGADO
+  JURIDICA = 'juridica'
 }
 
 // Función para obtener el valor string del enum
@@ -29,6 +31,7 @@ export function getUserRoleName(role: UserRole | string): string {
   
   const roleNames: Record<string, string> = {
     'admin': 'Administrador',
+    'contratista': 'Contratista',  // 👈 NUEVO
     'radicador': 'Radicador',
     'supervisor': 'Supervisor',
     'auditor_cuentas': 'Auditor de Cuentas',
@@ -38,7 +41,7 @@ export function getUserRoleName(role: UserRole | string): string {
     'asesor_gerencia': 'Asesor de Gerencia',
     'rendicion_cuentas': 'Rendición de Cuentas',
     'rendición_cuentas': 'Rendición de Cuentas',
-    'juridica': 'Jurídica' // 👈 NUEVO
+    'juridica': 'Jurídica'
   };
   
   return roleNames[roleStr.toLowerCase()] || 'Usuario';
@@ -62,6 +65,8 @@ export function stringToUserRole(roleStr: string): UserRole {
   switch (lowerRole) {
     case 'admin':
       return UserRole.ADMIN;
+    case 'contratista':
+      return UserRole.CONTRATISTA;  // 👈 NUEVO
     case 'radicador':
       return UserRole.RADICADOR;
     case 'supervisor':
@@ -79,7 +84,7 @@ export function stringToUserRole(roleStr: string): UserRole {
     case 'rendicion_cuentas':
     case 'rendición_cuentas':
       return UserRole.RENDICION_CUENTAS;
-    case 'juridica': // 👈 NUEVO
+    case 'juridica':
       return UserRole.JURIDICA;
     default:
       const validValues = Object.values(UserRole) as string[];
@@ -90,7 +95,7 @@ export function stringToUserRole(roleStr: string): UserRole {
   }
 }
 
-// 👇 INTERFAZ User ACTUALIZADA CON SIGNATURE
+// Interfaz User ACTUALIZADA
 export interface User {
   id: string;
   username: string;
@@ -98,6 +103,7 @@ export interface User {
   fullName?: string;
   role: UserRole;
   isActive: boolean;
+  contratistaId?: string;  // 👈 Para relación con contratista
   createdAt?: Date | string;
   updatedAt?: Date | string;
   lastLogin?: Date | string;
@@ -105,7 +111,7 @@ export interface User {
   signature?: Signature | null;
 }
 
-// INTERFAZ CreateUserRequest
+// Interfaz CreateUserRequest
 export interface CreateUserRequest {
   username: string;
   email: string;
@@ -113,9 +119,10 @@ export interface CreateUserRequest {
   fullName?: string;
   role: UserRole;
   isActive?: boolean;
+  contratistaId?: string;  // 👈 NUEVO
 }
 
-// INTERFAZ UpdateUserRequest
+// Interfaz UpdateUserRequest
 export interface UpdateUserRequest {
   username?: string;
   email?: string;
@@ -123,9 +130,10 @@ export interface UpdateUserRequest {
   fullName?: string;
   role?: UserRole;
   isActive?: boolean;
+  contratistaId?: string;  // 👈 NUEVO
 }
 
-// INTERFAZ UsersStats
+// Interfaz UsersStats
 export interface UsersStats {
   total: number;
   active: number;
@@ -133,7 +141,7 @@ export interface UsersStats {
   byRole: { [key: string]: number };
 }
 
-// INTERFAZ PaginatedUsersResponse
+// Interfaz PaginatedUsersResponse
 export interface PaginatedUsersResponse {
   users: User[];
   total: number;
@@ -142,13 +150,13 @@ export interface PaginatedUsersResponse {
   totalPages: number;
 }
 
-// INTERFAZ LoginRequest
+// Interfaz LoginRequest
 export interface LoginRequest {
   username: string;
   password: string;
 }
 
-// INTERFAZ LoginResponse
+// Interfaz LoginResponse
 export interface LoginResponse {
   token?: string;
   access_token?: string;
@@ -158,13 +166,13 @@ export interface LoginResponse {
   message?: string;
 }
 
-// INTERFAZ TwoFactorRequest
+// Interfaz TwoFactorRequest
 export interface TwoFactorRequest {
   userId: string;
   code: string;
 }
 
-// INTERFAZ TwoFactorResponse
+// Interfaz TwoFactorResponse
 export interface TwoFactorResponse {
   token?: string;
   access_token?: string;

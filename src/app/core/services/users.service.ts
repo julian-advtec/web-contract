@@ -2,12 +2,12 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
-import { catchError, tap } from 'rxjs/operators'; // 👈 IMPORTAR TAP
+import { catchError, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { User, UserRole } from '../models/user.types';
-import { Signature } from './signature.service';
+import { Signature } from '../models/signature.types'; // 👈 RUTA CORRECTA
 
-// 👇 INTERFAZ PARA LA RESPUESTA ANIDADA
+// Interfaz para la respuesta anidada
 export interface UserResponseData {
   data: UserWithSignature;  // Los datos reales están dentro de "data"
 }
@@ -53,15 +53,38 @@ export class UsersService {
 
   constructor(private http: HttpClient) {}
 
+  private getHeaders() {
+    const token = localStorage.getItem('token');
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    };
+  }
+
   /**
-   * Obtener usuario por ID con su firma - VERSIÓN CORREGIDA (SOLO UNA)
+   * Obtener usuario por ID con su firma
    */
   getUserById(id: string): Observable<ApiResponse<UserResponseData>> {
-    return this.http.get<ApiResponse<UserResponseData>>(`${this.apiUrl}/${id}`)
-      .pipe(
-        tap(response => console.log('UsersService - getUserById response:', response)),
-        catchError(this.handleError)
-      );
+    console.log(`UsersService - getUserById: ${id}`);
+    return this.http.get<ApiResponse<UserResponseData>>(`${this.apiUrl}/${id}`, {
+      headers: this.getHeaders()
+    }).pipe(
+      tap(response => console.log('UsersService - getUserById response:', response)),
+      catchError(this.handleError)
+    );
+  }
+
+  /**
+   * Obtener todos los usuarios
+   */
+  getUsers(): Observable<ApiResponse<User[]>> {
+    console.log('UsersService - getUsers');
+    return this.http.get<ApiResponse<User[]>>(this.apiUrl, {
+      headers: this.getHeaders()
+    }).pipe(
+      tap(response => console.log('UsersService - getUsers response:', response)),
+      catchError(this.handleError)
+    );
   }
 
   /**
@@ -69,10 +92,12 @@ export class UsersService {
    */
   createUser(userData: CreateUserData): Observable<ApiResponse<User>> {
     console.log('UsersService: Enviando datos al backend:', userData);
-    return this.http.post<ApiResponse<User>>(`${this.apiUrl}`, userData)
-      .pipe(
-        catchError(this.handleError)
-      );
+    return this.http.post<ApiResponse<User>>(this.apiUrl, userData, {
+      headers: this.getHeaders()
+    }).pipe(
+      tap(response => console.log('UsersService - createUser response:', response)),
+      catchError(this.handleError)
+    );
   }
 
   /**
@@ -80,40 +105,38 @@ export class UsersService {
    */
   updateUser(id: string, userData: UpdateUserData): Observable<ApiResponse<User>> {
     console.log('UsersService: Actualizando usuario:', id, userData);
-    return this.http.patch<ApiResponse<User>>(`${this.apiUrl}/${id}`, userData)
-      .pipe(
-        catchError(this.handleError)
-      );
-  }
-
-  /**
-   * Obtener todos los usuarios
-   */
-  getUsers(): Observable<ApiResponse<User[]>> {
-    return this.http.get<ApiResponse<User[]>>(this.apiUrl)
-      .pipe(
-        catchError(this.handleError)
-      );
-  }
-
-  /**
-   * Cambiar estado del usuario
-   */
-  toggleUserStatus(id: string): Observable<ApiResponse<User>> {
-    return this.http.patch<ApiResponse<User>>(`${this.apiUrl}/${id}/toggle-status`, {})
-      .pipe(
-        catchError(this.handleError)
-      );
+    return this.http.patch<ApiResponse<User>>(`${this.apiUrl}/${id}`, userData, {
+      headers: this.getHeaders()
+    }).pipe(
+      tap(response => console.log('UsersService - updateUser response:', response)),
+      catchError(this.handleError)
+    );
   }
 
   /**
    * Eliminar usuario
    */
   deleteUser(id: string): Observable<ApiResponse<void>> {
-    return this.http.delete<ApiResponse<void>>(`${this.apiUrl}/${id}`)
-      .pipe(
-        catchError(this.handleError)
-      );
+    console.log('UsersService: Eliminando usuario:', id);
+    return this.http.delete<ApiResponse<void>>(`${this.apiUrl}/${id}`, {
+      headers: this.getHeaders()
+    }).pipe(
+      tap(response => console.log('UsersService - deleteUser response:', response)),
+      catchError(this.handleError)
+    );
+  }
+
+  /**
+   * Cambiar estado del usuario (activar/desactivar)
+   */
+  toggleUserStatus(id: string): Observable<ApiResponse<User>> {
+    console.log('UsersService: Cambiando estado usuario:', id);
+    return this.http.patch<ApiResponse<User>>(`${this.apiUrl}/${id}/toggle-status`, {}, {
+      headers: this.getHeaders()
+    }).pipe(
+      tap(response => console.log('UsersService - toggleUserStatus response:', response)),
+      catchError(this.handleError)
+    );
   }
 
   /**

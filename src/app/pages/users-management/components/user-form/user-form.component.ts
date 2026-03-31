@@ -16,7 +16,6 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ChangeDetectorRef } from '@angular/core';
 declare var bootstrap: any;
 
-
 @Component({
   selector: 'app-user-form',
   templateUrl: './user-form.component.html',
@@ -30,7 +29,6 @@ declare var bootstrap: any;
     SidebarComponent
   ]
 })
-
 export class UserFormComponent implements OnInit, OnDestroy {
   private fb = inject(FormBuilder);
   private usersService = inject(UsersService);
@@ -41,8 +39,9 @@ export class UserFormComponent implements OnInit, OnDestroy {
   private notificationService = inject(NotificationService);
   private signatureService = inject(SignatureService);
   private destroy$ = new Subject<void>();
-signatureUrl: SafeResourceUrl | null = null;
-isPdf = false;
+  signatureUrl: SafeResourceUrl | null = null;
+  isPdf = false;
+  
   // Layout properties
   currentUser: User | null = null;
   sidebarCollapsed = false;
@@ -77,8 +76,7 @@ isPdf = false;
   previewUrl: string | null = null;
   isUploadingSignature = false;
   canHaveSignature = false;
-  hasSignatureChanges = false; // 👈 NUEVO: detectar cambios en firma
-  
+  hasSignatureChanges = false;
 
   // Modal properties
   signatureToView: Signature | null = null;
@@ -87,11 +85,10 @@ isPdf = false;
 
   private readonly PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
 
-constructor(
-  private sanitizer: DomSanitizer,
-  private cdr: ChangeDetectorRef // 👈 Inyectar aquí
-) {
-    
+  constructor(
+    private sanitizer: DomSanitizer,
+    private cdr: ChangeDetectorRef
+  ) {
     this.userForm = this.fb.group({
       username: ['', [
         Validators.required,
@@ -117,38 +114,29 @@ constructor(
       signatureName: ['']
     }, { validators: [this.passwordMatchValidator] });
 
-    // 👇 DETECTAR CAMBIOS EN EL FORMULARIO PARA HABILITAR BOTÓN
+    // Detectar cambios en el formulario para habilitar botón
     this.userForm.valueChanges.subscribe(() => {
       if (this.isEditMode) {
         this.checkFormChanges();
       }
     });
-    setTimeout(() => {
-      const token = localStorage.getItem('access_token');
-      console.log('🔑 Token en localStorage al iniciar:', token);
-      console.log('🔑 Token presente?', !!token);
-    }, 1000);
-    
   }
-  
 
-ngOnInit() {
-  this.initializeComponent();
-  this.initializeForm();
-  this.setupPasswordValidation();
-  this.setupRealTimeValidation();
-  this.checkSignaturePermission();
-  
-  // Inicializar modal
-  setTimeout(() => {
-    const modalElement = document.getElementById('signatureModal');
-    if (modalElement) {
-      this.signatureModal = new bootstrap.Modal(modalElement);
-    }
-  }, 500); // Pequeño delay para asegurar que el DOM esté listo
-}
-
-
+  ngOnInit() {
+    this.initializeComponent();
+    this.initializeForm();
+    this.setupPasswordValidation();
+    this.setupRealTimeValidation();
+    this.checkSignaturePermission();
+    
+    // Inicializar modal
+    setTimeout(() => {
+      const modalElement = document.getElementById('signatureModal');
+      if (modalElement) {
+        this.signatureModal = new bootstrap.Modal(modalElement);
+      }
+    }, 500);
+  }
 
   ngOnDestroy() {
     if (this.signatureImageUrl) {
@@ -198,17 +186,6 @@ ngOnInit() {
     this.setNavbarTitle();
   }
 
-  // features/users/pages/user-form/user-form.component.ts
-  // SOLO REEMPLAZA ESTE MÉTODO:
-
-  // features/users/pages/user-form/user-form.component.ts
-  // REEMPLAZA COMPLETAMENTE este método:
-
-  // features/users/pages/user-form/user-form.component.ts
-
-  // features/users/pages/user-form/user-form.component.ts
-  // REEMPLAZA SOLO ESTE MÉTODO:
-
   private loadUserData(id: string): void {
     this.isLoading = true;
 
@@ -218,16 +195,12 @@ ngOnInit() {
         next: (response: ApiResponse<UserResponseData>) => {
           console.log('Datos del usuario cargados:', response);
 
-          // ✅ Acceder a response.data?.data
           const userData = response.data?.data;
 
           if (userData) {
             console.log('UserData extraído:', userData);
-
-            // POBLAR EL FORMULARIO CON userData
             this.populateForm(userData);
 
-            // CARGAR LA FIRMA SI EXISTE
             if (userData.signature) {
               console.log('Firma encontrada:', userData.signature);
               this.currentSignature = userData.signature;
@@ -236,7 +209,6 @@ ngOnInit() {
               });
             }
 
-            // MARCA EL FORMULARIO COMO "PRISTINE" DESPUÉS DE CARGAR
             setTimeout(() => {
               this.userForm.markAsPristine();
               this.hasSignatureChanges = false;
@@ -257,12 +229,7 @@ ngOnInit() {
       });
   }
 
-  // features/users/pages/user-form/user-form.component.ts
-  // REEMPLAZA ESTE MÉTODO:
-
-  // features/users/pages/user-form/user-form.component.ts
-
-  private populateForm(userData: UserWithSignature): void {  // 👈 UserWithSignature, no any
+  private populateForm(userData: UserWithSignature): void {
     console.log('Rellenando formulario con datos:', userData);
 
     const formValues = {
@@ -276,7 +243,6 @@ ngOnInit() {
     };
 
     console.log('Valores a asignar al formulario:', formValues);
-
     this.userForm.patchValue(formValues);
 
     if (this.isEditMode) {
@@ -296,18 +262,10 @@ ngOnInit() {
     }
   }
 
-  // 👇 NUEVO MÉTODO: Verificar si hay cambios en el formulario
   private checkFormChanges(): void {
-    // El botón se habilita si:
-    // 1. Hay cambios en los campos del formulario O
-    // 2. Hay un archivo de firma seleccionado
     const hasFormChanges = this.userForm.dirty;
     const hasFileSelected = this.selectedFile !== null;
-
-    // También puedes verificar campos específicos si es necesario
     this.hasSignatureChanges = hasFileSelected;
-
-    // Para debug
     console.log('Form dirty:', hasFormChanges, 'File selected:', hasFileSelected);
   }
 
@@ -366,24 +324,21 @@ ngOnInit() {
     this.selectedFile = event.target.files[0];
 
     if (this.selectedFile) {
-      // Validar tamaño (2MB)
       if (this.selectedFile.size > 2 * 1024 * 1024) {
         this.notificationService.error('El archivo no puede ser mayor a 2MB');
         this.selectedFile = null;
-        event.target.value = ''; // Limpiar input
+        event.target.value = '';
         return;
       }
 
-      // Validar tipo
       const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'application/pdf'];
       if (!allowedTypes.includes(this.selectedFile.type)) {
         this.notificationService.error('Tipo de archivo no permitido. Usa PNG, JPG, GIF o PDF');
         this.selectedFile = null;
-        event.target.value = ''; // Limpiar input
+        event.target.value = '';
         return;
       }
 
-      // Crear preview solo para imágenes
       if (this.selectedFile.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -394,7 +349,6 @@ ngOnInit() {
         this.previewUrl = 'pdf-icon';
       }
 
-      // 👇 MARCAR QUE HAY CAMBIOS EN LA FIRMA
       this.hasSignatureChanges = true;
       this.userForm.markAsDirty();
     }
@@ -410,17 +364,13 @@ ngOnInit() {
             this.currentSignature = null;
             this.selectedFile = null;
             this.previewUrl = null;
-            this.userForm.patchValue({
-              signatureName: ''
-            });
-            // Limpiar el input file
+            this.userForm.patchValue({ signatureName: '' });
+            
             const fileInput = document.getElementById('signatureFile') as HTMLInputElement;
             if (fileInput) fileInput.value = '';
 
-            // 👇 MARCAR QUE HAY CAMBIOS
             this.hasSignatureChanges = true;
             this.userForm.markAsDirty();
-
             this.notificationService.success('Firma eliminada correctamente');
           },
           error: (error) => {
@@ -432,26 +382,23 @@ ngOnInit() {
     );
   }
 
+getFileIcon(type: string | undefined): string {
+  if (!type) return 'fa-file';
+  return type === 'pdf' ? 'fa-file-pdf' : 'fa-file-image';
+}
 
+getFileColor(type: string | undefined): string {
+  if (!type) return 'text-secondary';
+  return type === 'pdf' ? 'text-danger' : 'text-primary';
+}
 
-
-
-  getFileIcon(type: string): string {
-    return type === 'pdf' ? 'fa-file-pdf' : 'fa-file-image';
-  }
-
-  getFileColor(type: string): string {
-    return type === 'pdf' ? 'text-danger' : 'text-primary';
-  }
-
-  formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  }
-
+formatFileSize(bytes: number | undefined): string {
+  if (!bytes || bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
   // =============================
   // LAYOUT METHODS
   // =============================
@@ -494,7 +441,6 @@ ngOnInit() {
       form.get('confirmPassword')?.setErrors({ mismatch: true });
       return { mismatch: true };
     }
-
     return null;
   }
 
@@ -551,6 +497,7 @@ ngOnInit() {
 
     const roleNames: Record<UserRole, string> = {
       [UserRole.ADMIN]: 'Administrador',
+      [UserRole.CONTRATISTA]: 'Contratista',
       [UserRole.RADICADOR]: 'Radicador',
       [UserRole.SUPERVISOR]: 'Supervisor',
       [UserRole.AUDITOR_CUENTAS]: 'Auditor de Cuentas',
@@ -558,7 +505,7 @@ ngOnInit() {
       [UserRole.TESORERIA]: 'Tesorería',
       [UserRole.ASESOR_GERENCIA]: 'Asesor de Gerencia',
       [UserRole.RENDICION_CUENTAS]: 'Rendición de Cuentas',
-      [UserRole.JURIDICA]: 'Jurídica' // 👈 AGREGAR
+      [UserRole.JURIDICA]: 'Jurídica'
     };
 
     return roleNames[role] || role;
@@ -573,7 +520,6 @@ ngOnInit() {
     console.log('Has signature changes:', this.hasSignatureChanges);
     console.log('Selected file:', this.selectedFile);
 
-    // 👇 VERIFICAR SI HAY CAMBIOS PARA HABILITAR EL BOTÓN
     const hasChanges = this.userForm.dirty || this.hasSignatureChanges;
 
     if (!hasChanges && this.isEditMode) {
@@ -582,7 +528,6 @@ ngOnInit() {
     }
 
     if (this.userForm.valid) {
-      // Si hay un archivo de firma seleccionado, primero subir la firma
       if (this.selectedFile && this.canHaveSignature) {
         const signatureName = this.userForm.get('signatureName')?.value;
         if (!signatureName) {
@@ -591,7 +536,6 @@ ngOnInit() {
         }
         this.uploadSignatureAndSubmit();
       } else {
-        // Si no hay firma, proceder normalmente
         this.confirmBeforeSubmit();
       }
     } else {
@@ -622,11 +566,9 @@ ngOnInit() {
         this.previewUrl = null;
         this.hasSignatureChanges = false;
 
-        // Limpiar el input file
         const fileInput = document.getElementById('signatureFile') as HTMLInputElement;
         if (fileInput) fileInput.value = '';
 
-        // Ahora proceder con el envío del formulario
         this.confirmBeforeSubmit();
       },
       error: (error) => {
@@ -764,7 +706,6 @@ ngOnInit() {
   private handleCreateSuccess(response: ApiResponse<any>): void {
     this.isLoading = false;
     console.log('Usuario creado exitosamente');
-
     setTimeout(() => {
       this.router.navigate(['/gestion-usuarios']);
     }, 1000);
@@ -793,7 +734,6 @@ ngOnInit() {
   private handleUpdateSuccess(response: ApiResponse<any>): void {
     this.isLoading = false;
     console.log('Usuario actualizado exitosamente');
-
     setTimeout(() => {
       this.router.navigate(['/gestion-usuarios']);
     }, 1000);
@@ -824,7 +764,6 @@ ngOnInit() {
   // =============================
   private handleBackendError(error: any, defaultMessage: string): void {
     this.clearFormErrors();
-
     console.error('Error del backend completo:', error);
 
     if (error.errors && Array.isArray(error.errors)) {
@@ -832,46 +771,37 @@ ngOnInit() {
         this.addFormError(err);
         this.notificationService.error(err);
       });
-    }
-    else if (error.message) {
+    } else if (error.message) {
       this.addFormError(error.message);
       this.notificationService.error(error.message);
-    }
-    else if (error.status === 409) {
+    } else if (error.status === 409) {
       const errorMessage = 'El nombre de usuario o email ya está registrado';
       this.addFormError(errorMessage);
       this.notificationService.error(errorMessage);
-    }
-    else if (error.status === 404) {
+    } else if (error.status === 404) {
       const errorMessage = 'Usuario no encontrado';
       this.addFormError(errorMessage);
       this.notificationService.error(errorMessage);
-    }
-    else if (error.status === 400) {
+    } else if (error.status === 400) {
       const errorMessage = 'Datos inválidos. Verifique la información ingresada';
       this.addFormError(errorMessage);
       this.notificationService.error(errorMessage);
-    }
-    else if (error.status === 403) {
+    } else if (error.status === 403) {
       const errorMessage = 'No tiene permisos para realizar esta acción';
       this.addFormError(errorMessage);
       this.notificationService.error(errorMessage);
-    }
-    else if (error.status === 401) {
+    } else if (error.status === 401) {
       const errorMessage = 'Su sesión ha expirado. Por favor, inicie sesión nuevamente';
       this.addFormError(errorMessage);
       this.notificationService.error(errorMessage);
-
       setTimeout(() => {
         this.router.navigate(['/auth/login']);
       }, 1500);
-    }
-    else if (error.status === 500) {
+    } else if (error.status === 500) {
       const errorMessage = 'Error interno del servidor. Intente nuevamente más tarde';
       this.addFormError(errorMessage);
       this.notificationService.error(errorMessage);
-    }
-    else {
+    } else {
       this.addFormError(defaultMessage);
       this.notificationService.error(defaultMessage);
     }
@@ -944,7 +874,6 @@ ngOnInit() {
 
   getErrorMessage(controlName: string): string {
     const control = this.getFormControl(controlName);
-
     if (!control || !control.errors) return '';
 
     const errors = control.errors;
@@ -973,7 +902,6 @@ ngOnInit() {
     ];
   }
 
-  // 👇 Getter para habilitar/deshabilitar botón de submit
   get canSubmit(): boolean {
     if (this.isEditMode) {
       return (this.userForm.dirty || this.hasSignatureChanges) && this.userForm.valid && !this.isLoading;
@@ -981,64 +909,53 @@ ngOnInit() {
     return this.userForm.valid && !this.isLoading;
   }
 
-// user-form.component.ts
-
-// user-form.component.ts
-viewSignature(): void {
-  if (!this.currentSignature) return;
-  
-  this.signatureToView = this.currentSignature;
-  this.isPdf = this.currentSignature.type === 'pdf';
-  
-  console.log('🔍 Iniciando carga de firma...');
-  
-  this.signatureService.getSignatureBlob().subscribe({
-    next: (blob) => {
-      console.log('✅ Firma cargada, tamaño:', blob.size);
-      console.log('✅ Tipo MIME:', blob.type);
-      
-      // Limpiar URL anterior si existe
-      if (this.signatureUrl) {
-        URL.revokeObjectURL(this.signatureUrl as string);
-      }
-      
-      // Crear nueva URL del blob
-      const url = URL.createObjectURL(blob);
-      console.log('🔗 URL creada:', url);
-      
-      this.signatureUrl = this.sanitizer.bypassSecurityTrustResourceUrl(url);
-      
-      // Forzar detección de cambios
-      this.cdr.detectChanges();
-      
-      // Mostrar modal
-      setTimeout(() => {
-        const modalElement = document.getElementById('signatureModal');
-        if (modalElement) {
-          if (!this.signatureModal) {
-            this.signatureModal = new bootstrap.Modal(modalElement);
-          }
-          this.signatureModal.show();
-          console.log('✅ Modal mostrado');
-        } else {
-          console.error('❌ Elemento modal no encontrado en el DOM');
+  viewSignature(): void {
+    if (!this.currentSignature) return;
+    
+    this.signatureToView = this.currentSignature;
+    this.isPdf = this.currentSignature.type === 'pdf';
+    
+    console.log('🔍 Iniciando carga de firma...');
+    
+    this.signatureService.getSignatureBlob().subscribe({
+      next: (blob) => {
+        console.log('✅ Firma cargada, tamaño:', blob.size);
+        console.log('✅ Tipo MIME:', blob.type);
+        
+        if (this.signatureUrl) {
+          URL.revokeObjectURL(this.signatureUrl as string);
         }
-      }, 100);
-    },
-    error: (error) => {
-      console.error('❌ Error al cargar la firma:', error);
-      this.notificationService.error('Error al cargar la firma');
-    }
-  });
-}
-
-// Asegúrate de tener el método closeModal
-closeModal(): void {
-  if (this.signatureModal) {
-    this.signatureModal.hide();
+        
+        const url = URL.createObjectURL(blob);
+        console.log('🔗 URL creada:', url);
+        
+        this.signatureUrl = this.sanitizer.bypassSecurityTrustResourceUrl(url);
+        this.cdr.detectChanges();
+        
+        setTimeout(() => {
+          const modalElement = document.getElementById('signatureModal');
+          if (modalElement) {
+            if (!this.signatureModal) {
+              this.signatureModal = new bootstrap.Modal(modalElement);
+            }
+            this.signatureModal.show();
+            console.log('✅ Modal mostrado');
+          } else {
+            console.error('❌ Elemento modal no encontrado en el DOM');
+          }
+        }, 100);
+      },
+      error: (error) => {
+        console.error('❌ Error al cargar la firma:', error);
+        this.notificationService.error('Error al cargar la firma');
+      }
+    });
   }
-  this.signatureUrl = null;
-}
 
-  // Elimina closeModal() si no lo usas
+  closeModal(): void {
+    if (this.signatureModal) {
+      this.signatureModal.hide();
+    }
+    this.signatureUrl = null;
+  }
 }

@@ -1,4 +1,4 @@
-// auth.service.ts - CORREGIR
+// auth.service.ts - COMPLETO CON FUNCIONES PARA CONTRATISTA
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, throwError } from 'rxjs';
@@ -361,6 +361,120 @@ export class AuthService {
     return user ? roles.includes(user.role) : false;
   }
 
+  // ==================== MÉTODOS PARA CONTRATISTA ====================
+
+  /**
+   * Verificar si el usuario es contratista
+   */
+  isContratista(): boolean {
+    const user = this.getCurrentUser();
+    return user?.role === UserRole.CONTRATISTA;
+  }
+
+  /**
+   * Verificar si el usuario es jurídica
+   */
+  isJuridica(): boolean {
+    const user = this.getCurrentUser();
+    return user?.role === UserRole.JURIDICA;
+  }
+
+  /**
+   * Verificar si el usuario es administrador
+   */
+  isAdmin(): boolean {
+    const user = this.getCurrentUser();
+    return user?.role === UserRole.ADMIN;
+  }
+
+  /**
+   * Verificar si el usuario puede editar un contratista específico
+   * @param contratistaId - ID del contratista a editar
+   * @returns true si tiene permisos para editar
+   */
+  puedeEditarContratista(contratistaId: string): boolean {
+    const user = this.getCurrentUser();
+    
+    // Admin y Radicador pueden editar cualquier contratista
+    if (user?.role === UserRole.ADMIN || user?.role === UserRole.RADICADOR) {
+      return true;
+    }
+    
+    // Contratista solo puede editar su propio perfil
+    if (user?.role === UserRole.CONTRATISTA) {
+      return user.contratistaId === contratistaId;
+    }
+    
+    return false;
+  }
+
+  /**
+   * Verificar si el usuario puede ver un contratista específico
+   * @param contratistaId - ID del contratista a ver
+   * @returns true si tiene permisos para ver
+   */
+  puedeVerContratista(contratistaId: string): boolean {
+    const user = this.getCurrentUser();
+    
+    // Admin, Radicador, Supervisor, Jurídica pueden ver cualquier contratista
+    if (user?.role === UserRole.ADMIN || 
+        user?.role === UserRole.RADICADOR || 
+        user?.role === UserRole.SUPERVISOR ||
+        user?.role === UserRole.JURIDICA) {
+      return true;
+    }
+    
+    // Contratista solo puede ver su propio perfil
+    if (user?.role === UserRole.CONTRATISTA) {
+      return user.contratistaId === contratistaId;
+    }
+    
+    return false;
+  }
+
+  /**
+   * Obtener el ID del contratista asociado al usuario actual
+   * @returns ID del contratista o null si no está asociado
+   */
+  getContratistaId(): string | null {
+    const user = this.getCurrentUser();
+    return user?.contratistaId || null;
+  }
+
+  /**
+   * Obtener el nombre completo del usuario
+   */
+  getFullName(): string {
+    const user = this.getCurrentUser();
+    return user?.fullName || user?.username || 'Usuario';
+  }
+
+  /**
+   * Obtener el rol del usuario en formato texto
+   */
+  getRoleName(): string {
+    const user = this.getCurrentUser();
+    if (!user) return 'Usuario';
+    
+    const roleNames: Record<string, string> = {
+      'admin': 'Administrador',
+      'contratista': 'Contratista',
+      'juridica': 'Jurídica',
+      'radicador': 'Radicador',
+      'supervisor': 'Supervisor',
+      'auditor_cuentas': 'Auditor de Cuentas',
+      'contabilidad': 'Contabilidad',
+      'tesoreria': 'Tesorería',
+      'asesor_gerencia': 'Asesor de Gerencia',
+      'rendicion_cuentas': 'Rendición de Cuentas'
+    };
+    
+    return roleNames[user.role] || user.role;
+  }
+
+  /**
+   * Forzar estado de autenticación (para debugging)
+   */
   public forceAuthState(token: string, user: User): void {
     console.log('🔐 Forzando estado de autenticación...');
 
@@ -382,9 +496,37 @@ export class AuthService {
 
     console.log('🔐 Estado de autenticación forzado exitosamente');
   }
+
+  /**
+   * Actualizar el usuario en memoria y localStorage
+   */
+  public updateUser(user: User): void {
+    try {
+      localStorage.setItem('user', JSON.stringify(user));
+      this.currentUserSubject.next(user);
+      console.log('🔐 Usuario actualizado:', user.username);
+    } catch (error) {
+      console.error('Error updating user:', error);
+    }
+  }
+
+  /**
+   * Obtener estadísticas de usuarios (solo admin)
+   */
+  getUsersStats(): Observable<UsersStats> {
+    const token = this.getToken();
+    if (!token) {
+      return throwError(() => new Error('No autenticado'));
+    }
+    
+    return this.http.get<UsersStats>(`${this.apiUrl}/users/stats`).pipe(
+      catchError(error => {
+        console.error('Error obteniendo estadísticas:', error);
+        return throwError(() => error);
+      })
+    );
+  }
 }
-
-
 
 // Export types from here for backward compatibility
 export { User, UserRole };

@@ -1,4 +1,4 @@
-// users-management.component.ts
+// pages/users-management/users-management.component.ts
 import { Component, inject, OnInit, HostListener, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -239,13 +239,14 @@ export class UsersManagementComponent implements OnInit, OnDestroy {
   }
 
   // =============================
-  // ROLES Y COLORES
+  // ROLES Y COLORES - CORREGIDO CON CONTRATISTA
   // =============================
   getUserRoleDisplayName(role: UserRole | undefined | null): string {
     if (!role) return 'Sin rol';
 
     const roleNames: Record<UserRole, string> = {
       [UserRole.ADMIN]: 'Administrador',
+      [UserRole.CONTRATISTA]: 'Contratista',  // 👈 AGREGADO
       [UserRole.RADICADOR]: 'Radicador',
       [UserRole.SUPERVISOR]: 'Supervisor',
       [UserRole.AUDITOR_CUENTAS]: 'Auditor de Cuentas',
@@ -253,7 +254,7 @@ export class UsersManagementComponent implements OnInit, OnDestroy {
       [UserRole.TESORERIA]: 'Tesorería',
       [UserRole.ASESOR_GERENCIA]: 'Asesor de Gerencia',
       [UserRole.RENDICION_CUENTAS]: 'Rendición de Cuentas',
-      [UserRole.JURIDICA]: 'Jurídica' // 👈 AGREGAR
+      [UserRole.JURIDICA]: 'Jurídica'
     };
 
     return roleNames[role] || role;
@@ -263,27 +264,33 @@ export class UsersManagementComponent implements OnInit, OnDestroy {
     switch (role) {
       case UserRole.ADMIN:
         return 'bg-danger';
+      case UserRole.CONTRATISTA:
+        return 'bg-success';  // 👈 AGREGADO - color verde para contratista
       case UserRole.SUPERVISOR:
         return 'bg-warning';
       case UserRole.RADICADOR:
         return 'bg-info';
+      case UserRole.JURIDICA:
+        return 'bg-primary';
+      case UserRole.CONTABILIDAD:
+        return 'bg-secondary';
+      case UserRole.TESORERIA:
+        return 'bg-dark';
       default:
         return 'bg-primary';
     }
   }
 
   // =============================
-  // NAVEGACIÓN AL FORMULARIO - CORREGIDO
+  // NAVEGACIÓN AL FORMULARIO
   // =============================
   createNewUser(): void {
     console.log('Navegando a nuevo usuario...');
-    // Ruta absoluta
     this.router.navigate(['/gestion-usuarios/nuevo']);
   }
 
   editUser(user: User): void {
     console.log('Navegando a editar usuario:', user.id);
-    // Ruta absoluta
     this.router.navigate(['/gestion-usuarios/editar', user.id]);
   }
 

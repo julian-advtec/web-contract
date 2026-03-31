@@ -15,66 +15,64 @@ export class ContratistaDetalleComponent implements OnInit {
   contratista: Contratista | null = null;
   documentos: DocumentoContratista[] = [];
   isLoading = true;
+  contratistaId: string | null = null;
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private contratistasService: ContratistasService
+    private contratistaService: ContratistasService
   ) {}
 
   ngOnInit(): void {
-    const id = this.route.snapshot.paramMap.get('id');
-    if (id) {
-      this.cargarContratista(id);
+    this.contratistaId = this.route.snapshot.paramMap.get('id');
+    if (this.contratistaId) {
+      this.cargarContratista();
+      this.cargarDocumentos();
+    } else {
+      this.isLoading = false;
     }
   }
 
-  cargarContratista(id: string): void {
-    this.contratistasService.obtenerPorId(id).subscribe({
-      next: (contratista) => {
-        if (contratista) {
-          this.contratista = contratista;
-          this.cargarDocumentos(id);
-        }
+  cargarContratista(): void {
+    if (!this.contratistaId) return;
+    
+    this.contratistaService.obtenerCompleto(this.contratistaId).subscribe({
+      next: (data) => {
+        this.contratista = data;
         this.isLoading = false;
       },
-      error: () => this.isLoading = false
+      error: (error) => {
+        console.error('Error cargando contratista:', error);
+        this.isLoading = false;
+      }
     });
   }
 
-  cargarDocumentos(id: string): void {
-    this.contratistasService.obtenerDocumentos(id).subscribe({
+  cargarDocumentos(): void {
+    if (!this.contratistaId) return;
+    
+    this.contratistaService.obtenerDocumentos(this.contratistaId).subscribe({
       next: (docs) => {
         this.documentos = docs;
       },
-      error: () => {}
+      error: (error) => {
+        console.error('Error cargando documentos:', error);
+      }
     });
   }
 
-  editarContratista(): void {
-    if (this.contratista) {
-      this.router.navigate(['/contratistas/editar', this.contratista.id]);
-    }
-  }
-
-  volver(): void {
-    this.router.navigate(['/contratistas']);
-  }
-
   getTipoDocumentoLabel(tipo: string): string {
-    const tipos: { [key: string]: string } = {
+    const tipos: Record<string, string> = {
       'CC': 'Cédula de Ciudadanía',
       'NIT': 'NIT',
       'CE': 'Cédula de Extranjería',
-      'PAS': 'Pasaporte',
-      'TI': 'Tarjeta de Identidad',
-      'OTRO': 'Otro'
+      'PAS': 'Pasaporte'
     };
     return tipos[tipo] || tipo;
   }
 
   getTipoContratistaLabel(tipo: string): string {
-    const tipos: { [key: string]: string } = {
+    const tipos: Record<string, string> = {
       'PERSONA_NATURAL': 'Persona Natural',
       'PERSONA_JURIDICA': 'Persona Jurídica',
       'CONSORCIO': 'Consorcio',
@@ -83,65 +81,83 @@ export class ContratistaDetalleComponent implements OnInit {
     return tipos[tipo] || tipo;
   }
 
-  descargarDocumento(documentoId: string): void {
-    if (!this.contratista) {
-      console.error('No hay contratista seleccionado');
-      return;
+  getTipoDocumentoLabelDoc(tipo: string): string {
+    const tipos: Record<string, string> = {
+      'CEDULA': 'Cédula',
+      'RUT': 'RUT',
+      'CERTIFICADO_BANCARIO': 'Certificado Bancario',
+      'CERTIFICADO_EXPERIENCIA': 'Certificado de Experiencia',
+      'CERTIFICADO_NO_PLANTA': 'Certificado No Planta',
+      'CERTIFICADO_ANTECEDENTES': 'Certificado de Antecedentes',
+      'CERTIFICADO_IDONEIDAD': 'Certificado de Idoneidad',
+      'DECLARACION_BIENES': 'Declaración de Bienes',
+      'DECLARACION_INHABILIDADES': 'Declaración de Inhabilidades',
+      'EXAMEN_INGRESO': 'Examen de Ingreso',
+      'GARANTIA': 'Garantía',
+      'HOJA_VIDA_SIGEP': 'Hoja de Vida SIGEP',
+      'LIBRETA_MILITAR': 'Libreta Militar',
+      'PANTALLAZO_SECOP': 'Pantallazo SECOP',
+      'PROPUESTA': 'Propuesta',
+      'PUBLICACION_GT': 'Publicación GT',
+      'REDAM': 'REDAM',
+      'SARLAFT': 'SARLAFT',
+      'SEGURIDAD_SOCIAL': 'Seguridad Social',
+      'TARJETA_PROFESIONAL': 'Tarjeta Profesional'
+    };
+    return tipos[tipo] || tipo;
+  }
+
+  formatearFecha(fecha: Date | string): string {
+    if (!fecha) return 'N/A';
+    return new Date(fecha).toLocaleDateString('es-CO');
+  }
+
+  formatearTamano(bytes: number): string {
+    if (!bytes) return 'N/A';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  editarContratista(): void {
+    if (this.contratistaId) {
+      this.router.navigate(['/contratistas/edit', this.contratistaId]);
     }
+  }
+
+  descargarDocumento(documentoId: string): void {
+    if (!this.contratistaId) return;
     
-    this.contratistasService.descargarDocumento(this.contratista.id, documentoId).subscribe({
-      next: (blob: Blob) => {
+    this.contratistaService.descargarDocumento(this.contratistaId, documentoId).subscribe({
+      next: (blob) => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        const doc = this.documentos.find(d => d.id === documentoId);
-        a.download = doc?.nombreArchivo || 'documento';
+        a.download = 'documento.pdf';
         a.click();
         window.URL.revokeObjectURL(url);
       },
       error: (error) => {
         console.error('Error descargando documento:', error);
-        // Opcional: mostrar mensaje de error al usuario
       }
     });
   }
 
   eliminarDocumento(documentoId: string): void {
-    if (!this.contratista) {
-      console.error('No hay contratista seleccionado');
-      return;
-    }
-    
-    if (confirm('¿Está seguro de eliminar este documento? Esta acción no se puede deshacer.')) {
-      this.contratistasService.eliminarDocumento(this.contratista.id, documentoId).subscribe({
+    if (!this.contratistaId) return;
+    if (confirm('¿Está seguro de eliminar este documento?')) {
+      this.contratistaService.eliminarDocumento(this.contratistaId, documentoId).subscribe({
         next: () => {
-          this.documentos = this.documentos.filter(doc => doc.id !== documentoId);
-          console.log('Documento eliminado exitosamente');
-          // Opcional: mostrar mensaje de éxito al usuario
+          this.cargarDocumentos();
         },
         error: (error) => {
           console.error('Error eliminando documento:', error);
-          // Opcional: mostrar mensaje de error al usuario
         }
       });
     }
   }
 
-  formatearTamano(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  }
-
-  formatearFecha(fecha: Date | string): string {
-    return new Date(fecha).toLocaleDateString('es-CO', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  volver(): void {
+    this.router.navigate(['/contratistas/list']);
   }
 }

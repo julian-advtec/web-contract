@@ -1,7 +1,8 @@
+// core/services/contratistas.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, of, throwError } from 'rxjs';
-import { catchError, map, tap } from 'rxjs/operators';
+import { catchError, map } from 'rxjs/operators';
 import { Contratista, CreateContratistaDto, UpdateContratistaDto, FiltrosContratistaDto, DocumentoContratista, TipoDocumento } from '../models/contratista.model';
 import { environment } from '../../../environments/environment';
 
@@ -53,7 +54,8 @@ export class ContratistasService {
       estado: item.estado || 'ACTIVO',
       createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
       updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date(),
-      nombreCompleto: item.razonSocial || item.nombreCompleto || ''
+      nombreCompleto: item.razonSocial || item.nombreCompleto || '',
+      userId: item.userId || null
     };
   }
 
@@ -97,7 +99,6 @@ export class ContratistasService {
     return this.buscarPorRazonSocial(nombre);
   }
 
-  // ✅ NUEVO MÉTODO: Buscar por número de contrato
   buscarPorNumeroContrato(numeroContrato: string): Observable<Contratista[]> {
     const headers = this.getAuthHeaders();
     if (!headers.get('Authorization') || !numeroContrato || numeroContrato.trim().length < 1) {
@@ -165,6 +166,51 @@ export class ContratistasService {
     return this.http.get<any>(`${this.apiUrl}/${id}/completo`, { headers }).pipe(
       map(response => response?.data?.data || null),
       catchError(() => of(null))
+    );
+  }
+
+  /**
+   * Obtener perfil del contratista autenticado
+   */
+  obtenerMiPerfil(): Observable<any> {
+    const headers = this.getAuthHeaders();
+    if (!headers.get('Authorization')) {
+      return of({ success: false, data: null });
+    }
+    return this.http.get<any>(`${this.apiUrl}/mi-perfil`, { headers }).pipe(
+      map(response => response),
+      catchError(() => of({ success: false, data: null }))
+    );
+  }
+
+  /**
+   * Obtener documentos del contratista autenticado
+   */
+  obtenerMisDocumentos(): Observable<DocumentoContratista[]> {
+    const headers = this.getAuthHeaders();
+    if (!headers.get('Authorization')) {
+      return of([]);
+    }
+    return this.http.get<any>(`${this.apiUrl}/mis-documentos`, { headers }).pipe(
+      map(response => response?.data?.data || []),
+      catchError(() => of([]))
+    );
+  }
+
+  /**
+   * Subir documento como contratista autenticado
+   */
+  subirMiDocumento(tipo: TipoDocumento, archivo: File): Observable<DocumentoContratista> {
+    const headers = this.getAuthHeaders();
+    headers.delete('Content-Type');
+
+    const formData = new FormData();
+    formData.append('documento', archivo);
+    formData.append('tipo', tipo);
+
+    return this.http.post<any>(`${this.apiUrl}/mis-documentos`, formData, { headers }).pipe(
+      map(response => response?.data?.data || null),
+      catchError(error => throwError(() => error))
     );
   }
 
@@ -309,7 +355,6 @@ export class ContratistasService {
     );
   }
 
-  // Método para buscar contratista por documento exacto (para autocompletado en contratos)
   buscarContratistaPorDocumento(documento: string): Observable<Contratista | null> {
     const headers = this.getAuthHeaders();
     if (!headers.get('Authorization') || !documento || documento.trim().length < 3) {
