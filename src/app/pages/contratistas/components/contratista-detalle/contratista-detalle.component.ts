@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ContratistasService } from '../../../../core/services/contratistas.service';
 import { Contratista, DocumentoContratista } from '../../../../core/models/contratista.model';
 
@@ -18,6 +18,7 @@ export class ContratistaDetalleComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private contratistasService: ContratistasService
   ) {}
 
@@ -48,6 +49,82 @@ export class ContratistaDetalleComponent implements OnInit {
       },
       error: () => {}
     });
+  }
+
+  editarContratista(): void {
+    if (this.contratista) {
+      this.router.navigate(['/contratistas/editar', this.contratista.id]);
+    }
+  }
+
+  volver(): void {
+    this.router.navigate(['/contratistas']);
+  }
+
+  getTipoDocumentoLabel(tipo: string): string {
+    const tipos: { [key: string]: string } = {
+      'CC': 'Cédula de Ciudadanía',
+      'NIT': 'NIT',
+      'CE': 'Cédula de Extranjería',
+      'PAS': 'Pasaporte',
+      'TI': 'Tarjeta de Identidad',
+      'OTRO': 'Otro'
+    };
+    return tipos[tipo] || tipo;
+  }
+
+  getTipoContratistaLabel(tipo: string): string {
+    const tipos: { [key: string]: string } = {
+      'PERSONA_NATURAL': 'Persona Natural',
+      'PERSONA_JURIDICA': 'Persona Jurídica',
+      'CONSORCIO': 'Consorcio',
+      'UNION_TEMPORAL': 'Unión Temporal'
+    };
+    return tipos[tipo] || tipo;
+  }
+
+  descargarDocumento(documentoId: string): void {
+    if (!this.contratista) {
+      console.error('No hay contratista seleccionado');
+      return;
+    }
+    
+    this.contratistasService.descargarDocumento(this.contratista.id, documentoId).subscribe({
+      next: (blob: Blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const doc = this.documentos.find(d => d.id === documentoId);
+        a.download = doc?.nombreArchivo || 'documento';
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: (error) => {
+        console.error('Error descargando documento:', error);
+        // Opcional: mostrar mensaje de error al usuario
+      }
+    });
+  }
+
+  eliminarDocumento(documentoId: string): void {
+    if (!this.contratista) {
+      console.error('No hay contratista seleccionado');
+      return;
+    }
+    
+    if (confirm('¿Está seguro de eliminar este documento? Esta acción no se puede deshacer.')) {
+      this.contratistasService.eliminarDocumento(this.contratista.id, documentoId).subscribe({
+        next: () => {
+          this.documentos = this.documentos.filter(doc => doc.id !== documentoId);
+          console.log('Documento eliminado exitosamente');
+          // Opcional: mostrar mensaje de éxito al usuario
+        },
+        error: (error) => {
+          console.error('Error eliminando documento:', error);
+          // Opcional: mostrar mensaje de error al usuario
+        }
+      });
+    }
   }
 
   formatearTamano(bytes: number): string {

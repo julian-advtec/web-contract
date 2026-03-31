@@ -88,7 +88,7 @@ export class ContratistaListComponent implements OnInit {
   }
 
   nuevoContratista(): void {
-    this.router.navigate(['/contratistas/new']);
+    this.router.navigate(['/contratistas/crear']);
   }
 
   cambiarEstado(contratista: Contratista): void {

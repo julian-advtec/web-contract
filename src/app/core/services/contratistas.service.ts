@@ -97,6 +97,24 @@ export class ContratistasService {
     return this.buscarPorRazonSocial(nombre);
   }
 
+  // ✅ NUEVO MÉTODO: Buscar por número de contrato
+  buscarPorNumeroContrato(numeroContrato: string): Observable<Contratista[]> {
+    const headers = this.getAuthHeaders();
+    if (!headers.get('Authorization') || !numeroContrato || numeroContrato.trim().length < 1) {
+      return of([]);
+    }
+    return this.http.get<any>(
+      `${this.apiUrl}/autocomplete/numeroContrato?q=${encodeURIComponent(numeroContrato.trim())}`,
+      { headers }
+    ).pipe(
+      map(response => {
+        const contratistasData = this.extraerDatosAutocomplete(response);
+        return contratistasData.map(item => this.mapearContratista(item));
+      }),
+      catchError(() => of([]))
+    );
+  }
+
   // ==================== CRUD CONTRATISTAS ====================
 
   obtenerTodos(filtros?: FiltrosContratistaDto): Observable<Contratista[]> {
