@@ -18,9 +18,10 @@ export interface AppModule {
 })
 export class ModulesService {
   private allModules: AppModule[] = [
+    // Módulos ordenados alfabéticamente por título
     {
       id: 'dashboard',
-      title: 'Dashboard',
+      title: 'Inicio', // ✅ Cambiado de Dashboard a Inicio
       description: 'Panel principal del sistema',
       path: '/dashboard',
       route: '/dashboard',
@@ -29,33 +30,13 @@ export class ModulesService {
       isActive: true
     },
     {
-      id: 'gestion-usuarios',
-      title: 'Gestión de Usuarios',
-      description: 'Administrar usuarios del sistema',
-      path: '/gestion-usuarios',
-      route: '/gestion-usuarios',
-      icon: 'gestion-usuarios',
-      requiredRole: UserRole.ADMIN,
-      isActive: true
-    },
-    {
-      id: 'radicacion',
-      title: 'Radicación',
-      description: 'Gestión de documentos radicados',
-      path: '/radicacion',
-      route: '/radicacion',
-      icon: 'radicacion',
-      requiredRole: UserRole.RADICADOR,
-      isActive: true
-    },
-    {
-      id: 'supervisor',
-      title: 'Supervisor',
-      description: 'Supervisor de procesos',
-      path: '/supervisor',
-      route: '/supervisor',
-      icon: 'supervisor',
-      requiredRole: UserRole.SUPERVISOR,
+      id: 'asesor-gerencia',
+      title: 'Asesor Gerencia',
+      description: 'Módulo de asesoría',
+      path: '/asesor-gerencia',
+      route: '/asesor-gerencia',
+      icon: 'asesor-gerencia',
+      requiredRole: UserRole.ASESOR_GERENCIA,
       isActive: true
     },
     {
@@ -79,23 +60,44 @@ export class ModulesService {
       isActive: true
     },
     {
-      id: 'tesoreria',
-      title: 'Tesorería',
-      description: 'Módulo de tesorería',
-      path: '/tesoreria',
-      route: '/tesoreria',
-      icon: 'tesoreria',
-      requiredRole: UserRole.TESORERIA,
+      id: 'contratistas',
+      title: 'Contratistas',
+      description: 'Gestión de contratistas y proveedores',
+      path: '/contratistas',
+      route: '/contratistas',
+      icon: 'contratistas',
+      requiredRole: UserRole.RADICADOR,
+      isActive: true
+    },
+
+    {
+      id: 'gestion-usuarios',
+      title: 'Gestión de Usuarios',
+      description: 'Administrar usuarios del sistema',
+      path: '/gestion-usuarios',
+      route: '/gestion-usuarios',
+      icon: 'gestion-usuarios',
+      requiredRole: UserRole.ADMIN,
       isActive: true
     },
     {
-      id: 'asesor-gerencia',
-      title: 'Asesor Gerencia',
-      description: 'Módulo de asesoría',
-      path: '/asesor-gerencia',
-      route: '/asesor-gerencia',
-      icon: 'asesor-gerencia',
-      requiredRole: UserRole.ASESOR_GERENCIA,
+      id: 'juridica',
+      title: 'Jurídica',
+      description: 'Gestión de contratos',
+      path: '/juridica',
+      route: '/juridica',
+      icon: 'juridica',
+      requiredRole: UserRole.JURIDICA,
+      isActive: true
+    },
+    {
+      id: 'radicacion',
+      title: 'Radicación',
+      description: 'Gestión de documentos radicados',
+      path: '/radicacion',
+      route: '/radicacion',
+      icon: 'radicacion',
+      requiredRole: UserRole.RADICADOR,
       isActive: true
     },
     {
@@ -109,24 +111,23 @@ export class ModulesService {
       isActive: true
     },
     {
-      id: 'juridica',
-      title: 'Jurídica',
-      description: 'Gestión de contratos',
-      path: '/juridica',
-      route: '/juridica',
-      icon: 'juridica',
-      requiredRole: UserRole.JURIDICA,
+      id: 'supervisor',
+      title: 'Supervisor',
+      description: 'Supervisor de procesos',
+      path: '/supervisor',
+      route: '/supervisor',
+      icon: 'supervisor',
+      requiredRole: UserRole.SUPERVISOR,
       isActive: true
     },
-    // ✅ NUEVO MÓDULO DE CONTRATISTAS
     {
-      id: 'contratistas',
-      title: 'Contratistas',
-      description: 'Gestión de contratistas y proveedores',
-      path: '/contratistas',
-      route: '/contratistas',
-      icon: 'contratistas',
-      requiredRole: UserRole.RADICADOR,
+      id: 'tesoreria',
+      title: 'Tesorería',
+      description: 'Módulo de tesorería',
+      path: '/tesoreria',
+      route: '/tesoreria',
+      icon: 'tesoreria',
+      requiredRole: UserRole.TESORERIA,
       isActive: true
     }
   ];
@@ -149,8 +150,8 @@ export class ModulesService {
     // Mapeo de jerarquías de roles
     const roleHierarchy: Record<UserRole, UserRole[]> = {
       [UserRole.ADMIN]: [UserRole.ADMIN, UserRole.RADICADOR, UserRole.SUPERVISOR, UserRole.AUDITOR_CUENTAS,
-        UserRole.CONTABILIDAD, UserRole.TESORERIA, UserRole.ASESOR_GERENCIA,
-        UserRole.RENDICION_CUENTAS, UserRole.JURIDICA],
+      UserRole.CONTABILIDAD, UserRole.TESORERIA, UserRole.ASESOR_GERENCIA,
+      UserRole.RENDICION_CUENTAS, UserRole.JURIDICA],
       [UserRole.RADICADOR]: [UserRole.RADICADOR],
       [UserRole.SUPERVISOR]: [UserRole.SUPERVISOR],
       [UserRole.AUDITOR_CUENTAS]: [UserRole.AUDITOR_CUENTAS],

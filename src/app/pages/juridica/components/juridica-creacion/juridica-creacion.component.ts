@@ -44,33 +44,36 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   rpFileError: string | null = null;
   polizaCumplimientoFileError: string | null = null;
 
+  // Tipos de contrato ordenados alfabéticamente por label
   tiposContrato = [
-    { value: 'PRESTACION_SERVICIOS', label: 'Prestacion de Servicios' },
-    { value: 'SUMINISTRO', label: 'Suministro' },
-    { value: 'OBRA', label: 'Obra' },
-    { value: 'CONSULTORIA', label: 'Consultoria' },
-    { value: 'COMPRAVENTA', label: 'Compraventa' },
     { value: 'ARRENDAMIENTO', label: 'Arrendamiento' },
-    { value: 'OTRO', label: 'Otro' }
+    { value: 'COMPRAVENTA', label: 'Compraventa' },
+    { value: 'CONSULTORIA', label: 'Consultoria' },
+    { value: 'OBRA', label: 'Obra' },
+    { value: 'OTRO', label: 'Otro' },
+    { value: 'PRESTACION_SERVICIOS', label: 'Prestacion de Servicios' },
+    { value: 'SUMINISTRO', label: 'Suministro' }
   ];
 
+  // Tipos de identificación ordenados alfabéticamente
   tiposIdentificacion = [
-    { value: 'NIT', label: 'NIT' },
     { value: 'CC', label: 'Cedula de Ciudadania' },
     { value: 'CE', label: 'Cedula de Extranjeria' },
+    { value: 'NIT', label: 'NIT' },
     { value: 'PAS', label: 'Pasaporte' }
   ];
 
+  // Aseguradoras ordenadas alfabéticamente
   aseguradoras = [
-    'Seguros Bolivar',
-    'Seguros Sura',
     'Allianz Seguros',
-    'Seguros Mundial',
     'AXA Colpatria',
     'Liberty Seguros',
-    'Seguros Generales Suramericana',
     'Mapfre Seguros',
-    'Otro'
+    'Otro',
+    'Seguros Bolivar',
+    'Seguros Generales Suramericana',
+    'Seguros Mundial',
+    'Seguros Sura'
   ];
 
   private subscriptions: Subscription[] = [];

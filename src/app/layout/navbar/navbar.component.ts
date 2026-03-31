@@ -1,4 +1,4 @@
-// src/app/layout/navbar/navbar.component.ts (actualización)
+// src/app/layout/navbar/navbar.component.ts
 import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, NavigationEnd } from '@angular/router';
@@ -17,7 +17,7 @@ export class NavbarComponent implements OnInit {
   @Output() logout = new EventEmitter<void>();
   @Output() toggleSidebar = new EventEmitter<boolean>();
 
-  currentPageTitle: string = 'Dashboard';
+  currentPageTitle: string = 'Inicio'; // ✅ Cambiado de Dashboard a Inicio
   currentPageSubtitle: string = 'Panel principal';
   currentUrl: string = '';
 
@@ -61,7 +61,6 @@ export class NavbarComponent implements OnInit {
       cleanUrl.startsWith('/supervisor/revisar/');
   }
 
-  // NUEVO: Método para verificar si es página de auditor
   isAuditorPage(): boolean {
     const cleanUrl = this.currentUrl || this.router.url.split('?')[0];
     return cleanUrl === '/auditor' ||
@@ -80,17 +79,36 @@ export class NavbarComponent implements OnInit {
       cleanUrl.startsWith('/contabilidad/procesar/');
   }
 
+  isContratistasPage(): boolean {
+    const cleanUrl = this.currentUrl || this.router.url.split('?')[0];
+    return cleanUrl === '/contratistas' ||
+      cleanUrl === '/contratistas/list' ||
+      cleanUrl === '/contratistas/crear' ||
+      cleanUrl.startsWith('/contratistas/editar/') ||
+      cleanUrl.startsWith('/contratistas/ver/');
+  }
+
+  isJuridicaPage(): boolean {
+    const cleanUrl = this.currentUrl || this.router.url.split('?')[0];
+    return cleanUrl === '/juridica' ||
+      cleanUrl === '/juridica/list' ||
+      cleanUrl === '/juridica/crear' ||
+      cleanUrl === '/juridica/stats' ||
+      cleanUrl.startsWith('/juridica/editar/');
+  }
+
   private updateTitle() {
     this.currentUrl = this.router.url.split('?')[0];
     const cleanUrl = this.currentUrl;
 
     if (this.isDashboardPage()) {
-      this.currentPageTitle = 'Dashboard';
+      this.currentPageTitle = 'Inicio'; // ✅ Cambiado de Dashboard a Inicio
       this.currentPageSubtitle = 'Panel principal';
       return;
     }
 
     const titleMap: Record<string, { title: string, subtitle?: string }> = {
+      // =========== GESTIÓN DE USUARIOS ===========
       '/gestion-usuarios': {
         title: 'Gestión de Usuarios',
         subtitle: 'Administración de usuarios'
@@ -99,6 +117,8 @@ export class NavbarComponent implements OnInit {
         title: 'Nuevo Usuario',
         subtitle: 'Administración de usuarios'
       },
+
+      // =========== RADICACIÓN ===========
       '/radicacion': {
         title: 'Radicación',
         subtitle: 'Radicación de documentos'
@@ -119,6 +139,7 @@ export class NavbarComponent implements OnInit {
         title: 'Documentos Rechazados',
         subtitle: 'Radicación de documentos'
       },
+
       // =========== SUPERVISOR ===========
       '/supervisor': {
         title: 'Supervisión',
@@ -136,6 +157,7 @@ export class NavbarComponent implements OnInit {
         title: 'Estadísticas de Supervisión',
         subtitle: 'Estadísticas de actividad'
       },
+
       // =========== AUDITOR ===========
       '/auditor': {
         title: 'Auditor de Cuentas',
@@ -157,7 +179,52 @@ export class NavbarComponent implements OnInit {
         title: 'Estadísticas de Auditoría',
         subtitle: 'Estadísticas de actividad'
       },
-      // =================================
+
+      // =========== CONTRATISTAS ===========
+      '/contratistas': {
+        title: 'Contratistas',
+        subtitle: 'Gestión de contratistas y proveedores'
+      },
+      '/contratistas/list': {
+        title: 'Lista de Contratistas',
+        subtitle: 'Gestión de contratistas'
+      },
+      '/contratistas/crear': {
+        title: 'Nuevo Contratista',
+        subtitle: 'Crear contratista'
+      },
+      '/contratistas/editar': {
+        title: 'Editar Contratista',
+        subtitle: 'Modificar datos del contratista'
+      },
+      '/contratistas/ver': {
+        title: 'Detalle del Contratista',
+        subtitle: 'Información completa del contratista'
+      },
+
+      // =========== JURÍDICA ===========
+      '/juridica': {
+        title: 'Jurídica',
+        subtitle: 'Gestión de contratos'
+      },
+      '/juridica/list': {
+        title: 'Lista de Contratos',
+        subtitle: 'Gestión de contratos'
+      },
+      '/juridica/crear': {
+        title: 'Nuevo Contrato',
+        subtitle: 'Crear contrato'
+      },
+      '/juridica/editar': {
+        title: 'Editar Contrato',
+        subtitle: 'Modificar datos del contrato'
+      },
+      '/juridica/stats': {
+        title: 'Estadísticas',
+        subtitle: 'Estadísticas de contratos'
+      },
+
+      // =========== OTROS MÓDULOS ===========
       '/reportes': {
         title: 'Reportes',
         subtitle: 'Reportes y estadísticas del sistema'
@@ -190,6 +257,7 @@ export class NavbarComponent implements OnInit {
       return;
     }
 
+    // Rutas dinámicas
     if (cleanUrl.startsWith('/gestion-usuarios/editar/')) {
       this.currentPageTitle = 'Editar Usuario';
       this.currentPageSubtitle = 'Administración de usuarios';
@@ -220,9 +288,39 @@ export class NavbarComponent implements OnInit {
       return;
     }
 
+    if (cleanUrl.startsWith('/contratistas/editar/')) {
+      this.currentPageTitle = 'Editar Contratista';
+      this.currentPageSubtitle = 'Modificar datos del contratista';
+      return;
+    }
+
+    if (cleanUrl.startsWith('/contratistas/ver/')) {
+      this.currentPageTitle = 'Detalle del Contratista';
+      this.currentPageSubtitle = 'Información completa del contratista';
+      return;
+    }
+
+    if (cleanUrl.startsWith('/juridica/editar/')) {
+      this.currentPageTitle = 'Editar Contrato';
+      this.currentPageSubtitle = 'Modificar datos del contrato';
+      return;
+    }
+
     if (this.isContabilidadPage()) {
       this.currentPageTitle = 'Contabilidad';
       this.currentPageSubtitle = 'Gestión contable y glosas';
+      return;
+    }
+
+    if (this.isContratistasPage()) {
+      this.currentPageTitle = 'Contratistas';
+      this.currentPageSubtitle = 'Gestión de contratistas y proveedores';
+      return;
+    }
+
+    if (this.isJuridicaPage()) {
+      this.currentPageTitle = 'Jurídica';
+      this.currentPageSubtitle = 'Gestión de contratos';
       return;
     }
 
@@ -242,6 +340,12 @@ export class NavbarComponent implements OnInit {
       } else if (cleanUrl.startsWith('/auditor')) {
         this.currentPageTitle = 'Auditor de Cuentas';
         this.currentPageSubtitle = 'Auditoría de documentos contables';
+      } else if (cleanUrl.startsWith('/contratistas')) {
+        this.currentPageTitle = 'Contratistas';
+        this.currentPageSubtitle = 'Gestión de contratistas y proveedores';
+      } else if (cleanUrl.startsWith('/juridica')) {
+        this.currentPageTitle = 'Jurídica';
+        this.currentPageSubtitle = 'Gestión de contratos';
       } else if (cleanUrl.startsWith('/contabilidad')) {
         this.currentPageTitle = 'Contabilidad';
         this.currentPageSubtitle = 'Gestión contable';
@@ -265,7 +369,7 @@ export class NavbarComponent implements OnInit {
         this.currentPageSubtitle = '';
       }
     } else {
-      this.currentPageTitle = 'Dashboard';
+      this.currentPageTitle = 'Inicio'; // ✅ Cambiado de Dashboard a Inicio
       this.currentPageSubtitle = 'Panel principal';
     }
   }
@@ -293,7 +397,7 @@ export class NavbarComponent implements OnInit {
       [UserRole.TESORERIA]: 'Tesorería',
       [UserRole.ASESOR_GERENCIA]: 'Asesor de Gerencia',
       [UserRole.RENDICION_CUENTAS]: 'Rendición de Cuentas',
-      [UserRole.JURIDICA]: 'Jurídica' // 👈 AGREGAR
+      [UserRole.JURIDICA]: 'Jurídica'
     };
     return roleNames[role] || role;
   }
