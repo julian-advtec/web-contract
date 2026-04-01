@@ -84,14 +84,20 @@
           },
           "defaultConfiguration": "production"
         },
-        "serve": {
+"serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
+          "options": {
+            "port": 54424,
+            "host": "localhost"
+          },
           "configurations": {
             "production": {
-              "buildTarget": "web-contract:build:production"
+              "buildTarget": "web-contract:build:production",
+              "port": 54424
             },
             "development": {
-              "buildTarget": "web-contract:build:development"
+              "buildTarget": "web-contract:build:development",
+              "port": 54424
             }
           },
           "defaultConfiguration": "development"
