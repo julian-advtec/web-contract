@@ -1,3 +1,4 @@
+<!-- src/app/pages/contratistas/components/contratista-creacion/contratista-creacion.component.html -->
 <div class="contratista-creacion-container">
   <div class="contratista-creacion-inner">
 
@@ -174,6 +175,12 @@
             </div>
 
             <div class="col-md-6 mb-3">
+              <label class="form-label">Cargo</label>
+              <input type="text" class="form-control" formControlName="cargo" 
+                     placeholder="Ej: Director, Gerente, etc." maxlength="100">
+            </div>
+
+            <div class="col-md-6 mb-3">
               <label class="form-label required-field">Estado</label>
               <select class="form-control" formControlName="estado">
                 <option value="ACTIVO">Activo</option>
@@ -183,7 +190,7 @@
 
             <div class="col-md-12 mb-3">
               <label class="form-label">Observaciones</label>
-              <textarea class="form-control" formControlName="observaciones" rows="3" 
+              <textarea class="form-control" formControlName="observaciones" rows="4" 
                         placeholder="Observaciones adicionales..."></textarea>
               <small class="text-muted">{{ getRemainingChars('observaciones') }} caracteres restantes</small>
             </div>
@@ -200,7 +207,7 @@
         </div>
       </div>
 
-      <!-- PASO 3: DOCUMENTOS CON DROPDOWN Y SUBIDA SECUENCIAL -->
+      <!-- PASO 3: DOCUMENTOS -->
       <div class="card-section" *ngIf="pasoActual === 3">
         <div class="section-header">
           <h5 class="mb-0">Documentos Requeridos</h5>
@@ -214,7 +221,7 @@
             Formatos permitidos: <strong>PDF</strong> (max. 5MB cada uno)
           </div>
 
-          <!-- Dropdown para seleccionar tipo de documento (solo muestra los no subidos) -->
+          <!-- Dropdown para seleccionar tipo de documento -->
           <div class="documento-selector mb-4" *ngIf="tiposPendientes.length > 0">
             <label class="form-label">Seleccionar tipo de documento a subir</label>
             <div class="d-flex gap-3">
@@ -234,13 +241,12 @@
             <input type="file" id="fileInput" class="d-none" (change)="onFileSelected($event)" accept=".pdf">
           </div>
 
-          <!-- Mensaje cuando todos los documentos están subidos -->
           <div *ngIf="tiposPendientes.length === 0" class="alert alert-success mb-4">
             <i class="fas fa-check-circle me-2"></i>
             ¡Todos los documentos requeridos han sido subidos!
           </div>
 
-          <!-- Área de Drag & Drop (visible solo cuando hay tipo seleccionado) -->
+          <!-- Drag & Drop -->
           <div class="drag-drop-area" 
                *ngIf="tipoSeleccionado"
                [class.dragging]="isDragging"
@@ -256,13 +262,12 @@
             </div>
           </div>
 
-          <!-- Error de documento -->
           <div *ngIf="documentoError" class="alert alert-warning mt-3">
             <i class="fas fa-exclamation-triangle me-2"></i>
             {{ documentoError }}
           </div>
 
-          <!-- Lista de documentos subidos (se contrae cada documento subido) -->
+          <!-- Lista de documentos subidos -->
           <div class="documentos-subidos mt-4">
             <h6 class="mb-3">Documentos Subidos ({{ documentosSubidosCount }} de {{ tiposDocumentoRequeridos.length }} requeridos)</h6>
             
@@ -286,16 +291,21 @@
                       <span class="info-label">Tamaño:</span>
                       <span class="info-value">{{ formatearTamano(doc.tamano) }}</span>
                     </div>
-                    <button class="btn-remove" (click)="eliminarDocumentoPorTipo(doc.value)" title="Eliminar">
-                      <i class="fas fa-trash-alt"></i>
-                    </button>
+                    <div class="documento-actions">
+                      <button class="btn-download" (click)="descargarDocumento(doc)" title="Descargar">
+                        <i class="fas fa-download"></i> Descargar
+                      </button>
+                      <button class="btn-remove" (click)="eliminarDocumentoPorTipo(doc.value)" title="Eliminar">
+                        <i class="fas fa-trash-alt"></i> Eliminar
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Resumen de documentos -->
+          <!-- Resumen -->
           <div class="documentos-resumen mt-3">
             <div class="resumen-header">
               <i class="fas fa-file-alt me-2"></i>
@@ -308,13 +318,9 @@
               <span>{{ documentosCompletadosRequeridos }} de {{ totalDocumentosRequeridos }} documentos requeridos subidos</span>
               <span class="porcentaje">{{ porcentajeDocumentos }}%</span>
             </div>
-            <div class="opcional-nota mt-2" *ngIf="!documentoLibretaSubido">
-              <i class="fas fa-info-circle me-1"></i>
-              <small>La Libreta Militar es opcional y no afecta el progreso</small>
-            </div>
           </div>
 
-          <div class="alert alert-warning mt-4" *ngIf="!todosDocumentosRequeridosCompletados">
+          <div class="alert alert-warning mt-4" *ngIf="!todosDocumentosRequeridosCompletados && !isEditMode">
             <i class="fas fa-exclamation-triangle me-2"></i>
             Debe subir todos los documentos requeridos (marcados con *) antes de guardar el contratista.
           </div>
@@ -328,7 +334,7 @@
             <button type="button" class="btn btn-outline-danger me-2 px-4" (click)="cancelar()">
               <i class="fas fa-times me-2"></i> Cancelar
             </button>
-            <button type="submit" class="btn btn-success px-4" [disabled]="isSubmitting || !todosDocumentosRequeridosCompletados">
+            <button type="submit" class="btn btn-success px-4" [disabled]="isSubmitting || (!isEditMode && !todosDocumentosRequeridosCompletados)">
               <span *ngIf="!isSubmitting">
                 <i class="fas fa-save me-2"></i> {{ isEditMode ? 'Actualizar' : 'Guardar' }} Contratista
               </span>

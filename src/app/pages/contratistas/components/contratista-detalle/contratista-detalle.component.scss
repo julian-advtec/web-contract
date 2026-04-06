@@ -1,0 +1,314 @@
+// src/app/pages/contratistas/components/contratista-detalle/contratista-detalle.component.scss
+$color-primary: #1D4ED8;
+$color-primary-light: rgba(29, 78, 216, 0.1);
+$color-primary-dark: #2563EB;
+$color-success: #10B981;
+$color-danger: #EF4444;
+$color-warning: #F59E0B;
+$color-gray: #6B7280;
+
+.contratista-detalle-container {
+  padding: 20px;
+  min-height: calc(100vh - 100px);
+  background-color: #f8f9fa;
+
+  .contratista-detalle-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .page-title {
+    color: $color-primary;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  // ============================================
+  // ALERTAS
+  // ============================================
+  .alert {
+    border-radius: 10px;
+    border: none;
+    padding: 1rem 1.5rem;
+
+    &.alert-danger {
+      background: rgba(239, 68, 68, 0.1);
+      color: $color-danger;
+      border-left: 4px solid $color-danger;
+    }
+
+    &.alert-success {
+      background: rgba(16, 185, 129, 0.1);
+      color: $color-success;
+      border-left: 4px solid $color-success;
+    }
+  }
+
+  // ============================================
+  // TARJETAS DE INFORMACIÓN
+  // ============================================
+  .info-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(29, 78, 216, 0.15);
+    overflow: hidden;
+    height: 100%;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    }
+
+    .info-card-header {
+      background: $color-primary-light;
+      padding: 0.8rem 1rem;
+      font-weight: 600;
+      color: $color-primary-dark;
+      border-bottom: 2px solid $color-primary;
+      display: flex;
+      align-items: center;
+      
+      i {
+        font-size: 1.1rem;
+      }
+    }
+
+    .info-card-body {
+      padding: 1rem;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid #e9ecef;
+      
+      &:last-child {
+        border-bottom: none;
+      }
+      
+      .info-label {
+        font-weight: 500;
+        color: $color-gray;
+        font-size: 0.85rem;
+      }
+      
+      .info-value {
+        font-weight: 600;
+        color: $color-primary-dark;
+        text-align: right;
+        font-size: 0.85rem;
+        word-break: break-word;
+        max-width: 60%;
+        
+        &.text-muted {
+          color: $color-gray;
+          font-weight: normal;
+        }
+      }
+    }
+  }
+
+  // ============================================
+  // ESTADO BADGE
+  // ============================================
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 50px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    
+    &.active {
+      background-color: rgba(16, 185, 129, 0.1);
+      color: $color-success;
+      border: 1px solid $color-success;
+    }
+    
+    &.inactive {
+      background-color: rgba(239, 68, 68, 0.1);
+      color: $color-danger;
+      border: 1px solid $color-danger;
+    }
+    
+    &.warning {
+      background-color: rgba(245, 158, 11, 0.1);
+      color: $color-warning;
+      border: 1px solid $color-warning;
+    }
+    
+    &.pending {
+      background-color: rgba(107, 114, 128, 0.1);
+      color: $color-gray;
+      border: 1px solid $color-gray;
+    }
+  }
+
+  // ============================================
+  // TABLA DE DOCUMENTOS
+  // ============================================
+  .documentos-table {
+    width: 100%;
+    border-collapse: collapse;
+    
+    thead tr {
+      background: #f8f9fa;
+      border-bottom: 2px solid rgba(29, 78, 216, 0.2);
+      
+      th {
+        padding: 0.8rem 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: $color-primary-dark;
+        font-size: 0.8rem;
+      }
+    }
+    
+    tbody tr {
+      border-bottom: 1px solid #e9ecef;
+      transition: background-color 0.2s ease;
+      
+      &:hover {
+        background-color: $color-primary-light;
+      }
+      
+      td {
+        padding: 0.8rem 1rem;
+        font-size: 0.8rem;
+        vertical-align: middle;
+        
+        &.nombre-archivo {
+          font-family: monospace;
+          font-size: 0.75rem;
+          color: $color-gray;
+          max-width: 250px;
+          word-break: break-all;
+        }
+        
+        &.acciones {
+          white-space: nowrap;
+        }
+      }
+    }
+  }
+
+  // ============================================
+  // TIPO BADGE
+  // ============================================
+  .tipo-badge {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    background-color: $color-primary-light;
+    color: $color-primary-dark;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  // ============================================
+  // BOTONES DE ACCIÓN
+  // ============================================
+  .btn {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    
+    &.btn-outline-primary {
+      border: 1px solid $color-primary;
+      background: transparent;
+      color: $color-primary;
+      
+      &:hover {
+        background: $color-primary;
+        color: white;
+        transform: translateY(-2px);
+      }
+    }
+    
+    &.btn-outline-secondary {
+      border: 1px solid $color-gray;
+      background: transparent;
+      color: $color-gray;
+      
+      &:hover {
+        background: $color-gray;
+        color: white;
+        transform: translateY(-2px);
+      }
+    }
+  }
+
+  .btn-icon {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    
+    i {
+      font-size: 1rem;
+    }
+    
+    &.btn-download {
+      color: $color-primary;
+      
+      &:hover {
+        background: $color-primary-light;
+        transform: scale(1.1);
+      }
+    }
+    
+    &.btn-delete {
+      color: $color-danger;
+      
+      &:hover {
+        background: rgba(239, 68, 68, 0.1);
+        transform: scale(1.1);
+      }
+    }
+  }
+
+  // ============================================
+  // RESPONSIVE
+  // ============================================
+  @media (max-width: 768px) {
+    padding: 10px;
+    
+    .page-title {
+      font-size: 1.3rem;
+    }
+    
+    .documentos-table {
+      display: block;
+      overflow-x: auto;
+      white-space: nowrap;
+      
+      td.nombre-archivo {
+        max-width: 150px;
+      }
+    }
+    
+    .info-card .info-row {
+      flex-direction: column;
+      gap: 0.25rem;
+      
+      .info-label, .info-value {
+        text-align: left;
+        max-width: 100%;
+      }
+    }
+    
+    .btn {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.8rem;
+    }
+  }
+}

@@ -1,0 +1,79 @@
+<!-- juridica-documentos.component.html -->
+<div class="juridica-documentos-container">
+  <div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2>
+        <i class="fas fa-file-alt me-2"></i>
+        Documentos del Contrato
+      </h2>
+      <button class="btn btn-outline-secondary" (click)="volver()">
+        <i class="fas fa-arrow-left me-2"></i> Volver
+      </button>
+    </div>
+
+    <!-- Mensaje de error -->
+    <div *ngIf="errorMessage" class="alert alert-danger">
+      <i class="fas fa-exclamation-triangle me-2"></i>
+      {{ errorMessage }}
+    </div>
+
+    <!-- Información del contrato -->
+    <div class="card mb-4" *ngIf="contrato">
+      <div class="card-header bg-info text-white">
+        <h5 class="mb-0">{{ contrato.numeroContrato }}</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <p><strong>Proveedor:</strong> {{ contrato.proveedor?.nombreRazonSocial || 'N/A' }}</p>
+            <p><strong>Objeto:</strong> {{ contrato.objeto }}</p>
+          </div>
+          <div class="col-md-6">
+            <p><strong>Vigencia:</strong> {{ contrato.vigencia }}</p>
+            <p><strong>Valor Total:</strong> {{ formatCurrency(contrato.valorTotal) }}</p>
+            <p><strong>Estado:</strong> {{ contrato.estado }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div *ngIf="isLoading" class="text-center py-5">
+      <div class="spinner-border text-primary"></div>
+      <p class="mt-2">Cargando documentos...</p>
+    </div>
+
+    <!-- Grid de documentos -->
+    <div *ngIf="!isLoading && contrato" class="row">
+      <div class="col-md-4 mb-4" *ngFor="let doc of documentosList">
+        <div class="card documento-card h-100">
+          <div class="card-body text-center">
+            <i class="fas {{ doc.icon }} fa-3x mb-3 text-primary"></i>
+            <h5 class="card-title">
+              {{ doc.label }}
+              <span *ngIf="doc.required" class="badge bg-danger ms-2">Requerido</span>
+            </h5>
+            <p class="text-muted small">Documento soporte del contrato</p>
+            <div class="mt-3">
+              <button class="btn btn-sm btn-outline-primary me-2" (click)="verDocumento(doc.tipo)">
+                <i class="fas fa-eye me-1"></i> Ver
+              </button>
+              <button class="btn btn-sm btn-outline-success" (click)="descargarDocumento(doc.tipo)">
+                <i class="fas fa-download me-1"></i> Descargar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="!isLoading && !contrato" class="text-center py-5">
+      <i class="fas fa-file-contract fa-3x text-muted mb-3"></i>
+      <h5 class="text-muted">Contrato no encontrado</h5>
+      <button class="btn btn-primary mt-3" (click)="volver()">
+        <i class="fas fa-arrow-left me-2"></i> Volver
+      </button>
+    </div>
+  </div>
+</div>

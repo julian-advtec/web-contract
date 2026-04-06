@@ -1,3 +1,4 @@
+// src/app/pages/juridica/components/juridica-creacion/juridica-creacion.component.ts
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
@@ -16,6 +17,7 @@ import { CreateContratoDto, Contrato, TipoContrato } from '../../../../core/mode
 export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   contratoForm!: FormGroup;
   isEditMode = false;
+  isViewMode = false;
   contratoId: string | null = null;
   isLoading = false;
   isSubmitting = false;
@@ -27,7 +29,9 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   vigencias: number[] = [];
   supervisores: any[] = [];
   valorTotal = 0;
+  documentosContrato: any[] = [];
 
+  // Archivos
   cdpFile: File | null = null;
   rpFile: File | null = null;
   polizaCumplimientoFile: File | null = null;
@@ -71,6 +75,16 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     'Seguros Generales Suramericana',
     'Mapfre Seguros',
     'Otro'
+  ];
+
+  tiposDocumento = [
+    { value: 'CONTRATO_FIRMADO', label: 'Contrato Firmado', icon: 'fa-file-signature' },
+    { value: 'CDP', label: 'CDP - Certificado Disponibilidad', icon: 'fa-file-invoice' },
+    { value: 'RP', label: 'RP - Registro Presupuestal', icon: 'fa-file-invoice-dollar' },
+    { value: 'POLIZA_CUMPLIMIENTO', label: 'Póliza de Cumplimiento', icon: 'fa-shield-alt' },
+    { value: 'POLIZA_CALIDAD', label: 'Póliza de Calidad', icon: 'fa-check-circle' },
+    { value: 'POLIZA_RC', label: 'Póliza RC', icon: 'fa-gavel' },
+    { value: 'OTRO', label: 'Otros Documentos', icon: 'fa-file-alt' }
   ];
 
   private subscriptions: Subscription[] = [];
@@ -358,8 +372,11 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
 
   private checkEditMode(): void {
     const id = this.route.snapshot.paramMap.get('id');
+    const modoVista = this.route.snapshot.url.some(segment => segment.path === 'ver');
+    
     if (id) {
       this.isEditMode = true;
+      this.isViewMode = modoVista;
       this.contratoId = id;
       this.cargarContrato(id);
     }
@@ -369,8 +386,14 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     const sub = this.juridicaService.obtenerContratoPorId(id).subscribe({
       next: (contrato) => {
-        if (contrato) this.cargarDatosEnFormulario(contrato);
-        else this.errorMessage = 'Contrato no encontrado';
+        if (contrato) {
+          this.cargarDatosEnFormulario(contrato);
+          if (this.isViewMode) {
+            this.contratoForm.disable();
+          }
+        } else {
+          this.errorMessage = 'Contrato no encontrado';
+        }
         this.isLoading = false;
       },
       error: (error) => {
@@ -387,6 +410,8 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     const fechaTerminacion = contrato.fechaTerminacion ? new Date(contrato.fechaTerminacion).toISOString().split('T')[0] : '';
     const fechaFirma = contrato.fechaFirma ? new Date(contrato.fechaFirma).toISOString().split('T')[0] : '';
     const fechaDesembolso = contrato.fechaDesembolsoAnticipo ? new Date(contrato.fechaDesembolsoAnticipo).toISOString().split('T')[0] : '';
+
+    this.documentosContrato = contrato.documentos || [];
 
     const patchData: any = {
       vigencia: contrato.vigencia,
@@ -465,6 +490,8 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   }
 
   private validarPasoActual(): boolean {
+    if (this.isViewMode) return true;
+    
     this.submitted = true;
     let isValid = true;
 
@@ -530,7 +557,27 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     }
   }
 
+  // Ver documento (solo lectura)
+  verDocumento(tipo: string): void {
+    console.log('Ver documento:', tipo);
+    // Aquí puedes implementar la apertura del documento en una nueva pestaña o modal
+    // Por ahora muestra un mensaje
+    alert(`Ver documento: ${tipo}\nFuncionalidad en desarrollo`);
+  }
+
+  // Descargar documento
+  descargarDocumento(tipo: string): void {
+    console.log('Descargar documento:', tipo);
+    // Aquí implementas la descarga del documento desde el backend
+    alert(`Descargar documento: ${tipo}\nFuncionalidad en desarrollo`);
+  }
+
   guardarContrato(): void {
+    if (this.isViewMode) {
+      this.router.navigate(['/juridica/list']);
+      return;
+    }
+
     this.submitted = true;
     if (this.contratoForm.invalid) {
       this.errorMessage = 'Por favor complete todos los campos requeridos';
@@ -594,7 +641,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     }
 
     const sub = request.subscribe({
-      next: (contrato) => {
+      next: () => {
         this.successMessage = this.isEditMode ? 'Contrato actualizado exitosamente' : 'Contrato creado exitosamente';
         this.isSubmitting = false;
         setTimeout(() => this.router.navigate(['/juridica/list']), 1500);

@@ -1,0 +1,39 @@
+// juridica-documentos.component.scss
+.juridica-documentos-container {
+  padding: 20px;
+  background: #f8f9fa;
+  min-height: calc(100vh - 60px);
+
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #0D9D6B;
+    margin: 0;
+  }
+
+  .card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+
+  .documento-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+    border: 1px solid #e9ecef;
+
+    &:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .btn {
+      min-width: 80px;
+    }
+  }
+}

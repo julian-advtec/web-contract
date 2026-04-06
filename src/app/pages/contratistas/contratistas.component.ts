@@ -39,7 +39,7 @@ export class ContratistasComponent implements OnInit {
     private contratistaService: ContratistasService,
     private modulesService: ModulesService,
     private router: Router
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     console.log('🚀 Inicializando componente de contratistas...');
@@ -72,6 +72,7 @@ export class ContratistasComponent implements OnInit {
     if (user) {
       this.currentUser = user;
       this.puedeCrear = this.userCanCreate(user.role);
+      this.puedeVer = true;
     } else {
       const userStr = localStorage.getItem('user');
       if (userStr) {
@@ -89,6 +90,7 @@ export class ContratistasComponent implements OnInit {
           };
 
           this.puedeCrear = this.userCanCreate(normalizedRole);
+          this.puedeVer = true;
 
         } catch (error) {
           console.error('❌ Error parseando usuario:', error);
@@ -101,27 +103,11 @@ export class ContratistasComponent implements OnInit {
   }
 
   verificarPermisos(): void {
-    this.contratistaService.verificarPermisosUsuario().subscribe({
-      next: (response) => {
-        if (response && response.success && response.data) {
-          this.puedeCrear = response.data.puedeCrear;
-          this.puedeVer = response.data.puedeVer;
-
-          if (!this.puedeVer) {
-            this.errorMessage = 'No tienes permisos para acceder al módulo de contratistas';
-            setTimeout(() => {
-              this.router.navigate(['/dashboard']);
-            }, 3000);
-          }
-        }
-      },
-      error: () => {
-        if (this.currentUser) {
-          this.puedeCrear = this.userCanCreate(this.currentUser.role);
-          this.puedeVer = this.puedeCrear;
-        }
-      }
-    });
+    // Método simplificado - asigna permisos basados en el rol
+    if (this.currentUser) {
+      this.puedeCrear = this.userCanCreate(this.currentUser.role);
+      this.puedeVer = true;
+    }
   }
 
   loadAvailableModules(): void {
@@ -130,7 +116,36 @@ export class ContratistasComponent implements OnInit {
       return;
     }
 
-    this.availableModules = this.modulesService.getModulesForUser(this.currentUser.role);
+    const modulesToShow: AppModule[] = [];
+
+    // Módulo Inicio (siempre visible)
+    modulesToShow.push({
+      id: 'dashboard',
+      title: 'Inicio',
+      description: 'Panel principal del sistema',
+      path: '/dashboard',
+      route: '/dashboard',
+      icon: 'dashboard',
+      requiredRole: UserRole.RADICADOR,
+      isActive: true
+    });
+
+    // Módulo Contratistas
+    modulesToShow.push({
+      id: 'contratistas',
+      title: 'Contratistas',
+      description: 'Gestión de contratistas y proveedores',
+      path: '/contratistas',
+      route: '/contratistas',
+      icon: 'contratistas',
+      requiredRole: UserRole.RADICADOR,
+      isActive: true
+    });
+
+    this.availableModules = modulesToShow;
+
+    console.log('📦 [ContratistasComponent] Módulos para sidebar:',
+      this.availableModules.map(m => `${m.id} → ${m.title}`));
   }
 
   getUserRoleName(): string {

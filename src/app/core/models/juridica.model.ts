@@ -1,4 +1,4 @@
-// Basado en el backend que me mostraste
+// src/app/core/models/juridica.model.ts
 export type EstadoContrato = 
   | 'BORRADOR' 
   | 'EN_APROBACION' 
@@ -24,6 +24,20 @@ export interface Proveedor {
   direccion?: string;
   telefono?: string;
   email?: string;
+}
+
+export interface DocumentoContrato {
+  id: string;
+  nombreArchivo: string;
+  rutaArchivo: string;
+  tipoDocumento: string;
+  descripcion: string;
+  version: number;
+  esVersionActual: boolean;
+  tamanoBytes: number;
+  mimeType: string;
+  cargadoPor: string;
+  fechaCarga: Date;
 }
 
 export interface Contrato {
@@ -53,7 +67,6 @@ export interface Contrato {
   creadoPor?: string;
   ultimoUsuario?: string;
   
-  // Propiedades de polizas
   requierePolizas?: boolean;
   polizaCumplimientoNumero?: string;
   polizaCumplimientoAseguradora?: string;
@@ -72,6 +85,8 @@ export interface Contrato {
   polizaRCValor?: number;
   polizaRCVigenciaDesde?: Date | string;
   polizaRCVigenciaHasta?: Date | string;
+  
+  documentos?: DocumentoContrato[];
 }
 
 export interface CreateContratoDto {
@@ -96,7 +111,6 @@ export interface CreateContratoDto {
   supervisor?: string;
   creadoPor?: string;
   
-  // Propiedades de polizas
   requierePolizas?: boolean;
   polizaCumplimientoNumero?: string;
   polizaCumplimientoAseguradora?: string;
@@ -117,48 +131,9 @@ export interface CreateContratoDto {
   polizaRCVigenciaHasta?: Date | string;
 }
 
-export interface UpdateContratoDto {
-  vigencia?: string;
-  numeroContrato?: string;
-  tipoContrato?: TipoContrato;
-  proveedor?: Proveedor;
-  objeto?: string;
-  valor?: number;
-  plazoDias?: number;
-  cdp?: string;
-  rp?: string;
-  fechaFirma?: Date | string;
-  fechaInicio?: Date | string;
-  fechaTerminacion?: Date | string;
-  seDesembolsaAnticipo?: boolean;
-  porcentajeAnticipo?: number;
-  valorAnticipo?: number;
-  fechaDesembolsoAnticipo?: Date | string;
-  adiciones?: number;
-  valorTotal?: number;
-  supervisor?: string;
+export interface UpdateContratoDto extends Partial<CreateContratoDto> {
   estado?: EstadoContrato;
   ultimoUsuario?: string;
-  
-  // Propiedades de polizas
-  requierePolizas?: boolean;
-  polizaCumplimientoNumero?: string;
-  polizaCumplimientoAseguradora?: string;
-  polizaCumplimientoValor?: number;
-  polizaCumplimientoVigenciaDesde?: Date | string;
-  polizaCumplimientoVigenciaHasta?: Date | string;
-  requierePolizaCalidad?: boolean;
-  polizaCalidadNumero?: string;
-  polizaCalidadAseguradora?: string;
-  polizaCalidadValor?: number;
-  polizaCalidadVigenciaDesde?: Date | string;
-  polizaCalidadVigenciaHasta?: Date | string;
-  requierePolizaRC?: boolean;
-  polizaRCNumero?: string;
-  polizaRCAseguradora?: string;
-  polizaRCValor?: number;
-  polizaRCVigenciaDesde?: Date | string;
-  polizaRCVigenciaHasta?: Date | string;
 }
 
 export interface FiltrosContratoDto {

@@ -13,11 +13,11 @@ const routes: Routes = [
     component: ContratistasComponent,
     children: [
       { path: '', redirectTo: 'list', pathMatch: 'full' },
-      { path: 'list', component: ContratistaListComponent, data: { title: 'Lista de Contratistas' } },
-      { path: 'crear', component: ContratistaCreacionComponent, data: { title: 'Nuevo Contratista' } },
-      { path: 'editar/:id', component: ContratistaCreacionComponent, data: { title: 'Editar Contratista' } },
-      { path: 'ver/:id', component: ContratistaDetalleComponent, data: { title: 'Detalle del Contratista' } },
-     
+      { path: 'list', component: ContratistaListComponent },
+      { path: 'crear', component: ContratistaCreacionComponent },
+      { path: 'editar/:id', component: ContratistaCreacionComponent },
+      { path: 'ver/:id', component: ContratistaDetalleComponent },
+      { path: 'documentos/:id', component: ContratistaDetalleComponent } // Ruta para ver documentos
     ]
   }
 ];

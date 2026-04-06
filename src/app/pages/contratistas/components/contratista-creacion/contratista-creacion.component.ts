@@ -1,3 +1,4 @@
+// src/app/pages/contratistas/components/contratista-creacion/contratista-creacion.component.ts
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -5,15 +6,18 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ContratistasService } from '../../../../core/services/contratistas.service';
-import { TipoDocumento } from '../../../../core/models/contratista.model';
 
 interface DocumentoInfo {
   tipo: string;
-  archivo: File;
+  archivo: File | null;
   nombre: string;
   tamano: number;
   label: string;
   value: string;
+  id?: string;
+  esExistente?: boolean;
+  subidoPor?: string;  // 🔥 AGREGAR ESTE CAMPO
+  fechaSubida?: Date | string;  // 🔥 AGREGAR ESTE CAMPO
 }
 
 @Component({
@@ -35,12 +39,10 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
   documentoExistente = false;
 
   pasoActual = 1;
-  
-  // Documentos organizados por tipo
+
   documentosPorTipo: Map<string, DocumentoInfo> = new Map();
   documentoError = '';
-  
-  // Tipos de documento para el dropdown
+
   tiposDocumentoDisponibles = [
     { value: 'CEDULA', label: 'Cédula de Ciudadanía' },
     { value: 'RUT', label: 'RUT' },
@@ -64,22 +66,14 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     { value: 'TARJETA_PROFESIONAL', label: 'Tarjeta Profesional' }
   ];
 
-  // Tipos de documento requeridos (excluyendo libreta militar)
   tiposDocumentoRequeridos = this.tiposDocumentoDisponibles.filter(
     doc => doc.value !== 'LIBRETA_MILITAR'
   );
 
-  // Todos los tipos de documento
-  get todosTiposDocumento() {
-    return this.tiposDocumentoDisponibles;
-  }
-
-  // Tipos pendientes (no subidos aún)
   get tiposPendientes() {
     return this.tiposDocumentoDisponibles.filter(doc => !this.documentosPorTipo.has(doc.value));
   }
 
-  // Documentos subidos (para mostrar en la lista)
   get documentosSubidosList() {
     const list: any[] = [];
     this.documentosPorTipo.forEach((value, key) => {
@@ -88,7 +82,11 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
         value: key,
         label: tipoInfo?.label || key,
         nombre: value.nombre,
-        tamano: value.tamano
+        tamano: value.tamano,
+        esExistente: value.esExistente || false,
+        id: value.id,
+        subidoPor: value.subidoPor || 'Sistema',  // 🔥 AGREGAR
+        fechaSubida: value.fechaSubida
       });
     });
     return list;
@@ -102,6 +100,26 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     return this.documentosPorTipo.has('LIBRETA_MILITAR');
   }
 
+  get totalDocumentosRequeridos(): number {
+    return this.tiposDocumentoRequeridos.length;
+  }
+
+  get documentosCompletadosRequeridos(): number {
+    return this.tiposDocumentoRequeridos.filter(doc =>
+      this.documentosPorTipo.has(doc.value)
+    ).length;
+  }
+
+  get porcentajeDocumentos(): number {
+    if (this.totalDocumentosRequeridos === 0) return 0;
+    return Math.round((this.documentosCompletadosRequeridos / this.totalDocumentosRequeridos) * 100);
+  }
+
+  get todosDocumentosRequeridosCompletados(): boolean {
+    if (this.isEditMode) return true;
+    return this.documentosCompletadosRequeridos === this.totalDocumentosRequeridos;
+  }
+
   tipoSeleccionado = '';
   isDragging = false;
 
@@ -112,7 +130,7 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     private contratistaService: ContratistasService,
     private route: ActivatedRoute,
     private router: Router
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.initializeForm();
@@ -125,25 +143,6 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
 
   get f() {
     return this.contratistaForm.controls;
-  }
-
-  get totalDocumentosRequeridos(): number {
-    return this.tiposDocumentoRequeridos.length;
-  }
-
-  get documentosCompletadosRequeridos(): number {
-    return this.tiposDocumentoRequeridos.filter(doc => 
-      this.documentosPorTipo.has(doc.value)
-    ).length;
-  }
-
-  get porcentajeDocumentos(): number {
-    if (this.totalDocumentosRequeridos === 0) return 0;
-    return Math.round((this.documentosCompletadosRequeridos / this.totalDocumentosRequeridos) * 100);
-  }
-
-  get todosDocumentosRequeridosCompletados(): boolean {
-    return this.documentosCompletadosRequeridos === this.totalDocumentosRequeridos;
   }
 
   private initializeForm(): void {
@@ -161,6 +160,7 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
       tipoContratista: [''],
       estado: ['ACTIVO', Validators.required],
       numeroContrato: ['', Validators.maxLength(50)],
+      cargo: ['', Validators.maxLength(100)],
       observaciones: ['']
     });
   }
@@ -176,13 +176,16 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
 
   cargarContratista(id: string): void {
     this.isLoading = true;
+
     const sub = this.contratistaService.obtenerCompleto(id).subscribe({
       next: (data: any) => {
         if (data) {
+          this.documentosPorTipo.clear();
+
           this.contratistaForm.patchValue({
             tipoDocumento: data.tipoDocumento || 'CC',
             documentoIdentidad: data.documentoIdentidad,
-            razonSocial: data.razonSocial || data.nombreCompleto,
+            razonSocial: data.razonSocial,
             representanteLegal: data.representanteLegal,
             documentoRepresentante: data.documentoRepresentante,
             telefono: data.telefono,
@@ -193,15 +196,34 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
             tipoContratista: data.tipoContratista,
             estado: data.estado || 'ACTIVO',
             numeroContrato: data.numeroContrato,
+            cargo: data.cargo,
             observaciones: data.observaciones
           });
-        } else {
-          this.errorMessage = 'Contratista no encontrado';
+
+          if (data.documentos && Array.isArray(data.documentos)) {
+            data.documentos.forEach((doc: any) => {
+              const tipoInfo = this.tiposDocumentoDisponibles.find(d => d.value === doc.tipo);
+              if (tipoInfo && !this.documentosPorTipo.has(doc.tipo)) {
+                this.documentosPorTipo.set(doc.tipo, {
+                  tipo: doc.tipo,
+                  archivo: null,
+                  nombre: doc.nombreArchivo,
+                  tamano: doc.tamanoBytes || 0,
+                  label: tipoInfo.label,
+                  value: doc.tipo,
+                  id: doc.id,
+                  esExistente: true,
+                  subidoPor: doc.subidoPor || 'Sistema',  // 🔥 MOSTRAR QUIÉN SUBIÓ
+                  fechaSubida: doc.fechaSubida
+                });
+              }
+            });
+          }
         }
         this.isLoading = false;
       },
       error: (error: any) => {
-        console.error('Error cargando contratista:', error);
+        console.error('Error:', error);
         this.errorMessage = error.message || 'Error al cargar el contratista';
         this.isLoading = false;
       }
@@ -209,12 +231,13 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     this.subscriptions.push(sub);
   }
 
+
   verificarDocumento(): void {
     const documento = this.contratistaForm.get('documentoIdentidad')?.value;
-    if (documento && documento.length >= 3) {
+    if (documento && documento.length >= 3 && !this.isEditMode) {
       this.contratistaService.verificarDocumento(documento).subscribe({
         next: (result: any) => {
-          if (result.existe && !this.isEditMode) {
+          if (result.existe) {
             this.documentoExistente = true;
             this.errorMessage = `Ya existe un contratista con el documento ${documento}`;
             this.contratistaForm.get('documentoIdentidad')?.setErrors({ existe: true });
@@ -226,7 +249,31 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     }
   }
 
-  // 🆕 Métodos para Drag & Drop
+  descargarDocumento(doc: any): void {
+    if (!this.contratistaId || !doc.id) {
+      this.documentoError = 'No se puede descargar el documento';
+      setTimeout(() => this.documentoError = '', 3000);
+      return;
+    }
+
+    console.log(`📥 Descargando documento: ${doc.label}`);
+    this.contratistaService.descargarDocumento(this.contratistaId, doc.id).subscribe({
+      next: (blob: Blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = doc.nombre;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: (error: any) => {
+        console.error('❌ Error descargando documento:', error);
+        this.documentoError = 'Error al descargar el documento';
+        setTimeout(() => this.documentoError = '', 3000);
+      }
+    });
+  }
+
   onDragOver(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
@@ -258,28 +305,24 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
   }
 
   private procesarArchivo(file: File): void {
-    // Validar tipo de documento seleccionado
     if (!this.tipoSeleccionado) {
       this.documentoError = 'Por favor seleccione primero el tipo de documento';
       setTimeout(() => this.documentoError = '', 3000);
       return;
     }
 
-    // Validar que no se haya subido ya este tipo
     if (this.documentosPorTipo.has(this.tipoSeleccionado)) {
       this.documentoError = `Ya se ha subido un documento tipo ${this.getTipoDocumentoLabel(this.tipoSeleccionado)}`;
       setTimeout(() => this.documentoError = '', 3000);
       return;
     }
 
-    // Validar formato PDF
     if (file.type !== 'application/pdf') {
       this.documentoError = 'Solo se permiten archivos PDF';
       setTimeout(() => this.documentoError = '', 3000);
       return;
     }
 
-    // Validar tamaño (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       this.documentoError = 'El archivo no puede exceder 5MB';
       setTimeout(() => this.documentoError = '', 3000);
@@ -287,24 +330,22 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     }
 
     const tipoInfo = this.tiposDocumentoDisponibles.find(d => d.value === this.tipoSeleccionado);
-    
-    // Guardar documento
+
     this.documentosPorTipo.set(this.tipoSeleccionado, {
       tipo: this.tipoSeleccionado,
       archivo: file,
       nombre: file.name,
       tamano: file.size,
       label: tipoInfo?.label || this.tipoSeleccionado,
-      value: this.tipoSeleccionado
+      value: this.tipoSeleccionado,
+      esExistente: false
     });
 
-    // Limpiar selección para que desaparezca el área de drag & drop
     this.tipoSeleccionado = '';
-    
-    // Limpiar input file
+
     const fileInput = document.getElementById('fileInput') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
-    
+
     this.documentoError = '';
   }
 
@@ -319,15 +360,22 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
   }
 
   eliminarDocumentoPorTipo(tipo: string): void {
-    this.documentosPorTipo.delete(tipo);
-  }
-
-  getDocumentoInfo(tipo: string): DocumentoInfo | undefined {
-    return this.documentosPorTipo.get(tipo);
-  }
-
-  documentoCompletado(tipo: string): boolean {
-    return this.documentosPorTipo.has(tipo);
+    const documento = this.documentosPorTipo.get(tipo);
+    if (documento?.esExistente && this.contratistaId && documento.id) {
+      if (confirm(`¿Eliminar permanentemente el documento "${documento.nombre}"?`)) {
+        this.contratistaService.eliminarDocumento(this.contratistaId, documento.id).subscribe({
+          next: () => {
+            this.documentosPorTipo.delete(tipo);
+          },
+          error: (error) => {
+            console.error('❌ Error eliminando documento:', error);
+            this.documentoError = 'Error al eliminar el documento';
+          }
+        });
+      }
+    } else {
+      this.documentosPorTipo.delete(tipo);
+    }
   }
 
   getTipoDocumentoLabel(tipo: string): string {
@@ -379,65 +427,56 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
   }
 
   guardarContratista(): void {
-    console.log('🚀 INICIANDO GUARDADO DE CONTRATISTA');
-    
     this.submitted = true;
 
-    // Validar formulario
     if (this.contratistaForm.invalid) {
-      console.log('❌ Formulario inválido');
       this.errorMessage = 'Por favor complete todos los campos requeridos';
       return;
     }
 
-    // Validar documentos requeridos
-    if (!this.todosDocumentosRequeridosCompletados) {
-      console.log('❌ Documentos requeridos incompletos');
+    if (!this.isEditMode && !this.todosDocumentosRequeridosCompletados) {
       this.errorMessage = 'Debe subir todos los documentos requeridos';
       return;
     }
-
-    console.log('✅ Formulario válido y documentos requeridos completos');
 
     this.isSubmitting = true;
     this.errorMessage = '';
 
     const formValue = this.contratistaForm.getRawValue();
-    console.log('📝 Datos del formulario:', formValue);
-
-    // Crear FormData con todos los documentos
     const formData = new FormData();
-    
-    // Agregar todos los campos del formulario
+
     Object.keys(formValue).forEach(key => {
       const value = formValue[key];
       if (value !== null && value !== undefined && value !== '') {
-        console.log(`📎 Agregando campo: ${key} = ${value}`);
         formData.append(key, value);
       }
     });
-    
-    // Agregar todos los documentos
-    let index = 0;
+
+    let documentosNuevos = 0;
     this.documentosPorTipo.forEach((doc, tipo) => {
-      console.log(`📎 Agregando documento ${index}: tipo=${tipo}, archivo=${doc.nombre}`);
-      formData.append(`tipo_documento_${index}`, doc.tipo);
-      formData.append('documentos', doc.archivo);
-      index++;
+      if (doc.archivo) {
+        formData.append(`tipo_documento_${documentosNuevos}`, doc.tipo);
+        formData.append('documentos', doc.archivo);
+        documentosNuevos++;
+      }
     });
 
-    console.log(`📤 Enviando petición con ${index} documentos`);
+    let request;
+    if (this.isEditMode && this.contratistaId) {
+      request = this.contratistaService.actualizarConDocumentos(this.contratistaId, formData);
+    } else {
+      request = this.contratistaService.crearConDocumentos(formData);
+    }
 
-    const sub = this.contratistaService.crearConDocumentos(formData).subscribe({
-      next: (response) => {
-        console.log('✅ Respuesta exitosa del servidor:', response);
-        this.successMessage = 'Contratista creado exitosamente';
+    const sub = request.subscribe({
+      next: () => {
+        this.successMessage = this.isEditMode ? 'Contratista actualizado exitosamente' : 'Contratista creado exitosamente';
         this.isSubmitting = false;
         setTimeout(() => this.router.navigate(['/contratistas/list']), 1500);
       },
       error: (error: any) => {
-        console.error('❌ Error en la petición:', error);
-        this.errorMessage = error.message || 'Error al guardar el contratista';
+        console.error('❌ Error:', error);
+        this.errorMessage = error.error?.message || error.message || 'Error al guardar el contratista';
         this.isSubmitting = false;
       }
     });
@@ -456,5 +495,16 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
 
   dismissSuccess(): void {
     this.successMessage = '';
+  }
+
+  formatearFecha(fecha: Date | string | undefined): string {
+    if (!fecha) return 'N/A';
+    return new Date(fecha).toLocaleDateString('es-CO', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   }
 }

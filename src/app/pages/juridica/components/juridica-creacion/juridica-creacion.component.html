@@ -1,9 +1,10 @@
+<!-- src/app/pages/juridica/components/juridica-creacion/juridica-creacion.component.html -->
 <div class="juridica-creacion-container">
   <!-- Header -->
   <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
     <h2 class="page-title">
       <i class="fas fa-file-contract me-2"></i>
-      {{ isEditMode ? 'Editar Contrato' : 'Crear Nuevo Contrato' }}
+      {{ isViewMode ? 'Ver Contrato' : (isEditMode ? 'Editar Contrato' : 'Crear Nuevo Contrato') }}
     </h2>
     <a routerLink="/juridica/list" class="btn btn-outline-secondary">
       <i class="fas fa-arrow-left me-2"></i>
@@ -30,7 +31,7 @@
     <p class="mt-2">Cargando datos del contrato...</p>
   </div>
 
-  <!-- Progress Steps -->
+  <!-- Progress Steps - AHORA CON 3 PASOS -->
   <div *ngIf="!isLoading" class="progress-steps mb-4">
     <div class="step" [class.active]="pasoActual === 1" [class.completed]="pasoActual > 1">
       <div class="step-number">1</div>
@@ -40,6 +41,11 @@
     <div class="step" [class.active]="pasoActual === 2" [class.completed]="pasoActual > 2">
       <div class="step-number">2</div>
       <div class="step-label">Presupuesto, Anticipo y Polizas</div>
+    </div>
+    <div class="step-connector"></div>
+    <div class="step" [class.active]="pasoActual === 3" [class.completed]="pasoActual > 3">
+      <div class="step-number">3</div>
+      <div class="step-label">Documentos</div>
     </div>
   </div>
 
@@ -119,9 +125,6 @@
             </div>
           </div>
         </div>
-
- 
-
 
         <!-- Datos del Proveedor / Contratista -->
         <div class="row" formGroupName="proveedor">
@@ -714,6 +717,68 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div class="card-footer d-flex justify-content-between">
+        <button type="button" class="btn btn-outline-secondary px-4" (click)="pasoAnterior()">
+          <i class="fas fa-arrow-left me-2"></i> Anterior
+        </button>
+        <div>
+          <button type="button" class="btn btn-outline-danger me-2 px-4" (click)="cancelar()">
+            <i class="fas fa-times me-2"></i> Cancelar
+          </button>
+          <button type="button" class="btn btn-primary px-4" (click)="siguientePaso()">
+            Siguiente <i class="fas fa-arrow-right ms-2"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PASO 3: DOCUMENTOS (SOLO LECTURA) -->
+    <div class="card mb-4" *ngIf="pasoActual === 3">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>3. Documentos del Contrato</h5>
+      </div>
+      
+      <div class="card-body">
+        <div class="alert alert-info mb-4">
+          <i class="fas fa-info-circle me-2"></i>
+          Esta sección muestra todos los documentos asociados al contrato. Puede ver y descargar cada documento.
+        </div>
+
+        <!-- Documentos ya subidos -->
+        <div *ngIf="documentosContrato.length > 0" class="mb-4">
+          <h6 class="mb-3">Documentos subidos ({{ documentosContrato.length }})</h6>
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr><th>Nombre</th><th>Tipo</th><th>Tamaño</th><th>Fecha</th><th>Acciones</th></tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let doc of documentosContrato">
+                  <td>{{ doc.nombreArchivo }}</td>
+                  <td>{{ doc.tipoDocumento }}</td>
+                  <td>{{ (doc.tamanoBytes / 1024).toFixed(1) }} KB</td>
+                  <td>{{ doc.fechaCarga | date:'dd/MM/yyyy' }}</td>
+                  <td>
+                    <button class="btn btn-sm btn-outline-info" (click)="verDocumento(doc.tipoDocumento)">
+                      <i class="fas fa-eye"></i> Ver
+                    </button>
+                    <button class="btn btn-sm btn-outline-success ms-1" (click)="descargarDocumento(doc.tipoDocumento)">
+                      <i class="fas fa-download"></i> Descargar
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div *ngIf="documentosContrato.length === 0" class="text-center py-5">
+          <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+          <h5 class="text-muted">No hay documentos asociados a este contrato</h5>
+          <p class="text-muted">Los documentos se subirán durante la gestión del contrato</p>
         </div>
       </div>
 
