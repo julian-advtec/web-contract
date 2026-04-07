@@ -179,7 +179,7 @@ export class JuridicaService {
     );
   }
 
- 
+
   // Buscar contratista por ID (para obtener datos completos)
   buscarContratistaPorId(id: string): Observable<any> {
     const headers = this.getAuthHeaders();
@@ -225,5 +225,14 @@ export class JuridicaService {
     );
   }
 
+autocompleteContratos(termino: string): Observable<any[]> {
+  const headers = this.getAuthHeaders();
+  if (!termino || termino.trim().length < 2) return of([]);
+  
+  return this.http.get<any>(`${environment.apiUrl}/contratistas/autocomplete/contratos?q=${encodeURIComponent(termino)}`, { headers }).pipe(
+    map(response => response?.ok === true && response?.data?.data ? response.data.data : []),
+    catchError(() => of([]))
+  );
+}
   
 }
