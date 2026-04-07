@@ -31,7 +31,7 @@
     <p class="mt-2">Cargando datos del contrato...</p>
   </div>
 
-  <!-- Progress Steps - AHORA CON 3 PASOS -->
+  <!-- Progress Steps -->
   <div *ngIf="!isLoading" class="progress-steps mb-4">
     <div class="step" [class.active]="pasoActual === 1" [class.completed]="pasoActual > 1">
       <div class="step-number">1</div>
@@ -83,10 +83,16 @@
           <div class="col-md-3 mb-3">
             <div class="form-group-inline">
               <label class="form-label-inline required-field">Número de Contrato</label>
-              <input type="text" class="form-control-inline" formControlName="numeroContrato"
-                     [ngClass]="{'is-invalid': submitted && f['numeroContrato'].errors}"
-                     placeholder="Ej: 001-2026"
-                     maxlength="50">
+              <div class="input-group">
+                <input type="text" class="form-control-inline" formControlName="numeroContrato"
+                       [ngClass]="{'is-invalid': submitted && f['numeroContrato'].errors}"
+                       placeholder="Ej: 001-2026"
+                       maxlength="50"
+                       (blur)="buscarContratistaPorContrato()">
+                <div *ngIf="buscandoContratista" class="input-group-text">
+                  <i class="fas fa-spinner fa-spin"></i>
+                </div>
+              </div>
               <div *ngIf="submitted && f['numeroContrato'].errors" class="invalid-feedback">
                 El número de contrato es requerido
               </div>
@@ -124,6 +130,12 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Alerta de contratista encontrado -->
+        <div *ngIf="contratistaEncontrado" class="alert alert-success mb-4">
+          <i class="fas fa-check-circle me-2"></i>
+          Contratista encontrado: <strong>{{ contratistaEncontrado.razonSocial }}</strong> ({{ contratistaEncontrado.documentoIdentidad }})
         </div>
 
         <!-- Datos del Proveedor / Contratista -->
@@ -196,7 +208,7 @@
 
         <hr class="my-4">
 
-        <!-- VALORES Y PLAZOS DE EJECUCIÓN - Título -->
+        <!-- VALORES Y PLAZOS DE EJECUCIÓN -->
         <div class="section-title mb-4">
           <i class="fas fa-chart-line me-2"></i>
           VALORES Y PLAZOS DE EJECUCIÓN
@@ -278,7 +290,7 @@
       </div>
       
       <div class="card-body">
-        <!-- CERTIFICADOS PRESUPUESTALES - Título -->
+        <!-- CERTIFICADOS PRESUPUESTALES -->
         <div class="section-title mb-4">
           <i class="fas fa-file-invoice-dollar me-2"></i>
           CERTIFICADOS PRESUPUESTALES
@@ -348,7 +360,7 @@
 
         <hr class="my-4">
 
-        <!-- ANTICIPO - Título -->
+        <!-- ANTICIPO -->
         <div class="section-title mb-4">
           <i class="fas fa-money-bill-wave me-2"></i>
           ANTICIPO
@@ -453,7 +465,7 @@
 
         <hr class="my-4">
 
-        <!-- PÓLIZAS Y GARANTÍAS - Título -->
+        <!-- PÓLIZAS Y GARANTÍAS -->
         <div class="section-title mb-4">
           <i class="fas fa-shield-alt me-2"></i>
           PÓLIZAS Y GARANTÍAS
@@ -735,25 +747,35 @@
       </div>
     </div>
 
-    <!-- PASO 3: DOCUMENTOS (SOLO LECTURA) -->
+    <!-- PASO 3: DOCUMENTOS DEL CONTRATO Y CONTRATISTA -->
     <div class="card mb-4" *ngIf="pasoActual === 3">
       <div class="card-header bg-success text-white">
-        <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>3. Documentos del Contrato</h5>
+        <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>3. Documentos del Contrato y Contratista</h5>
       </div>
       
       <div class="card-body">
         <div class="alert alert-info mb-4">
           <i class="fas fa-info-circle me-2"></i>
-          Esta sección muestra todos los documentos asociados al contrato. Puede ver y descargar cada documento.
+          Esta sección muestra los documentos asociados al contrato y al contratista.
         </div>
 
-        <!-- Documentos ya subidos -->
+        <!-- Documentos del Contrato -->
+        <div class="section-title mb-4">
+          <i class="fas fa-file-contract me-2"></i>
+          DOCUMENTOS DEL CONTRATO
+        </div>
+
         <div *ngIf="documentosContrato.length > 0" class="mb-4">
-          <h6 class="mb-3">Documentos subidos ({{ documentosContrato.length }})</h6>
           <div class="table-responsive">
             <table class="table table-sm">
               <thead>
-                <tr><th>Nombre</th><th>Tipo</th><th>Tamaño</th><th>Fecha</th><th>Acciones</th></tr>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Tipo</th>
+                  <th>Tamaño</th>
+                  <th>Fecha</th>
+                  <th>Acciones</th>
+                </tr>
               </thead>
               <tbody>
                 <tr *ngFor="let doc of documentosContrato">
@@ -762,10 +784,10 @@
                   <td>{{ (doc.tamanoBytes / 1024).toFixed(1) }} KB</td>
                   <td>{{ doc.fechaCarga | date:'dd/MM/yyyy' }}</td>
                   <td>
-                    <button class="btn btn-sm btn-outline-info" (click)="verDocumento(doc.tipoDocumento)">
+                    <button type="button" class="btn btn-sm btn-outline-info" (click)="verDocumento(doc.tipoDocumento)">
                       <i class="fas fa-eye"></i> Ver
                     </button>
-                    <button class="btn btn-sm btn-outline-success ms-1" (click)="descargarDocumento(doc.tipoDocumento)">
+                    <button type="button" class="btn btn-sm btn-outline-success ms-1" (click)="descargarDocumento(doc.tipoDocumento)">
                       <i class="fas fa-download"></i> Descargar
                     </button>
                   </td>
@@ -775,10 +797,79 @@
           </div>
         </div>
 
-        <div *ngIf="documentosContrato.length === 0" class="text-center py-5">
-          <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
-          <h5 class="text-muted">No hay documentos asociados a este contrato</h5>
-          <p class="text-muted">Los documentos se subirán durante la gestión del contrato</p>
+        <div *ngIf="documentosContrato.length === 0" class="text-center py-3">
+          <p class="text-muted">No hay documentos asociados a este contrato</p>
+        </div>
+
+        <hr class="my-4">
+
+        <!-- Documentos del Contratista -->
+        <div class="section-title mb-4">
+          <i class="fas fa-user me-2"></i>
+          DOCUMENTOS DEL CONTRATISTA
+        </div>
+
+        <!-- Estado de carga -->
+        <div *ngIf="cargandoDocumentosContratista" class="text-center py-3">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando documentos...</span>
+          </div>
+          <p class="mt-2 text-muted">Cargando documentos del contratista...</p>
+        </div>
+
+        <!-- Documentos encontrados -->
+        <div *ngIf="!cargandoDocumentosContratista && contratistaDocumentos.length > 0" class="mb-4">
+          <div class="alert alert-secondary mb-3">
+            <i class="fas fa-info-circle me-2"></i>
+            Documentos subidos por el contratista: <strong>{{ contratistaEncontrado?.razonSocial || 'Contratista' }}</strong>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Tipo</th>
+                  <th>Tamaño</th>
+                  <th>Fecha Subida</th>
+                  <th>Subido Por</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let doc of contratistaDocumentos">
+                  <td>{{ doc.nombreArchivo }}</td>
+                  <td>
+                    <span class="badge bg-info">{{ doc.tipo }}</span>
+                  </td>
+                  <td>{{ (doc.tamanoBytes / 1024).toFixed(1) }} KB</td>
+                  <td>{{ doc.fechaSubida | date:'dd/MM/yyyy HH:mm' }}</td>
+                  <td>{{ doc.subidoPor || 'Sistema' }}</td>
+                  <td>
+                    <button type="button" class="btn btn-sm btn-outline-info" (click)="verDocumentoContratista(doc)">
+                      <i class="fas fa-eye"></i> Ver
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-success ms-1" (click)="descargarDocumentoContratista(doc)">
+                      <i class="fas fa-download"></i> Descargar
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Sin documentos del contratista -->
+        <div *ngIf="!cargandoDocumentosContratista && contratistaDocumentos.length === 0 && contratistaEncontrado" class="text-center py-3">
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            El contratista <strong>{{ contratistaEncontrado.razonSocial }}</strong> no tiene documentos subidos en el sistema.
+          </div>
+        </div>
+
+        <!-- Sin contratista asociado -->
+        <div *ngIf="!contratistaEncontrado" class="alert alert-warning">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          No hay un contratista asociado a este número de contrato. Por favor ingrese el número de contrato en el paso 1 para cargar los datos del contratista.
         </div>
       </div>
 

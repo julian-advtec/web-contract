@@ -16,7 +16,7 @@ export class JuridicaService {
   constructor(
     private http: HttpClient,
     private router: Router
-  ) {}
+  ) { }
 
   private getToken(): string {
     return localStorage.getItem('access_token') || localStorage.getItem('token') || '';
@@ -40,7 +40,7 @@ export class JuridicaService {
   obtenerContratos(filtros?: FiltrosContratoDto): Observable<Contrato[]> {
     const headers = this.getAuthHeaders();
     let params = new HttpParams();
-    
+
     if (filtros) {
       Object.entries(filtros).forEach(([key, value]) => {
         if (value) params = params.set(key, value.toString());
@@ -178,4 +178,52 @@ export class JuridicaService {
       catchError(() => of({ status: 'error' }))
     );
   }
+
+ 
+  // Buscar contratista por ID (para obtener datos completos)
+  buscarContratistaPorId(id: string): Observable<any> {
+    const headers = this.getAuthHeaders();
+    return this.http.get<any>(`${environment.apiUrl}/contratistas/${id}`, { headers }).pipe(
+      map(response => {
+        if (response?.ok === true && response?.data?.data) return response.data.data;
+        if (response?.data?.data) return response.data.data;
+        return null;
+      }),
+      catchError(() => of(null))
+    );
+  }
+
+  // Obtener documentos del contratista
+  obtenerDocumentosContratista(contratistaId: string): Observable<any[]> {
+    const headers = this.getAuthHeaders();
+    return this.http.get<any>(`${environment.apiUrl}/contratistas/${contratistaId}/documentos`, { headers }).pipe(
+      map(response => {
+        if (response?.ok === true && response?.data?.data && Array.isArray(response.data.data)) {
+          return response.data.data;
+        }
+        if (Array.isArray(response)) return response;
+        return [];
+      }),
+      catchError(() => of([]))
+    );
+  }
+
+  buscarContratistaPorNumeroContrato(numeroContrato: string): Observable<any> {
+    const headers = this.getAuthHeaders();
+    // Asegúrate que la URL sea correcta
+    return this.http.get<any>(`${environment.apiUrl}/contratistas/buscar-por-contrato/${numeroContrato}`, { headers }).pipe(
+      map(response => {
+        console.log('📥 Respuesta de búsqueda:', response);
+        if (response?.ok === true && response?.data?.data) return response.data.data;
+        if (response?.data?.data) return response.data.data;
+        return null;
+      }),
+      catchError((error) => {
+        console.error('❌ Error en búsqueda:', error);
+        return of(null);
+      })
+    );
+  }
+
+  
 }

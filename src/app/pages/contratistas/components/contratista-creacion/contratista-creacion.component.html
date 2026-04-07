@@ -73,9 +73,8 @@
             <div class="col-md-8 mb-3">
               <label class="form-label required-field">Número de Documento</label>
               <input type="text" class="form-control" formControlName="documentoIdentidad"
-                     [ngClass]="{'is-invalid': submitted && f['documentoIdentidad'].errors}"
-                     placeholder="Ej: 123456789" maxlength="20"
-                     (blur)="verificarDocumento()">
+                [ngClass]="{'is-invalid': submitted && f['documentoIdentidad'].errors}" placeholder="Ej: 123456789"
+                maxlength="20" (blur)="verificarDocumento()">
               <div *ngIf="submitted && f['documentoIdentidad'].errors" class="invalid-feedback">
                 El documento es requerido (mínimo 3 caracteres)
               </div>
@@ -87,8 +86,8 @@
             <div class="col-md-12 mb-3">
               <label class="form-label required-field">Razón Social / Nombre Completo</label>
               <input type="text" class="form-control" formControlName="razonSocial"
-                     [ngClass]="{'is-invalid': submitted && f['razonSocial'].errors}"
-                     placeholder="Nombre completo o razón social" maxlength="200">
+                [ngClass]="{'is-invalid': submitted && f['razonSocial'].errors}"
+                placeholder="Nombre completo o razón social" maxlength="200">
               <div *ngIf="submitted && f['razonSocial'].errors" class="invalid-feedback">
                 La razón social es requerida
               </div>
@@ -96,14 +95,14 @@
 
             <div class="col-md-6 mb-3">
               <label class="form-label">Representante Legal</label>
-              <input type="text" class="form-control" formControlName="representanteLegal" 
-                     placeholder="Nombre del representante legal" maxlength="200">
+              <input type="text" class="form-control" formControlName="representanteLegal"
+                placeholder="Nombre del representante legal" maxlength="200">
             </div>
 
             <div class="col-md-6 mb-3">
               <label class="form-label">Documento del Representante</label>
-              <input type="text" class="form-control" formControlName="documentoRepresentante" 
-                     placeholder="Documento del representante" maxlength="20">
+              <input type="text" class="form-control" formControlName="documentoRepresentante"
+                placeholder="Documento del representante" maxlength="20">
             </div>
           </div>
 
@@ -115,29 +114,29 @@
 
             <div class="col-md-6 mb-3">
               <label class="form-label">Teléfono</label>
-              <input type="text" class="form-control" formControlName="telefono" placeholder="Ej: 3001234567" maxlength="15">
+              <input type="text" class="form-control" formControlName="telefono" placeholder="Ej: 3001234567"
+                maxlength="15">
             </div>
           </div>
 
           <div class="row">
             <div class="col-md-12 mb-3">
               <label class="form-label">Dirección</label>
-              <textarea class="form-control" formControlName="direccion" rows="2" 
-                        placeholder="Dirección de correspondencia"></textarea>
+              <textarea class="form-control" formControlName="direccion" rows="2"
+                placeholder="Dirección de correspondencia"></textarea>
             </div>
           </div>
 
           <div class="row">
             <div class="col-md-6 mb-3">
               <label class="form-label">Departamento</label>
-              <input type="text" class="form-control" formControlName="departamento" 
-                     placeholder="Departamento" maxlength="50">
+              <input type="text" class="form-control" formControlName="departamento" placeholder="Departamento"
+                maxlength="50">
             </div>
 
             <div class="col-md-6 mb-3">
               <label class="form-label">Ciudad</label>
-              <input type="text" class="form-control" formControlName="ciudad" 
-                     placeholder="Ciudad" maxlength="50">
+              <input type="text" class="form-control" formControlName="ciudad" placeholder="Ciudad" maxlength="50">
             </div>
           </div>
         </div>
@@ -158,13 +157,13 @@
           <div class="row">
             <div class="col-md-6 mb-3">
               <label class="form-label">Número de Contrato</label>
-              <input type="text" class="form-control" formControlName="numeroContrato" 
-                     placeholder="Ej: 001-2026" maxlength="50">
+              <input type="text" class="form-control" formControlName="numeroContrato" placeholder="Ej: 001-2026"
+                maxlength="50">
               <small class="text-muted">Opcional - Se puede asignar después</small>
             </div>
 
             <div class="col-md-6 mb-3">
-              <label class="form-label required-field">Tipo de Contratista</label>
+              <label class="form-label">Tipo de Contratista</label>
               <select class="form-control" formControlName="tipoContratista">
                 <option value="">Seleccione tipo</option>
                 <option value="PERSONA_NATURAL">Persona Natural</option>
@@ -176,8 +175,8 @@
 
             <div class="col-md-6 mb-3">
               <label class="form-label">Cargo</label>
-              <input type="text" class="form-control" formControlName="cargo" 
-                     placeholder="Ej: Director, Gerente, etc." maxlength="100">
+              <input type="text" class="form-control" formControlName="cargo" placeholder="Ej: Director, Gerente, etc."
+                maxlength="100">
             </div>
 
             <div class="col-md-6 mb-3">
@@ -185,14 +184,15 @@
               <select class="form-control" formControlName="estado">
                 <option value="ACTIVO">Activo</option>
                 <option value="INACTIVO">Inactivo</option>
+                <option value="SUSPENDIDO">Suspendido</option>
               </select>
             </div>
 
             <div class="col-md-12 mb-3">
-              <label class="form-label">Observaciones</label>
-              <textarea class="form-control" formControlName="observaciones" rows="4" 
-                        placeholder="Observaciones adicionales..."></textarea>
-              <small class="text-muted">{{ getRemainingChars('observaciones') }} caracteres restantes</small>
+              <label class="form-label">Objetivo del Contrato</label>
+              <textarea class="form-control" formControlName="objetivoContrato" rows="4"
+                placeholder="Describa el objetivo del contrato..."></textarea>
+              <small class="text-muted">{{ getRemainingChars('objetivoContrato') }} caracteres restantes</small>
             </div>
           </div>
         </div>
@@ -216,7 +216,7 @@
 
           <div class="alert alert-info mb-4">
             <i class="fas fa-info-circle me-2"></i>
-            Los documentos marcados con <strong>*</strong> son obligatorios. 
+            Los documentos marcados con <strong>*</strong> son obligatorios.
             La <strong>Libreta Militar</strong> es opcional.
             Formatos permitidos: <strong>PDF</strong> (max. 5MB cada uno)
           </div>
@@ -225,16 +225,16 @@
           <div class="documento-selector mb-4" *ngIf="tiposPendientes.length > 0">
             <label class="form-label">Seleccionar tipo de documento a subir</label>
             <div class="d-flex gap-3">
-              <select class="form-control" [(ngModel)]="tipoSeleccionado" 
-                      [ngModelOptions]="{standalone: true}">
+              <select class="form-control" [(ngModel)]="tipoSeleccionado" [ngModelOptions]="{standalone: true}">
                 <option value="">-- Seleccione un tipo de documento --</option>
                 <option *ngFor="let doc of tiposPendientes" [value]="doc.value">
-                  {{ doc.label }} 
+                  {{ doc.label }}
                   <span *ngIf="doc.value === 'LIBRETA_MILITAR'">(Opcional)</span>
                   <span *ngIf="doc.value !== 'LIBRETA_MILITAR'">*</span>
                 </option>
               </select>
-              <button type="button" class="btn btn-primary" (click)="agregarDocumentoManual()" [disabled]="!tipoSeleccionado">
+              <button type="button" class="btn btn-primary" (click)="agregarDocumentoManual()"
+                [disabled]="!tipoSeleccionado">
                 <i class="fas fa-plus me-2"></i> Agregar Documento
               </button>
             </div>
@@ -247,17 +247,14 @@
           </div>
 
           <!-- Drag & Drop -->
-          <div class="drag-drop-area" 
-               *ngIf="tipoSeleccionado"
-               [class.dragging]="isDragging"
-               (dragenter)="onDragOver($event)"
-               (dragover)="onDragOver($event)"
-               (dragleave)="onDragLeave($event)"
-               (drop)="onDrop($event)">
+          <div class="drag-drop-area" *ngIf="tipoSeleccionado" [class.dragging]="isDragging"
+            (dragenter)="onDragOver($event)" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)"
+            (drop)="onDrop($event)">
             <div class="drag-drop-content">
               <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
               <h6>Arrastra y suelta tu archivo aquí</h6>
-              <p class="text-muted">para subir el documento <strong>{{ getTipoDocumentoLabel(tipoSeleccionado) }}</strong></p>
+              <p class="text-muted">para subir el documento <strong>{{ getTipoDocumentoLabel(tipoSeleccionado)
+                  }}</strong></p>
               <small>Archivos PDF hasta 5MB</small>
             </div>
           </div>
@@ -269,8 +266,9 @@
 
           <!-- Lista de documentos subidos -->
           <div class="documentos-subidos mt-4">
-            <h6 class="mb-3">Documentos Subidos ({{ documentosSubidosCount }} de {{ tiposDocumentoRequeridos.length }} requeridos)</h6>
-            
+            <h6 class="mb-3">Documentos Subidos ({{ documentosSubidosCount }} de {{ tiposDocumentoRequeridos.length }}
+              requeridos)</h6>
+
             <div class="documentos-grid">
               <div *ngFor="let doc of documentosSubidosList" class="documento-card completed">
                 <div class="documento-header">
@@ -292,10 +290,11 @@
                       <span class="info-value">{{ formatearTamano(doc.tamano) }}</span>
                     </div>
                     <div class="documento-actions">
-                      <button class="btn-download" (click)="descargarDocumento(doc)" title="Descargar">
+                      <button type="button" class="btn-download" (click)="descargarDocumento(doc)" title="Descargar">
                         <i class="fas fa-download"></i> Descargar
                       </button>
-                      <button class="btn-remove" (click)="eliminarDocumentoPorTipo(doc.value)" title="Eliminar">
+                      <button type="button" class="btn-remove" (click)="eliminarDocumentoPorTipo(doc.value)"
+                        title="Eliminar">
                         <i class="fas fa-trash-alt"></i> Eliminar
                       </button>
                     </div>
@@ -315,14 +314,19 @@
               <div class="progress-bar" [style.width.%]="porcentajeDocumentos"></div>
             </div>
             <div class="resumen-stats">
-              <span>{{ documentosCompletadosRequeridos }} de {{ totalDocumentosRequeridos }} documentos requeridos subidos</span>
+              <span>{{ documentosCompletadosRequeridos }} de {{ totalDocumentosRequeridos }} documentos requeridos
+                subidos</span>
               <span class="porcentaje">{{ porcentajeDocumentos }}%</span>
             </div>
           </div>
 
-          <div class="alert alert-warning mt-4" *ngIf="!todosDocumentosRequeridosCompletados && !isEditMode">
+          <div class="alert alert-warning mt-4" *ngIf="!todosDocumentosRequeridosCompletados">
             <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Documentos pendientes:</strong>
             Debe subir todos los documentos requeridos (marcados con *) antes de guardar el contratista.
+            <div class="mt-2 small" *ngIf="documentosFaltantesList.length > 0">
+              <strong>Faltan:</strong> {{ documentosFaltantesList.join(', ') }}
+            </div>
           </div>
         </div>
 
@@ -334,7 +338,8 @@
             <button type="button" class="btn btn-outline-danger me-2 px-4" (click)="cancelar()">
               <i class="fas fa-times me-2"></i> Cancelar
             </button>
-            <button type="submit" class="btn btn-success px-4" [disabled]="isSubmitting || (!isEditMode && !todosDocumentosRequeridosCompletados)">
+            <button type="submit" class="btn btn-success px-4"
+              [disabled]="isSubmitting || !todosDocumentosRequeridosCompletados">
               <span *ngIf="!isSubmitting">
                 <i class="fas fa-save me-2"></i> {{ isEditMode ? 'Actualizar' : 'Guardar' }} Contratista
               </span>

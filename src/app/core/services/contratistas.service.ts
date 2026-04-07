@@ -46,7 +46,7 @@ export class ContratistasService {
       estado: item.estado || 'ACTIVO',
       numeroContrato: item.numeroContrato || item.numero_contrato || '',
       cargo: item.cargo || '',
-      observaciones: item.observaciones || '',
+      objetivoContrato : item.observaciones || '',
       createdAt: item.createdAt ? new Date(item.createdAt) : item.fecha_creacion ? new Date(item.fecha_creacion) : new Date(),
       updatedAt: item.updatedAt ? new Date(item.updatedAt) : item.fecha_actualizacion ? new Date(item.fecha_actualizacion) : new Date(),
       nombreCompleto: item.razonSocial || item.razon_social || item.nombreCompleto || item.nombre || '',
@@ -367,20 +367,6 @@ export class ContratistasService {
   // GESTIÓN DE DOCUMENTOS
   // ===============================
 
-  descargarDocumento(contratistaId: string, documentoId: string): Observable<Blob> {
-    const headers = this.getFormDataHeaders();
-    console.log(`📥 Descargando documento - Contratista: ${contratistaId}, Documento: ${documentoId}`);
-
-    return this.http.get(`${this.apiUrl}/${contratistaId}/documentos/${documentoId}/descargar`, {
-      headers,
-      responseType: 'blob'
-    }).pipe(
-      catchError(error => {
-        console.error('❌ Error descargando documento:', error);
-        throw error;
-      })
-    );
-  }
 
 
   eliminarDocumento(contratistaId: string, documentoId: string): Observable<void> {
@@ -504,6 +490,58 @@ export class ContratistasService {
         return [];
       }),
       catchError(() => of([]))
+    );
+  }
+
+  descargarTodosDocumentos(contratistaId: string): Observable<Blob> {
+    const headers = this.getFormDataHeaders();
+    console.log(`📦 Solicitando descarga de todos los documentos del contratista: ${contratistaId}`);
+
+    // ✅ Agregar options para asegurar que el blob se maneje correctamente
+    return this.http.get(`${this.apiUrl}/${contratistaId}/documentos/descargar-todos`, {
+      headers,
+      responseType: 'blob',
+      observe: 'body' // Usar 'body' en lugar de 'response'
+    }).pipe(
+      map((blob: Blob) => {
+        console.log(`📥 Blob recibido, tamaño: ${blob.size} bytes, tipo: ${blob.type}`);
+        if (blob.size === 0) {
+          throw new Error('El archivo ZIP está vacío');
+        }
+        return blob;
+      }),
+      catchError(error => {
+        console.error('❌ Error descargando todos los documentos:', error);
+        // Intentar leer el error si es un blob de error
+        if (error.error instanceof Blob) {
+          const reader = new FileReader();
+          reader.onload = () => {
+            try {
+              const errorData = JSON.parse(reader.result as string);
+              console.error('Error del servidor:', errorData);
+            } catch (e) {
+              console.error('Error no parseable:', reader.result);
+            }
+          };
+          reader.readAsText(error.error);
+        }
+        return throwError(() => error);
+      })
+    );
+  }
+
+  descargarDocumento(contratistaId: string, documentoId: string): Observable<Blob> {
+    const headers = this.getFormDataHeaders();
+    console.log(`📥 Descargando documento - Contratista: ${contratistaId}, Documento: ${documentoId}`);
+
+    return this.http.get(`${this.apiUrl}/${contratistaId}/documentos/${documentoId}/descargar`, {
+      headers,
+      responseType: 'blob'
+    }).pipe(
+      catchError(error => {
+        console.error('❌ Error descargando documento:', error);
+        throw error;
+      })
     );
   }
 }

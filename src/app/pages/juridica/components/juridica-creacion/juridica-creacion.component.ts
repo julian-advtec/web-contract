@@ -5,6 +5,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angula
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { JuridicaService } from '../../../../core/services/juridica.service';
+import { ContratistasService } from '../../../../core/services/contratistas.service';
 import { CreateContratoDto, Contrato, TipoContrato } from '../../../../core/models/juridica.model';
 
 @Component({
@@ -30,6 +31,13 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   supervisores: any[] = [];
   valorTotal = 0;
   documentosContrato: any[] = [];
+
+  // Propiedades para búsqueda de contratista
+  contratistaEncontrado: any = null;
+  contratistaDocumentos: any[] = [];
+  buscandoContratista = false;
+  mostrarDocumentosContratista = false;
+  contratistaSeleccionadoId: string | null = null;
 
   // Archivos
   cdpFile: File | null = null;
@@ -89,9 +97,12 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
 
   private subscriptions: Subscription[] = [];
 
+  cargandoDocumentosContratista = false;
+
   constructor(
     private fb: FormBuilder,
     private juridicaService: JuridicaService,
+    private contratistaService: ContratistasService,
     private route: ActivatedRoute,
     private router: Router
   ) {
@@ -164,6 +175,134 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     const valor = this.contratoForm.get('valorAnticipo')?.value || 0;
     return this.formatearNumeroConPuntos(valor);
   }
+
+  // ==================== BÚSQUEDA DE CONTRATISTA ====================
+
+ buscarContratistaPorContrato(): void {
+  const numeroContrato = this.contratoForm.get('numeroContrato')?.value;
+  
+  if (!numeroContrato || numeroContrato.trim().length < 3) {
+    this.contratistaEncontrado = null;
+    this.contratistaDocumentos = [];
+    return;
+  }
+
+  this.buscandoContratista = true;
+  
+  // ✅ Usar el nombre correcto: buscarContratistaPorNumeroContrato
+  this.juridicaService.buscarContratistaPorNumeroContrato(numeroContrato).subscribe({
+    next: (response: any) => {  // ✅ Agregar tipo explícito
+      this.contratistaEncontrado = response.data;
+      this.buscandoContratista = false;
+      
+      // Actualizar los datos del proveedor en el formulario
+      if (this.contratistaEncontrado) {
+        this.contratoForm.patchValue({
+          proveedor: {
+            tipoIdentificacion: this.contratistaEncontrado.tipoDocumento || 'NIT',
+            numeroIdentificacion: this.contratistaEncontrado.documentoIdentidad,
+            nombreRazonSocial: this.contratistaEncontrado.razonSocial,
+            telefono: this.contratistaEncontrado.telefono || '',
+            email: this.contratistaEncontrado.email || ''
+          }
+        });
+        
+        // Cargar los documentos del contratista
+        this.cargarDocumentosContratista(this.contratistaEncontrado.id);
+      } else {
+        this.contratistaDocumentos = [];
+      }
+    },
+    error: (error: any) => {  // ✅ Agregar tipo explícito
+      console.error('Error buscando contratista:', error);
+      this.contratistaEncontrado = null;
+      this.contratistaDocumentos = [];
+      this.buscandoContratista = false;
+    }
+  });
+}
+
+  cargarDatosContratistaEnFormulario(contratista: any): void {
+    const proveedorGroup = this.contratoForm.get('proveedor') as FormGroup;
+
+    proveedorGroup.patchValue({
+      tipoIdentificacion: contratista.tipoDocumento === 'NIT' ? 'NIT' :
+        contratista.tipoDocumento === 'CC' ? 'CC' :
+          contratista.tipoDocumento === 'CE' ? 'CE' : 'NIT',
+      numeroIdentificacion: contratista.documentoIdentidad,
+      nombreRazonSocial: contratista.razonSocial,
+      telefono: contratista.telefono || '',
+      email: contratista.email || ''
+    });
+  }
+
+cargarDocumentosContratista(contratistaId: string): void {
+  if (!contratistaId) {
+    this.cargandoDocumentosContratista = false;
+    return;
+  }
+
+  this.cargandoDocumentosContratista = true;
+  
+  this.contratistaService.obtenerDocumentos(contratistaId).subscribe({
+    next: (documentos: any[]) => {
+      this.contratistaDocumentos = documentos || [];
+      this.cargandoDocumentosContratista = false;
+    },
+    error: (error: any) => {
+      console.error('Error cargando documentos del contratista:', error);
+      this.contratistaDocumentos = [];
+      this.cargandoDocumentosContratista = false;
+    }
+  });
+}
+
+  descargarDocumentoContratista(documento: any): void {
+    if (!this.contratistaSeleccionadoId || !documento.id) {
+      this.errorMessage = 'No se puede descargar el documento';
+      setTimeout(() => this.dismissError(), 3000);
+      return;
+    }
+
+    this.contratistaService.descargarDocumento(this.contratistaSeleccionadoId, documento.id).subscribe({
+      next: (blob: Blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = documento.nombreArchivo;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: (error: any) => {
+        console.error('Error descargando documento:', error);
+        this.errorMessage = 'Error al descargar el documento';
+        setTimeout(() => this.dismissError(), 3000);
+      }
+    });
+  }
+
+  verDocumentoContratista(documento: any): void {
+    if (!this.contratistaSeleccionadoId || !documento.id) {
+      this.errorMessage = 'No se puede visualizar el documento';
+      setTimeout(() => this.dismissError(), 3000);
+      return;
+    }
+
+    this.contratistaService.descargarDocumento(this.contratistaSeleccionadoId, documento.id).subscribe({
+      next: (blob: Blob) => {
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        window.URL.revokeObjectURL(url);
+      },
+      error: (error: any) => {
+        console.error('Error visualizando documento:', error);
+        this.errorMessage = 'Error al visualizar el documento';
+        setTimeout(() => this.dismissError(), 3000);
+      }
+    });
+  }
+
+  // ==================== MÉTODOS EXISTENTES ====================
 
   private generarVigencias(): void {
     for (let i = 0; i < 5; i++) {
@@ -239,21 +378,21 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
 
   convertirAPalabras(valor: number): string {
     if (!valor || valor === 0) return '';
-   
+
     const unidades = ['', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];
     const especiales = ['diez', 'once', 'doce', 'trece', 'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve'];
     const decenas = ['', '', 'veinte', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa'];
     const centenas = ['', 'cien', 'doscientos', 'trescientos', 'cuatrocientos', 'quinientos', 'seiscientos', 'setecientos', 'ochocientos', 'novecientos'];
-   
+
     const convertirTresDigitos = (num: number): string => {
       if (num === 0) return '';
-     
+
       const centena = Math.floor(num / 100);
       const decena = Math.floor((num % 100) / 10);
       const unidad = num % 10;
-     
+
       let resultado = '';
-     
+
       if (centena > 0) {
         if (centena === 1 && (decena > 0 || unidad > 0)) {
           resultado += 'cien ';
@@ -261,7 +400,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
           resultado += centenas[centena] + ' ';
         }
       }
-     
+
       const resto = num % 100;
       if (resto >= 10 && resto <= 19) {
         resultado += especiales[resto - 10];
@@ -273,16 +412,16 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       } else if (resto > 0 && resto < 10) {
         resultado += unidades[resto];
       }
-     
+
       return resultado.trim();
     };
-   
+
     const millones = Math.floor(valor / 1000000);
     const miles = Math.floor((valor % 1000000) / 1000);
     const resto = valor % 1000;
-   
+
     let resultado = '';
-   
+
     if (millones > 0) {
       if (millones === 1) {
         resultado += 'un millón ';
@@ -290,7 +429,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
         resultado += convertirTresDigitos(millones) + ' millones ';
       }
     }
-   
+
     if (miles > 0) {
       if (miles === 1) {
         resultado += 'mil ';
@@ -298,11 +437,11 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
         resultado += convertirTresDigitos(miles) + ' mil ';
       }
     }
-   
+
     if (resto > 0) {
       resultado += convertirTresDigitos(resto);
     }
-   
+
     return resultado.trim() + ' pesos colombianos';
   }
 
@@ -373,7 +512,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   private checkEditMode(): void {
     const id = this.route.snapshot.paramMap.get('id');
     const modoVista = this.route.snapshot.url.some(segment => segment.path === 'ver');
-    
+
     if (id) {
       this.isEditMode = true;
       this.isViewMode = modoVista;
@@ -385,7 +524,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   cargarContrato(id: string): void {
     this.isLoading = true;
     const sub = this.juridicaService.obtenerContratoPorId(id).subscribe({
-      next: (contrato) => {
+      next: (contrato: any) => {
         if (contrato) {
           this.cargarDatosEnFormulario(contrato);
           if (this.isViewMode) {
@@ -396,7 +535,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
         }
         this.isLoading = false;
       },
-      error: (error) => {
+      error: (error: any) => {
         console.error('Error cargando contrato:', error);
         this.errorMessage = 'Error al cargar el contrato';
         this.isLoading = false;
@@ -405,7 +544,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     this.subscriptions.push(sub);
   }
 
-  cargarDatosEnFormulario(contrato: Contrato): void {
+  cargarDatosEnFormulario(contrato: any): void {
     const fechaInicio = contrato.fechaInicio ? new Date(contrato.fechaInicio).toISOString().split('T')[0] : '';
     const fechaTerminacion = contrato.fechaTerminacion ? new Date(contrato.fechaTerminacion).toISOString().split('T')[0] : '';
     const fechaFirma = contrato.fechaFirma ? new Date(contrato.fechaFirma).toISOString().split('T')[0] : '';
@@ -473,8 +612,8 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
 
   cargarSupervisores(): void {
     const sub = this.juridicaService.obtenerSupervisores().subscribe({
-      next: (supervisores) => this.supervisores = supervisores,
-      error: (error) => console.error('Error cargando supervisores:', error)
+      next: (supervisores: any[]) => this.supervisores = supervisores,
+      error: (error: any) => console.error('Error cargando supervisores:', error)
     });
     this.subscriptions.push(sub);
   }
@@ -491,7 +630,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
 
   private validarPasoActual(): boolean {
     if (this.isViewMode) return true;
-    
+
     this.submitted = true;
     let isValid = true;
 
@@ -557,18 +696,13 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Ver documento (solo lectura)
   verDocumento(tipo: string): void {
     console.log('Ver documento:', tipo);
-    // Aquí puedes implementar la apertura del documento en una nueva pestaña o modal
-    // Por ahora muestra un mensaje
     alert(`Ver documento: ${tipo}\nFuncionalidad en desarrollo`);
   }
 
-  // Descargar documento
   descargarDocumento(tipo: string): void {
     console.log('Descargar documento:', tipo);
-    // Aquí implementas la descarga del documento desde el backend
     alert(`Descargar documento: ${tipo}\nFuncionalidad en desarrollo`);
   }
 
@@ -646,7 +780,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
         this.isSubmitting = false;
         setTimeout(() => this.router.navigate(['/juridica/list']), 1500);
       },
-      error: (error) => {
+      error: (error: any) => {
         this.errorMessage = error.message || 'Error al guardar el contrato';
         this.isSubmitting = false;
       }

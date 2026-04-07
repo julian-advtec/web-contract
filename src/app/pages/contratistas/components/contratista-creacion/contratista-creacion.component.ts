@@ -16,8 +16,8 @@ interface DocumentoInfo {
   value: string;
   id?: string;
   esExistente?: boolean;
-  subidoPor?: string;  // 🔥 AGREGAR ESTE CAMPO
-  fechaSubida?: Date | string;  // 🔥 AGREGAR ESTE CAMPO
+  subidoPor?: string;
+  fechaSubida?: Date | string;
 }
 
 @Component({
@@ -66,6 +66,7 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     { value: 'TARJETA_PROFESIONAL', label: 'Tarjeta Profesional' }
   ];
 
+  // ✅ Documentos requeridos: TODOS excepto LIBRETA_MILITAR
   tiposDocumentoRequeridos = this.tiposDocumentoDisponibles.filter(
     doc => doc.value !== 'LIBRETA_MILITAR'
   );
@@ -85,7 +86,7 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
         tamano: value.tamano,
         esExistente: value.esExistente || false,
         id: value.id,
-        subidoPor: value.subidoPor || 'Sistema',  // 🔥 AGREGAR
+        subidoPor: value.subidoPor || 'Sistema',
         fechaSubida: value.fechaSubida
       });
     });
@@ -110,13 +111,18 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     ).length;
   }
 
+  get documentosFaltantesList(): string[] {
+    return this.tiposDocumentoRequeridos
+      .filter(doc => !this.documentosPorTipo.has(doc.value))
+      .map(doc => doc.label);
+  }
+
   get porcentajeDocumentos(): number {
     if (this.totalDocumentosRequeridos === 0) return 0;
     return Math.round((this.documentosCompletadosRequeridos / this.totalDocumentosRequeridos) * 100);
   }
 
   get todosDocumentosRequeridosCompletados(): boolean {
-    if (this.isEditMode) return true;
     return this.documentosCompletadosRequeridos === this.totalDocumentosRequeridos;
   }
 
@@ -157,11 +163,11 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
       direccion: [''],
       departamento: ['', Validators.maxLength(50)],
       ciudad: ['', Validators.maxLength(50)],
-      tipoContratista: [''],
+      tipoContratista: [''],  // ✅ NO es requerido
       estado: ['ACTIVO', Validators.required],
       numeroContrato: ['', Validators.maxLength(50)],
       cargo: ['', Validators.maxLength(100)],
-      observaciones: ['']
+      objetivoContrato: [''],
     });
   }
 
@@ -197,7 +203,7 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
             estado: data.estado || 'ACTIVO',
             numeroContrato: data.numeroContrato,
             cargo: data.cargo,
-            observaciones: data.observaciones
+            objetivoContrato: data.objetivoContrato
           });
 
           if (data.documentos && Array.isArray(data.documentos)) {
@@ -213,7 +219,7 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
                   value: doc.tipo,
                   id: doc.id,
                   esExistente: true,
-                  subidoPor: doc.subidoPor || 'Sistema',  // 🔥 MOSTRAR QUIÉN SUBIÓ
+                  subidoPor: doc.subidoPor || 'Sistema',
                   fechaSubida: doc.fechaSubida
                 });
               }
@@ -230,7 +236,6 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     });
     this.subscriptions.push(sub);
   }
-
 
   verificarDocumento(): void {
     const documento = this.contratistaForm.get('documentoIdentidad')?.value;
@@ -415,12 +420,29 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     let isValid = true;
 
     if (this.pasoActual === 1) {
-      if (this.contratistaForm.get('documentoIdentidad')?.invalid) isValid = false;
-      if (this.contratistaForm.get('razonSocial')?.invalid) isValid = false;
+      const documentoControl = this.contratistaForm.get('documentoIdentidad');
+      const razonSocialControl = this.contratistaForm.get('razonSocial');
+      
+      if (documentoControl?.invalid) {
+        documentoControl.markAsTouched();
+        isValid = false;
+      }
+      if (razonSocialControl?.invalid) {
+        razonSocialControl.markAsTouched();
+        isValid = false;
+      }
+    } else if (this.pasoActual === 2) {
+      const estadoControl = this.contratistaForm.get('estado');
+      
+      if (estadoControl?.invalid) {
+        estadoControl.markAsTouched();
+        isValid = false;
+      }
     }
 
     if (!isValid) {
-      this.contratistaForm.markAllAsTouched();
+      this.errorMessage = 'Por favor complete los campos requeridos en este paso';
+      setTimeout(() => this.errorMessage = '', 3000);
     }
 
     return isValid;
@@ -430,12 +452,19 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     this.submitted = true;
 
     if (this.contratistaForm.invalid) {
+      // Mostrar qué campos están inválidos
+      const invalidFields = Object.keys(this.contratistaForm.controls)
+        .filter(key => this.contratistaForm.get(key)?.invalid);
+      console.log('Campos inválidos:', invalidFields);
       this.errorMessage = 'Por favor complete todos los campos requeridos';
       return;
     }
 
-    if (!this.isEditMode && !this.todosDocumentosRequeridosCompletados) {
-      this.errorMessage = 'Debe subir todos los documentos requeridos';
+    // Validar SOLO documentos requeridos (libreta militar es opcional)
+    if (!this.todosDocumentosRequeridosCompletados) {
+      const faltantes = this.documentosFaltantesList;
+      this.errorMessage = `Debe subir todos los documentos obligatorios. Faltan: ${faltantes.join(', ')}`;
+      this.pasoActual = 3;
       return;
     }
 
@@ -507,4 +536,6 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
       minute: '2-digit'
     });
   }
+
+  
 }

@@ -14,7 +14,7 @@ export interface Contratista {
   estado: string;
   numeroContrato?: string;
   cargo?: string;
-  observaciones?: string;
+  objetivoContrato?: string;
   createdAt?: Date | string;
   updatedAt?: Date | string;
   
@@ -73,7 +73,7 @@ export interface CreateContratistaDto {
   estado?: string;
   numeroContrato?: string;
   cargo?: string;
-  observaciones?: string;
+  objetivoContrato?: string;
 }
 
 export interface UpdateContratistaDto extends Partial<CreateContratistaDto> {}

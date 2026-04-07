@@ -80,6 +80,18 @@ export class NavbarComponent implements OnInit {
       cleanUrl.startsWith('/contabilidad/procesar/');
   }
 
+  isContratistasPage(): boolean {
+    const cleanUrl = this.currentUrl || this.router.url.split('?')[0];
+    return cleanUrl === '/contratistas' ||
+      cleanUrl === '/contratistas/list' ||
+      cleanUrl.startsWith('/contratistas/ver/') ||
+      cleanUrl.startsWith('/contratistas/editar/') ||
+      cleanUrl.startsWith('/contratistas/crear') ||
+      cleanUrl.startsWith('/contratistas/documentos/');
+  }
+
+
+
   private updateTitle() {
     this.currentUrl = this.router.url.split('?')[0];
     const cleanUrl = this.currentUrl;
@@ -89,6 +101,30 @@ export class NavbarComponent implements OnInit {
       this.currentPageSubtitle = 'Panel principal';
       return;
     }
+
+    if (this.isContratistasPage()) {
+      if (cleanUrl === '/contratistas/list' || cleanUrl === '/contratistas') {
+        this.currentPageTitle = 'Lista Contratistas';
+        this.currentPageSubtitle = 'Gestión de contratistas';
+      } else if (cleanUrl === '/contratistas/crear') {
+        this.currentPageTitle = 'Nuevo Contratista';
+        this.currentPageSubtitle = 'Registro de contratista';
+      } else if (cleanUrl.startsWith('/contratistas/editar/')) {
+        this.currentPageTitle = 'Editar Contratista';
+        this.currentPageSubtitle = 'Modificar información';
+      } else if (cleanUrl.startsWith('/contratistas/ver/')) {
+        this.currentPageTitle = 'Detalle Contratista';
+        this.currentPageSubtitle = 'Información completa';
+      } else if (cleanUrl.startsWith('/contratistas/documentos/')) {
+        this.currentPageTitle = 'Documentos';
+        this.currentPageSubtitle = 'Archivos del contratista';
+      } else {
+        this.currentPageTitle = 'Contratistas';
+        this.currentPageSubtitle = 'Gestión de contratistas';
+      }
+      return;
+    }
+
 
     const titleMap: Record<string, { title: string, subtitle?: string }> = {
       '/gestion-usuarios': {

@@ -2,14 +2,19 @@
 <div class="contratista-detalle-container">
   <div class="contratista-detalle-inner">
 
-    <!-- Header -->
+    <!-- Header con botones -->
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h2 class="page-title">
         <i class="fas fa-user-circle me-2"></i>
         Detalle del Contratista
       </h2>
       <div>
-        <button class="btn btn-outline-primary me-2" (click)="editar()">
+        <button class="btn btn-success me-2" (click)="descargarTodosDocumentos()" 
+                [disabled]="isLoading || documentos.length === 0">
+          <i class="fas fa-download me-2"></i>
+          Descargar Todos ({{ documentos.length }})
+        </button>
+        <button class="btn btn-warning me-2" (click)="editar()">
           <i class="fas fa-edit me-2"></i> Editar
         </button>
         <button class="btn btn-outline-secondary" (click)="volver()">
@@ -18,7 +23,7 @@
       </div>
     </div>
 
-    <!-- Mensajes -->
+    <!-- Mensajes de error/success -->
     <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show">
       <i class="fas fa-exclamation-triangle me-2"></i>
       {{ errorMessage }}
@@ -37,169 +42,97 @@
       <p class="mt-2">Cargando datos del contratista...</p>
     </div>
 
-    <!-- Contenido -->
-    <div *ngIf="!isLoading && contratista" class="row">
-      
-      <!-- Tarjeta de Identificación -->
-      <div class="col-md-4 mb-4">
-        <div class="info-card">
-          <div class="info-card-header">
-            <i class="fas fa-id-card me-2"></i>
-            Identificación
+    <!-- Contenido del detalle -->
+    <div *ngIf="!isLoading && contratista" class="card shadow">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">
+          <i class="fas fa-info-circle me-2"></i>
+          Información del Contratista
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <p><strong>Tipo de Documento:</strong> {{ contratista.tipoDocumento }}</p>
+            <p><strong>Documento:</strong> {{ contratista.documentoIdentidad }}</p>
+            <p><strong>Razón Social:</strong> {{ contratista.razonSocial }}</p>
+            <p><strong>Representante Legal:</strong> {{ contratista.representanteLegal || 'N/A' }}</p>
+            <p><strong>Documento Representante:</strong> {{ contratista.documentoRepresentante || 'N/A' }}</p>
+            <p><strong>Tipo Contratista:</strong> {{ getTipoTexto(contratista.tipoContratista) }}</p>
           </div>
-          <div class="info-card-body">
-            <div class="info-row">
-              <span class="info-label">Documento:</span>
-              <span class="info-value">{{ contratista.documentoIdentidad }}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Razón Social:</span>
-              <span class="info-value">{{ contratista.razonSocial || contratista.nombreCompleto }}</span>
-            </div>
-            <div class="info-row" *ngIf="contratista.representanteLegal">
-              <span class="info-label">Representante Legal:</span>
-              <span class="info-value">{{ contratista.representanteLegal }}</span>
-            </div>
-            <div class="info-row" *ngIf="contratista.documentoRepresentante">
-              <span class="info-label">Doc. Representante:</span>
-              <span class="info-value">{{ contratista.documentoRepresentante }}</span>
-            </div>
-            <div class="info-row" *ngIf="contratista.tipoContratista">
-              <span class="info-label">Tipo:</span>
-              <span class="info-value">{{ getTipoTexto(contratista.tipoContratista) }}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Estado:</span>
-              <span class="info-value">
-                <span class="status-badge" [ngClass]="getEstadoClass(contratista.estado)">
-                  {{ getEstadoTexto(contratista.estado) }}
-                </span>
+          <div class="col-md-6">
+            <p><strong>Teléfono:</strong> {{ contratista.telefono || 'N/A' }}</p>
+            <p><strong>Email:</strong> {{ contratista.email || 'N/A' }}</p>
+            <p><strong>Dirección:</strong> {{ contratista.direccion || 'N/A' }}</p>
+            <p><strong>Departamento:</strong> {{ contratista.departamento || 'N/A' }}</p>
+            <p><strong>Ciudad:</strong> {{ contratista.ciudad || 'N/A' }}</p>
+            <p><strong>Número Contrato:</strong> {{ contratista.numeroContrato || 'Sin contrato' }}</p>
+            <p><strong>Cargo:</strong> {{ contratista.cargo || 'N/A' }}</p>
+            <p><strong>Estado:</strong> 
+              <span class="badge" [ngClass]="getEstadoClass(contratista.estado)">
+                {{ getEstadoTexto(contratista.estado) }}
               </span>
-            </div>
+            </p>
+          </div>
+        </div>
+        <div class="row mt-3">
+          <div class="col-12">
+            <p><strong>objetivo del contrato:</strong> {{ contratista.objetivoContrato  || 'N/A' }}</p>
           </div>
         </div>
       </div>
-
-      <!-- Tarjeta de Contacto -->
-      <div class="col-md-4 mb-4">
-        <div class="info-card">
-          <div class="info-card-header">
-            <i class="fas fa-address-card me-2"></i>
-            Contacto
-          </div>
-          <div class="info-card-body">
-            <div class="info-row" *ngIf="contratista.email">
-              <span class="info-label">Email:</span>
-              <span class="info-value">{{ contratista.email }}</span>
-            </div>
-            <div class="info-row" *ngIf="contratista.telefono">
-              <span class="info-label">Teléfono:</span>
-              <span class="info-value">{{ contratista.telefono }}</span>
-            </div>
-            <div class="info-row" *ngIf="contratista.direccion">
-              <span class="info-label">Dirección:</span>
-              <span class="info-value">{{ contratista.direccion }}</span>
-            </div>
-            <div class="info-row" *ngIf="contratista.departamento || contratista.ciudad">
-              <span class="info-label">Ubicación:</span>
-              <span class="info-value">{{ contratista.departamento }}{{ contratista.departamento && contratista.ciudad ? ', ' : '' }}{{ contratista.ciudad }}</span>
-            </div>
-            <div class="info-row" *ngIf="contratista.cargo">
-              <span class="info-label">Cargo:</span>
-              <span class="info-value">{{ contratista.cargo }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tarjeta de Contrato -->
-      <div class="col-md-4 mb-4">
-        <div class="info-card">
-          <div class="info-card-header">
-            <i class="fas fa-file-contract me-2"></i>
-            Información del Contrato
-          </div>
-          <div class="info-card-body">
-            <div class="info-row">
-              <span class="info-label">Número Contrato:</span>
-              <span class="info-value" [class.text-muted]="!contratista.numeroContrato">
-                {{ contratista.numeroContrato || 'No asignado' }}
-              </span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Fecha Creación:</span>
-              <span class="info-value">{{ formatearFecha(contratista.createdAt) }}</span>
-            </div>
-            <div class="info-row" *ngIf="contratista.updatedAt">
-              <span class="info-label">Última Actualización:</span>
-              <span class="info-value">{{ formatearFecha(contratista.updatedAt) }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Observaciones -->
-      <div class="col-12 mb-4" *ngIf="contratista.observaciones">
-        <div class="info-card">
-          <div class="info-card-header">
-            <i class="fas fa-comment me-2"></i>
-            Observaciones
-          </div>
-          <div class="info-card-body">
-            <p class="mb-0">{{ contratista.observaciones }}</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Documentos -->
-      <div class="col-12">
-        <div class="info-card">
-          <div class="info-card-header">
-            <i class="fas fa-file-pdf me-2"></i>
-            Documentos ({{ documentos.length }})
-          </div>
-          <div class="info-card-body">
-            <div *ngIf="documentos.length === 0" class="text-center py-4 text-muted">
-              <i class="fas fa-folder-open fa-3x mb-2 opacity-50"></i>
-              <p>No hay documentos asociados</p>
-            </div>
-            
-            <div *ngIf="documentos.length > 0" class="table-responsive">
-              <table class="documentos-table">
-                <thead>
-                  <tr>
-                    <th>Tipo</th>
-                    <th>Nombre del Archivo</th>
-                    <th>Subido por</th>
-                    <th>Fecha de Subida</th>
-                    <th>Tamaño</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let doc of documentos">
-                    <td>
-                      <span class="tipo-badge">
-                        {{ getTipoDocumentoLabel(doc.tipo) }}
-                      </span>
-                    </td>
-                    <td class="nombre-archivo">{{ doc.nombreArchivo }}</td>
-                    <td>{{ doc.subidoPor || 'Sistema' }}</td>
-                    <td>{{ formatearFecha(doc.fechaSubida) }}</td>
-                    <td>{{ formatearTamano(doc.tamanoBytes) }}</td>
-                    <td class="acciones">
-                      <button class="btn-icon btn-download" (click)="descargarDocumento(doc)" title="Descargar">
-                        <i class="fas fa-download"></i> Descargar
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-
     </div>
+
+    <!-- Sección de Documentos -->
+    <div class="card mt-4" *ngIf="!isLoading">
+      <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+          <i class="fas fa-file-alt me-2"></i>
+          Documentos del Contratista
+        </h5>
+        <button class="btn btn-sm btn-light" (click)="descargarTodosDocumentos()" 
+                [disabled]="documentos.length === 0">
+          <i class="fas fa-download me-1"></i> Descargar Todos ({{ documentos.length }})
+        </button>
+      </div>
+      <div class="card-body">
+        <div *ngIf="documentos.length === 0" class="text-center py-4">
+          <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+          <p class="text-muted">No hay documentos asociados a este contratista</p>
+        </div>
+
+        <div *ngIf="documentos.length > 0" class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>Tipo</th>
+                <th>Nombre del Archivo</th>
+                <th>Tamaño</th>
+                <th>Fecha Subida</th>
+                <th>Subido Por</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let doc of documentos">
+                <td>
+                  <span class="badge bg-secondary">{{ getTipoDocumentoLabel(doc.tipo) }}</span>
+                </td>
+                <td>{{ doc.nombreArchivo }}</td>
+                <td>{{ formatearTamano(doc.tamanoBytes) }}</td>
+                <td>{{ formatearFecha(doc.fechaSubida) }}</td>
+                <td>{{ doc.subidoPor || 'Sistema' }}</td>
+                <td>
+                  <button class="btn btn-sm btn-outline-info me-1" (click)="descargarDocumento(doc)">
+                    <i class="fas fa-download"></i> Descargar
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>

@@ -1,4 +1,5 @@
 // src/app/pages/contratistas/components/contratista-detalle/contratista-detalle.component.ts
+
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -66,9 +67,80 @@ export class ContratistaDetalleComponent implements OnInit {
     this.router.navigate(['/contratistas/list']);
   }
 
+  // ✅ DESCARGAR TODOS LOS DOCUMENTOS
+  descargarTodosDocumentos(): void {
+    if (!this.contratista || !this.contratista.id) {
+      this.errorMessage = 'No se puede descargar los documentos';
+      setTimeout(() => this.errorMessage = '', 3000);
+      return;
+    }
+
+    if (this.documentos.length === 0) {
+      this.errorMessage = 'Este contratista no tiene documentos asociados';
+      setTimeout(() => this.errorMessage = '', 3000);
+      return;
+    }
+
+    this.isLoading = true;
+    this.successMessage = 'Preparando descarga...';
+
+    console.log(`📦 Solicitando descarga de todos los documentos para: ${this.contratista.razonSocial}`);
+
+    this.contratistaService.descargarTodosDocumentos(this.contratista.id).subscribe({
+      next: (blob: Blob) => {
+        console.log(`✅ ZIP recibido, tamaño: ${blob.size} bytes, tipo: ${blob.type}`);
+        
+        // Verificar que el blob no esté vacío
+        if (blob.size === 0) {
+          this.errorMessage = 'El archivo ZIP está vacío';
+          this.isLoading = false;
+          setTimeout(() => this.errorMessage = '', 3000);
+          return;
+        }
+        
+        // Crear URL del blob
+        const url = window.URL.createObjectURL(blob);
+        
+        // Nombre del archivo
+        const nombreContratista = (this.contratista!.razonSocial || 'contratista')
+          .replace(/[^a-z0-9]/gi, '_')
+          .toLowerCase()
+          .substring(0, 50);
+        const fecha = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+        const fileName = `documentos_${nombreContratista}_${fecha}.zip`;
+        
+        // Forzar descarga
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        
+        // Limpiar
+        setTimeout(() => {
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        }, 100);
+        
+        this.successMessage = `Se han descargado ${this.documentos.length} documentos (${(blob.size / 1024 / 1024).toFixed(2)} MB)`;
+        this.isLoading = false;
+        setTimeout(() => this.successMessage = '', 5000);
+      },
+      error: (error: any) => {
+        console.error('Error descargando documentos:', error);
+        this.errorMessage = error.error?.message || 'Error al descargar los documentos';
+        this.isLoading = false;
+        setTimeout(() => this.errorMessage = '', 5000);
+      }
+    });
+  }
+
+  // ✅ DESCARGAR DOCUMENTO INDIVIDUAL
   descargarDocumento(documento: DocumentoContratista): void {
     if (!this.contratista) {
       this.errorMessage = 'No se puede descargar el documento';
+      setTimeout(() => this.errorMessage = '', 3000);
       return;
     }
 
@@ -93,13 +165,14 @@ export class ContratistaDetalleComponent implements OnInit {
     });
   }
 
+  // Métodos auxiliares
   getEstadoClass(estado: string | undefined): string {
     const clases: Record<string, string> = {
-      'ACTIVO': 'active',
-      'INACTIVO': 'inactive',
-      'SUSPENDIDO': 'warning'
+      'ACTIVO': 'bg-success',
+      'INACTIVO': 'bg-secondary',
+      'SUSPENDIDO': 'bg-warning'
     };
-    return clases[estado || ''] || 'pending';
+    return clases[estado || ''] || 'bg-secondary';
   }
 
   getEstadoTexto(estado: string | undefined): string {
