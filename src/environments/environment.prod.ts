@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://api-contract.onrender.com/api'
+  apiUrl: 'http://192.168.7.56:8090/api'
 };
