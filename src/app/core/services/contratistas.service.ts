@@ -21,20 +21,42 @@ export class ContratistasService {
     });
   }
 
-  private extraerDatosAutocomplete(response: any): any[] {
-    if (response?.data?.data?.data && Array.isArray(response.data.data.data)) {
-      return response.data.data.data;
-    }
-    if (response?.data?.data && Array.isArray(response.data.data)) {
+private extraerDatos(response: any): any[] {
+  console.log('🔍 Extrayendo datos de respuesta:', response);
+  
+  // Estructura actual: { ok: true, path: '/api/contratistas', timestamp: '...', data: { ok: true, data: { success: true, data: [...] } } }
+  if (response?.data?.data?.data && Array.isArray(response.data.data.data)) {
+    console.log('✅ Extrayendo de response.data.data.data');
+    return response.data.data.data;
+  }
+  // Si hay data.data.data
+  if (response?.data?.data && Array.isArray(response.data.data)) {
+    console.log('✅ Extrayendo de response.data.data');
+    return response.data.data;
+  }
+  // Si hay data.data
+  if (response?.data && Array.isArray(response.data)) {
+    console.log('✅ Extrayendo de response.data');
+    return response.data;
+  }
+  // Si es un array directo
+  if (Array.isArray(response)) {
+    console.log('✅ Extrayendo de response (array)');
+    return response;
+  }
+  
+  console.warn('Estructura no reconocida:', response);
+  return [];
+}
+
+  private extraerUnDato(response: any): any {
+    if (response?.data?.data) {
       return response.data.data;
     }
-    if (response?.data && Array.isArray(response.data)) {
+    if (response?.data) {
       return response.data;
     }
-    if (Array.isArray(response)) {
-      return response;
-    }
-    return [];
+    return response;
   }
 
   private mapearContratista(item: any): Contratista {
@@ -71,7 +93,7 @@ export class ContratistasService {
       { headers }
     ).pipe(
       map(response => {
-        const contratistasData = this.extraerDatosAutocomplete(response);
+        const contratistasData = this.extraerDatos(response);
         return contratistasData.map(item => this.mapearContratista(item));
       }),
       catchError(() => of([]))
@@ -88,7 +110,7 @@ export class ContratistasService {
       { headers }
     ).pipe(
       map(response => {
-        const contratistasData = this.extraerDatosAutocomplete(response);
+        const contratistasData = this.extraerDatos(response);
         return contratistasData.map(item => this.mapearContratista(item));
       }),
       catchError(() => of([]))
@@ -109,7 +131,7 @@ export class ContratistasService {
       { headers }
     ).pipe(
       map(response => {
-        const contratistasData = this.extraerDatosAutocomplete(response);
+        const contratistasData = this.extraerDatos(response);
         return contratistasData.map(item => this.mapearContratista(item));
       }),
       catchError(() => of([]))
@@ -118,33 +140,36 @@ export class ContratistasService {
 
   // ==================== CRUD CONTRATISTAS ====================
 
-  obtenerTodos(filtros?: FiltrosContratistaDto): Observable<Contratista[]> {
-    const headers = this.getAuthHeaders();
-    if (!headers.get('Authorization')) return of([]);
+obtenerTodos(filtros?: FiltrosContratistaDto): Observable<Contratista[]> {
+  const headers = this.getAuthHeaders();
+  if (!headers.get('Authorization')) return of([]);
 
-    let params = new HttpParams();
-    if (filtros) {
-      if (filtros.limit) params = params.set('limit', filtros.limit.toString());
-      if (filtros.offset) params = params.set('offset', filtros.offset.toString());
-      if (filtros.nombre) params = params.set('nombre', filtros.nombre);
-      if (filtros.documento) params = params.set('documento', filtros.documento);
-      if (filtros.tipoContratista) params = params.set('tipoContratista', filtros.tipoContratista);
-      if (filtros.estado) params = params.set('estado', filtros.estado);
-    }
-
-    return this.http.get<any>(this.apiUrl, { headers, params }).pipe(
-      map(response => {
-        if (response?.data?.data && Array.isArray(response.data.data)) {
-          return response.data.data.map((item: any) => this.mapearContratista(item));
-        }
-        if (Array.isArray(response)) {
-          return response.map((item: any) => this.mapearContratista(item));
-        }
-        return [];
-      }),
-      catchError(() => of([]))
-    );
+  let params = new HttpParams();
+  if (filtros) {
+    if (filtros.limit) params = params.set('limit', filtros.limit.toString());
+    if (filtros.offset) params = params.set('offset', filtros.offset.toString());
+    if (filtros.nombre) params = params.set('nombre', filtros.nombre);
+    if (filtros.documento) params = params.set('documento', filtros.documento);
+    if (filtros.tipoContratista) params = params.set('tipoContratista', filtros.tipoContratista);
+    if (filtros.estado) params = params.set('estado', filtros.estado);
   }
+
+  return this.http.get<any>(this.apiUrl, { headers, params }).pipe(
+    map(response => {
+      console.log('📦 Respuesta COMPLETA del backend:', JSON.stringify(response, null, 2));
+      console.log('📦 response.data:', response.data);
+      console.log('📦 response.data.data:', response.data?.data);
+      
+      const contratistasData = this.extraerDatos(response);
+      console.log('📦 Contratistas extraídos:', contratistasData.length);
+      return contratistasData.map((item: any) => this.mapearContratista(item));
+    }),
+    catchError((error) => {
+      console.error('❌ Error en obtenerTodos:', error);
+      return of([]);
+    })
+  );
+}
 
   obtenerPorId(id: string): Observable<Contratista | null> {
     const headers = this.getAuthHeaders();
@@ -153,9 +178,8 @@ export class ContratistasService {
     }
     return this.http.get<any>(`${this.apiUrl}/${id}`, { headers }).pipe(
       map(response => {
-        if (response?.data?.data) return this.mapearContratista(response.data.data);
-        if (response?.data) return this.mapearContratista(response.data);
-        return null;
+        const data = this.extraerUnDato(response);
+        return data ? this.mapearContratista(data) : null;
       }),
       catchError(() => of(null))
     );
@@ -164,14 +188,11 @@ export class ContratistasService {
   obtenerCompleto(id: string): Observable<any> {
     const headers = this.getAuthHeaders();
     return this.http.get<any>(`${this.apiUrl}/${id}/completo`, { headers }).pipe(
-      map(response => response?.data?.data || null),
+      map(response => this.extraerUnDato(response)),
       catchError(() => of(null))
     );
   }
 
-  /**
-   * Obtener perfil del contratista autenticado
-   */
   obtenerMiPerfil(): Observable<any> {
     const headers = this.getAuthHeaders();
     if (!headers.get('Authorization')) {
@@ -183,23 +204,17 @@ export class ContratistasService {
     );
   }
 
-  /**
-   * Obtener documentos del contratista autenticado
-   */
   obtenerMisDocumentos(): Observable<DocumentoContratista[]> {
     const headers = this.getAuthHeaders();
     if (!headers.get('Authorization')) {
       return of([]);
     }
     return this.http.get<any>(`${this.apiUrl}/mis-documentos`, { headers }).pipe(
-      map(response => response?.data?.data || []),
+      map(response => this.extraerDatos(response)),
       catchError(() => of([]))
     );
   }
 
-  /**
-   * Subir documento como contratista autenticado
-   */
   subirMiDocumento(tipo: TipoDocumento, archivo: File): Observable<DocumentoContratista> {
     const headers = this.getAuthHeaders();
     headers.delete('Content-Type');
@@ -209,7 +224,7 @@ export class ContratistasService {
     formData.append('tipo', tipo);
 
     return this.http.post<any>(`${this.apiUrl}/mis-documentos`, formData, { headers }).pipe(
-      map(response => response?.data?.data || null),
+      map(response => this.extraerUnDato(response)),
       catchError(error => throwError(() => error))
     );
   }
@@ -218,7 +233,7 @@ export class ContratistasService {
     const headers = this.getAuthHeaders();
     return this.http.get<any>(`${this.apiUrl}/buscar`, { headers, params: { termino } }).pipe(
       map(response => {
-        const data = this.extraerDatosAutocomplete(response);
+        const data = this.extraerDatos(response);
         return data.map((item: any) => this.mapearContratista(item));
       }),
       catchError(() => of([]))
@@ -232,7 +247,8 @@ export class ContratistasService {
     }
     return this.http.post<any>(this.apiUrl, contratista, { headers }).pipe(
       map(response => {
-        if (response?.data?.data) return this.mapearContratista(response.data.data);
+        const data = this.extraerUnDato(response);
+        if (data) return this.mapearContratista(data);
         throw new Error('Error al crear contratista');
       }),
       catchError(error => throwError(() => error))
@@ -242,7 +258,7 @@ export class ContratistasService {
   crearConDocumentos(formData: FormData): Observable<any> {
     const headers = this.getAuthHeaders();
     return this.http.post<any>(`${this.apiUrl}/completo`, formData, { headers }).pipe(
-      map(response => response?.data?.data || null),
+      map(response => this.extraerUnDato(response)),
       catchError(error => throwError(() => error))
     );
   }
@@ -254,9 +270,18 @@ export class ContratistasService {
     }
     return this.http.put<any>(`${this.apiUrl}/${id}`, contratista, { headers }).pipe(
       map(response => {
-        if (response?.data?.data) return this.mapearContratista(response.data.data);
+        const data = this.extraerUnDato(response);
+        if (data) return this.mapearContratista(data);
         throw new Error('Error al actualizar contratista');
       }),
+      catchError(error => throwError(() => error))
+    );
+  }
+
+  eliminarContratista(id: string): Observable<any> {
+    const headers = this.getAuthHeaders();
+    return this.http.delete<any>(`${this.apiUrl}/${id}`, { headers }).pipe(
+      map(response => this.extraerUnDato(response)),
       catchError(error => throwError(() => error))
     );
   }
@@ -264,7 +289,10 @@ export class ContratistasService {
   verificarDocumento(documento: string): Observable<{ existe: boolean }> {
     const headers = this.getAuthHeaders();
     return this.http.get<any>(`${this.apiUrl}/verificar/documento/${documento}`, { headers }).pipe(
-      map(response => response?.data?.data || { existe: false }),
+      map(response => {
+        const data = this.extraerUnDato(response);
+        return data || { existe: false };
+      }),
       catchError(() => of({ existe: false }))
     );
   }
@@ -280,7 +308,7 @@ export class ContratistasService {
     formData.append('tipo', tipo);
 
     return this.http.post<any>(`${this.apiUrl}/${contratistaId}/documentos`, formData, { headers }).pipe(
-      map(response => response?.data?.data || null),
+      map(response => this.extraerUnDato(response)),
       catchError(error => throwError(() => error))
     );
   }
@@ -288,10 +316,7 @@ export class ContratistasService {
   obtenerDocumentos(contratistaId: string): Observable<DocumentoContratista[]> {
     const headers = this.getAuthHeaders();
     return this.http.get<any>(`${this.apiUrl}/${contratistaId}/documentos`, { headers }).pipe(
-      map(response => {
-        if (response?.data?.data && Array.isArray(response.data.data)) return response.data.data;
-        return [];
-      }),
+      map(response => this.extraerDatos(response)),
       catchError(() => of([]))
     );
   }
@@ -310,7 +335,8 @@ export class ContratistasService {
     const headers = this.getAuthHeaders();
     return this.http.delete<any>(`${this.apiUrl}/${contratistaId}/documentos/${documentoId}`, { headers }).pipe(
       map(response => {
-        if (!response?.data?.success) throw new Error('Error al eliminar documento');
+        const data = this.extraerUnDato(response);
+        if (!data?.success) throw new Error('Error al eliminar documento');
       }),
       catchError(error => throwError(() => error))
     );
@@ -321,7 +347,7 @@ export class ContratistasService {
   obtenerEstadisticas(): Observable<any> {
     const headers = this.getAuthHeaders();
     return this.http.get<any>(`${this.apiUrl}/estadisticas`, { headers }).pipe(
-      map(response => response?.data?.data || { total: 0, ultimoMes: 0 }),
+      map(response => this.extraerUnDato(response) || { total: 0, ultimoMes: 0 }),
       catchError(() => of({ total: 0, ultimoMes: 0 }))
     );
   }
@@ -330,7 +356,7 @@ export class ContratistasService {
     const headers = this.getAuthHeaders();
     return this.http.get<any>(`${this.apiUrl}/recientes`, { headers, params: { limit: limit.toString() } }).pipe(
       map(response => {
-        const data = this.extraerDatosAutocomplete(response);
+        const data = this.extraerDatos(response);
         return data.map((item: any) => this.mapearContratista(item));
       }),
       catchError(() => of([]))
@@ -351,6 +377,7 @@ export class ContratistasService {
       return of({ success: false, data: { puedeCrear: false, puedeVer: false } });
     }
     return this.http.get<any>(`${this.apiUrl}/verificar/permisos`, { headers }).pipe(
+      map(response => this.extraerUnDato(response) || { puedeCrear: true, puedeVer: true }),
       catchError(() => of({ success: false, data: { puedeCrear: true, puedeVer: true } }))
     );
   }
@@ -361,7 +388,10 @@ export class ContratistasService {
       return of(null);
     }
     return this.http.get<any>(`${this.apiUrl}/buscar-por-documento/${encodeURIComponent(documento.trim())}`, { headers }).pipe(
-      map(response => response?.data?.data || null),
+      map(response => {
+        const data = this.extraerUnDato(response);
+        return data ? this.mapearContratista(data) : null;
+      }),
       catchError(() => of(null))
     );
   }

@@ -9,23 +9,17 @@ $color-success-light: rgba(16, 185, 129, 0.1);
 $color-danger: #dc3545;
 $color-gray: #6c757d;
 $color-gray-light: #e9ecef;
+$color-warning: #f59e0b;
+$color-warning-light: rgba(245, 158, 11, 0.1);
 
-// Tamaños aumentados (50% más grandes)
-$font-size-base: 1rem;        // Antes 0.85rem
-$font-size-label: 0.95rem;    // Antes 0.8rem
-$font-size-small: 0.85rem;    // Antes 0.7rem
-$padding-base: 0.75rem 1rem;  // Antes 0.5rem 0.75rem
-$border-radius-base: 8px;     // Antes 6px
-$spacing-base: 1rem;          // Antes 0.8rem
+$font-size-base: 1rem;
+$font-size-label: 0.95rem;
+$font-size-small: 0.85rem;
+$padding-base: 0.75rem 1rem;
+$border-radius-base: 8px;
 
-// Mixins
-@mixin transition($property: all, $duration: 0.3s) {
-  transition: $property $duration ease;
-}
-
-@mixin border-radius($radius: 12px) {
-  border-radius: $radius;
-}
+@mixin transition($property: all, $duration: 0.3s) { transition: $property $duration ease; }
+@mixin border-radius($radius: 12px) { border-radius: $radius; }
 
 // Main Container
 .juridica-creacion-container {
@@ -34,40 +28,17 @@ $spacing-base: 1rem;          // Antes 0.8rem
   background-color: #f8f9fa;
   overflow-y: auto;
   padding: 24px;
-
-  @media (max-width: 768px) {
-    padding: 16px;
-  }
+  @media (max-width: 768px) { padding: 16px; }
 }
 
-// Header Section
-.header-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
-  gap: 1.2rem;
-
-  .page-title {
-    color: $color-primary;
-    font-weight: 600;
-    margin: 0;
-    font-size: 1.8rem;
-
-    @media (max-width: 768px) {
-      font-size: 1.5rem;
-    }
-  }
-
-  .btn-outline-secondary {
-    &:hover {
-      background-color: $color-gray-light;
-    }
-  }
+.page-title {
+  color: $color-primary;
+  font-weight: 600;
+  margin: 0;
+  font-size: 1.8rem;
+  @media (max-width: 768px) { font-size: 1.5rem; }
 }
 
-// Section Title
 .section-title {
   font-size: 1.2rem;
   font-weight: 700;
@@ -76,54 +47,34 @@ $spacing-base: 1rem;          // Antes 0.8rem
   padding-left: 16px;
   margin-bottom: 1.5rem;
   margin-top: 0.5rem;
-
-  i {
-    color: $color-primary;
-    font-size: 1.2rem;
-  }
+  i { color: $color-primary; font-size: 1.2rem; }
 }
 
-// Alertas
 .alert {
   border-radius: 12px;
   border: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   font-size: 0.95rem;
   margin-bottom: 1.5rem;
   padding: 1rem 1.2rem;
-
-  .btn-close {
-    font-size: 0.85rem;
-    padding: 0.5rem;
-  }
-
-  &.alert-success {
-    background: linear-gradient(135deg, $color-success 0%, #059669 100%);
-    color: white;
-  }
-
-  &.alert-danger {
-    background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
-    color: white;
-  }
+  &.alert-success { background: linear-gradient(135deg, $color-success 0%, #059669 100%); color: white; }
+  &.alert-danger { background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%); color: white; }
+  &.alert-warning { background: linear-gradient(135deg, $color-warning 0%, #d97706 100%); color: white; }
+  &.alert-info { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; }
 }
 
-// Progress Steps
 .progress-steps {
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 2rem;
   flex-wrap: wrap;
-
   .step {
     display: flex;
     flex-direction: column;
     align-items: center;
-
     .step-number {
-      width: 48px;
-      height: 48px;
+      width: 48px; height: 48px;
       border-radius: 50%;
       background-color: $color-gray-light;
       color: $color-gray;
@@ -135,68 +86,31 @@ $spacing-base: 1rem;          // Antes 0.8rem
       margin-bottom: 8px;
       @include transition;
     }
-
-    .step-label {
-      font-size: 0.95rem;
-      color: $color-gray;
-      font-weight: 500;
-    }
-
+    .step-label { font-size: 0.95rem; color: $color-gray; font-weight: 500; }
     &.active {
-      .step-number {
-        background-color: $color-primary;
-        color: white;
-        box-shadow: 0 0 0 4px $color-primary-light;
-      }
-      .step-label {
-        color: $color-primary;
-        font-weight: 600;
-      }
+      .step-number { background-color: $color-primary; color: white; box-shadow: 0 0 0 4px $color-primary-light; }
+      .step-label { color: $color-primary; font-weight: 600; }
     }
-
     &.completed {
-      .step-number {
-        background-color: $color-success;
-        color: white;
-      }
-      .step-label {
-        color: $color-success;
-      }
+      .step-number { background-color: $color-success; color: white; }
+      .step-label { color: $color-success; }
     }
   }
-
   .step-connector {
-    width: 80px;
-    height: 3px;
+    width: 80px; height: 3px;
     background-color: $color-gray-light;
     margin: 0 12px;
     margin-bottom: 32px;
-
-    @media (max-width: 768px) {
-      width: 30px;
-    }
-  }
-
-  @media (max-width: 576px) {
-    .step .step-label {
-      font-size: 0.8rem;
-    }
-    .step .step-number {
-      width: 40px;
-      height: 40px;
-      font-size: 1rem;
-    }
+    @media (max-width: 768px) { width: 30px; }
   }
 }
 
-// Card
 .card {
   border: none;
   @include border-radius(14px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
   border: 1px solid $color-primary-light;
   margin-bottom: 2rem;
-
   .card-header {
     background: linear-gradient(135deg, $color-primary 0%, $color-primary-dark 100%);
     color: white;
@@ -204,160 +118,90 @@ $spacing-base: 1rem;          // Antes 0.8rem
     padding: 1rem 1.5rem;
     font-weight: 600;
     font-size: 1.2rem;
-
-    @media (max-width: 768px) {
-      padding: 0.9rem 1.2rem;
-      font-size: 1.1rem;
-    }
   }
-
-  .card-body {
-    padding: 1.8rem;
-
-    @media (max-width: 768px) {
-      padding: 1.2rem;
-    }
-  }
-
+  .card-body { padding: 1.8rem; @media (max-width: 768px) { padding: 1.2rem; } }
   .card-footer {
     padding: 1rem 1.5rem;
     background-color: white;
-    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    border-top: 1px solid rgba(0,0,0,0.05);
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
     gap: 1rem;
-
-    @media (max-width: 768px) {
-      padding: 1rem;
-      flex-direction: column;
-
-      .footer-actions {
-        width: 100%;
-        display: flex;
-        gap: 1rem;
-
-        button {
-          flex: 1;
-        }
-      }
-    }
-
-    .footer-actions {
-      display: flex;
-      gap: 1rem;
-    }
   }
 }
 
-// Form Elements - Estilos base aumentados
-.form-label {
-  font-weight: 600;
-  color: #374151;
+.form-group-inline {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
   margin-bottom: 0.5rem;
-  font-size: $font-size-label;
-  display: block;
-
-  &.required-field::after {
-    content: ' *';
-    color: $color-danger;
-    font-size: 1.1rem;
+  .form-label-inline {
+    font-weight: 600;
+    color: #374151;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    width: 130px;
+    margin-bottom: 0;
+    &.required-field::after { content: ' *'; color: $color-danger; font-size: 1rem; }
   }
-}
-
-.form-control,
-.form-select {
-  border: 1px solid $color-primary-light;
-  @include border-radius($border-radius-base);
-  padding: $padding-base;
-  @include transition;
-  width: 100%;
-  font-size: $font-size-base;
-  line-height: 1.5;
-
-  &:focus {
-    border-color: $color-primary;
-    box-shadow: 0 0 0 0.25rem $color-primary-light;
-    outline: none;
+  .form-control-inline {
+    flex: 1;
+    border: 1px solid $color-primary-light;
+    @include border-radius(8px);
+    padding: 0.7rem 1rem;
+    @include transition;
+    font-size: 0.95rem;
+    background-color: white;
+    &:focus { border-color: $color-primary; box-shadow: 0 0 0 0.25rem $color-primary-light; outline: none; }
+    &.is-invalid { border-color: $color-danger; }
+    &:disabled { background-color: $color-gray-light; opacity: 0.7; cursor: not-allowed; }
   }
-
-  &.is-invalid {
-    border-color: $color-danger;
-
-    &:focus {
-      box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
-    }
-  }
-
-  &:read-only,
-  &:disabled {
-    background-color: $color-gray-light;
-    opacity: 0.7;
-  }
-}
-
-textarea.form-control {
-  resize: vertical;
-  min-height: 100px;
-}
-
-.input-group {
-  width: 100%;
-
-  .input-group-text {
+  .input-group-inline { flex: 1; display: flex; }
+  .input-group-text-inline {
     background-color: #f8f9fa;
     border: 1px solid $color-primary-light;
-    padding: $padding-base;
-    font-size: $font-size-base;
+    border-right: none;
+    padding: 0.7rem 1rem;
+    @include border-radius(8px 0 0 8px);
+  }
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    .form-label-inline { white-space: normal; width: auto; }
+    .form-control-inline, .input-group-inline { width: 100%; max-width: 100% !important; }
   }
 }
 
-.invalid-feedback {
-  display: block;
-  font-size: $font-size-small;
-  color: $color-danger;
-  margin-top: 0.3rem;
-}
-
-.text-muted {
-  font-size: $font-size-small;
-  margin-top: 0.3rem;
-  display: block;
-  color: $color-gray !important;
-}
-
-// Sub Card
-.sub-card {
-  background-color: #fefefe;
-  border: 1px solid $color-primary-light;
-  @include border-radius(10px);
-  overflow: hidden;
-  margin-bottom: 1.5rem;
-
-  .sub-card-header {
-    background: #f8f9fa;
-    padding: 0.9rem 1.2rem;
+.form-group-vertical {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin-bottom: 0.5rem;
+  .form-label {
     font-weight: 600;
-    color: $color-primary;
-    border-bottom: 1px solid $color-primary-light;
-    font-size: 1rem;
-    display: flex;
-    align-items: center;
-
-    .badge {
-      background-color: $color-gray;
-      color: white;
-      font-size: 0.75rem;
-      padding: 0.25rem 0.6rem;
-      border-radius: 20px;
-      margin-left: 0.6rem;
-    }
+    color: #374151;
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+    display: block;
+    &.required-field::after { content: ' *'; color: $color-danger; font-size: 1rem; }
   }
-
-  .sub-card-body {
-    padding: 1.2rem;
+  .form-control {
+    border: 1px solid $color-primary-light;
+    @include border-radius(8px);
+    padding: 0.7rem 1rem;
+    @include transition;
+    width: 100%;
+    font-size: 0.95rem;
+    &:focus { border-color: $color-primary; box-shadow: 0 0 0 0.25rem $color-primary-light; outline: none; }
+    &.is-invalid { border-color: $color-danger; }
+    &:disabled { background-color: $color-gray-light; opacity: 0.7; cursor: not-allowed; }
   }
+  textarea.form-control { resize: vertical; min-height: 100px; }
 }
 
 // Upload Container
@@ -366,31 +210,13 @@ textarea.form-control {
   border: 1px dashed $color-primary-light;
   @include border-radius(8px);
   padding: 0.8rem;
-  background-color: rgba(29, 78, 216, 0.03);
+  background-color: rgba(29,78,216,0.03);
   text-align: center;
   cursor: pointer;
   @include transition;
-
-  &:hover {
-    border-color: $color-primary;
-    background-color: rgba(29, 78, 216, 0.06);
-  }
-
-  &.invalid {
-    border-color: $color-danger;
-    background-color: rgba(220, 53, 69, 0.05);
-  }
-
-  .file-input {
-    position: absolute;
-    opacity: 0;
-    width: 100%;
-    height: 100%;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-  }
-
+  &:hover { border-color: $color-primary; background-color: rgba(29,78,216,0.06); }
+  &.invalid { border-color: $color-danger; background-color: rgba(220,53,69,0.05); }
+  .file-input { position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer; top: 0; left: 0; }
   .upload-label {
     display: inline-block;
     padding: 0.5rem 1rem;
@@ -401,89 +227,27 @@ textarea.form-control {
     font-weight: 500;
     font-size: 0.85rem;
     @include transition;
-
-    &:hover {
-      background-color: $color-primary-dark;
-    }
+    &:hover { background-color: $color-primary-dark; }
   }
-
-  .file-name {
-    margin-top: 0.5rem;
-    font-size: 0.85rem;
-  }
+  .file-name { margin-top: 0.5rem; font-size: 0.85rem; }
 }
 
-// Resumen Financiero
 .resumen-financiero {
   background: linear-gradient(135deg, $color-primary 0%, $color-primary-dark 100%);
   @include border-radius(10px);
   padding: 1.2rem;
-
-  h6 {
-    font-size: 1rem;
-  }
-
-  .resumen-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 0.6rem 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-
-    &:last-child {
-      border-bottom: none;
-    }
-
-    .label {
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 0.9rem;
-    }
-
-    .value {
-      color: white;
-      font-weight: 600;
-      font-size: 1rem;
-    }
-
-    &.total {
-      padding-top: 0.8rem;
-      margin-top: 0.5rem;
-      border-top: 1px solid rgba(255, 255, 255, 0.3);
-
-      .label,
-      .value {
-        font-size: 1.1rem;
-        font-weight: 700;
-      }
-    }
-  }
+  color: white;
+  .text-white-50 { color: rgba(255,255,255,0.7); }
 }
 
-// Checkbox
 .form-check {
   display: flex;
   align-items: center;
   margin-bottom: 1rem;
-
-  .form-check-input {
-    cursor: pointer;
-    width: 1.2rem;
-    height: 1.2rem;
-    margin: 0;
-
-    &:checked {
-      background-color: $color-primary;
-      border-color: $color-primary;
-    }
-  }
-
-  .form-check-label {
-    cursor: pointer;
-    margin-left: 0.6rem;
-    font-size: 0.95rem;
-  }
+  .form-check-input { cursor: pointer; width: 1.2rem; height: 1.2rem; margin: 0; &:checked { background-color: $color-primary; border-color: $color-primary; } }
+  .form-check-label { cursor: pointer; margin-left: 0.6rem; font-size: 0.95rem; }
 }
 
-// Buttons
 .btn {
   padding: 0.6rem 1.5rem;
   @include border-radius(8px);
@@ -492,421 +256,110 @@ textarea.form-control {
   @include transition;
   cursor: pointer;
   border: none;
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+  &.btn-primary { background: $color-primary; color: white; &:hover:not(:disabled) { background: $color-primary-dark; } }
+  &.btn-success { background: $color-success; color: white; &:hover:not(:disabled) { background: #059669; } }
+  &.btn-outline-secondary { background: transparent; border: 1px solid $color-gray; color: $color-gray; &:hover { background-color: $color-gray-light; } }
+  &.btn-outline-danger { background: transparent; border: 1px solid $color-danger; color: $color-danger; &:hover { background-color: rgba(220,53,69,0.1); } }
+}
 
-  @media (max-width: 768px) {
-    padding: 0.55rem 1.2rem;
-    font-size: 0.9rem;
-  }
+// ============================================
+// ESTILOS PARA DOCUMENTOS (PASO 3)
+// ============================================
 
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
+.documento-selector {
+  .form-label { font-weight: 600; margin-bottom: 0.5rem; }
+  .d-flex { gap: 1rem; select { flex: 1; } button { white-space: nowrap; } }
+  @media (max-width: 768px) { .d-flex { flex-direction: column; select, button { width: 100%; } } }
+}
 
-  &.btn-primary {
-    background: $color-primary;
-    color: white;
+.drag-drop-area {
+  border: 2px dashed $color-primary;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  background-color: $color-primary-light;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  &.dragging { background-color: rgba(29, 78, 216, 0.2); border-color: $color-primary-dark; transform: scale(1.02); }
+  .drag-drop-content { i { color: $color-primary; } h6 { margin-bottom: 0.5rem; color: $color-primary-dark; } p { margin-bottom: 0.25rem; font-size: 0.9rem; } small { color: $color-gray; } }
+}
 
-    &:hover:not(:disabled) {
-      background: $color-primary-dark;
+.documentos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+  @media (max-width: 768px) { grid-template-columns: 1fr; }
+}
+
+.documento-card {
+  background: white;
+  border: 1px solid $color-success-light;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  &:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: translateY(-2px); }
+  .documento-header {
+    background: $color-success-light;
+    padding: 0.8rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    i { font-size: 1.2rem; }
+    .documento-titulo {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: $color-success;
+      .required-badge { background: $color-danger; color: white; font-size: 0.7rem; padding: 0.2rem 0.4rem; border-radius: 4px; margin-left: 0.5rem; }
+      .opcional-badge { background: $color-gray; color: white; font-size: 0.7rem; padding: 0.2rem 0.4rem; border-radius: 4px; margin-left: 0.5rem; }
     }
   }
-
-  &.btn-success {
-    background: $color-success;
-    color: white;
-
-    &:hover:not(:disabled) {
-      background: #059669;
-    }
-  }
-
-  &.btn-outline-secondary {
-    background: transparent;
-    border: 1px solid $color-gray;
-    color: $color-gray;
-
-    &:hover {
-      background-color: $color-gray-light;
-    }
-  }
-
-  &.btn-outline-danger {
-    background: transparent;
-    border: 1px solid $color-danger;
-    color: $color-danger;
-
-    &:hover {
-      background-color: rgba(220, 53, 69, 0.1);
-    }
+  .documento-body { padding: 0.8rem 1rem; }
+  .documento-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    .info-row { display: flex; justify-content: space-between; font-size: 0.75rem; .info-label { font-weight: 600; color: $color-gray; } .info-value { font-weight: 500; color: $color-primary-dark; word-break: break-all; text-align: right; max-width: 60%; } }
   }
 }
+
+.documento-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  justify-content: flex-end;
+  .btn-download { padding: 0.3rem 0.6rem; background-color: $color-primary; color: white; border: none; border-radius: 6px; font-size: 0.7rem; cursor: pointer; transition: all 0.3s ease; &:hover { background-color: $color-primary-dark; transform: translateY(-1px); } }
+  .btn-remove { padding: 0.3rem 0.6rem; background-color: $color-danger; color: white; border: none; border-radius: 6px; font-size: 0.7rem; cursor: pointer; transition: all 0.3s ease; &:hover { background-color: darken($color-danger, 10%); transform: translateY(-1px); } }
+}
+
+.documentos-resumen {
+  background: $color-primary-light;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-top: 1rem;
+  .resumen-header { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: $color-primary-dark; margin-bottom: 0.75rem; }
+  .progress-bar-container { background: #e9ecef; border-radius: 10px; height: 8px; overflow: hidden; margin-bottom: 0.75rem; .progress-bar { background: $color-success; height: 100%; border-radius: 10px; transition: width 0.3s ease; } }
+  .resumen-stats { display: flex; justify-content: space-between; font-size: 0.85rem; color: $color-primary-dark; .porcentaje { font-weight: 700; color: $color-success; } }
+}
+
+// Tabla de documentos del contratista
+.table {
+  font-size: 0.85rem;
+  th, td { vertical-align: middle; padding: 0.75rem; }
+  .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+}
+.badge.bg-info { background-color: $color-primary !important; }
 
 // Scrollbar
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 5px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: $color-primary;
-  border-radius: 5px;
-
-  &:hover {
-    background: $color-primary-dark;
-  }
-}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 5px; }
+::-webkit-scrollbar-thumb { background: $color-primary; border-radius: 5px; &:hover { background: $color-primary-dark; } }
 
 // Animations
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-
-.card,
-.sub-card {
-  animation: fadeIn 0.3s ease-out;
-}
-
-// ============================================
-// ESTILOS PARA FORMULARIOS INLINE - TAMAÑOS AUMENTADOS
-// ============================================
-
-.form-group-inline {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  width: 100%;
-  margin-bottom: 0.5rem;
-
-  .form-label-inline {
-    font-weight: 600;
-    color: #374151;
-    font-size: 0.95rem;
-    white-space: nowrap;
-    width: 130px; // Aumentado de 100px a 130px
-    margin-bottom: 0;
-
-    &.required-field::after {
-      content: ' *';
-      color: $color-danger;
-      font-size: 1rem;
-    }
-  }
-
-  .form-control-inline {
-    flex: 1;
-    border: 1px solid $color-primary-light;
-    @include border-radius(8px);
-    padding: 0.7rem 1rem; // Aumentado
-    @include transition;
-    font-size: 0.95rem;
-    background-color: white;
-    line-height: 1.4;
-    
-    // Tamaños específicos aumentados en 50%
-    &[formControlName="vigencia"] {
-      max-width: 110px; // Antes 80px
-    }
-    
-    &[formControlName="numeroContrato"] {
-      max-width: 240px; // Antes 180px
-    }
-    
-    &[formControlName="tipoContrato"] {
-      max-width: 260px; // Antes 200px
-    }
-    
-    &[formControlName="supervisor"] {
-      max-width: 260px; // Antes 200px
-    }
-    
-    &[formControlName="tipoIdentificacion"] {
-      max-width: 130px; // Antes 100px
-    }
-    
-    &[formControlName="numeroIdentificacion"] {
-      max-width: 180px; // Antes 140px
-    }
-    
-    &[formControlName="nombreRazonSocial"] {
-      max-width: 380px; // Antes 280px
-    }
-    
-    &[formControlName="telefono"] {
-      max-width: 170px; // Antes 130px
-    }
-    
-    &[formControlName="email"] {
-      max-width: 300px; // Antes 220px
-    }
-    
-    &[formControlName="plazoDias"] {
-      max-width: 130px; // Antes 100px
-    }
-    
-    &[formControlName="fechaInicio"],
-    &[formControlName="fechaTerminacion"],
-    &[formControlName="fechaFirma"],
-    &[formControlName="fechaDesembolsoAnticipo"] {
-      max-width: 190px; // Antes 150px
-    }
-    
-    &[formControlName="cdp"],
-    &[formControlName="rp"] {
-      max-width: 270px; // Antes 200px
-    }
-    
-    &[formControlName="porcentajeAnticipo"] {
-      max-width: 130px; // Antes 100px
-    }
-    
-    &[formControlName="polizaCumplimientoNumero"],
-    &[formControlName="polizaCalidadNumero"],
-    &[formControlName="polizaRCNumero"] {
-      max-width: 240px; // Antes 180px
-    }
-    
-    &[formControlName="polizaCumplimientoAseguradora"],
-    &[formControlName="polizaCalidadAseguradora"],
-    &[formControlName="polizaRCAseguradora"] {
-      max-width: 270px; // Antes 200px
-    }
-    
-    &[formControlName="polizaCumplimientoValor"],
-    &[formControlName="polizaCalidadValor"],
-    &[formControlName="polizaRCValor"] {
-      max-width: 240px; // Antes 180px
-    }
-    
-    &[formControlName="polizaCumplimientoVigenciaDesde"],
-    &[formControlName="polizaCumplimientoVigenciaHasta"],
-    &[formControlName="polizaCalidadVigenciaDesde"],
-    &[formControlName="polizaCalidadVigenciaHasta"],
-    &[formControlName="polizaRCVigenciaDesde"],
-    &[formControlName="polizaRCVigenciaHasta"] {
-      max-width: 170px; // Antes 130px
-    }
-
-    &:focus {
-      border-color: $color-primary;
-      box-shadow: 0 0 0 0.25rem $color-primary-light;
-      outline: none;
-    }
-
-    &.is-invalid {
-      border-color: $color-danger;
-
-      &:focus {
-        box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
-      }
-    }
-
-    &:read-only,
-    &:disabled {
-      background-color: $color-gray-light;
-      opacity: 0.7;
-    }
-  }
-
-  select.form-control-inline {
-    cursor: pointer;
-    background-color: white;
-  }
-
-  .input-group-inline {
-    flex: 1;
-    display: flex;
-    
-    .input-group-text-inline {
-      background-color: #f8f9fa;
-      border: 1px solid $color-primary-light;
-      border-right: none;
-      padding: 0.7rem 1rem;
-      font-size: 0.95rem;
-      @include border-radius(8px 0 0 8px);
-    }
-    
-    .form-control-inline {
-      flex: 1;
-      border-radius: 0 8px 8px 0;
-      
-      &[formControlName="valor"],
-      &[formControlName="adiciones"],
-      &[formControlName="valorAnticipo"],
-      &[formControlName="polizaCumplimientoValor"],
-      &[formControlName="polizaCalidadValor"],
-      &[formControlName="polizaRCValor"] {
-        max-width: 340px; // Antes 250px
-      }
-    }
-  }
-
-  .invalid-feedback {
-    display: block;
-    font-size: 0.8rem;
-    color: $color-danger;
-    margin-top: 0.3rem;
-    width: 100%;
-  }
-
-  .text-muted {
-    font-size: 0.8rem;
-    margin-top: 0.3rem;
-    display: block;
-    width: 100%;
-    color: $color-gray !important;
-  }
-}
-
-// Form Group Vertical (para campos grandes como Objeto del Contrato)
-.form-group-vertical {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  margin-bottom: 0.5rem;
-
-  .form-label {
-    font-weight: 600;
-    color: #374151;
-    margin-bottom: 0.5rem;
-    font-size: 0.95rem;
-    display: block;
-
-    &.required-field::after {
-      content: ' *';
-      color: $color-danger;
-      font-size: 1rem;
-    }
-  }
-
-  .form-control {
-    border: 1px solid $color-primary-light;
-    @include border-radius(8px);
-    padding: 0.7rem 1rem;
-    @include transition;
-    width: 100%;
-    font-size: 0.95rem;
-    line-height: 1.5;
-
-    &:focus {
-      border-color: $color-primary;
-      box-shadow: 0 0 0 0.25rem $color-primary-light;
-      outline: none;
-    }
-
-    &.is-invalid {
-      border-color: $color-danger;
-
-      &:focus {
-        box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
-      }
-    }
-  }
-
-  textarea.form-control {
-    resize: vertical;
-    min-height: 100px;
-  }
-}
-
-// Ajustes para los contenedores de las columnas
-.row [class*="col-"] {
-  .form-group-inline {
-    width: 100%;
-  }
-}
-
-// Espaciado entre filas
-.row {
-  margin-bottom: 0.5rem;
-  
-  .mb-3 {
-    margin-bottom: 1rem !important;
-  }
-}
-
-// Responsive para tablet y mobile
-@media (max-width: 992px) {
-  .form-group-inline {
-    .form-label-inline {
-      width: 110px;
-    }
-    
-    .form-control-inline {
-      &[formControlName="nombreRazonSocial"] {
-        max-width: 100%;
-      }
-      
-      &[formControlName="email"] {
-        max-width: 100%;
-      }
-    }
-  }
-}
-
-@media (max-width: 768px) {
-  .form-group-inline {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-
-    .form-label-inline {
-      white-space: normal;
-      margin-bottom: 0.4rem;
-      width: auto;
-    }
-
-    .form-control-inline,
-    .input-group-inline {
-      width: 100%;
-      max-width: 100% !important;
-    }
-  }
-  
-  .section-title {
-    font-size: 1.1rem;
-  }
-  
-  .card .card-body {
-    padding: 1rem;
-  }
-}
-
-// Mejoras para inputs de tipo número
-input[type="number"] {
-  -moz-appearance: textfield;
-  
-  &::-webkit-inner-spin-button,
-  &::-webkit-outer-spin-button {
-    opacity: 0.5;
-  }
-}
-
-// Placeholder styling
-::placeholder {
-  color: #9ca3af;
-  opacity: 1;
-  font-size: 0.9rem;
-}
-
-:-ms-input-placeholder {
-  color: #9ca3af;
-}
-
-::-ms-input-placeholder {
-  color: #9ca3af;
-}
+.card, .sub-card, .documento-card { animation: fadeIn 0.3s ease-out; }

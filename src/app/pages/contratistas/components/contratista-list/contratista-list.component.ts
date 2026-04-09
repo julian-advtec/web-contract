@@ -17,6 +17,8 @@ export class ContratistaListComponent implements OnInit {
   contratistasFiltrados: Contratista[] = [];
   isLoading = true;
   terminoBusqueda = '';
+  errorMessage = '';
+  successMessage = '';
 
   constructor(
     private router: Router,
@@ -29,6 +31,7 @@ export class ContratistaListComponent implements OnInit {
 
   cargarContratistas(): void {
     this.isLoading = true;
+    this.errorMessage = '';
     this.contratistaService.obtenerTodos().subscribe({
       next: (contratistas) => {
         this.contratistas = contratistas;
@@ -37,6 +40,7 @@ export class ContratistaListComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error cargando contratistas:', error);
+        this.errorMessage = 'Error al cargar la lista de contratistas';
         this.isLoading = false;
       }
     });
@@ -51,10 +55,10 @@ export class ContratistaListComponent implements OnInit {
 
     this.contratistasFiltrados = this.contratistas.filter(c => 
       c.documentoIdentidad?.toLowerCase().includes(term) ||
-      (c.razonSocial || c.nombreCompleto || '').toLowerCase().includes(term) ||
-      c.representanteLegal?.toLowerCase().includes(term) ||
-      c.email?.toLowerCase().includes(term) ||
-      c.telefono?.toLowerCase().includes(term)
+      (c.razonSocial || '').toLowerCase().includes(term) ||
+      (c.representanteLegal || '').toLowerCase().includes(term) ||
+      (c.email || '').toLowerCase().includes(term) ||
+      (c.telefono || '').toLowerCase().includes(term)
     );
   }
 
@@ -94,15 +98,31 @@ export class ContratistaListComponent implements OnInit {
   cambiarEstado(contratista: Contratista): void {
     const nuevoEstado = contratista.estado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO';
     const mensaje = contratista.estado === 'ACTIVO' 
-      ? `¿Está seguro de desactivar a "${contratista.razonSocial || contratista.nombreCompleto}"?`
-      : `¿Está seguro de activar a "${contratista.razonSocial || contratista.nombreCompleto}"?`;
+      ? `¿Está seguro de desactivar a "${contratista.razonSocial}"?`
+      : `¿Está seguro de activar a "${contratista.razonSocial}"?`;
     
     if (confirm(mensaje)) {
       const updateData: any = { estado: nuevoEstado };
       this.contratistaService.actualizarContratista(contratista.id, updateData).subscribe({
-        next: () => this.cargarContratistas(),
-        error: (error) => console.error('Error cambiando estado:', error)
+        next: () => {
+          this.successMessage = `Contratista ${nuevoEstado === 'ACTIVO' ? 'activado' : 'desactivado'} exitosamente`;
+          this.cargarContratistas();
+          setTimeout(() => this.successMessage = '', 3000);
+        },
+        error: (error) => {
+          console.error('Error cambiando estado:', error);
+          this.errorMessage = 'Error al cambiar el estado del contratista';
+          setTimeout(() => this.errorMessage = '', 3000);
+        }
       });
     }
+  }
+
+  dismissError(): void {
+    this.errorMessage = '';
+  }
+
+  dismissSuccess(): void {
+    this.successMessage = '';
   }
 }
