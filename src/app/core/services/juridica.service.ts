@@ -47,16 +47,50 @@ export class JuridicaService {
       });
     }
 
+    console.log('📡 Obteniendo contratos desde:', this.apiUrl);
+
     return this.http.get<any>(this.apiUrl, { headers, params }).pipe(
       map(response => {
+        console.log('📥 Respuesta completa de contratos:', response);
+
+        // ✅ La respuesta tiene estructura: { success: true, count: 3, data: [...] }
         if (response && response.success === true && Array.isArray(response.data)) {
+          console.log(`✅ ${response.data.length} contratos encontrados en response.data`);
           return response.data;
         }
-        if (Array.isArray(response)) return response;
-        if (response && response.data && Array.isArray(response.data)) return response.data;
+
+        // ✅ Otra estructura posible: { ok: true, data: [...] }
+        if (response && response.ok === true && Array.isArray(response.data)) {
+          console.log(`✅ ${response.data.length} contratos encontrados en response.data (ok)`);
+          return response.data;
+        }
+
+        // ✅ Otra estructura: { data: { data: [...] } }
+        if (response && response.data && response.data.data && Array.isArray(response.data.data)) {
+          console.log(`✅ ${response.data.data.length} contratos encontrados en response.data.data`);
+          return response.data.data;
+        }
+
+        // ✅ Si es directamente un array
+        if (Array.isArray(response)) {
+          console.log(`✅ ${response.length} contratos encontrados (array directo)`);
+          return response;
+        }
+
+        console.warn('⚠️ Estructura de respuesta no reconocida:', response);
         return [];
       }),
-      catchError(this.handleError.bind(this))
+      catchError((error: HttpErrorResponse) => {
+        console.error('❌ Error en petición de contratos:', error);
+        if (error.status === 401) {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('token');
+          this.router.navigate(['/auth/login']);
+          return throwError(() => new Error('Tu sesión ha expirado. Por favor inicia sesión nuevamente.'));
+        }
+        const errorMsg = error.error?.message || error.message || 'Error al cargar los contratos';
+        return throwError(() => new Error(errorMsg));
+      })
     );
   }
 
@@ -76,8 +110,23 @@ export class JuridicaService {
     const headers = this.getAuthHeaders();
     return this.http.post<any>(`${this.apiUrl}/contratos`, createContratoDto, { headers }).pipe(
       map(response => {
-        if (response && response.success === true && response.data) return response.data;
-        if (response && response.id) return response;
+        console.log('📥 Respuesta de creación:', response);
+
+        // ✅ La respuesta tiene estructura: { success: true, data: {...} }
+        if (response && response.success === true && response.data) {
+          return response.data;
+        }
+
+        // ✅ Otra estructura: { data: {...} }
+        if (response && response.data) {
+          return response.data;
+        }
+
+        // ✅ Si el response es directamente el contrato
+        if (response && response.id) {
+          return response;
+        }
+
         throw new Error('Respuesta inválida del servidor');
       }),
       catchError(this.handleError.bind(this))
@@ -210,29 +259,49 @@ export class JuridicaService {
 
   buscarContratistaPorNumeroContrato(numeroContrato: string): Observable<any> {
     const headers = this.getAuthHeaders();
-    // Asegúrate que la URL sea correcta
-    return this.http.get<any>(`${environment.apiUrl}/contratistas/buscar-por-contrato/${numeroContrato}`, { headers }).pipe(
+    const url = `${environment.apiUrl}/juridica/contratistas/buscar-por-contrato/${encodeURIComponent(numeroContrato)}`;
+
+    console.log('📡 Buscando contratista por contrato:', url);
+
+    return this.http.get<any>(url, { headers }).pipe(
       map(response => {
-        console.log('📥 Respuesta de búsqueda:', response);
-        if (response?.ok === true && response?.data?.data) return response.data.data;
-        if (response?.data?.data) return response.data.data;
+        console.log('📥 Respuesta completa:', JSON.stringify(response, null, 2));
+
+        // Extraer el contratista de la estructura anidada
+        // response.data.data.data es donde está el contratista
+        let contratista = null;
+
+        if (response?.data?.data?.data) {
+          contratista = response.data.data.data;
+        } else if (response?.data?.data && response.data.data.id) {
+          contratista = response.data.data;
+        } else if (response?.data && response.data.id) {
+          contratista = response.data;
+        }
+
+        if (contratista && contratista.id) {
+          console.log(`✅ Contratista encontrado: ${contratista.razonSocial}, Documentos: ${contratista.documentos?.length || 0}`);
+          return contratista;
+        }
+
+        console.warn('⚠️ No se encontró contratista con el número:', numeroContrato);
         return null;
       }),
       catchError((error) => {
-        console.error('❌ Error en búsqueda:', error);
+        console.error('❌ Error en búsqueda por contrato:', error);
         return of(null);
       })
     );
   }
 
-autocompleteContratos(termino: string): Observable<any[]> {
-  const headers = this.getAuthHeaders();
-  if (!termino || termino.trim().length < 2) return of([]);
-  
-  return this.http.get<any>(`${environment.apiUrl}/contratistas/autocomplete/contratos?q=${encodeURIComponent(termino)}`, { headers }).pipe(
-    map(response => response?.ok === true && response?.data?.data ? response.data.data : []),
-    catchError(() => of([]))
-  );
-}
-  
+  autocompleteContratos(termino: string): Observable<any[]> {
+    const headers = this.getAuthHeaders();
+    if (!termino || termino.trim().length < 2) return of([]);
+
+    return this.http.get<any>(`${environment.apiUrl}/contratistas/autocomplete/contratos?q=${encodeURIComponent(termino)}`, { headers }).pipe(
+      map(response => response?.ok === true && response?.data?.data ? response.data.data : []),
+      catchError(() => of([]))
+    );
+  }
+
 }

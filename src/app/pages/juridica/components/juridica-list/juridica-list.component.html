@@ -1,3 +1,4 @@
+<!-- src/app/pages/juridica/components/juridica-list/juridica-list.component.html -->
 <div class="juridica-list-container" [class.sidebar-collapsed]="sidebarCollapsed">
   <div class="juridica-list-inner">
 
@@ -25,181 +26,190 @@
     </div>
 
     <!-- Filtros -->
-    <div class="filters-container mb-4">
-      <div class="row g-3">
-        <div class="col-md-3">
-          <select class="form-select" [(ngModel)]="filtroVigencia" (change)="aplicarFiltros()">
-            <option value="">Todas las vigencias</option>
-            <option *ngFor="let vig of vigencias" [value]="vig">{{ vig }}</option>
-          </select>
-        </div>
-        <div class="col-md-3">
-          <select class="form-select" [(ngModel)]="filtroEstado" (change)="aplicarFiltros()">
-            <option value="">Todos los estados</option>
-            <option value="BORRADOR">Borrador</option>
-            <option value="EN_APROBACION">En Aprobación</option>
-            <option value="FIRMADO">Firmado</option>
-            <option value="EN_EJECUCION">En Ejecución</option>
-            <option value="TERMINADO">Terminado</option>
-            <option value="LIQUIDADO">Liquidado</option>
-          </select>
-        </div>
-        <div class="col-md-3">
-          <button class="btn btn-outline-secondary w-100" (click)="limpiarFiltros()">
-            <i class="fas fa-eraser me-2"></i>Limpiar Filtros
-          </button>
-        </div>
+    <div class="filters-bar mt-3 mb-3">
+      <div class="filters-container">
+        <select class="form-select form-select-sm" [(ngModel)]="filtroVigencia" (change)="aplicarFiltros()">
+          <option value="">Todas las vigencias</option>
+          <option *ngFor="let vig of vigencias" [value]="vig">{{ vig }}</option>
+        </select>
+        <select class="form-select form-select-sm" [(ngModel)]="filtroEstado" (change)="aplicarFiltros()">
+          <option value="">Todos los estados</option>
+          <option value="ACTIVO">Activo</option>
+          <option value="INACTIVO">Inactivo</option>
+        </select>
+        <button class="btn btn-outline-secondary btn-sm" (click)="limpiarFiltros()">
+          <i class="fas fa-eraser me-1"></i> Limpiar
+        </button>
       </div>
     </div>
 
     <!-- Mensajes -->
-    <div *ngIf="showError" class="alert alert-danger mt-2 d-flex justify-content-between align-items-center">
-      <span>{{ errorMessage }}</span>
+    <div *ngIf="showError" class="alert alert-danger mt-2 alert-dismissible fade show">
+      <i class="fas fa-exclamation-triangle me-2"></i>
+      {{ errorMessage }}
       <button type="button" class="btn-close" (click)="dismissError()"></button>
     </div>
 
-    <div *ngIf="showSuccess" class="alert alert-success mt-2 d-flex justify-content-between align-items-center">
-      <span>{{ successMessage }}</span>
+    <div *ngIf="showSuccess" class="alert alert-success mt-2 alert-dismissible fade show">
+      <i class="fas fa-check-circle me-2"></i>
+      {{ successMessage }}
       <button type="button" class="btn-close" (click)="dismissSuccess()"></button>
     </div>
 
-    <!-- Contenido principal -->
-    <div class="card shadow main-card">
+    <!-- Loading -->
+    <div *ngIf="isLoading" class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+      <p class="mt-2 text-muted">Cargando contratos...</p>
+    </div>
+
+    <!-- Lista de contratos -->
+    <div *ngIf="!isLoading" class="card shadow main-card mt-3">
       <div class="card-body p-0">
 
-        <!-- Loading -->
-        <div *ngIf="isLoading" class="text-center py-5">
-          <div class="spinner-border text-primary"></div>
-          <p class="mt-2">Cargando contratos...</p>
-        </div>
-
-        <!-- Empty State -->
-        <div *ngIf="!isLoading && filteredContratos.length === 0" class="text-center py-5">
+        <!-- Sin resultados -->
+        <div *ngIf="filteredContratos.length === 0" class="text-center py-5">
           <i class="fas fa-file-contract fa-3x text-muted mb-3"></i>
-
-          <h5 class="text-muted" *ngIf="searchTerm || filtroVigencia || filtroEstado">
-            No se encontraron resultados para los filtros aplicados
+          <h5 class="text-muted" *ngIf="searchTerm">
+            No se encontraron resultados para "{{ searchTerm }}"
           </h5>
-
-          <h5 class="text-muted" *ngIf="!searchTerm && !filtroVigencia && !filtroEstado">
+          <h5 class="text-muted" *ngIf="!searchTerm">
             No hay contratos registrados
           </h5>
-
           <button class="btn btn-primary mt-3" (click)="nuevoContrato()">
             <i class="fas fa-plus me-2"></i> Nuevo Contrato
           </button>
         </div>
 
         <!-- Lista de contratos -->
-        <div *ngIf="!isLoading && filteredContratos.length > 0" class="table-responsive">
-          <table class="table table-hover mb-0">
-            <thead class="table-light">
-              <tr>
-                <th>Contrato</th>
-                <th>Vigencia</th>
-                <th>Proveedor</th>
-                <th>Objeto</th>
-                <th>Valor Total</th>
-                <th>Fechas</th>
-                <th>Estado</th>
-                <th class="text-end">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let contrato of paginatedContratos" 
-                  [class.table-warning]="esContratoCritico(contrato)">
-                <td>
-                  <strong>{{ contrato.numeroContrato }}</strong>
-                </td>
-                <td>{{ contrato.vigencia }}</td>
-                <td>
-                  <div>{{ contrato.proveedor.nombreRazonSocial }}</div>
-                  <small class="text-muted">{{ contrato.proveedor.numeroIdentificacion }}</small>
-                </td>
-                <td>
-                  <div class="objeto-cell" [title]="contrato.objeto">
-                    {{ contrato.objeto | slice:0:60 }}{{ contrato.objeto.length > 60 ? '...' : '' }}
-                  </div>
-                </td>
-                <td>
-                  <strong class="text-primary">{{ formatearMoneda(contrato.valorTotal) }}</strong>
-                  <div *ngIf="contrato.adiciones > 0" class="small text-success">
-                    + Adic: {{ formatearMoneda(contrato.adiciones) }}
-                  </div>
-                </td>
-                <td>
-                  <div class="small">
-                    <i class="far fa-calendar-alt me-1 text-muted"></i>
-                    Inicio: {{ formatearFecha(contrato.fechaInicio) }}
-                  </div>
-                  <div class="small">
-                    <i class="far fa-calendar-times me-1 text-muted"></i>
-                    Fin: {{ formatearFecha(contrato.fechaTerminacion) }}
-                  </div>
-                  <div *ngIf="getDiasRestantes(contrato.fechaTerminacion) !== null" 
-                       class="small fw-bold"
-                       [ngClass]="{
-                         'text-success': getDiasRestantes(contrato.fechaTerminacion)! > 30,
-                         'text-warning': getDiasRestantes(contrato.fechaTerminacion)! <= 30 && getDiasRestantes(contrato.fechaTerminacion)! > 15,
-                         'text-danger': getDiasRestantes(contrato.fechaTerminacion)! <= 15
-                       }">
-                    <i class="far fa-clock me-1"></i>
-                    {{ getDiasRestantes(contrato.fechaTerminacion) }} días
-                  </div>
-                </td>
-                <td>
-                  <span class="badge" [ngClass]="getEstadoClass(contrato.estado)">
-                    {{ getEstadoTexto(contrato.estado) }}
-                  </span>
-                </td>
-                <td class="text-end">
-                  <div class="btn-group" role="group">
-                    <button class="btn btn-sm btn-outline-primary" 
-                            (click)="verDetalle(contrato)"
-                            title="Ver detalle">
-                      <i class="fas fa-eye"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-success" 
-                            (click)="editarContrato(contrato)"
-                            title="Editar">
-                      <i class="fas fa-edit"></i>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <div *ngIf="filteredContratos.length > 0" class="contracts-list-container">
 
-        <!-- Paginación -->
-        <div *ngIf="totalPages > 1" class="card-footer d-flex justify-content-between align-items-center">
-          <div class="text-muted small">
-            Mostrando {{ (currentPage - 1) * pageSize + 1 }} - 
-            {{ Math.min(currentPage * pageSize, filteredContratos.length) }} de 
-            {{ filteredContratos.length }} contratos
+          <!-- Header de la tabla -->
+          <div class="contracts-header">
+            <div class="header-item">Contrato</div>
+            <div class="header-item">Vigencia</div>
+            <div class="header-item">Proveedor</div>
+            <div class="header-item">Objeto</div>
+            <div class="header-item">Valor Total</div>
+            <div class="header-item">Fechas</div>
+            <div class="header-item">Acciones</div>
           </div>
-          
-          <nav>
-            <ul class="pagination mb-0">
-              <li class="page-item" [class.disabled]="currentPage === 1">
-                <button class="page-link" (click)="changePage(currentPage - 1)">
+
+          <!-- Filas de contratos -->
+          <div class="contracts-list">
+            <div *ngFor="let contrato of paginatedContratos" class="contract-card">
+
+              <!-- Número Contrato -->
+              <div class="contract-number">
+                <span class="number-badge">
+                  {{ contrato.numeroContrato }}
+                </span>
+              </div>
+
+              <!-- Vigencia -->
+              <div class="contract-vigencia">
+                {{ contrato.vigencia }}
+              </div>
+
+              <!-- Proveedor -->
+              <div class="contract-proveedor">
+                <div class="proveedor-nombre">{{ contrato.proveedor.nombreRazonSocial }}</div>
+                <div class="proveedor-documento">{{ contrato.proveedor.numeroIdentificacion }}</div>
+              </div>
+
+              <!-- Objeto -->
+              <div class="contract-objeto">
+                <div class="objeto-text" [title]="contrato.objeto">
+                  {{ contrato.objeto | slice:0:60 }}{{ contrato.objeto.length > 60 ? '...' : '' }}
+                </div>
+              </div>
+
+              <!-- Valor Total -->
+              <div class="contract-valor">
+                <div class="valor-total">{{ formatearMoneda(contrato.valorTotal) }}</div>
+                <div *ngIf="contrato.adiciones > 0" class="adiciones">
+                  + Adic: {{ formatearMoneda(contrato.adiciones) }}
+                </div>
+              </div>
+
+              <!-- Fechas -->
+              <div class="contract-fechas">
+                <div class="fecha-line">
+                  <i class="far fa-calendar-alt"></i>
+                  Inicio: {{ formatearFecha(contrato.fechaInicio) }}
+                </div>
+                <div class="fecha-line">
+                  <i class="far fa-calendar-times"></i>
+                  Fin: {{ formatearFecha(contrato.fechaTerminacion) }}
+                </div>
+                <div *ngIf="getDiasRestantes(contrato.fechaTerminacion) !== null" class="dias-restantes" [ngClass]="{
+                       'success': getDiasRestantes(contrato.fechaTerminacion)! > 30,
+                       'warning': getDiasRestantes(contrato.fechaTerminacion)! <= 30 && getDiasRestantes(contrato.fechaTerminacion)! > 15,
+                       'danger': getDiasRestantes(contrato.fechaTerminacion)! <= 15
+                     }">
+                  <i class="far fa-clock"></i>
+                  {{ getDiasRestantes(contrato.fechaTerminacion) }} días
+                </div>
+              </div>
+
+              <!-- Estado -->
+              <div class="contract-estado">
+                <span class="estado-badge"
+                  [ngClass]="{'active': getEstadoSimplificado(contrato.estado) === 'ACTIVO', 'inactive': getEstadoSimplificado(contrato.estado) === 'INACTIVO'}">
+                  <i class="fas" [class.fa-check-circle]="getEstadoSimplificado(contrato.estado) === 'ACTIVO'"
+                    [class.fa-times-circle]="getEstadoSimplificado(contrato.estado) === 'INACTIVO'">
+                  </i>
+                  {{ getEstadoSimplificado(contrato.estado) === 'ACTIVO' ? 'Activo' : 'Inactivo' }}
+                </span>
+              </div>
+
+              <!-- Acciones -->
+              <div class="contract-actions">
+                <div class="actions-buttons">
+                  <button class="btn-action btn-primary" title="Ver detalle" (click)="verDetalle(contrato)">
+                    <i class="fas fa-eye me-1"></i> Ver
+                  </button>
+                  <button class="btn-action btn-warning" title="Editar" (click)="editarContrato(contrato)">
+                    <i class="fas fa-edit me-1"></i> Editar
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Paginación -->
+          <div class="contracts-footer">
+            <div class="footer-content-row">
+              <div class="footer-empty"></div>
+
+              <div class="footer-pagination">
+                <button class="page-btn" [disabled]="currentPage === 1" (click)="changePage(currentPage - 1)">
                   <i class="fas fa-chevron-left"></i>
                 </button>
-              </li>
-              
-              <li *ngFor="let page of pages" class="page-item" [class.active]="page === currentPage">
-                <button class="page-link" (click)="changePage(page)">{{ page }}</button>
-              </li>
-              
-              <li class="page-item" [class.disabled]="currentPage === totalPages">
-                <button class="page-link" (click)="changePage(currentPage + 1)">
+
+                <span *ngFor="let page of pages" class="page-number" [class.active]="page === currentPage"
+                  (click)="changePage(page)">
+                  {{ page }}
+                </span>
+
+                <button class="page-btn" [disabled]="currentPage === totalPages" (click)="changePage(currentPage + 1)">
                   <i class="fas fa-chevron-right"></i>
                 </button>
-              </li>
-            </ul>
-          </nav>
+              </div>
+
+              <div class="footer-actions">
+                <span class="text-muted me-3">
+                  Mostrando {{ paginatedContratos.length }} de {{ filteredContratos.length }} contratos
+                </span>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
+
   </div>
 </div>

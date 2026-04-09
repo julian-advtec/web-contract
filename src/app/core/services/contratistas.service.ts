@@ -480,18 +480,54 @@ export class ContratistasService {
     );
   }
 
-  obtenerDocumentos(contratistaId: string): Observable<DocumentoContratista[]> {
-    const headers = this.getAuthHeaders();
-    return this.http.get<any>(`${this.apiUrl}/${contratistaId}/documentos`, { headers }).pipe(
-      map(response => {
-        if (response?.data?.data && Array.isArray(response.data.data)) {
-          return response.data.data;
-        }
-        return [];
-      }),
-      catchError(() => of([]))
-    );
-  }
+obtenerDocumentos(contratistaId: string): Observable<DocumentoContratista[]> {
+  const headers = this.getAuthHeaders();
+  return this.http.get<any>(`${this.apiUrl}/${contratistaId}/documentos`, { headers }).pipe(
+    map(response => {
+      console.log('📥 Respuesta de documentos - estructura completa:', response);
+      
+      // ✅ La respuesta tiene estructura: { ok: true, data: { success: true, data: [...] } }
+      // O puede ser: { ok: true, data: [...] }
+      
+      // Caso 1: response.ok === true y response.data.data es un array
+      if (response?.ok === true && response?.data?.data && Array.isArray(response.data.data)) {
+        console.log('✅ Documentos encontrados en response.data.data:', response.data.data.length);
+        return response.data.data;
+      }
+      
+      // Caso 2: response.ok === true y response.data es un array
+      if (response?.ok === true && response?.data && Array.isArray(response.data)) {
+        console.log('✅ Documentos encontrados en response.data:', response.data.length);
+        return response.data;
+      }
+      
+      // Caso 3: response.data.data es un array
+      if (response?.data?.data && Array.isArray(response.data.data)) {
+        console.log('✅ Documentos encontrados en data.data:', response.data.data.length);
+        return response.data.data;
+      }
+      
+      // Caso 4: response.data es un array
+      if (response?.data && Array.isArray(response.data)) {
+        console.log('✅ Documentos encontrados en data:', response.data.length);
+        return response.data;
+      }
+      
+      // Caso 5: response es directamente un array
+      if (Array.isArray(response)) {
+        console.log('✅ Documentos encontrados en respuesta directa:', response.length);
+        return response;
+      }
+      
+      console.warn('⚠️ Estructura de respuesta no reconocida:', response);
+      return [];
+    }),
+    catchError(error => {
+      console.error('❌ Error obteniendo documentos:', error);
+      return of([]);
+    })
+  );
+}
 
   descargarTodosDocumentos(contratistaId: string): Observable<Blob> {
     const headers = this.getFormDataHeaders();

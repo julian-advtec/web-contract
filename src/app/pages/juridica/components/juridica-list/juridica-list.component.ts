@@ -1,4 +1,5 @@
-import { Component, OnInit, Input } from '@angular/core'; // ✅ Agregar Input
+// src/app/pages/juridica/components/juridica-list/juridica-list.component.ts
+import { Component, OnInit, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
@@ -13,7 +14,7 @@ import { Contrato } from '../../../../core/models/juridica.model';
   styleUrls: ['./juridica-list.component.scss']
 })
 export class JuridicaListComponent implements OnInit {
-  @Input() sidebarCollapsed = false; // ✅ Agregar esta línea
+  @Input() sidebarCollapsed = false;
   
   Math = Math;
   
@@ -137,30 +138,32 @@ export class JuridicaListComponent implements OnInit {
     }
   }
 
-  getEstadoClass(estado: string): string {
-    const clases: Record<string, string> = {
-      'BORRADOR': 'bg-secondary',
-      'EN_APROBACION': 'bg-info',
-      'FIRMADO': 'bg-primary',
-      'EN_EJECUCION': 'bg-success',
-      'TERMINADO': 'bg-warning text-dark',
-      'LIQUIDADO': 'bg-dark',
-      'SUSPENDIDO': 'bg-danger'
-    };
-    return clases[estado] || 'bg-secondary';
+  // ✅ Método para simplificar el estado a ACTIVO/INACTIVO
+  getEstadoSimplificado(estado: string): string {
+    // Estados que consideramos ACTIVOS
+    const estadosActivos = ['FIRMADO', 'EN_EJECUCION', 'BORRADOR', 'EN_APROBACION'];
+    // Estados que consideramos INACTIVOS
+    const estadosInactivos = ['TERMINADO', 'LIQUIDADO', 'SUSPENDIDO'];
+    
+    if (estadosActivos.includes(estado)) {
+      return 'ACTIVO';
+    }
+    if (estadosInactivos.includes(estado)) {
+      return 'INACTIVO';
+    }
+    return 'ACTIVO'; // Por defecto
   }
 
+  // ✅ Método para obtener la clase CSS del estado
+  getEstadoClass(estado: string): string {
+    const estadoSimplificado = this.getEstadoSimplificado(estado);
+    return estadoSimplificado === 'ACTIVO' ? 'active' : 'inactive';
+  }
+
+  // ✅ Método para obtener el texto del estado
   getEstadoTexto(estado: string): string {
-    const textos: Record<string, string> = {
-      'BORRADOR': 'Borrador',
-      'EN_APROBACION': 'En Aprobación',
-      'FIRMADO': 'Firmado',
-      'EN_EJECUCION': 'En Ejecución',
-      'TERMINADO': 'Terminado',
-      'LIQUIDADO': 'Liquidado',
-      'SUSPENDIDO': 'Suspendido'
-    };
-    return textos[estado] || estado;
+    const estadoSimplificado = this.getEstadoSimplificado(estado);
+    return estadoSimplificado === 'ACTIVO' ? 'Activo' : 'Inactivo';
   }
 
   getDiasRestantes(fechaTerminacion: Date | string): number | null {
@@ -169,11 +172,6 @@ export class JuridicaListComponent implements OnInit {
     const fin = new Date(fechaTerminacion);
     const diff = Math.ceil((fin.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
     return diff > 0 ? diff : 0;
-  }
-
-  esContratoCritico(contrato: Contrato): boolean {
-    const dias = this.getDiasRestantes(contrato.fechaTerminacion);
-    return dias !== null && dias < 30;
   }
 
   formatearMoneda(valor: number): string {
