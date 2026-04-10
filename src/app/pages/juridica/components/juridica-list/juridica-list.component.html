@@ -3,7 +3,7 @@
   <div class="juridica-list-inner">
 
     <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="header-section">
       <h2 class="page-title">
         <i class="fas fa-file-contract me-2"></i>
         Lista de Contratos
@@ -14,20 +14,19 @@
       </button>
     </div>
 
-    <!-- Barra de búsqueda -->
-    <div class="search-container-smaller mb-4">
-      <div class="input-group">
-        <span class="input-group-text">
-          <i class="fas fa-search"></i>
-        </span>
-        <input type="text" class="form-control" placeholder="Buscar por contrato, proveedor, NIT u objeto..."
-          [(ngModel)]="searchTerm" (input)="onSearch()" />
+    <!-- Barra de búsqueda y filtros -->
+    <div class="search-filters-section">
+      <div class="search-container-smaller">
+        <div class="input-group">
+          <span class="input-group-text">
+            <i class="fas fa-search"></i>
+          </span>
+          <input type="text" class="form-control" placeholder="Buscar por contrato, proveedor, NIT u objeto..."
+            [(ngModel)]="searchTerm" (input)="onSearch()" />
+        </div>
       </div>
-    </div>
 
-    <!-- Filtros -->
-    <div class="filters-bar mt-3 mb-3">
-      <div class="filters-container">
+      <div class="filters-bar">
         <select class="form-select form-select-sm" [(ngModel)]="filtroVigencia" (change)="aplicarFiltros()">
           <option value="">Todas las vigencias</option>
           <option *ngFor="let vig of vigencias" [value]="vig">{{ vig }}</option>
@@ -93,7 +92,7 @@
             <div class="header-item">Objeto</div>
             <div class="header-item">Valor Total</div>
             <div class="header-item">Fechas</div>
-            <div class="header-item">Acciones</div>
+            <div class="header-item acciones-header">Acciones</div>
           </div>
 
           <!-- Filas de contratos -->
@@ -125,11 +124,16 @@
                 </div>
               </div>
 
-              <!-- Valor Total -->
-              <div class="contract-valor">
+              <!-- Valor Total con Adiciones debajo -->
+              <div class="contract-valor-wrapper">
                 <div class="valor-total">{{ formatearMoneda(contrato.valorTotal) }}</div>
-                <div *ngIf="contrato.adiciones > 0" class="adiciones">
-                  + Adic: {{ formatearMoneda(contrato.adiciones) }}
+                <div *ngIf="contrato.adiciones && contrato.adiciones > 0" class="adiciones">
+                  <i class="fas fa-plus-circle"></i>
+                  Adiciones: {{ formatearMoneda(contrato.adiciones) }}
+                </div>
+                <div *ngIf="!contrato.adiciones || contrato.adiciones === 0" class="sin-adiciones">
+                  <i class="fas fa-minus-circle"></i>
+                  Sin adiciones
                 </div>
               </div>
 
@@ -153,25 +157,21 @@
                 </div>
               </div>
 
-              <!-- Estado -->
-              <div class="contract-estado">
-                <span class="estado-badge"
-                  [ngClass]="{'active': getEstadoSimplificado(contrato.estado) === 'ACTIVO', 'inactive': getEstadoSimplificado(contrato.estado) === 'INACTIVO'}">
-                  <i class="fas" [class.fa-check-circle]="getEstadoSimplificado(contrato.estado) === 'ACTIVO'"
-                    [class.fa-times-circle]="getEstadoSimplificado(contrato.estado) === 'INACTIVO'">
-                  </i>
-                  {{ getEstadoSimplificado(contrato.estado) === 'ACTIVO' ? 'Activo' : 'Inactivo' }}
-                </span>
-              </div>
-
-              <!-- Acciones -->
-              <div class="contract-actions">
-                <div class="actions-buttons">
+              <!-- Estado y Acciones en una sola fila -->
+              <div class="contract-actions-wrapper">
+                <div class="contract-estado">
+                  <span class="estado-badge"
+                    [ngClass]="{'active': getEstadoSimplificado(contrato.estado) === 'ACTIVO', 'inactive': getEstadoSimplificado(contrato.estado) === 'INACTIVO'}">
+                    <i class="fas" [class.fa-check-circle]="getEstadoSimplificado(contrato.estado) === 'ACTIVO'"
+                      [class.fa-times-circle]="getEstadoSimplificado(contrato.estado) === 'INACTIVO'">
+                    </i>
+                    {{ getEstadoSimplificado(contrato.estado) === 'ACTIVO' ? 'Activo' : 'Inactivo' }}
+                  </span>
+                </div>
+                <div class="contract-actions">
                   <button class="btn-action btn-primary" title="Ver detalle" (click)="verDetalle(contrato)">
-                    <i class="fas fa-eye me-1"></i> Ver
-                  </button>
-                  <button class="btn-action btn-warning" title="Editar" (click)="editarContrato(contrato)">
-                    <i class="fas fa-edit me-1"></i> Editar
+                    <i class="fas fa-eye"></i>
+                    <span class="btn-text">Ver</span>
                   </button>
                 </div>
               </div>
@@ -182,7 +182,11 @@
           <!-- Paginación -->
           <div class="contracts-footer">
             <div class="footer-content-row">
-              <div class="footer-empty"></div>
+              <div class="footer-info">
+                <span class="text-muted">
+                  Mostrando {{ paginatedContratos.length }} de {{ filteredContratos.length }} contratos
+                </span>
+              </div>
 
               <div class="footer-pagination">
                 <button class="page-btn" [disabled]="currentPage === 1" (click)="changePage(currentPage - 1)">
@@ -199,11 +203,7 @@
                 </button>
               </div>
 
-              <div class="footer-actions">
-                <span class="text-muted me-3">
-                  Mostrando {{ paginatedContratos.length }} de {{ filteredContratos.length }} contratos
-                </span>
-              </div>
+              <div class="footer-empty"></div>
             </div>
           </div>
 

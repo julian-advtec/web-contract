@@ -138,11 +138,8 @@ export class JuridicaListComponent implements OnInit {
     }
   }
 
-  // ✅ Método para simplificar el estado a ACTIVO/INACTIVO
   getEstadoSimplificado(estado: string): string {
-    // Estados que consideramos ACTIVOS
     const estadosActivos = ['FIRMADO', 'EN_EJECUCION', 'BORRADOR', 'EN_APROBACION'];
-    // Estados que consideramos INACTIVOS
     const estadosInactivos = ['TERMINADO', 'LIQUIDADO', 'SUSPENDIDO'];
     
     if (estadosActivos.includes(estado)) {
@@ -151,19 +148,7 @@ export class JuridicaListComponent implements OnInit {
     if (estadosInactivos.includes(estado)) {
       return 'INACTIVO';
     }
-    return 'ACTIVO'; // Por defecto
-  }
-
-  // ✅ Método para obtener la clase CSS del estado
-  getEstadoClass(estado: string): string {
-    const estadoSimplificado = this.getEstadoSimplificado(estado);
-    return estadoSimplificado === 'ACTIVO' ? 'active' : 'inactive';
-  }
-
-  // ✅ Método para obtener el texto del estado
-  getEstadoTexto(estado: string): string {
-    const estadoSimplificado = this.getEstadoSimplificado(estado);
-    return estadoSimplificado === 'ACTIVO' ? 'Activo' : 'Inactivo';
+    return 'ACTIVO';
   }
 
   getDiasRestantes(fechaTerminacion: Date | string): number | null {
@@ -188,11 +173,7 @@ export class JuridicaListComponent implements OnInit {
   }
 
   verDetalle(contrato: Contrato): void {
-    this.router.navigate(['/juridica/editar', contrato.id]);
-  }
-
-  editarContrato(contrato: Contrato): void {
-    this.router.navigate(['/juridica/editar', contrato.id]);
+    this.router.navigate(['/juridica/ver', contrato.id]);
   }
 
   nuevoContrato(): void {

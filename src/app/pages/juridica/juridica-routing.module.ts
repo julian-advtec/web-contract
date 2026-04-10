@@ -19,19 +19,28 @@ const routes: Routes = [
       },
       {
         path: 'list',
-        component: JuridicaListComponent  // ✅ Usar component directamente
+        component: JuridicaListComponent,
+        title: 'Gestión Jurídica - Lista de Contratos'
       },
       {
         path: 'crear',
-        component: JuridicaCreacionComponent  // ✅ Usar component directamente
+        component: JuridicaCreacionComponent,
+        title: 'Gestión Jurídica - Crear Contrato'
       },
       {
         path: 'editar/:id',
-        component: JuridicaCreacionComponent  // ✅ Usar component directamente
+        component: JuridicaCreacionComponent,
+        title: 'Gestión Jurídica - Editar Contrato'
+      },
+      {
+        path: 'ver/:id',
+        component: JuridicaCreacionComponent,
+        title: 'Gestión Jurídica - Ver Contrato'
       },
       {
         path: 'stats',
-        component: JuridicaStatsComponent  // ✅ Usar component directamente
+        component: JuridicaStatsComponent,
+        title: 'Gestión Jurídica - Estadísticas'
       }
     ]
   }

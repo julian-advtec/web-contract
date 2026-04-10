@@ -6,7 +6,6 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { JuridicaService } from '../../../../core/services/juridica.service';
 import { ContratistasService } from '../../../../core/services/contratistas.service';
-import { CreateContratoDto, Contrato, TipoContrato } from '../../../../core/models/juridica.model';
 
 @Component({
   selector: 'app-juridica-creacion',
@@ -36,8 +35,8 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   contratistaEncontrado: any = null;
   contratistaDocumentos: any[] = [];
   buscandoContratista = false;
-  mostrarDocumentosContratista = false;
   contratistaSeleccionadoId: string | null = null;
+  cargandoDocumentosContratista = false;
 
   // Archivos
   cdpFile: File | null = null;
@@ -55,6 +54,23 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   cdpFileError: string | null = null;
   rpFileError: string | null = null;
   polizaCumplimientoFileError: string | null = null;
+
+  // ✅ Propiedades faltantes para el template
+  get cdpRequerido(): boolean {
+    return !!this.contratoForm?.get('cdp')?.value && !this.cdpFile;
+  }
+
+  get rpRequerido(): boolean {
+    return !!this.contratoForm?.get('rp')?.value && !this.rpFile;
+  }
+
+  get polizaCalidadValorNumerico(): number {
+    return this.contratoForm?.get('polizaCalidadValor')?.value || 0;
+  }
+
+  get polizaRCValorNumerico(): number {
+    return this.contratoForm?.get('polizaRCValor')?.value || 0;
+  }
 
   tiposContrato = [
     { value: 'PRESTACION_SERVICIOS', label: 'Prestacion de Servicios' },
@@ -85,19 +101,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     'Otro'
   ];
 
-  tiposDocumento = [
-    { value: 'CONTRATO_FIRMADO', label: 'Contrato Firmado', icon: 'fa-file-signature' },
-    { value: 'CDP', label: 'CDP - Certificado Disponibilidad', icon: 'fa-file-invoice' },
-    { value: 'RP', label: 'RP - Registro Presupuestal', icon: 'fa-file-invoice-dollar' },
-    { value: 'POLIZA_CUMPLIMIENTO', label: 'Póliza de Cumplimiento', icon: 'fa-shield-alt' },
-    { value: 'POLIZA_CALIDAD', label: 'Póliza de Calidad', icon: 'fa-check-circle' },
-    { value: 'POLIZA_RC', label: 'Póliza RC', icon: 'fa-gavel' },
-    { value: 'OTRO', label: 'Otros Documentos', icon: 'fa-file-alt' }
-  ];
-
   private subscriptions: Subscription[] = [];
-
-  cargandoDocumentosContratista = false;
 
   constructor(
     private fb: FormBuilder,
@@ -143,14 +147,6 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     return this.contratoForm.get('polizaCumplimientoValor')?.value || 0;
   }
 
-  get polizaCalidadValorNumerico(): number {
-    return this.contratoForm.get('polizaCalidadValor')?.value || 0;
-  }
-
-  get polizaRCValorNumerico(): number {
-    return this.contratoForm.get('polizaRCValor')?.value || 0;
-  }
-
   formatearNumeroConPuntos(numero: number): string {
     if (!numero && numero !== 0) return '0';
     return numero.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
@@ -175,164 +171,6 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     const valor = this.contratoForm.get('valorAnticipo')?.value || 0;
     return this.formatearNumeroConPuntos(valor);
   }
-
-  // ==================== BÚSQUEDA DE CONTRATISTA ====================
-
-  // src/app/pages/juridica/components/juridica-creacion/juridica-creacion.component.ts
-
-  // src/app/pages/juridica/components/juridica-creacion/juridica-creacion.component.ts
-
-  buscarContratistaPorContrato(): void {
-    const numeroContrato = this.contratoForm.get('numeroContrato')?.value;
-
-    if (!numeroContrato || numeroContrato.trim().length < 3) {
-      this.contratistaEncontrado = null;
-      this.contratistaDocumentos = [];
-      this.contratistaSeleccionadoId = null;
-      return;
-    }
-
-    this.buscandoContratista = true;
-
-    this.juridicaService.buscarContratistaPorNumeroContrato(numeroContrato).subscribe({
-      next: (contratista: any) => {
-        this.buscandoContratista = false;
-
-        console.log('📥 Contratista recibido en componente:', contratista);
-
-        // ✅ Ahora contratista debería ser el objeto directamente
-        if (contratista && contratista.id) {
-          this.contratistaEncontrado = contratista;
-          this.contratistaSeleccionadoId = contratista.id;
-
-          // ✅ Los documentos vienen incluidos en el contratista
-          if (contratista.documentos && Array.isArray(contratista.documentos)) {
-            this.contratistaDocumentos = contratista.documentos;
-            console.log(`📄 Documentos del contratista: ${this.contratistaDocumentos.length}`);
-          } else {
-            this.contratistaDocumentos = [];
-            console.log('⚠️ El contratista no tiene documentos incluidos');
-          }
-
-          // Actualizar los datos del proveedor en el formulario
-          this.contratoForm.patchValue({
-            proveedor: {
-              tipoIdentificacion: contratista.tipoDocumento || 'NIT',
-              numeroIdentificacion: contratista.documentoIdentidad,
-              nombreRazonSocial: contratista.razonSocial,
-              telefono: contratista.telefono || '',
-              email: contratista.email || ''
-            }
-          });
-
-          console.log('✅ Formulario actualizado con datos del contratista');
-        } else {
-          this.contratistaEncontrado = null;
-          this.contratistaSeleccionadoId = null;
-          this.contratistaDocumentos = [];
-          console.log('No se encontró contratista con el número:', numeroContrato);
-        }
-      },
-      error: (error: any) => {
-        console.error('Error buscando contratista:', error);
-        this.contratistaEncontrado = null;
-        this.contratistaDocumentos = [];
-        this.contratistaSeleccionadoId = null;
-        this.buscandoContratista = false;
-      }
-    });
-  }
-
-  // Ya no necesitas cargarDocumentosContratista por separado si los documentos vienen incluidos
-  // Pero mantenlo como respaldo
-  cargarDocumentosContratista(contratistaId: string): void {
-    if (!contratistaId) {
-      this.cargandoDocumentosContratista = false;
-      this.contratistaDocumentos = [];
-      return;
-    }
-
-    this.cargandoDocumentosContratista = true;
-    console.log('📡 Cargando documentos del contratista (fallback):', contratistaId);
-
-    this.contratistaService.obtenerDocumentos(contratistaId).subscribe({
-      next: (documentos: any[]) => {
-        console.log('📥 Documentos recibidos (fallback):', documentos);
-        this.contratistaDocumentos = documentos || [];
-        this.cargandoDocumentosContratista = false;
-      },
-      error: (error: any) => {
-        console.error('❌ Error cargando documentos del contratista:', error);
-        this.contratistaDocumentos = [];
-        this.cargandoDocumentosContratista = false;
-      }
-    });
-  }
-
-
-
-  cargarDatosContratistaEnFormulario(contratista: any): void {
-    const proveedorGroup = this.contratoForm.get('proveedor') as FormGroup;
-
-    proveedorGroup.patchValue({
-      tipoIdentificacion: contratista.tipoDocumento === 'NIT' ? 'NIT' :
-        contratista.tipoDocumento === 'CC' ? 'CC' :
-          contratista.tipoDocumento === 'CE' ? 'CE' : 'NIT',
-      numeroIdentificacion: contratista.documentoIdentidad,
-      nombreRazonSocial: contratista.razonSocial,
-      telefono: contratista.telefono || '',
-      email: contratista.email || ''
-    });
-  }
-
-
-
-  descargarDocumentoContratista(documento: any): void {
-    if (!this.contratistaSeleccionadoId || !documento.id) {
-      this.errorMessage = 'No se puede descargar el documento';
-      setTimeout(() => this.dismissError(), 3000);
-      return;
-    }
-
-    this.contratistaService.descargarDocumento(this.contratistaSeleccionadoId, documento.id).subscribe({
-      next: (blob: Blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = documento.nombreArchivo;
-        a.click();
-        window.URL.revokeObjectURL(url);
-      },
-      error: (error: any) => {
-        console.error('Error descargando documento:', error);
-        this.errorMessage = 'Error al descargar el documento';
-        setTimeout(() => this.dismissError(), 3000);
-      }
-    });
-  }
-
-  verDocumentoContratista(documento: any): void {
-    if (!this.contratistaSeleccionadoId || !documento.id) {
-      this.errorMessage = 'No se puede visualizar el documento';
-      setTimeout(() => this.dismissError(), 3000);
-      return;
-    }
-
-    this.contratistaService.descargarDocumento(this.contratistaSeleccionadoId, documento.id).subscribe({
-      next: (blob: Blob) => {
-        const url = window.URL.createObjectURL(blob);
-        window.open(url, '_blank');
-        window.URL.revokeObjectURL(url);
-      },
-      error: (error: any) => {
-        console.error('Error visualizando documento:', error);
-        this.errorMessage = 'Error al visualizar el documento';
-        setTimeout(() => this.dismissError(), 3000);
-      }
-    });
-  }
-
-  // ==================== MÉTODOS EXISTENTES ====================
 
   private generarVigencias(): void {
     for (let i = 0; i < 5; i++) {
@@ -543,13 +381,18 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
 
   private checkEditMode(): void {
     const id = this.route.snapshot.paramMap.get('id');
-    const modoVista = this.route.snapshot.url.some(segment => segment.path === 'ver');
+    const urlCompleta = this.router.url;
+    const esModoVista = urlCompleta.includes('/ver/');
 
     if (id) {
-      this.isEditMode = true;
-      this.isViewMode = modoVista;
+      this.isEditMode = !esModoVista;
+      this.isViewMode = esModoVista;
       this.contratoId = id;
       this.cargarContrato(id);
+    } else {
+      this.isEditMode = false;
+      this.isViewMode = false;
+      this.contratoId = null;
     }
   }
 
@@ -558,7 +401,26 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     const sub = this.juridicaService.obtenerContratoPorId(id).subscribe({
       next: (contrato: any) => {
         if (contrato) {
+          // ✅ Primero cargar datos al formulario
           this.cargarDatosEnFormulario(contrato);
+
+          // ✅ Asegurar paso 1
+          this.pasoActual = 1;
+
+          // ✅ Cargar documentos del contrato
+          this.cargarDocumentosContrato(id);
+
+          // ✅ ESPERAR un poco para asegurar que el formulario tiene el número de contrato
+          setTimeout(() => {
+            // ✅ Buscar contratista después de que el formulario esté actualizado
+            if (this.contratoForm.get('numeroContrato')?.value) {
+              console.log('🔍 Buscando contratista con número:', this.contratoForm.get('numeroContrato')?.value);
+              this.buscarContratistaPorContrato();
+            } else {
+              console.warn('⚠️ No hay número de contrato en el formulario');
+            }
+          }, 100);
+
           if (this.isViewMode) {
             this.contratoForm.disable();
           }
@@ -576,70 +438,268 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     this.subscriptions.push(sub);
   }
 
-  cargarDatosEnFormulario(contrato: any): void {
-    const fechaInicio = contrato.fechaInicio ? new Date(contrato.fechaInicio).toISOString().split('T')[0] : '';
-    const fechaTerminacion = contrato.fechaTerminacion ? new Date(contrato.fechaTerminacion).toISOString().split('T')[0] : '';
-    const fechaFirma = contrato.fechaFirma ? new Date(contrato.fechaFirma).toISOString().split('T')[0] : '';
-    const fechaDesembolso = contrato.fechaDesembolsoAnticipo ? new Date(contrato.fechaDesembolsoAnticipo).toISOString().split('T')[0] : '';
 
-    this.documentosContrato = contrato.documentos || [];
+  buscarContratistaPorContrato(): void {
+    // ✅ En modo edición, obtener el número de contrato del formulario o del contrato cargado
+    let numeroContrato = this.contratoForm.get('numeroContrato')?.value;
 
-    const patchData: any = {
-      vigencia: contrato.vigencia,
-      numeroContrato: contrato.numeroContrato,
-      tipoContrato: contrato.tipoContrato,
-      proveedor: {
-        tipoIdentificacion: contrato.proveedor.tipoIdentificacion,
-        numeroIdentificacion: contrato.proveedor.numeroIdentificacion,
-        nombreRazonSocial: contrato.proveedor.nombreRazonSocial,
-        telefono: contrato.proveedor.telefono || '',
-        email: contrato.proveedor.email || ''
+    // ✅ Si no hay en el formulario, usar el que tenemos guardado
+    if (!numeroContrato && this.contratoId) {
+      // Si estamos en edición y el formulario está vacío, esperar a que se cargue
+      console.log('⏳ Esperando número de contrato del formulario...');
+      return;
+    }
+
+    if (!numeroContrato || numeroContrato.trim().length < 3) {
+      this.contratistaEncontrado = null;
+      this.contratistaDocumentos = [];
+      this.contratistaSeleccionadoId = null;
+      return;
+    }
+
+    this.buscandoContratista = true;
+
+    this.juridicaService.buscarContratistaPorNumeroContrato(numeroContrato).subscribe({
+      next: (contratista: any) => {
+        this.buscandoContratista = false;
+
+        if (contratista && contratista.id) {
+          this.contratistaEncontrado = contratista;
+          this.contratistaSeleccionadoId = contratista.id;
+
+          // ✅ SIEMPRE cargar documentos del contratista, ya sea que vengan o no
+          if (contratista.documentos && Array.isArray(contratista.documentos) && contratista.documentos.length > 0) {
+            this.contratistaDocumentos = contratista.documentos;
+            console.log(`✅ Documentos del contratista cargados desde el objeto: ${this.contratistaDocumentos.length}`);
+          } else {
+            // ✅ Si no vienen en el objeto, hacer petición aparte SIEMPRE
+            console.log('📡 Documentos no incluidos, haciendo petición aparte...');
+            this.cargarDocumentosContratista(contratista.id);
+          }
+
+          // Solo actualizar el formulario si NO estamos en modo vista
+          if (!this.isViewMode) {
+            this.contratoForm.patchValue({
+              proveedor: {
+                tipoIdentificacion: contratista.tipoDocumento || 'NIT',
+                numeroIdentificacion: contratista.documentoIdentidad,
+                nombreRazonSocial: contratista.razonSocial,
+                telefono: contratista.telefono || '',
+                email: contratista.email || ''
+              }
+            });
+          }
+        } else {
+          console.warn('⚠️ No se encontró contratista con el número:', numeroContrato);
+          this.contratistaEncontrado = null;
+          this.contratistaSeleccionadoId = null;
+          this.contratistaDocumentos = [];
+        }
       },
-      objeto: contrato.objeto,
-      valor: contrato.valor,
-      plazoDias: contrato.plazoDias,
+      error: (error: any) => {
+        console.error('❌ Error buscando contratista:', error);
+        this.contratistaEncontrado = null;
+        this.contratistaDocumentos = [];
+        this.contratistaSeleccionadoId = null;
+        this.buscandoContratista = false;
+      }
+    });
+  }
+
+  // ✅ Método para cargar documentos del contratista por separado
+  cargarDocumentosContratista(contratistaId: string): void {
+    if (!contratistaId) return;
+
+    this.cargandoDocumentosContratista = true;
+    this.contratistaService.obtenerDocumentos(contratistaId).subscribe({
+      next: (documentos: any[]) => {
+        this.contratistaDocumentos = documentos || [];
+        console.log(`✅ Documentos del contratista cargados (petición aparte): ${this.contratistaDocumentos.length}`);
+        this.cargandoDocumentosContratista = false;
+      },
+      error: (error: any) => {
+        console.error('Error cargando documentos del contratista:', error);
+        this.contratistaDocumentos = [];
+        this.cargandoDocumentosContratista = false;
+      }
+    });
+  }
+
+  // ✅ Método para ver documento del contratista
+  verDocumentoContratista(documento: any): void {
+    if (!this.contratistaSeleccionadoId || !documento.id) {
+      this.errorMessage = 'No se puede visualizar el documento';
+      setTimeout(() => this.dismissError(), 3000);
+      return;
+    }
+
+    this.contratistaService.descargarDocumento(this.contratistaSeleccionadoId, documento.id).subscribe({
+      next: (blob: Blob) => {
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        window.URL.revokeObjectURL(url);
+      },
+      error: (error: any) => {
+        console.error('Error visualizando documento:', error);
+        this.errorMessage = 'Error al visualizar el documento';
+        setTimeout(() => this.dismissError(), 3000);
+      }
+    });
+  }
+
+  // ✅ Método para descargar documento del contratista
+  descargarDocumentoContratista(documento: any): void {
+    if (!this.contratistaSeleccionadoId || !documento.id) {
+      this.errorMessage = 'No se puede descargar el documento';
+      setTimeout(() => this.dismissError(), 3000);
+      return;
+    }
+
+    this.contratistaService.descargarDocumento(this.contratistaSeleccionadoId, documento.id).subscribe({
+      next: (blob: Blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = documento.nombreArchivo;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: (error: any) => {
+        console.error('Error descargando documento:', error);
+        this.errorMessage = 'Error al descargar el documento';
+        setTimeout(() => this.dismissError(), 3000);
+      }
+    });
+  }
+
+  cargarDatosEnFormulario(contrato: any): void {
+    if (!contrato) {
+      console.error('❌ Contrato es undefined o null');
+      return;
+    }
+
+    console.log('📋 DATOS COMPLETOS DEL CONTRATO:', JSON.stringify(contrato, null, 2));
+    console.log('📋 ESTRUCTURA - contrato.data?', contrato.data ? 'Sí' : 'No');
+
+    // ✅ Si el contrato viene envuelto en { data: {...} }, extraerlo
+    let datosContrato = contrato;
+    if (contrato.data && !contrato.id) {
+      datosContrato = contrato.data;
+      console.log('📦 Contrato extraído de data:', datosContrato);
+    }
+
+    // ✅ Verificar campos principales
+    console.log('🔍 Verificando campos:');
+    console.log('  - numeroContrato:', datosContrato.numeroContrato);
+    console.log('  - vigencia:', datosContrato.vigencia);
+    console.log('  - valor:', datosContrato.valor);
+    console.log('  - objeto:', datosContrato.objeto?.substring(0, 50));
+    console.log('  - proveedor:', datosContrato.proveedor);
+    console.log('  - documentos:', datosContrato.documentos?.length || 0);
+
+    // ✅ Formatear fechas correctamente
+    const fechaInicio = datosContrato.fechaInicio
+      ? new Date(datosContrato.fechaInicio).toISOString().split('T')[0]
+      : '';
+    const fechaTerminacion = datosContrato.fechaTerminacion
+      ? new Date(datosContrato.fechaTerminacion).toISOString().split('T')[0]
+      : '';
+    const fechaFirma = datosContrato.fechaFirma
+      ? new Date(datosContrato.fechaFirma).toISOString().split('T')[0]
+      : '';
+    const fechaDesembolso = datosContrato.fechaDesembolsoAnticipo
+      ? new Date(datosContrato.fechaDesembolsoAnticipo).toISOString().split('T')[0]
+      : '';
+
+    console.log('📅 Fechas formateadas:', { fechaInicio, fechaTerminacion, fechaFirma, fechaDesembolso });
+
+    // ✅ Asignar documentos
+    this.documentosContrato = datosContrato.documentos || [];
+    console.log(`📄 Documentos del contrato: ${this.documentosContrato.length}`);
+
+    // ✅ Proveedor con valores por defecto
+    const proveedorData = datosContrato.proveedor || {
+      tipoIdentificacion: 'NIT',
+      numeroIdentificacion: '',
+      nombreRazonSocial: '',
+      telefono: '',
+      email: ''
+    };
+
+    // ✅ Preparar datos para patchValue
+    const patchData: any = {
+      vigencia: datosContrato.vigencia || this.anioActual.toString(),
+      numeroContrato: datosContrato.numeroContrato || '',
+      tipoContrato: datosContrato.tipoContrato || '',
+      proveedor: {
+        tipoIdentificacion: proveedorData.tipoIdentificacion || 'NIT',
+        numeroIdentificacion: proveedorData.numeroIdentificacion || '',
+        nombreRazonSocial: proveedorData.nombreRazonSocial || '',
+        telefono: proveedorData.telefono || '',
+        email: proveedorData.email || ''
+      },
+      objeto: datosContrato.objeto || '',
+      valor: datosContrato.valor || 0,
+      plazoDias: datosContrato.plazoDias || 0,
       fechaInicio: fechaInicio,
       fechaTerminacion: fechaTerminacion,
       fechaFirma: fechaFirma,
-      supervisor: contrato.supervisor || '',
-      cdp: contrato.cdp || '',
-      rp: contrato.rp || '',
-      seDesembolsaAnticipo: contrato.seDesembolsaAnticipo,
-      porcentajeAnticipo: contrato.porcentajeAnticipo || '',
-      valorAnticipo: contrato.valorAnticipo || '',
+      supervisor: datosContrato.supervisor || '',
+      cdp: datosContrato.cdp || '',
+      rp: datosContrato.rp || '',
+      seDesembolsaAnticipo: datosContrato.seDesembolsaAnticipo || false,
+      porcentajeAnticipo: datosContrato.porcentajeAnticipo || '',
+      valorAnticipo: datosContrato.valorAnticipo || '',
       fechaDesembolsoAnticipo: fechaDesembolso,
-      adiciones: contrato.adiciones || 0
+      adiciones: datosContrato.adiciones || 0,
+      requierePolizas: datosContrato.requierePolizas || false,
+      polizaCumplimientoNumero: datosContrato.polizaCumplimientoNumero || '',
+      polizaCumplimientoAseguradora: datosContrato.polizaCumplimientoAseguradora || '',
+      polizaCumplimientoValor: datosContrato.polizaCumplimientoValor || '',
+      polizaCumplimientoVigenciaDesde: datosContrato.polizaCumplimientoVigenciaDesde || '',
+      polizaCumplimientoVigenciaHasta: datosContrato.polizaCumplimientoVigenciaHasta || '',
+      requierePolizaCalidad: datosContrato.requierePolizaCalidad || false,
+      polizaCalidadNumero: datosContrato.polizaCalidadNumero || '',
+      polizaCalidadAseguradora: datosContrato.polizaCalidadAseguradora || '',
+      polizaCalidadValor: datosContrato.polizaCalidadValor || '',
+      polizaCalidadVigenciaDesde: datosContrato.polizaCalidadVigenciaDesde || '',
+      polizaCalidadVigenciaHasta: datosContrato.polizaCalidadVigenciaHasta || '',
+      requierePolizaRC: datosContrato.requierePolizaRC || false,
+      polizaRCNumero: datosContrato.polizaRCNumero || '',
+      polizaRCAseguradora: datosContrato.polizaRCAseguradora || '',
+      polizaRCValor: datosContrato.polizaRCValor || '',
+      polizaRCVigenciaDesde: datosContrato.polizaRCVigenciaDesde || '',
+      polizaRCVigenciaHasta: datosContrato.polizaRCVigenciaHasta || ''
     };
 
-    if (contrato.requierePolizas !== undefined) patchData.requierePolizas = contrato.requierePolizas;
-    if (contrato.polizaCumplimientoNumero !== undefined) patchData.polizaCumplimientoNumero = contrato.polizaCumplimientoNumero;
-    if (contrato.polizaCumplimientoAseguradora !== undefined) patchData.polizaCumplimientoAseguradora = contrato.polizaCumplimientoAseguradora;
-    if (contrato.polizaCumplimientoValor !== undefined) patchData.polizaCumplimientoValor = contrato.polizaCumplimientoValor;
-    if (contrato.polizaCumplimientoVigenciaDesde !== undefined) patchData.polizaCumplimientoVigenciaDesde = contrato.polizaCumplimientoVigenciaDesde;
-    if (contrato.polizaCumplimientoVigenciaHasta !== undefined) patchData.polizaCumplimientoVigenciaHasta = contrato.polizaCumplimientoVigenciaHasta;
-    if (contrato.requierePolizaCalidad !== undefined) patchData.requierePolizaCalidad = contrato.requierePolizaCalidad;
-    if (contrato.polizaCalidadNumero !== undefined) patchData.polizaCalidadNumero = contrato.polizaCalidadNumero;
-    if (contrato.polizaCalidadAseguradora !== undefined) patchData.polizaCalidadAseguradora = contrato.polizaCalidadAseguradora;
-    if (contrato.polizaCalidadValor !== undefined) patchData.polizaCalidadValor = contrato.polizaCalidadValor;
-    if (contrato.polizaCalidadVigenciaDesde !== undefined) patchData.polizaCalidadVigenciaDesde = contrato.polizaCalidadVigenciaDesde;
-    if (contrato.polizaCalidadVigenciaHasta !== undefined) patchData.polizaCalidadVigenciaHasta = contrato.polizaCalidadVigenciaHasta;
-    if (contrato.requierePolizaRC !== undefined) patchData.requierePolizaRC = contrato.requierePolizaRC;
-    if (contrato.polizaRCNumero !== undefined) patchData.polizaRCNumero = contrato.polizaRCNumero;
-    if (contrato.polizaRCAseguradora !== undefined) patchData.polizaRCAseguradora = contrato.polizaRCAseguradora;
-    if (contrato.polizaRCValor !== undefined) patchData.polizaRCValor = contrato.polizaRCValor;
-    if (contrato.polizaRCVigenciaDesde !== undefined) patchData.polizaRCVigenciaDesde = contrato.polizaRCVigenciaDesde;
-    if (contrato.polizaRCVigenciaHasta !== undefined) patchData.polizaRCVigenciaHasta = contrato.polizaRCVigenciaHasta;
+    console.log('📝 Datos a actualizar en el formulario:', patchData);
 
+    // ✅ Actualizar formulario
     this.contratoForm.patchValue(patchData);
-    this.valorTotal = contrato.valorTotal || 0;
 
-    if (contrato.seDesembolsaAnticipo) {
+    // ✅ Verificar que los valores se asignaron correctamente
+    console.log('🔍 Verificación post-patch:');
+    console.log('  - numeroContrato en formulario:', this.contratoForm.get('numeroContrato')?.value);
+    console.log('  - vigencia en formulario:', this.contratoForm.get('vigencia')?.value);
+    console.log('  - valor en formulario:', this.contratoForm.get('valor')?.value);
+    console.log('  - proveedor.nombreRazonSocial:', this.contratoForm.get('proveedor.nombreRazonSocial')?.value);
+
+    this.valorTotal = datosContrato.valorTotal || 0;
+
+    // ✅ Habilitar campos condicionales
+    if (datosContrato.seDesembolsaAnticipo) {
       this.contratoForm.get('porcentajeAnticipo')?.enable();
       this.contratoForm.get('valorAnticipo')?.enable();
       this.contratoForm.get('fechaDesembolsoAnticipo')?.enable();
     }
 
+    if (datosContrato.requierePolizas) {
+      this.onRequierePolizasChange(true);
+    }
+
     this.calcularValores();
+
+    console.log('✅ cargarDatosEnFormulario completado');
   }
 
   cargarSupervisores(): void {
@@ -687,7 +747,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
         if (!this.contratoForm.get('polizaCumplimientoValor')?.value) isValid = false;
         if (!this.contratoForm.get('polizaCumplimientoVigenciaDesde')?.value) isValid = false;
         if (!this.contratoForm.get('polizaCumplimientoVigenciaHasta')?.value) isValid = false;
-        if (!this.polizaCumplimientoFile) isValid = false;
+        if (!this.polizaCumplimientoFile && !this.isEditMode) isValid = false;
       }
     }
 
@@ -738,115 +798,107 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     alert(`Descargar documento: ${tipo}\nFuncionalidad en desarrollo`);
   }
 
-guardarContrato(): void {
-  if (this.isViewMode) {
-    this.router.navigate(['/juridica/list']);
-    return;
-  }
-
-  this.submitted = true;
-  if (this.contratoForm.invalid) {
-    this.errorMessage = 'Por favor complete todos los campos requeridos';
-    this.markStepFieldsAsTouched();
-    return;
-  }
-
-  this.isSubmitting = true;
-  this.errorMessage = '';
-
-  const formValue = this.contratoForm.getRawValue();
-  
-  // ✅ Calcular valorTotal como número
-  const valorTotal = (Number(formValue.valor) || 0) + (Number(formValue.adiciones) || 0);
-  
-  // ✅ Construir DTO solo con campos que existen en el DTO
-  const dto: any = {
-    vigencia: formValue.vigencia,
-    numeroContrato: formValue.numeroContrato,
-    tipoContrato: formValue.tipoContrato,
-    proveedor: formValue.proveedor,
-    objeto: formValue.objeto,
-    valor: Number(formValue.valor) || 0,
-    plazoDias: Number(formValue.plazoDias) || 0,
-    fechaFirma: formValue.fechaFirma,
-    fechaInicio: formValue.fechaInicio,
-    fechaTerminacion: formValue.fechaTerminacion,
-    valorTotal: valorTotal, // ✅ Asegurar que es número
-    adiciones: Number(formValue.adiciones) || 0,
-    creadoPor: this.obtenerUsuarioActual(),
-    // ❌ NO enviar ultimoUsuario - no existe en el DTO
-  };
-
-  // ✅ Solo agregar campos opcionales si tienen valor
-  if (formValue.supervisor) dto.supervisor = formValue.supervisor;
-  if (formValue.cdp) dto.cdp = formValue.cdp;
-  if (formValue.rp) dto.rp = formValue.rp;
-  
-  if (formValue.seDesembolsaAnticipo === true) {
-    dto.seDesembolsaAnticipo = true;
-    if (formValue.porcentajeAnticipo) dto.porcentajeAnticipo = Number(formValue.porcentajeAnticipo);
-    if (formValue.valorAnticipo) dto.valorAnticipo = Number(formValue.valorAnticipo);
-    if (formValue.fechaDesembolsoAnticipo) dto.fechaDesembolsoAnticipo = formValue.fechaDesembolsoAnticipo;
-  }
-
-  // ✅ Solo agregar pólizas si requierePolizas es true
-  if (formValue.requierePolizas === true) {
-    dto.requierePolizas = true;
-    
-    if (formValue.polizaCumplimientoNumero) dto.polizaCumplimientoNumero = formValue.polizaCumplimientoNumero;
-    if (formValue.polizaCumplimientoAseguradora) dto.polizaCumplimientoAseguradora = formValue.polizaCumplimientoAseguradora;
-    if (formValue.polizaCumplimientoValor) dto.polizaCumplimientoValor = Number(formValue.polizaCumplimientoValor);
-    if (formValue.polizaCumplimientoVigenciaDesde) dto.polizaCumplimientoVigenciaDesde = formValue.polizaCumplimientoVigenciaDesde;
-    if (formValue.polizaCumplimientoVigenciaHasta) dto.polizaCumplimientoVigenciaHasta = formValue.polizaCumplimientoVigenciaHasta;
-    
-    if (formValue.requierePolizaCalidad === true) {
-      dto.requierePolizaCalidad = true;
-      if (formValue.polizaCalidadNumero) dto.polizaCalidadNumero = formValue.polizaCalidadNumero;
-      if (formValue.polizaCalidadAseguradora) dto.polizaCalidadAseguradora = formValue.polizaCalidadAseguradora;
-      if (formValue.polizaCalidadValor) dto.polizaCalidadValor = Number(formValue.polizaCalidadValor);
-      if (formValue.polizaCalidadVigenciaDesde) dto.polizaCalidadVigenciaDesde = formValue.polizaCalidadVigenciaDesde;
-      if (formValue.polizaCalidadVigenciaHasta) dto.polizaCalidadVigenciaHasta = formValue.polizaCalidadVigenciaHasta;
+  guardarContrato(): void {
+    if (this.isViewMode) {
+      this.router.navigate(['/juridica/list']);
+      return;
     }
-    
-    if (formValue.requierePolizaRC === true) {
-      dto.requierePolizaRC = true;
-      if (formValue.polizaRCNumero) dto.polizaRCNumero = formValue.polizaRCNumero;
-      if (formValue.polizaRCAseguradora) dto.polizaRCAseguradora = formValue.polizaRCAseguradora;
-      if (formValue.polizaRCValor) dto.polizaRCValor = Number(formValue.polizaRCValor);
-      if (formValue.polizaRCVigenciaDesde) dto.polizaRCVigenciaDesde = formValue.polizaRCVigenciaDesde;
-      if (formValue.polizaRCVigenciaHasta) dto.polizaRCVigenciaHasta = formValue.polizaRCVigenciaHasta;
+
+    this.submitted = true;
+    if (this.contratoForm.invalid) {
+      this.errorMessage = 'Por favor complete todos los campos requeridos';
+      this.markStepFieldsAsTouched();
+      return;
     }
-  }
 
-  console.log('📤 Enviando DTO al backend:', JSON.stringify(dto, null, 2));
+    this.isSubmitting = true;
+    this.errorMessage = '';
 
-  let request;
-  if (this.isEditMode && this.contratoId) {
-    request = this.juridicaService.actualizarContrato(this.contratoId, dto);
-  } else {
-    request = this.juridicaService.crearContrato(dto);
-  }
+    const formValue = this.contratoForm.getRawValue();
+    const valorTotal = (Number(formValue.valor) || 0) + (Number(formValue.adiciones) || 0);
 
-  const sub = request.subscribe({
-    next: () => {
-      this.successMessage = this.isEditMode ? 'Contrato actualizado exitosamente' : 'Contrato creado exitosamente';
-      this.isSubmitting = false;
-      setTimeout(() => this.router.navigate(['/juridica/list']), 1500);
-    },
-    error: (error: any) => {
-      console.error('❌ Error detallado:', error);
-      if (error.error && error.error.message) {
-        this.errorMessage = error.error.message;
-      } else if (error.message) {
-        this.errorMessage = error.message;
-      } else {
-        this.errorMessage = 'Error al guardar el contrato. Verifique los datos ingresados.';
+    const dto: any = {
+      vigencia: formValue.vigencia,
+      numeroContrato: formValue.numeroContrato,
+      tipoContrato: formValue.tipoContrato,
+      proveedor: formValue.proveedor,
+      objeto: formValue.objeto,
+      valor: Number(formValue.valor) || 0,
+      plazoDias: Number(formValue.plazoDias) || 0,
+      fechaFirma: formValue.fechaFirma,
+      fechaInicio: formValue.fechaInicio,
+      fechaTerminacion: formValue.fechaTerminacion,
+      valorTotal: valorTotal,
+      adiciones: Number(formValue.adiciones) || 0,
+      creadoPor: this.obtenerUsuarioActual()
+    };
+
+    if (formValue.supervisor) dto.supervisor = formValue.supervisor;
+    if (formValue.cdp) dto.cdp = formValue.cdp;
+    if (formValue.rp) dto.rp = formValue.rp;
+
+    if (formValue.seDesembolsaAnticipo === true) {
+      dto.seDesembolsaAnticipo = true;
+      if (formValue.porcentajeAnticipo) dto.porcentajeAnticipo = Number(formValue.porcentajeAnticipo);
+      if (formValue.valorAnticipo) dto.valorAnticipo = Number(formValue.valorAnticipo);
+      if (formValue.fechaDesembolsoAnticipo) dto.fechaDesembolsoAnticipo = formValue.fechaDesembolsoAnticipo;
+    }
+
+    if (formValue.requierePolizas === true) {
+      dto.requierePolizas = true;
+
+      if (formValue.polizaCumplimientoNumero) dto.polizaCumplimientoNumero = formValue.polizaCumplimientoNumero;
+      if (formValue.polizaCumplimientoAseguradora) dto.polizaCumplimientoAseguradora = formValue.polizaCumplimientoAseguradora;
+      if (formValue.polizaCumplimientoValor) dto.polizaCumplimientoValor = Number(formValue.polizaCumplimientoValor);
+      if (formValue.polizaCumplimientoVigenciaDesde) dto.polizaCumplimientoVigenciaDesde = formValue.polizaCumplimientoVigenciaDesde;
+      if (formValue.polizaCumplimientoVigenciaHasta) dto.polizaCumplimientoVigenciaHasta = formValue.polizaCumplimientoVigenciaHasta;
+
+      if (formValue.requierePolizaCalidad === true) {
+        dto.requierePolizaCalidad = true;
+        if (formValue.polizaCalidadNumero) dto.polizaCalidadNumero = formValue.polizaCalidadNumero;
+        if (formValue.polizaCalidadAseguradora) dto.polizaCalidadAseguradora = formValue.polizaCalidadAseguradora;
+        if (formValue.polizaCalidadValor) dto.polizaCalidadValor = Number(formValue.polizaCalidadValor);
+        if (formValue.polizaCalidadVigenciaDesde) dto.polizaCalidadVigenciaDesde = formValue.polizaCalidadVigenciaDesde;
+        if (formValue.polizaCalidadVigenciaHasta) dto.polizaCalidadVigenciaHasta = formValue.polizaCalidadVigenciaHasta;
       }
-      this.isSubmitting = false;
+
+      if (formValue.requierePolizaRC === true) {
+        dto.requierePolizaRC = true;
+        if (formValue.polizaRCNumero) dto.polizaRCNumero = formValue.polizaRCNumero;
+        if (formValue.polizaRCAseguradora) dto.polizaRCAseguradora = formValue.polizaRCAseguradora;
+        if (formValue.polizaRCValor) dto.polizaRCValor = Number(formValue.polizaRCValor);
+        if (formValue.polizaRCVigenciaDesde) dto.polizaRCVigenciaDesde = formValue.polizaRCVigenciaDesde;
+        if (formValue.polizaRCVigenciaHasta) dto.polizaRCVigenciaHasta = formValue.polizaRCVigenciaHasta;
+      }
     }
-  });
-  this.subscriptions.push(sub);
-}
+
+    let request;
+    if (this.isEditMode && this.contratoId) {
+      request = this.juridicaService.actualizarContrato(this.contratoId, dto);
+    } else {
+      request = this.juridicaService.crearContrato(dto);
+    }
+
+    const sub = request.subscribe({
+      next: () => {
+        this.successMessage = this.isEditMode ? 'Contrato actualizado exitosamente' : 'Contrato creado exitosamente';
+        this.isSubmitting = false;
+        setTimeout(() => this.router.navigate(['/juridica/list']), 1500);
+      },
+      error: (error: any) => {
+        console.error('Error detallado:', error);
+        if (error.error && error.error.message) {
+          this.errorMessage = error.error.message;
+        } else if (error.message) {
+          this.errorMessage = error.message;
+        } else {
+          this.errorMessage = 'Error al guardar el contrato. Verifique los datos ingresados.';
+        }
+        this.isSubmitting = false;
+      }
+    });
+    this.subscriptions.push(sub);
+  }
 
   private obtenerUsuarioActual(): string {
     const userStr = localStorage.getItem('user');
@@ -892,14 +944,6 @@ guardarContrato(): void {
     this.successMessage = '';
   }
 
-  get cdpRequerido(): boolean {
-    return !!this.contratoForm.get('cdp')?.value && !this.cdpFile;
-  }
-
-  get rpRequerido(): boolean {
-    return !!this.contratoForm.get('rp')?.value && !this.rpFile;
-  }
-
   onFileSelected(event: any, tipo: 'cdp' | 'rp' | 'polizaCumplimiento' | 'polizaCalidad' | 'polizaRC'): void {
     const file: File = event.target.files[0];
     if (!file) return;
@@ -937,5 +981,28 @@ guardarContrato(): void {
       this.polizaRCFile = file;
       this.polizaRCFileName = file.name;
     }
+  }
+
+  cargarDocumentosContrato(contratoId: string): void {
+    console.log('📄 Cargando documentos del contrato:', contratoId);
+    this.juridicaService.obtenerDocumentosContrato(contratoId).subscribe({
+      next: (documentos: any[]) => {
+        this.documentosContrato = documentos || [];
+        console.log(`✅ Documentos del contrato cargados: ${this.documentosContrato.length}`);
+
+        // Log para depuración - mostrar detalles de los documentos
+        if (this.documentosContrato.length > 0) {
+          console.log('📋 Detalles de documentos:', this.documentosContrato.map(d => ({
+            nombre: d.nombreArchivo,
+            tipo: d.tipoDocumento,
+            tamaño: d.tamanoBytes
+          })));
+        }
+      },
+      error: (error: any) => {
+        console.error('❌ Error cargando documentos del contrato:', error);
+        this.documentosContrato = [];
+      }
+    });
   }
 }
