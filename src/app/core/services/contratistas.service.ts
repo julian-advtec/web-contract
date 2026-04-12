@@ -29,31 +29,32 @@ export class ContratistasService {
     });
   }
 
-  private mapearContratista(item: any): Contratista {
-    return {
-      id: item.id || item._id || '',
-      tipoDocumento: item.tipoDocumento || item.tipo_documento || 'CC',
-      documentoIdentidad: item.documentoIdentidad || item.documento_identidad || item.documento || '',
-      razonSocial: item.razonSocial || item.razon_social || item.nombreCompleto || item.nombre || item.label || item.value || 'Nombre no disponible',
-      representanteLegal: item.representanteLegal || item.representante_legal || '',
-      documentoRepresentante: item.documentoRepresentante || item.documento_representante || '',
-      telefono: item.telefono || '',
-      email: item.email || '',
-      direccion: item.direccion || '',
-      departamento: item.departamento || '',
-      ciudad: item.ciudad || '',
-      tipoContratista: item.tipoContratista || item.tipo_contratista || item.tipo || '',
-      estado: item.estado || 'ACTIVO',
-      numeroContrato: item.numeroContrato || item.numero_contrato || '',
-      cargo: item.cargo || '',
-      objetivoContrato : item.observaciones || '',
-      createdAt: item.createdAt ? new Date(item.createdAt) : item.fecha_creacion ? new Date(item.fecha_creacion) : new Date(),
-      updatedAt: item.updatedAt ? new Date(item.updatedAt) : item.fecha_actualizacion ? new Date(item.fecha_actualizacion) : new Date(),
-      nombreCompleto: item.razonSocial || item.razon_social || item.nombreCompleto || item.nombre || '',
-      fechaCreacion: item.createdAt ? new Date(item.createdAt) : item.fecha_creacion ? new Date(item.fecha_creacion) : new Date(),
-      fechaActualizacion: item.updatedAt ? new Date(item.updatedAt) : item.fecha_actualizacion ? new Date(item.fecha_actualizacion) : new Date()
-    };
-  }
+private mapearContratista(item: any): Contratista {
+  return {
+    id: item.id || item._id || '',
+    tipoDocumento: item.tipoDocumento || item.tipo_documento || 'CC',
+    documentoIdentidad: item.documentoIdentidad || item.documento_identidad || item.documento || '',
+    razonSocial: item.razonSocial || item.razon_social || item.nombreCompleto || item.nombre || item.label || item.value || 'Nombre no disponible',
+    representanteLegal: item.representanteLegal || item.representante_legal || '',
+    documentoRepresentante: item.documentoRepresentante || item.documento_representante || '',
+    telefono: item.telefono || '',
+    email: item.email || '',
+    direccion: item.direccion || '',
+    departamento: item.departamento || '',
+    ciudad: item.ciudad || '',
+    tipoContratista: item.tipoContratista || item.tipo_contratista || item.tipo || '',
+    estado: item.estado || 'ACTIVO',
+    numeroContrato: item.numeroContrato || item.numero_contrato || '',
+    cargo: item.cargo || '',
+    // ✅ CORREGIDO: usar 'objetivoContrato' en lugar de 'observaciones'
+    objetivoContrato: item.objetivoContrato || item.observaciones || '',
+    createdAt: item.createdAt ? new Date(item.createdAt) : item.fecha_creacion ? new Date(item.fecha_creacion) : new Date(),
+    updatedAt: item.updatedAt ? new Date(item.updatedAt) : item.fecha_actualizacion ? new Date(item.fecha_actualizacion) : new Date(),
+    nombreCompleto: item.razonSocial || item.razon_social || item.nombreCompleto || item.nombre || '',
+    fechaCreacion: item.createdAt ? new Date(item.createdAt) : item.fecha_creacion ? new Date(item.fecha_creacion) : new Date(),
+    fechaActualizacion: item.updatedAt ? new Date(item.updatedAt) : item.fecha_actualizacion ? new Date(item.fecha_actualizacion) : new Date()
+  };
+}
 
   // ===============================
   // MÉTODOS DE BÚSQUEDA

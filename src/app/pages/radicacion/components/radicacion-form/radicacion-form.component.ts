@@ -18,6 +18,7 @@ import { CreateDocumentoDto } from '../../../../core/models/documento.model';
 import { Contratista } from '../../../../core/models/contratista.model';
 import { debounceTime, distinctUntilChanged, filter } from 'rxjs/operators';
 import { Subscription, fromEvent, timer } from 'rxjs';
+import { JuridicaService } from '../../../../core/services/juridica.service';
 
 @Component({
   selector: 'app-radicacion-form',
@@ -66,7 +67,8 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
     private fb: FormBuilder,
     private radicacionService: RadicacionService,
     private contratistasService: ContratistasService,
-    private cdRef: ChangeDetectorRef
+    private cdRef: ChangeDetectorRef,
+    private juridicaService: JuridicaService,
   ) {
     this.radicacionForm = this.createForm();
   }
@@ -489,70 +491,136 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
       }
     });
   }
+buscarContratistasPorContrato(contrato: string): void {
+  if (this.ultimaBusqueda.tipo === 'contrato' &&
+    this.ultimaBusqueda.termino === contrato &&
+    (Date.now() - this.ultimaBusqueda.timestamp) < 500) {
+    return;
+  }
 
-  buscarContratistasPorContrato(contrato: string): void {
-    if (this.ultimaBusqueda.tipo === 'contrato' &&
-      this.ultimaBusqueda.termino === contrato &&
-      (Date.now() - this.ultimaBusqueda.timestamp) < 500) {
-      return;
-    }
+  this.ultimaBusqueda = {
+    tipo: 'contrato',
+    termino: contrato,
+    timestamp: Date.now()
+  };
 
-    this.ultimaBusqueda = {
-      tipo: 'contrato',
-      termino: contrato,
-      timestamp: Date.now()
-    };
+  this.cargandoContratistas = true;
+  this.cdRef.detectChanges();
 
-    this.cargandoContratistas = true;
-    this.cdRef.detectChanges();
+  this.juridicaService.obtenerContratoYContratistaPorNumero(contrato).subscribe({
+    next: (resultado) => {
+      const valorActual = this.radicacionForm.get('numeroContrato')?.value?.trim() || '';
+      
+      if (resultado && valorActual && valorActual.toLowerCase().includes(contrato.toLowerCase())) {
+        const contratistaData = resultado.contratista;
+        const contratoData = resultado.contrato;
+        
+        if (contratistaData && contratistaData.nombre) {
+          const item = {
+            id: contratistaData.id,
+            nombreCompleto: contratistaData.nombre,
+            razonSocial: contratistaData.nombre,
+            documentoIdentidad: contratistaData.documento,
+            numeroContrato: contratistaData.numeroContrato || contrato,
+            // ✅ Usar las fechas DIRECTAMENTE como vienen del backend
+            fechaInicioContrato: contratoData?.fechaInicio || null,
+            fechaFinContrato: contratoData?.fechaFin || null
+          };
+          
+          console.log('✅ Contratista encontrado:', contratistaData.nombre);
+          console.log('✅ Documento:', contratistaData.documento);
+          console.log('✅ Fecha Inicio Contrato (RAW):', contratoData?.fechaInicio);
+          console.log('✅ Fecha Fin Contrato (RAW):', contratoData?.fechaFin);
+          console.log('✅ Objeto item completo:', item);
 
-    this.contratistasService.buscarPorNumeroContrato(contrato).subscribe({
-      next: (contratistas) => {
-        const valorActual = this.radicacionForm.get('numeroContrato')?.value?.trim() || '';
-        if (valorActual && valorActual.toLowerCase().includes(contrato.toLowerCase())) {
-          this.contratistasFiltrados = contratistas.slice(0, 10).map(c => ({
-            id: c.id,
-            nombreCompleto: c.razonSocial || c.nombreCompleto || 'Nombre no disponible',
-            razonSocial: c.razonSocial || c.nombreCompleto || '',
-            documentoIdentidad: c.documentoIdentidad,
-            numeroContrato: c.numeroContrato || '',
-            createdAt: c.createdAt
-          }));
-          this.mostrarDropdownContrato = contratistas.length > 0;
+          // Auto-seleccionar
+          this.seleccionarContratista(item);
+          this.mostrarDropdownContrato = false;
+          this.mostrarDropdownNombre = false;
+          this.mostrarDropdownDocumento = false;
+          
         } else {
           this.contratistasFiltrados = [];
           this.mostrarDropdownContrato = false;
         }
-
-        this.mostrarDropdownNombre = false;
-        this.mostrarDropdownDocumento = false;
-        this.cargandoContratistas = false;
-        this.cdRef.detectChanges();
-      },
-      error: (error) => {
-        console.error('Error buscando por contrato:', error);
+      } else {
         this.contratistasFiltrados = [];
         this.mostrarDropdownContrato = false;
-        this.cargandoContratistas = false;
-        this.cdRef.detectChanges();
       }
-    });
-  }
 
-  seleccionarContratista(contratista: any): void {
-    this.contratistaSeleccionado = contratista;
+      this.cargandoContratistas = false;
+      this.cdRef.detectChanges();
+    },
+    error: (error) => {
+      console.error('Error buscando por contrato:', error);
+      this.contratistasFiltrados = [];
+      this.mostrarDropdownContrato = false;
+      this.cargandoContratistas = false;
+      this.cdRef.detectChanges();
+    }
+  });
+}
 
+seleccionarContratista(contratista: any): void {
+  console.log('🎯 seleccionarContratista llamado con:', contratista);
+  
+  this.contratistaSeleccionado = contratista;
+
+  // ✅ 1. Llenar datos del contratista
+  this.radicacionForm.patchValue({
+    nombreContratista: contratista.nombreCompleto,
+    documentoContratista: contratista.documentoIdentidad,
+    numeroContrato: contratista.numeroContrato || ''
+  }, { emitEvent: false });
+  
+  console.log('📝 Nombre contratista:', this.radicacionForm.get('nombreContratista')?.value);
+  console.log('📝 Documento contratista:', this.radicacionForm.get('documentoContratista')?.value);
+
+  // ✅ 2. Llenar fechas del contrato - USAR DIRECTAMENTE LA FECHA SIN CONVERTIR
+  if (contratista.fechaInicioContrato) {
+    // La fecha ya viene en formato YYYY-MM-DD del backend
+    const fechaInicioStr = contratista.fechaInicioContrato;
     this.radicacionForm.patchValue({
-      nombreContratista: contratista.nombreCompleto,
-      documentoContratista: contratista.documentoIdentidad,
-      numeroContrato: contratista.numeroContrato || ''
+      fechaInicio: fechaInicioStr
     }, { emitEvent: false });
-
-    this.mostrarDropdownNombre = false;
-    this.mostrarDropdownDocumento = false;
-    this.mostrarDropdownContrato = false;
-    this.cdRef.detectChanges();
+    console.log(`✅ Fecha de inicio auto-llenada: ${fechaInicioStr}`);
+    console.log(`📝 Valor actual en formulario fechaInicio:`, this.radicacionForm.get('fechaInicio')?.value);
+  } else {
+    console.log('⚠️ No hay fechaInicioContrato en el objeto:', contratista);
   }
+
+  if (contratista.fechaFinContrato) {
+    // La fecha ya viene en formato YYYY-MM-DD del backend
+    const fechaFinStr = contratista.fechaFinContrato;
+    this.radicacionForm.patchValue({
+      fechaFin: fechaFinStr
+    }, { emitEvent: false });
+    console.log(`✅ Fecha de fin auto-llenada: ${fechaFinStr}`);
+    console.log(`📝 Valor actual en formulario fechaFin:`, this.radicacionForm.get('fechaFin')?.value);
+  } else {
+    console.log('⚠️ No hay fechaFinContrato en el objeto:', contratista);
+  }
+
+  // Forzar detección de cambios
+  this.cdRef.detectChanges();
+
+  // ✅ 3. Mostrar mensaje
+  if (contratista.fechaInicioContrato && contratista.fechaFinContrato) {
+    this.mostrarMensaje(
+      `Contrato ${contratista.numeroContrato} cargado. Fechas: ${contratista.fechaInicioContrato} a ${contratista.fechaFinContrato}`,
+      'success'
+    );
+  } else if (contratista.nombreCompleto) {
+    this.mostrarMensaje(
+      `Contratista ${contratista.nombreCompleto} cargado correctamente.`,
+      'success'
+    );
+  }
+
+  this.mostrarDropdownNombre = false;
+  this.mostrarDropdownDocumento = false;
+  this.mostrarDropdownContrato = false;
+}
 
   seleccionarContratistaPorContrato(contratista: any): void {
     this.contratistaSeleccionado = contratista;

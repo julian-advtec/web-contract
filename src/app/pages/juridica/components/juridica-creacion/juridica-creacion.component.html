@@ -57,21 +57,21 @@
       <div class="card-header bg-primary text-white">
         <h5 class="mb-0">1. Datos Generales y Valores del Contrato</h5>
       </div>
-      
+
       <div class="card-body">
         <!-- DATOS GENERALES - Título -->
         <div class="section-title mb-4">
           <i class="fas fa-info-circle me-2"></i>
           DATOS GENERALES
         </div>
-        
+
         <!-- Fila 1: Vigencia, Número Contrato, Tipo Contrato, Supervisor -->
         <div class="row">
           <div class="col-md-3 mb-3">
             <div class="form-group-inline">
               <label class="form-label-inline required-field">Vigencia</label>
               <select class="form-control-inline" formControlName="vigencia"
-                      [ngClass]="{'is-invalid': submitted && f['vigencia'].errors}">
+                [ngClass]="{'is-invalid': submitted && f['vigencia'].errors}">
                 <option *ngFor="let vigencia of vigencias" [value]="vigencia">{{ vigencia }}</option>
               </select>
               <div *ngIf="submitted && f['vigencia'].errors" class="invalid-feedback">
@@ -85,10 +85,8 @@
               <label class="form-label-inline required-field">Número de Contrato</label>
               <div class="input-group">
                 <input type="text" class="form-control-inline" formControlName="numeroContrato"
-                       [ngClass]="{'is-invalid': submitted && f['numeroContrato'].errors}"
-                       placeholder="Ej: 001-2026"
-                       maxlength="50"
-                       (blur)="buscarContratistaPorContrato()">
+                  [ngClass]="{'is-invalid': submitted && f['numeroContrato'].errors}" placeholder="Ej: 001-2026"
+                  maxlength="50" (blur)="buscarContratistaPorContrato()">
                 <div *ngIf="buscandoContratista" class="input-group-text">
                   <i class="fas fa-spinner fa-spin"></i>
                 </div>
@@ -103,7 +101,7 @@
             <div class="form-group-inline">
               <label class="form-label-inline required-field">Tipo de Contrato</label>
               <select class="form-control-inline" formControlName="tipoContrato"
-                      [ngClass]="{'is-invalid': submitted && f['tipoContrato'].errors}">
+                [ngClass]="{'is-invalid': submitted && f['tipoContrato'].errors}">
                 <option value="">Seleccione tipo</option>
                 <option *ngFor="let tipo of tiposContrato" [value]="tipo.value">
                   {{ tipo.label }}
@@ -119,7 +117,7 @@
             <div class="form-group-inline">
               <label class="form-label-inline required-field">Supervisor</label>
               <select class="form-control-inline" formControlName="supervisor"
-                      [ngClass]="{'is-invalid': submitted && f['supervisor'].errors}">
+                [ngClass]="{'is-invalid': submitted && f['supervisor'].errors}">
                 <option value="">Seleccione supervisor</option>
                 <option *ngFor="let sup of supervisores" [value]="sup.id">
                   {{ sup.nombre }}
@@ -135,7 +133,8 @@
         <!-- Alerta de contratista encontrado -->
         <div *ngIf="contratistaEncontrado" class="alert alert-success mb-4">
           <i class="fas fa-check-circle me-2"></i>
-          Contratista encontrado: <strong>{{ contratistaEncontrado.razonSocial }}</strong> ({{ contratistaEncontrado.documentoIdentidad }})
+          Contratista encontrado: <strong>{{ contratistaEncontrado.razonSocial }}</strong> ({{
+          contratistaEncontrado.documentoIdentidad }})
         </div>
 
         <!-- Datos del Proveedor / Contratista -->
@@ -155,10 +154,9 @@
             <div class="form-group-inline">
               <label class="form-label-inline required-field">Número</label>
               <input type="text" class="form-control-inline" formControlName="numeroIdentificacion"
-                     [ngClass]="{'is-invalid': submitted && f['proveedor'].get('numeroIdentificacion')?.errors}"
-                     placeholder="NIT o CC" maxlength="20">
-              <div *ngIf="submitted && f['proveedor'].get('numeroIdentificacion')?.errors" 
-                   class="invalid-feedback">
+                [ngClass]="{'is-invalid': submitted && f['proveedor'].get('numeroIdentificacion')?.errors}"
+                placeholder="NIT o CC" maxlength="20">
+              <div *ngIf="submitted && f['proveedor'].get('numeroIdentificacion')?.errors" class="invalid-feedback">
                 El número de identificación es requerido
               </div>
             </div>
@@ -168,10 +166,9 @@
             <div class="form-group-inline">
               <label class="form-label-inline required-field">Razón Social</label>
               <input type="text" class="form-control-inline" formControlName="nombreRazonSocial"
-                     [ngClass]="{'is-invalid': submitted && f['proveedor'].get('nombreRazonSocial')?.errors}"
-                     placeholder="Nombre completo o razón social" maxlength="200">
-              <div *ngIf="submitted && f['proveedor'].get('nombreRazonSocial')?.errors" 
-                   class="invalid-feedback">
+                [ngClass]="{'is-invalid': submitted && f['proveedor'].get('nombreRazonSocial')?.errors}"
+                placeholder="Nombre completo o razón social" maxlength="200">
+              <div *ngIf="submitted && f['proveedor'].get('nombreRazonSocial')?.errors" class="invalid-feedback">
                 El nombre es requerido
               </div>
             </div>
@@ -180,31 +177,36 @@
           <div class="col-md-2 mb-3">
             <div class="form-group-inline">
               <label class="form-label-inline">Teléfono</label>
-              <input type="text" class="form-control-inline" formControlName="telefono" placeholder="Teléfono" maxlength="15">
+              <input type="text" class="form-control-inline" formControlName="telefono" placeholder="Teléfono"
+                maxlength="15">
             </div>
           </div>
 
           <div class="col-md-2 mb-3">
             <div class="form-group-inline">
               <label class="form-label-inline">Email</label>
-              <input type="email" class="form-control-inline" formControlName="email" placeholder="correo@empresa.com" maxlength="100">
+              <input type="email" class="form-control-inline" formControlName="email" placeholder="correo@empresa.com"
+                maxlength="100">
             </div>
           </div>
         </div>
 
+
         <!-- Objeto del Contrato (vertical) -->
-        <div class="mt-4">
-          <div class="form-group-vertical">
-            <label class="form-label required-field">Objeto del Contrato</label>
-            <textarea class="form-control" formControlName="objeto" rows="4"
-                      [ngClass]="{'is-invalid': submitted && f['objeto'].errors}"
-                      placeholder="Describa el objeto del contrato..." maxlength="500"></textarea>
-            <div *ngIf="submitted && f['objeto'].errors" class="invalid-feedback">
-              El objeto del contrato es requerido
-            </div>
-            <small class="text-muted">{{ getRemainingChars('objeto') }} caracteres restantes</small>
-          </div>
-        </div>
+<div class="mt-4">
+  <div class="form-group-vertical">
+    <label class="form-label required-field">Objeto del Contrato</label>
+    <textarea class="form-control" formControlName="objeto" rows="4"
+              [ngClass]="{'is-invalid': submitted && f['objeto'].errors}"
+              placeholder="Describa el objeto del contrato..." maxlength="500"></textarea>
+    <div *ngIf="submitted && f['objeto'].errors" class="invalid-feedback">
+      El objeto del contrato es requerido
+    </div>
+    <small class="text-muted">{{ getRemainingChars('objeto') }} caracteres restantes</small>
+  </div>
+</div>
+
+
 
         <hr class="my-4">
 
@@ -213,7 +215,7 @@
           <i class="fas fa-chart-line me-2"></i>
           VALORES Y PLAZOS DE EJECUCIÓN
         </div>
-        
+
         <div class="row">
           <div class="col-md-4 mb-3">
             <div class="form-group-inline">
@@ -221,9 +223,8 @@
               <div class="input-group-inline">
                 <span class="input-group-text-inline">$</span>
                 <input type="text" class="form-control-inline text-end" formControlName="valor"
-                       [ngClass]="{'is-invalid': submitted && f['valor'].errors}"
-                       placeholder="0" (input)="formatearValor('valor')" 
-                       (blur)="formatearValor('valor')">
+                  [ngClass]="{'is-invalid': submitted && f['valor'].errors}" placeholder="0"
+                  (input)="formatearValor('valor')" (blur)="formatearValor('valor')">
               </div>
               <div *ngIf="submitted && f['valor'].errors" class="invalid-feedback d-block">
                 El valor es requerido y debe ser mayor a 0
@@ -236,8 +237,8 @@
             <div class="form-group-inline">
               <label class="form-label-inline required-field">Plazo (días)</label>
               <input type="number" class="form-control-inline" formControlName="plazoDias"
-                     [ngClass]="{'is-invalid': submitted && f['plazoDias'].errors}"
-                     placeholder="Días de ejecución" min="1" max="9999">
+                [ngClass]="{'is-invalid': submitted && f['plazoDias'].errors}" placeholder="Días de ejecución" min="1"
+                max="9999">
               <div *ngIf="submitted && f['plazoDias'].errors" class="invalid-feedback">
                 El plazo es requerido y debe ser mayor a 0
               </div>
@@ -248,7 +249,7 @@
             <div class="form-group-inline">
               <label class="form-label-inline required-field">Fecha de Inicio</label>
               <input type="date" class="form-control-inline" formControlName="fechaInicio"
-                     [ngClass]="{'is-invalid': submitted && f['fechaInicio'].errors}">
+                [ngClass]="{'is-invalid': submitted && f['fechaInicio'].errors}">
               <div *ngIf="submitted && f['fechaInicio'].errors" class="invalid-feedback">
                 La fecha de inicio es requerida
               </div>
@@ -267,7 +268,7 @@
             <div class="form-group-inline">
               <label class="form-label-inline required-field">Fecha de Firma</label>
               <input type="date" class="form-control-inline" formControlName="fechaFirma"
-                     [ngClass]="{'is-invalid': submitted && f['fechaFirma'].errors}">
+                [ngClass]="{'is-invalid': submitted && f['fechaFirma'].errors}">
               <div *ngIf="submitted && f['fechaFirma'].errors" class="invalid-feedback">
                 La fecha de firma es requerida
               </div>
@@ -288,7 +289,7 @@
       <div class="card-header bg-info text-white">
         <h5 class="mb-0">2. Información Presupuestal, Anticipo y Pólizas</h5>
       </div>
-      
+
       <div class="card-body">
         <!-- CERTIFICADOS PRESUPUESTALES -->
         <div class="section-title mb-4">
@@ -300,8 +301,8 @@
           <div class="col-md-6">
             <div class="form-group-inline">
               <label class="form-label-inline">Número de CDP</label>
-              <input type="text" class="form-control-inline" formControlName="cdp"
-                     placeholder="Ej: CDP-2025-000123" maxlength="50">
+              <input type="text" class="form-control-inline" formControlName="cdp" placeholder="Ej: CDP-2025-000123"
+                maxlength="50">
             </div>
             <div class="mt-2">
               <div class="form-group-vertical">
@@ -309,8 +310,8 @@
                   Soporte documental CDP (PDF)
                 </label>
                 <div class="upload-container" [class.invalid]="submitted && cdpFileError">
-                  <input type="file" class="file-input" id="cdpFile" 
-                         (change)="onFileSelected($event, 'cdp')" accept=".pdf">
+                  <input type="file" class="file-input" id="cdpFile" (change)="onFileSelected($event, 'cdp')"
+                    accept=".pdf">
                   <label for="cdpFile" class="upload-label">
                     <i class="fas fa-cloud-upload-alt me-2"></i>
                     {{ cdpFileName ? 'Cambiar archivo' : 'Seleccionar archivo PDF' }}
@@ -330,8 +331,8 @@
           <div class="col-md-6">
             <div class="form-group-inline">
               <label class="form-label-inline">Número de RP</label>
-              <input type="text" class="form-control-inline" formControlName="rp"
-                     placeholder="Ej: RP-2025-000456" maxlength="50">
+              <input type="text" class="form-control-inline" formControlName="rp" placeholder="Ej: RP-2025-000456"
+                maxlength="50">
             </div>
             <div class="mt-2">
               <div class="form-group-vertical">
@@ -339,8 +340,8 @@
                   Soporte documental RP (PDF)
                 </label>
                 <div class="upload-container" [class.invalid]="submitted && rpFileError">
-                  <input type="file" class="file-input" id="rpFile" 
-                         (change)="onFileSelected($event, 'rp')" accept=".pdf">
+                  <input type="file" class="file-input" id="rpFile" (change)="onFileSelected($event, 'rp')"
+                    accept=".pdf">
                   <label for="rpFile" class="upload-label">
                     <i class="fas fa-cloud-upload-alt me-2"></i>
                     {{ rpFileName ? 'Cambiar archivo' : 'Seleccionar archivo PDF' }}
@@ -379,8 +380,8 @@
               <div class="form-group-inline">
                 <label class="form-label-inline required-field">% Anticipo</label>
                 <div class="input-group-inline">
-                  <input type="number" class="form-control-inline" formControlName="porcentajeAnticipo"
-                         placeholder="0" min="1" max="100">
+                  <input type="number" class="form-control-inline" formControlName="porcentajeAnticipo" placeholder="0"
+                    min="1" max="100">
                   <span class="input-group-text-inline">%</span>
                 </div>
               </div>
@@ -393,7 +394,8 @@
                   <span class="input-group-text-inline">$</span>
                   <input type="text" class="form-control-inline text-end" formControlName="valorAnticipo" readonly>
                 </div>
-                <small class="text-muted" *ngIf="valorAnticipoNumerico > 0">{{ convertirAPalabras(valorAnticipoNumerico) }}</small>
+                <small class="text-muted" *ngIf="valorAnticipoNumerico > 0">{{ convertirAPalabras(valorAnticipoNumerico)
+                  }}</small>
               </div>
             </div>
 
@@ -412,12 +414,12 @@
               <label class="form-label-inline">Adiciones (Valor)</label>
               <div class="input-group-inline">
                 <span class="input-group-text-inline">$</span>
-                <input type="text" class="form-control-inline text-end" formControlName="adiciones"
-                       placeholder="0" (input)="formatearValor('adiciones')"
-                       (blur)="formatearValor('adiciones')">
+                <input type="text" class="form-control-inline text-end" formControlName="adiciones" placeholder="0"
+                  (input)="formatearValor('adiciones')" (blur)="formatearValor('adiciones')">
               </div>
               <small class="text-muted">Inicialmente 0, se puede modificar después</small>
-              <small class="text-muted d-block" *ngIf="adicionesNumerico > 0">{{ convertirAPalabras(adicionesNumerico) }}</small>
+              <small class="text-muted d-block" *ngIf="adicionesNumerico > 0">{{ convertirAPalabras(adicionesNumerico)
+                }}</small>
             </div>
           </div>
         </div>
@@ -491,7 +493,7 @@
                   <div class="form-group-inline">
                     <label class="form-label-inline required-field">Número de Póliza</label>
                     <input type="text" class="form-control-inline" formControlName="polizaCumplimientoNumero"
-                           placeholder="Número de póliza" maxlength="50">
+                      placeholder="Número de póliza" maxlength="50">
                   </div>
                 </div>
 
@@ -513,11 +515,12 @@
                     <div class="input-group-inline">
                       <span class="input-group-text-inline">$</span>
                       <input type="text" class="form-control-inline text-end" formControlName="polizaCumplimientoValor"
-                             placeholder="0" (input)="formatearValor('polizaCumplimientoValor')"
-                             (blur)="formatearValor('polizaCumplimientoValor')">
+                        placeholder="0" (input)="formatearValor('polizaCumplimientoValor')"
+                        (blur)="formatearValor('polizaCumplimientoValor')">
                     </div>
                     <small class="text-muted">Generalmente el 10% del valor total</small>
-                    <small class="text-muted d-block" *ngIf="polizaCumplimientoValorNumerico > 0">{{ convertirAPalabras(polizaCumplimientoValorNumerico) }}</small>
+                    <small class="text-muted d-block" *ngIf="polizaCumplimientoValorNumerico > 0">{{
+                      convertirAPalabras(polizaCumplimientoValorNumerico) }}</small>
                   </div>
                 </div>
 
@@ -539,8 +542,8 @@
                   <div class="form-group-vertical">
                     <label class="form-label required-field">Soporte Póliza (PDF)</label>
                     <div class="upload-container" [class.invalid]="submitted && polizaCumplimientoFileError">
-                      <input type="file" class="file-input" id="polizaCumplimientoFile" 
-                             (change)="onFileSelected($event, 'polizaCumplimiento')" accept=".pdf">
+                      <input type="file" class="file-input" id="polizaCumplimientoFile"
+                        (change)="onFileSelected($event, 'polizaCumplimiento')" accept=".pdf">
                       <label for="polizaCumplimientoFile" class="upload-label">
                         <i class="fas fa-cloud-upload-alt me-2"></i>
                         {{ polizaCumplimientoFileName ? 'Cambiar archivo' : 'Seleccionar archivo PDF' }}
@@ -567,7 +570,8 @@
             </div>
             <div class="sub-card-body">
               <div class="form-check mb-3">
-                <input class="form-check-input" type="checkbox" formControlName="requierePolizaCalidad" id="polizaCalidadCheck">
+                <input class="form-check-input" type="checkbox" formControlName="requierePolizaCalidad"
+                  id="polizaCalidadCheck">
                 <label class="form-check-label" for="polizaCalidadCheck">
                   Requiere póliza de calidad
                 </label>
@@ -579,7 +583,7 @@
                     <div class="form-group-inline">
                       <label class="form-label-inline">Número de Póliza</label>
                       <input type="text" class="form-control-inline" formControlName="polizaCalidadNumero"
-                             placeholder="Número de póliza" maxlength="50">
+                        placeholder="Número de póliza" maxlength="50">
                     </div>
                   </div>
 
@@ -601,10 +605,11 @@
                       <div class="input-group-inline">
                         <span class="input-group-text-inline">$</span>
                         <input type="text" class="form-control-inline text-end" formControlName="polizaCalidadValor"
-                               placeholder="0" (input)="formatearValor('polizaCalidadValor')"
-                               (blur)="formatearValor('polizaCalidadValor')">
+                          placeholder="0" (input)="formatearValor('polizaCalidadValor')"
+                          (blur)="formatearValor('polizaCalidadValor')">
                       </div>
-                      <small class="text-muted d-block" *ngIf="polizaCalidadValorNumerico > 0">{{ convertirAPalabras(polizaCalidadValorNumerico) }}</small>
+                      <small class="text-muted d-block" *ngIf="polizaCalidadValorNumerico > 0">{{
+                        convertirAPalabras(polizaCalidadValorNumerico) }}</small>
                     </div>
                   </div>
 
@@ -626,8 +631,8 @@
                     <div class="form-group-vertical">
                       <label class="form-label">Soporte Póliza (PDF)</label>
                       <div class="upload-container">
-                        <input type="file" class="file-input" id="polizaCalidadFile" 
-                               (change)="onFileSelected($event, 'polizaCalidad')" accept=".pdf">
+                        <input type="file" class="file-input" id="polizaCalidadFile"
+                          (change)="onFileSelected($event, 'polizaCalidad')" accept=".pdf">
                         <label for="polizaCalidadFile" class="upload-label">
                           <i class="fas fa-cloud-upload-alt me-2"></i>
                           {{ polizaCalidadFileName ? 'Cambiar archivo' : 'Seleccionar archivo PDF' }}
@@ -665,7 +670,7 @@
                     <div class="form-group-inline">
                       <label class="form-label-inline">Número de Póliza</label>
                       <input type="text" class="form-control-inline" formControlName="polizaRCNumero"
-                             placeholder="Número de póliza" maxlength="50">
+                        placeholder="Número de póliza" maxlength="50">
                     </div>
                   </div>
 
@@ -687,10 +692,11 @@
                       <div class="input-group-inline">
                         <span class="input-group-text-inline">$</span>
                         <input type="text" class="form-control-inline text-end" formControlName="polizaRCValor"
-                               placeholder="0" (input)="formatearValor('polizaRCValor')"
-                               (blur)="formatearValor('polizaRCValor')">
+                          placeholder="0" (input)="formatearValor('polizaRCValor')"
+                          (blur)="formatearValor('polizaRCValor')">
                       </div>
-                      <small class="text-muted d-block" *ngIf="polizaRCValorNumerico > 0">{{ convertirAPalabras(polizaRCValorNumerico) }}</small>
+                      <small class="text-muted d-block" *ngIf="polizaRCValorNumerico > 0">{{
+                        convertirAPalabras(polizaRCValorNumerico) }}</small>
                     </div>
                   </div>
 
@@ -712,8 +718,8 @@
                     <div class="form-group-vertical">
                       <label class="form-label">Soporte Póliza (PDF)</label>
                       <div class="upload-container">
-                        <input type="file" class="file-input" id="polizaRCFile" 
-                               (change)="onFileSelected($event, 'polizaRC')" accept=".pdf">
+                        <input type="file" class="file-input" id="polizaRCFile"
+                          (change)="onFileSelected($event, 'polizaRC')" accept=".pdf">
                         <label for="polizaRCFile" class="upload-label">
                           <i class="fas fa-cloud-upload-alt me-2"></i>
                           {{ polizaRCFileName ? 'Cambiar archivo' : 'Seleccionar archivo PDF' }}
@@ -752,7 +758,7 @@
       <div class="card-header bg-success text-white">
         <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>3. Documentos del Contrato y Contratista</h5>
       </div>
-      
+
       <div class="card-body">
         <div class="alert alert-info mb-4">
           <i class="fas fa-info-circle me-2"></i>
@@ -787,7 +793,8 @@
                     <button type="button" class="btn btn-sm btn-outline-info" (click)="verDocumento(doc.tipoDocumento)">
                       <i class="fas fa-eye"></i> Ver
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-success ms-1" (click)="descargarDocumento(doc.tipoDocumento)">
+                    <button type="button" class="btn btn-sm btn-outline-success ms-1"
+                      (click)="descargarDocumento(doc.tipoDocumento)">
                       <i class="fas fa-download"></i> Descargar
                     </button>
                   </td>
@@ -821,7 +828,8 @@
         <div *ngIf="!cargandoDocumentosContratista && contratistaDocumentos.length > 0" class="mb-4">
           <div class="alert alert-secondary mb-3">
             <i class="fas fa-info-circle me-2"></i>
-            Documentos subidos por el contratista: <strong>{{ contratistaEncontrado?.razonSocial || 'Contratista' }}</strong>
+            Documentos subidos por el contratista: <strong>{{ contratistaEncontrado?.razonSocial || 'Contratista'
+              }}</strong>
           </div>
           <div class="table-responsive">
             <table class="table table-sm">
@@ -848,7 +856,8 @@
                     <button type="button" class="btn btn-sm btn-outline-info" (click)="verDocumentoContratista(doc)">
                       <i class="fas fa-eye"></i> Ver
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-success ms-1" (click)="descargarDocumentoContratista(doc)">
+                    <button type="button" class="btn btn-sm btn-outline-success ms-1"
+                      (click)="descargarDocumentoContratista(doc)">
                       <i class="fas fa-download"></i> Descargar
                     </button>
                   </td>
@@ -859,17 +868,20 @@
         </div>
 
         <!-- Sin documentos del contratista -->
-        <div *ngIf="!cargandoDocumentosContratista && contratistaDocumentos.length === 0 && contratistaEncontrado" class="text-center py-3">
+        <div *ngIf="!cargandoDocumentosContratista && contratistaDocumentos.length === 0 && contratistaEncontrado"
+          class="text-center py-3">
           <div class="alert alert-warning">
             <i class="fas fa-exclamation-triangle me-2"></i>
-            El contratista <strong>{{ contratistaEncontrado.razonSocial }}</strong> no tiene documentos subidos en el sistema.
+            El contratista <strong>{{ contratistaEncontrado.razonSocial }}</strong> no tiene documentos subidos en el
+            sistema.
           </div>
         </div>
 
         <!-- Sin contratista asociado -->
         <div *ngIf="!contratistaEncontrado" class="alert alert-warning">
           <i class="fas fa-exclamation-triangle me-2"></i>
-          No hay un contratista asociado a este número de contrato. Por favor ingrese el número de contrato en el paso 1 para cargar los datos del contratista.
+          No hay un contratista asociado a este número de contrato. Por favor ingrese el número de contrato en el paso 1
+          para cargar los datos del contratista.
         </div>
       </div>
 

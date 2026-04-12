@@ -439,72 +439,79 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   }
 
 
-  buscarContratistaPorContrato(): void {
-    // ✅ En modo edición, obtener el número de contrato del formulario o del contrato cargado
-    let numeroContrato = this.contratoForm.get('numeroContrato')?.value;
+buscarContratistaPorContrato(): void {
+  let numeroContrato = this.contratoForm.get('numeroContrato')?.value;
 
-    // ✅ Si no hay en el formulario, usar el que tenemos guardado
-    if (!numeroContrato && this.contratoId) {
-      // Si estamos en edición y el formulario está vacío, esperar a que se cargue
-      console.log('⏳ Esperando número de contrato del formulario...');
-      return;
-    }
+  if (!numeroContrato || numeroContrato.trim().length < 3) {
+    this.contratistaEncontrado = null;
+    this.contratistaDocumentos = [];
+    this.contratistaSeleccionadoId = null;
+    return;
+  }
 
-    if (!numeroContrato || numeroContrato.trim().length < 3) {
+  this.buscandoContratista = true;
+
+  this.juridicaService.buscarContratistaPorNumeroContrato(numeroContrato).subscribe({
+    next: (contratista: any) => {
+      this.buscandoContratista = false;
+
+      if (contratista && contratista.id) {
+        this.contratistaEncontrado = contratista;
+        this.contratistaSeleccionadoId = contratista.id;
+
+        // ✅ Cargar documentos
+        if (contratista.documentos && Array.isArray(contratista.documentos) && contratista.documentos.length > 0) {
+          this.contratistaDocumentos = contratista.documentos;
+          console.log(`✅ Documentos del contratista cargados: ${this.contratistaDocumentos.length}`);
+        } else {
+          this.contratistaDocumentos = [];
+        }
+
+        // ✅ AUTO-LLENAR el campo "Objeto del Contrato" con objetivoContrato
+        if (contratista.objetivoContrato && !this.isViewMode) {
+          const objetoActual = this.contratoForm.get('objeto')?.value;
+          if (!objetoActual || objetoActual.trim() === '') {
+            this.contratoForm.patchValue({
+              objeto: contratista.objetivoContrato
+            });
+            console.log(`✅ Campo "Objeto del Contrato" auto-llenado con: ${contratista.objetivoContrato}`);
+          }
+        }
+
+        // ✅ Auto-llenar datos del proveedor
+        if (!this.isViewMode) {
+          this.contratoForm.patchValue({
+            proveedor: {
+              tipoIdentificacion: contratista.tipoDocumento || 'NIT',
+              numeroIdentificacion: contratista.documentoIdentidad,
+              nombreRazonSocial: contratista.razonSocial,
+              telefono: contratista.telefono || '',
+              email: contratista.email || ''
+            }
+          });
+          console.log('✅ Datos del proveedor auto-llenados');
+        }
+
+        // ✅ Mostrar mensaje de éxito
+        this.successMessage = `Contratista "${contratista.razonSocial}" cargado correctamente`;
+        setTimeout(() => this.dismissSuccess(), 3000);
+        
+      } else {
+        console.warn('⚠️ No se encontró contratista con el número:', numeroContrato);
+        this.contratistaEncontrado = null;
+        this.contratistaSeleccionadoId = null;
+        this.contratistaDocumentos = [];
+      }
+    },
+    error: (error: any) => {
+      console.error('❌ Error buscando contratista:', error);
       this.contratistaEncontrado = null;
       this.contratistaDocumentos = [];
       this.contratistaSeleccionadoId = null;
-      return;
+      this.buscandoContratista = false;
     }
-
-    this.buscandoContratista = true;
-
-    this.juridicaService.buscarContratistaPorNumeroContrato(numeroContrato).subscribe({
-      next: (contratista: any) => {
-        this.buscandoContratista = false;
-
-        if (contratista && contratista.id) {
-          this.contratistaEncontrado = contratista;
-          this.contratistaSeleccionadoId = contratista.id;
-
-          // ✅ SIEMPRE cargar documentos del contratista, ya sea que vengan o no
-          if (contratista.documentos && Array.isArray(contratista.documentos) && contratista.documentos.length > 0) {
-            this.contratistaDocumentos = contratista.documentos;
-            console.log(`✅ Documentos del contratista cargados desde el objeto: ${this.contratistaDocumentos.length}`);
-          } else {
-            // ✅ Si no vienen en el objeto, hacer petición aparte SIEMPRE
-            console.log('📡 Documentos no incluidos, haciendo petición aparte...');
-            this.cargarDocumentosContratista(contratista.id);
-          }
-
-          // Solo actualizar el formulario si NO estamos en modo vista
-          if (!this.isViewMode) {
-            this.contratoForm.patchValue({
-              proveedor: {
-                tipoIdentificacion: contratista.tipoDocumento || 'NIT',
-                numeroIdentificacion: contratista.documentoIdentidad,
-                nombreRazonSocial: contratista.razonSocial,
-                telefono: contratista.telefono || '',
-                email: contratista.email || ''
-              }
-            });
-          }
-        } else {
-          console.warn('⚠️ No se encontró contratista con el número:', numeroContrato);
-          this.contratistaEncontrado = null;
-          this.contratistaSeleccionadoId = null;
-          this.contratistaDocumentos = [];
-        }
-      },
-      error: (error: any) => {
-        console.error('❌ Error buscando contratista:', error);
-        this.contratistaEncontrado = null;
-        this.contratistaDocumentos = [];
-        this.contratistaSeleccionadoId = null;
-        this.buscandoContratista = false;
-      }
-    });
-  }
+  });
+}
 
   // ✅ Método para cargar documentos del contratista por separado
   cargarDocumentosContratista(contratistaId: string): void {
@@ -695,6 +702,10 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
 
     if (datosContrato.requierePolizas) {
       this.onRequierePolizasChange(true);
+    }
+
+    if (datosContrato.objeto) {
+      this.contratoForm.patchValue({ objeto: datosContrato.objeto });
     }
 
     this.calcularValores();

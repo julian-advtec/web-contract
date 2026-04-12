@@ -257,42 +257,49 @@ export class JuridicaService {
     );
   }
 
-  buscarContratistaPorNumeroContrato(numeroContrato: string): Observable<any> {
-    const headers = this.getAuthHeaders();
-    const url = `${environment.apiUrl}/juridica/contratistas/buscar-por-contrato/${encodeURIComponent(numeroContrato)}`;
+buscarContratistaPorNumeroContrato(numeroContrato: string): Observable<any> {
+  const headers = this.getAuthHeaders();
+  const url = `${environment.apiUrl}/contratistas/buscar-por-contrato/${encodeURIComponent(numeroContrato)}`;
 
-    console.log('📡 Buscando contratista por contrato:', url);
+  console.log('📡 Buscando contratista por contrato:', url);
 
-    return this.http.get<any>(url, { headers }).pipe(
-      map(response => {
-        console.log('📥 Respuesta completa:', JSON.stringify(response, null, 2));
+  return this.http.get<any>(url, { headers }).pipe(
+    map(response => {
+      console.log('📥 Respuesta completa:', JSON.stringify(response, null, 2));
 
-        // Extraer el contratista de la estructura anidada
-        // response.data.data.data es donde está el contratista
-        let contratista = null;
+      let contratista = null;
 
-        if (response?.data?.data?.data) {
-          contratista = response.data.data.data;
-        } else if (response?.data?.data && response.data.data.id) {
-          contratista = response.data.data;
-        } else if (response?.data && response.data.id) {
-          contratista = response.data;
-        }
+      // Extraer el contratista de la estructura anidada
+      if (response?.data?.data?.data) {
+        contratista = response.data.data.data;
+      } else if (response?.data?.data && response.data.data.id) {
+        contratista = response.data.data;
+      } else if (response?.data && response.data.id) {
+        contratista = response.data;
+      }
 
-        if (contratista && contratista.id) {
-          console.log(`✅ Contratista encontrado: ${contratista.razonSocial}, Documentos: ${contratista.documentos?.length || 0}`);
-          return contratista;
-        }
+      if (contratista && contratista.id) {
+        console.log(`✅ Contratista encontrado: ${contratista.razonSocial}`);
+        console.log(`📋 objetivoContrato: ${contratista.objetivoContrato}`);
+        console.log(`📎 Documentos: ${contratista.documentos?.length || 0}`);
+        
+        // ✅ Asegurar que los documentos se pasen correctamente
+        return {
+          ...contratista,
+          objetivoContrato: contratista.objetivoContrato || '',
+          documentos: contratista.documentos || []  // ✅ Incluir documentos
+        };
+      }
 
-        console.warn('⚠️ No se encontró contratista con el número:', numeroContrato);
-        return null;
-      }),
-      catchError((error) => {
-        console.error('❌ Error en búsqueda por contrato:', error);
-        return of(null);
-      })
-    );
-  }
+      console.warn('⚠️ No se encontró contratista con el número:', numeroContrato);
+      return null;
+    }),
+    catchError((error) => {
+      console.error('❌ Error en búsqueda por contrato:', error);
+      return of(null);
+    })
+  );
+}
 
   autocompleteContratos(termino: string): Observable<any[]> {
     const headers = this.getAuthHeaders();
@@ -304,6 +311,40 @@ export class JuridicaService {
     );
   }
 
-  
+  // src/app/core/services/juridica.service.ts
+
+/**
+ * Obtener contrato y contratista por número de contrato
+ * Retorna: { contratista: {nombre, documento}, contrato: {fechaInicio, fechaFin} }
+ */
+obtenerContratoYContratistaPorNumero(numeroContrato: string): Observable<any> {
+  const headers = this.getAuthHeaders();
+  const url = `${environment.apiUrl}/juridica/contrato-con-contratista/${encodeURIComponent(numeroContrato)}`;
+
+  console.log('📡 Buscando contrato y contratista por número:', url);
+
+  return this.http.get<any>(url, { headers }).pipe(
+    map(response => {
+      console.log('📥 Respuesta completa:', JSON.stringify(response, null, 2));
+
+      // Extraer los datos de la estructura anidada
+      if (response?.data?.data?.data) {
+        return response.data.data.data;
+      }
+      if (response?.data?.data) {
+        return response.data.data;
+      }
+      if (response?.data) {
+        return response.data;
+      }
+      
+      return null;
+    }),
+    catchError((error) => {
+      console.error('❌ Error en búsqueda:', error);
+      return of(null);
+    })
+  );
+}
 
 }
