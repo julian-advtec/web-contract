@@ -130,7 +130,7 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
 
     // ✅ Obtener ID con prioridad: @Input > ruta > rendición
     let idParaCargar: string | null = this.documentoId;
-    
+
     if (!idParaCargar) {
       const idFromRoute = this.route.snapshot.paramMap.get('id');
       if (idFromRoute) {
@@ -207,24 +207,32 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
     console.log('[AUDITOR] Cargando documento con ID:', id);
     this.isLoading = true;
 
+    // ✅ GUARDAR EL ID PARA PASARLO AL COMPONENTE HIJO
+    this.documentoId = id;
+
     this.auditorService.obtenerDocumentoParaVista(id).subscribe({
       next: (res: any) => {
+        console.log('[AUDITOR] Respuesta completa de vista:', res);
+
+        // ✅ Extraer correctamente los datos
         const data = res?.data || res;
-        
-        // ✅ Si el documento no se encuentra, intentar como rendiciónId
-        if (!data || !data.documento) {
+        const documento = data?.documento || data;
+
+        console.log('[AUDITOR] Documento extraído:', documento);
+
+        if (!documento || !documento.id) {
           console.log('[AUDITOR] Documento no encontrado, intentando como rendiciónId...');
           this.cargarViaRendicion(id);
           return;
         }
-        
-        this.documentoData = data?.documento || null;
-        this.numeroRadicado = data?.documento?.numeroRadicado || '';
-        this.nombreContratista = data?.documento?.nombreContratista || '';
-        this.estadoDocumento = data?.documento?.estado || '';
-        this.primerRadicadoDelAno = !!data?.documento?.primerRadicadoDelAno;
-        this.contratistaId = data?.documento?.contratistaId || null;
-        this.numeroContrato = data?.documento?.numeroContrato || '';
+
+        this.documentoData = documento;
+        this.numeroRadicado = documento.numeroRadicado || '';
+        this.nombreContratista = documento.nombreContratista || '';
+        this.estadoDocumento = documento.estado || '';
+        this.primerRadicadoDelAno = !!documento.primerRadicadoDelAno;
+        this.contratistaId = documento.contratistaId || null;
+        this.numeroContrato = documento.numeroContrato || '';
 
         if (this.estadoDocumento === 'EN_REVISION_AUDITOR') {
           this.soloLectura = false;
@@ -248,13 +256,13 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
         this.documentoEnRevision = this.estadoDocumento === 'EN_REVISION_AUDITOR';
         this.estaEnRevision = this.documentoEnRevision;
 
+        // ✅ FORZAR ACTUALIZACIÓN DEL COMPONENTE HIJO
         this.cdr.detectChanges();
         this.isLoading = false;
       },
       error: (err) => {
         console.error('[AUDITOR] Error cargando documento:', err);
-        
-        // ✅ Si hay error 404, intentar como rendiciónId
+
         if (err.status === 404) {
           console.log('[AUDITOR] Error 404, intentando como rendiciónId...');
           this.cargarViaRendicion(id);
@@ -268,12 +276,13 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
 
   private cargarViaRendicion(rendicionId: string): void {
     this.isLoading = true;
-    
+
     this.rendicionService.obtenerDetalleRendicion(rendicionId).subscribe({
       next: (data: any) => {
         const documentoIdReal = data.documento?.id || data.documentoId;
         if (documentoIdReal) {
           console.log('[AUDITOR] ✅ DocumentoId real obtenido:', documentoIdReal);
+          this.documentoId = documentoIdReal;
           this.cargarDocumentoParaAuditor(documentoIdReal);
         } else {
           console.error('[AUDITOR] No se pudo obtener documentoId real');
@@ -310,22 +319,24 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
     if (this.numeroContrato) {
       this.cargarContratistaConDocumentos();
     }
+
+    setTimeout(() => this.diagnosticarArchivos(), 1000);
   }
 
   cargarContratistaConDocumentos(): void {
     this.cargandoDocumentosContratista = true;
-    
+
     this.auditorService.obtenerContratistaPorNumeroContrato(this.numeroContrato).subscribe({
       next: (contratista: any) => {
         if (contratista && contratista.id) {
           this.contratistaId = contratista.id;
-          
+
           const documentos = contratista.documentos || [];
           this.documentosContratista = documentos;
-          
+
           console.log(`[CONTRATISTA] ✅ Contratista encontrado: ${contratista.razonSocial || contratista.nombre}`);
           console.log(`[CONTRATISTA] 📎 Documentos recibidos: ${documentos.length}`);
-          
+
           const mapeoTipos: Record<string, string[]> = {
             poliza: ['POLIZA', 'POLIZA_CUMPLIMIENTO', 'GARANTIA', 'PÓLIZA'],
             certificadoBancario: ['CERTIFICADO_BANCARIO', 'CERTIFICADO BANCARIO', 'CERTIFICADO'],
@@ -334,11 +345,11 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
           };
 
           const claves = Object.keys(mapeoTipos);
-          
+
           for (let i = 0; i < claves.length; i++) {
             const clave = claves[i];
             const tiposBuscados = mapeoTipos[clave];
-            
+
             const documento = documentos.find((doc: any) => {
               if (!doc.tipo) return false;
               const tipoDoc = doc.tipo.toUpperCase();
@@ -369,7 +380,7 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
           console.warn('[CONTRATISTA] ❌ No se encontró contratista');
           this.documentosContratista = [];
         }
-        
+
         this.cargandoDocumentosContratista = false;
         this.cdr.detectChanges();
       },
@@ -389,12 +400,12 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
         console.log('[CONTRATO] Datos del contrato:', contrato);
 
         const documentosContrato = contrato?.documentos || [];
-        
+
         // Buscar RP
         const rpDoc = documentosContrato.find((d: any) =>
           d.tipoDocumento === 'RP' || d.tipoDocumento === 'RP_DOCUMENTO'
         );
-        
+
         if (rpDoc && rpDoc.rutaArchivo) {
           this.archivosAuditorFormulario['rp'] = {
             subido: true,
@@ -420,7 +431,7 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
         const cdpDoc = documentosContrato.find((d: any) =>
           d.tipoDocumento === 'CDP' || d.tipoDocumento === 'CDP_DOCUMENTO'
         );
-        
+
         if (cdpDoc && cdpDoc.rutaArchivo) {
           this.archivosAuditorFormulario['cdp'] = {
             subido: true,
@@ -446,7 +457,7 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
         const minutaDoc = documentosContrato.find((d: any) =>
           d.tipoDocumento === 'MINUTA' || d.tipoDocumento === 'MINUTA_CONTRATO'
         );
-        
+
         if (minutaDoc && minutaDoc.rutaArchivo) {
           this.archivosAuditorFormulario['minuta'] = {
             subido: true,
@@ -463,7 +474,7 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
         const actaDoc = documentosContrato.find((d: any) =>
           d.tipoDocumento === 'ACTA_INICIO' || d.tipoDocumento === 'ACTA_DE_INICIO'
         );
-        
+
         if (actaDoc && actaDoc.rutaArchivo) {
           this.archivosAuditorFormulario['actaInicio'] = {
             subido: true,
@@ -643,7 +654,7 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
 
   liberarDocumento(): void {
     if (!this.documentoId) return;
-    
+
     this.isProcessing = true;
     this.auditorService.liberarDocumento(this.documentoId).subscribe({
       next: () => {
@@ -834,5 +845,31 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
         this.notificationService.warning('Descarga parcial', `${descargados} descargados, ${errores} errores`);
       }
     }
+  }
+
+  diagnosticarArchivos(): void {
+    console.log('========== DIAGNÓSTICO DE ARCHIVOS ==========');
+    console.log('Documento ID:', this.documentoId);
+    console.log('Número Contrato:', this.numeroContrato);
+    console.log('Primer radicado:', this.primerRadicadoDelAno);
+    console.log('Estado documento:', this.estadoDocumento);
+
+    console.log('\n📁 ARCHIVOS DE AUDITORÍA:');
+    Object.keys(this.archivosAuditorFormulario).forEach(key => {
+      const arch = this.archivosAuditorFormulario[key];
+      console.log(`  ${key}:`, {
+        subido: arch.subido,
+        nombreArchivo: arch.nombreArchivo,
+        rutaServidor: arch.rutaServidor,
+        fuente: arch.fuente
+      });
+    });
+
+    console.log('\n📄 DOCUMENTOS DEL CONTRATISTA:', this.documentosContratista.length);
+    this.documentosContratista.forEach(doc => {
+      console.log(`  - ${doc.tipo}: ${doc.nombreArchivo}`);
+    });
+
+    console.log('=============================================');
   }
 }

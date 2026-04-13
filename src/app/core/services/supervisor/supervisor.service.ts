@@ -193,4 +193,8 @@ getUrlArchivoSupervisor(nombreArchivo: string | null, tipo: 'aprobacion' | 'pazs
     obtenerMisSupervisiones(): Observable<Documento[]> {
         return this.documentosService.obtenerMisSupervisiones();
     }
+
+    obtenerRevisionSupervisorPorDocumento(documentoId: string): Observable<any> {
+  return this.documentosService.obtenerRevisionSupervisorPorDocumento(documentoId);
+}
 }

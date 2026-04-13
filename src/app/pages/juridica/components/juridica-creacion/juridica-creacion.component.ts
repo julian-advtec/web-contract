@@ -1,12 +1,10 @@
-// src/app/pages/juridica/components/juridica-creacion/juridica-creacion.component.ts
-
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { JuridicaService } from '../../../../core/services/juridica.service';
 import { ContratistasService } from '../../../../core/services/contratistas.service';
-import { Subscription, Observable } from 'rxjs';   // ← Aquí agregas Observable
+import { Subscription, Observable } from 'rxjs';
 
 @Component({
   selector: 'app-juridica-creacion',
@@ -39,37 +37,46 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   contratistaSeleccionadoId: string | null = null;
   cargandoDocumentosContratista = false;
 
-  // Archivos
+  // Archivos (para nuevos archivos)
   cdpFile: File | null = null;
   rpFile: File | null = null;
   polizaCumplimientoFile: File | null = null;
   polizaCalidadFile: File | null = null;
   polizaRCFile: File | null = null;
+  minutaFile: File | null = null;
+  actaInicioFile: File | null = null;
 
+  // Nombres de archivos (para mostrar)
   cdpFileName: string = '';
   rpFileName: string = '';
   polizaCumplimientoFileName: string = '';
   polizaCalidadFileName: string = '';
   polizaRCFileName: string = '';
+  minutaFileName: string = '';
+  actaInicioFileName: string = '';
 
+  // IDs de documentos existentes (para edición)
+  cdpFileId: string | null = null;
+  rpFileId: string | null = null;
+  polizaCumplimientoFileId: string | null = null;
+  polizaCalidadFileId: string | null = null;
+  polizaRCFileId: string | null = null;
+  minutaFileId: string | null = null;
+  actaInicioFileId: string | null = null;
+
+  // Errores de archivos
   cdpFileError: string | null = null;
   rpFileError: string | null = null;
   polizaCumplimientoFileError: string | null = null;
-
-  minutaFile: File | null = null;
-  actaInicioFile: File | null = null;
-  minutaFileName: string = '';
-  actaInicioFileName: string = '';
   minutaFileError: string | null = null;
   actaInicioFileError: string | null = null;
 
-  // ✅ Propiedades faltantes para el template
   get cdpRequerido(): boolean {
-    return !!this.contratoForm?.get('cdp')?.value && !this.cdpFile;
+    return !!this.contratoForm?.get('cdp')?.value && !this.cdpFile && !this.cdpFileId;
   }
 
   get rpRequerido(): boolean {
-    return !!this.contratoForm?.get('rp')?.value && !this.rpFile;
+    return !!this.contratoForm?.get('rp')?.value && !this.rpFile && !this.rpFileId;
   }
 
   get polizaCalidadValorNumerico(): number {
@@ -410,8 +417,12 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       next: (contrato: any) => {
         if (contrato) {
           this.cargarDatosEnFormulario(contrato);
+
+          // ✅ NO llamar a cargarDocumentosContrato aquí
+          // Los documentos ya están en datosContrato.documentos
+          // this.cargarDocumentosContrato(id);  // <-- ELIMINAR ESTA LÍNEA
+
           this.pasoActual = 1;
-          this.cargarDocumentosContrato(id);
 
           setTimeout(() => {
             if (this.contratoForm.get('numeroContrato')?.value) {
@@ -526,6 +537,71 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     });
   }
 
+  verDocumento(tipo: string): void {
+    let documentoId: string | null = null;
+
+    switch (tipo) {
+      case 'MINUTA': documentoId = this.minutaFileId; break;
+      case 'ACTA_INICIO': documentoId = this.actaInicioFileId; break;
+      case 'CDP': documentoId = this.cdpFileId; break;
+      case 'RP': documentoId = this.rpFileId; break;
+      case 'POLIZA_CUMPLIMIENTO': documentoId = this.polizaCumplimientoFileId; break;
+      case 'POLIZA_CALIDAD': documentoId = this.polizaCalidadFileId; break;
+      case 'POLIZA_RC': documentoId = this.polizaRCFileId; break;
+    }
+
+    if (documentoId) {
+      this.juridicaService.previsualizarDocumento(documentoId).subscribe({
+        next: (blob: Blob) => {
+          const url = window.URL.createObjectURL(blob);
+          window.open(url, '_blank');
+          window.URL.revokeObjectURL(url);
+        },
+        error: (error: any) => {
+          console.error('Error al visualizar documento:', error);
+          this.errorMessage = 'Error al visualizar el documento';
+        }
+      });
+    } else {
+      this.errorMessage = `No hay documento de tipo ${tipo} asociado`;
+      setTimeout(() => this.dismissError(), 3000);
+    }
+  }
+
+  descargarDocumento(tipo: string): void {
+    let documentoId: string | null = null;
+
+    switch (tipo) {
+      case 'MINUTA': documentoId = this.minutaFileId; break;
+      case 'ACTA_INICIO': documentoId = this.actaInicioFileId; break;
+      case 'CDP': documentoId = this.cdpFileId; break;
+      case 'RP': documentoId = this.rpFileId; break;
+      case 'POLIZA_CUMPLIMIENTO': documentoId = this.polizaCumplimientoFileId; break;
+      case 'POLIZA_CALIDAD': documentoId = this.polizaCalidadFileId; break;
+      case 'POLIZA_RC': documentoId = this.polizaRCFileId; break;
+    }
+
+    if (documentoId) {
+      this.juridicaService.descargarDocumentoContrato(documentoId).subscribe({
+        next: (blob: Blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `documento_${tipo}.pdf`;
+          a.click();
+          window.URL.revokeObjectURL(url);
+        },
+        error: (error: any) => {
+          console.error('Error al descargar documento:', error);
+          this.errorMessage = 'Error al descargar el documento';
+        }
+      });
+    } else {
+      this.errorMessage = `No hay documento de tipo ${tipo} asociado`;
+      setTimeout(() => this.dismissError(), 3000);
+    }
+  }
+
   verDocumentoContratista(documento: any): void {
     if (!this.contratistaSeleccionadoId || !documento.id) {
       this.errorMessage = 'No se puede visualizar el documento';
@@ -577,8 +653,12 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (!contrato) {
+      console.error('❌ Contrato es undefined o null');
+      return;
+    }
+
     console.log('📋 DATOS COMPLETOS DEL CONTRATO:', JSON.stringify(contrato, null, 2));
-    console.log('📋 ESTRUCTURA - contrato.data?', contrato.data ? 'Sí' : 'No');
 
     let datosContrato = contrato;
     if (contrato.data && !contrato.id) {
@@ -586,13 +666,75 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       console.log('📦 Contrato extraído de data:', datosContrato);
     }
 
-    console.log('🔍 Verificando campos:');
-    console.log('  - numeroContrato:', datosContrato.numeroContrato);
-    console.log('  - vigencia:', datosContrato.vigencia);
-    console.log('  - valor:', datosContrato.valor);
-    console.log('  - objeto:', datosContrato.objeto?.substring(0, 50));
-    console.log('  - proveedor:', datosContrato.proveedor);
-    console.log('  - documentos:', datosContrato.documentos?.length || 0);
+    // ✅ Usar los documentos que vienen en datosContrato
+    this.documentosContrato = datosContrato.documentos || [];
+    console.log(`📄 Documentos del contrato cargados desde datos: ${this.documentosContrato.length}`);
+
+    // ✅ Identificar cada tipo de documento y guardar su información
+    this.minutaFileId = null;
+    this.actaInicioFileId = null;
+    this.cdpFileId = null;
+    this.rpFileId = null;
+    this.polizaCumplimientoFileId = null;
+    this.polizaCalidadFileId = null;
+    this.polizaRCFileId = null;
+
+    this.minutaFileName = '';
+    this.actaInicioFileName = '';
+    this.cdpFileName = '';
+    this.rpFileName = '';
+    this.polizaCumplimientoFileName = '';
+    this.polizaCalidadFileName = '';
+    this.polizaRCFileName = '';
+
+    this.documentosContrato.forEach(doc => {
+      switch (doc.tipoDocumento) {
+        case 'MINUTA':
+          this.minutaFileName = doc.nombreArchivo;
+          this.minutaFileId = doc.id;
+          break;
+        case 'ACTA_INICIO':
+          this.actaInicioFileName = doc.nombreArchivo;
+          this.actaInicioFileId = doc.id;
+          break;
+        case 'CDP':
+          this.cdpFileName = doc.nombreArchivo;
+          this.cdpFileId = doc.id;
+          break;
+        case 'RP':
+          this.rpFileName = doc.nombreArchivo;
+          this.rpFileId = doc.id;
+          break;
+        case 'POLIZA_CUMPLIMIENTO':
+          this.polizaCumplimientoFileName = doc.nombreArchivo;
+          this.polizaCumplimientoFileId = doc.id;
+          break;
+        case 'POLIZA_CALIDAD':
+          this.polizaCalidadFileName = doc.nombreArchivo;
+          this.polizaCalidadFileId = doc.id;
+          break;
+        case 'POLIZA_RC':
+          this.polizaRCFileName = doc.nombreArchivo;
+          this.polizaRCFileId = doc.id;
+          break;
+      }
+    });
+
+    console.log('📋 Documentos identificados:', {
+      minuta: this.minutaFileName,
+      actaInicio: this.actaInicioFileName,
+      cdp: this.cdpFileName,
+      rp: this.rpFileName,
+      polizaCumplimiento: this.polizaCumplimientoFileName
+    });
+
+    console.log('📋 DATOS COMPLETOS DEL CONTRATO:', JSON.stringify(contrato, null, 2));
+
+    
+    if (contrato.data && !contrato.id) {
+      datosContrato = contrato.data;
+      console.log('📦 Contrato extraído de data:', datosContrato);
+    }
 
     const fechaInicio = datosContrato.fechaInicio
       ? new Date(datosContrato.fechaInicio).toISOString().split('T')[0]
@@ -607,10 +749,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       ? new Date(datosContrato.fechaDesembolsoAnticipo).toISOString().split('T')[0]
       : '';
 
-    console.log('📅 Fechas formateadas:', { fechaInicio, fechaTerminacion, fechaFirma, fechaDesembolso });
-
     this.documentosContrato = datosContrato.documentos || [];
-    console.log(`📄 Documentos del contrato: ${this.documentosContrato.length}`);
 
     const proveedorData = datosContrato.proveedor || {
       tipoIdentificacion: 'NIT',
@@ -665,16 +804,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       polizaRCVigenciaHasta: datosContrato.polizaRCVigenciaHasta || ''
     };
 
-    console.log('📝 Datos a actualizar en el formulario:', patchData);
-
     this.contratoForm.patchValue(patchData);
-
-    console.log('🔍 Verificación post-patch:');
-    console.log('  - numeroContrato en formulario:', this.contratoForm.get('numeroContrato')?.value);
-    console.log('  - vigencia en formulario:', this.contratoForm.get('vigencia')?.value);
-    console.log('  - valor en formulario:', this.contratoForm.get('valor')?.value);
-    console.log('  - proveedor.nombreRazonSocial:', this.contratoForm.get('proveedor.nombreRazonSocial')?.value);
-
     this.valorTotal = datosContrato.valorTotal || 0;
 
     if (datosContrato.seDesembolsaAnticipo) {
@@ -692,8 +822,6 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     }
 
     this.calcularValores();
-
-    console.log('✅ cargarDatosEnFormulario completado');
   }
 
   cargarSupervisores(): void {
@@ -741,7 +869,18 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
         if (!this.contratoForm.get('polizaCumplimientoValor')?.value) isValid = false;
         if (!this.contratoForm.get('polizaCumplimientoVigenciaDesde')?.value) isValid = false;
         if (!this.contratoForm.get('polizaCumplimientoVigenciaHasta')?.value) isValid = false;
-        if (!this.polizaCumplimientoFile && !this.isEditMode) isValid = false;
+        if (!this.polizaCumplimientoFile && !this.polizaCumplimientoFileId && !this.isEditMode) isValid = false;
+      }
+    }
+
+    if (this.pasoActual === 3) {
+      if (!this.minutaFile && !this.minutaFileId && !this.isEditMode) {
+        this.minutaFileError = 'La minuta del contrato es requerida';
+        isValid = false;
+      }
+      if (!this.actaInicioFile && !this.actaInicioFileId && !this.isEditMode) {
+        this.actaInicioFileError = 'El acta de inicio es requerida';
+        isValid = false;
       }
     }
 
@@ -782,161 +921,125 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     }
   }
 
-  verDocumento(tipo: string): void {
-    console.log('Ver documento:', tipo);
-    alert(`Ver documento: ${tipo}\nFuncionalidad en desarrollo`);
-  }
+  guardarContrato(): void {
+    if (this.isViewMode) {
+      this.router.navigate(['/juridica/list']);
+      return;
+    }
 
-  descargarDocumento(tipo: string): void {
-    console.log('Descargar documento:', tipo);
-    alert(`Descargar documento: ${tipo}\nFuncionalidad en desarrollo`);
-  }
+    this.submitted = true;
+    if (this.contratoForm.invalid) {
+      this.errorMessage = 'Por favor complete todos los campos requeridos';
+      this.markStepFieldsAsTouched();
+      return;
+    }
 
+    this.isSubmitting = true;
+    this.errorMessage = '';
 
-guardarContrato(): void {
-  if (this.isViewMode) {
-    this.router.navigate(['/juridica/list']);
-    return;
-  }
+    const formValue = this.contratoForm.getRawValue();
+    const valorTotal = (Number(formValue.valor) || 0) + (Number(formValue.adiciones) || 0);
 
-  this.submitted = true;
-  if (this.contratoForm.invalid) {
-    this.errorMessage = 'Por favor complete todos los campos requeridos';
-    this.markStepFieldsAsTouched();
-    return;
-  }
+    const safeDate = (value: any): string | null => {
+      if (!value || value === '' || value === 'null' || value === 'undefined') return null;
+      return value;
+    };
 
-  this.isSubmitting = true;
-  this.errorMessage = '';
+    const contratoDto = {
+      vigencia: formValue.vigencia,
+      numeroContrato: formValue.numeroContrato,
+      tipoContrato: formValue.tipoContrato,
+      proveedor: formValue.proveedor,
+      objeto: formValue.objeto,
+      valor: Number(formValue.valor) || 0,
+      plazoDias: Number(formValue.plazoDias) || 0,
+      fechaInicio: safeDate(formValue.fechaInicio),
+      fechaTerminacion: safeDate(formValue.fechaTerminacion),
+      fechaFirma: safeDate(formValue.fechaFirma),
+      valorTotal: valorTotal,
+      adiciones: Number(formValue.adiciones) || 0,
+      supervisor: formValue.supervisor,
+      cdp: formValue.cdp,
+      rp: formValue.rp,
+      creadoPor: this.obtenerUsuarioActual(),
+      seDesembolsaAnticipo: !!formValue.seDesembolsaAnticipo,
+      porcentajeAnticipo: formValue.porcentajeAnticipo ? Number(formValue.porcentajeAnticipo) : null,
+      valorAnticipo: formValue.valorAnticipo ? Number(formValue.valorAnticipo) : null,
+      fechaDesembolsoAnticipo: safeDate(formValue.fechaDesembolsoAnticipo),
+      requierePolizas: !!formValue.requierePolizas,
+      polizaCumplimientoNumero: formValue.polizaCumplimientoNumero,
+      polizaCumplimientoAseguradora: formValue.polizaCumplimientoAseguradora,
+      polizaCumplimientoValor: formValue.polizaCumplimientoValor ? Number(formValue.polizaCumplimientoValor) : null,
+      polizaCumplimientoVigenciaDesde: safeDate(formValue.polizaCumplimientoVigenciaDesde),
+      polizaCumplimientoVigenciaHasta: safeDate(formValue.polizaCumplimientoVigenciaHasta),
+      requierePolizaCalidad: !!formValue.requierePolizaCalidad,
+      polizaCalidadNumero: formValue.polizaCalidadNumero,
+      polizaCalidadAseguradora: formValue.polizaCalidadAseguradora,
+      polizaCalidadValor: formValue.polizaCalidadValor ? Number(formValue.polizaCalidadValor) : null,
+      polizaCalidadVigenciaDesde: safeDate(formValue.polizaCalidadVigenciaDesde),
+      polizaCalidadVigenciaHasta: safeDate(formValue.polizaCalidadVigenciaHasta),
+      requierePolizaRC: !!formValue.requierePolizaRC,
+      polizaRCNumero: formValue.polizaRCNumero,
+      polizaRCAseguradora: formValue.polizaRCAseguradora,
+      polizaRCValor: formValue.polizaRCValor ? Number(formValue.polizaRCValor) : null,
+      polizaRCVigenciaDesde: safeDate(formValue.polizaRCVigenciaDesde),
+      polizaRCVigenciaHasta: safeDate(formValue.polizaRCVigenciaHasta),
+    };
 
-  const formValue = this.contratoForm.getRawValue();
-  const valorTotal = (Number(formValue.valor) || 0) + (Number(formValue.adiciones) || 0);
+    const formData = new FormData();
+    formData.append('contrato', JSON.stringify(contratoDto));
 
-  // Limpieza segura de fechas vacías
-  const safeDate = (value: any): string | null => {
-    if (!value || value === '' || value === 'null' || value === 'undefined') return null;
-    return value;
-  };
+    // Adjuntar archivos (solo si hay archivos nuevos)
+    if (this.minutaFile) {
+      formData.append('minutaFile', this.minutaFile);
+    }
+    if (this.actaInicioFile) {
+      formData.append('actaInicioFile', this.actaInicioFile);
+    }
+    if (this.cdpFile) {
+      formData.append('cdpFile', this.cdpFile);
+    }
+    if (this.rpFile) {
+      formData.append('rpFile', this.rpFile);
+    }
+    if (this.polizaCumplimientoFile) {
+      formData.append('polizaCumplimientoFile', this.polizaCumplimientoFile);
+    }
+    if (this.polizaCalidadFile) {
+      formData.append('polizaCalidadFile', this.polizaCalidadFile);
+    }
+    if (this.polizaRCFile) {
+      formData.append('polizaRCFile', this.polizaRCFile);
+    }
 
-  const contratoDto = {
-    vigencia: formValue.vigencia,
-    numeroContrato: formValue.numeroContrato,
-    tipoContrato: formValue.tipoContrato,
-    proveedor: formValue.proveedor,
-    objeto: formValue.objeto,
-    valor: Number(formValue.valor) || 0,
-    plazoDias: Number(formValue.plazoDias) || 0,
-    fechaInicio: safeDate(formValue.fechaInicio),
-    fechaTerminacion: safeDate(formValue.fechaTerminacion),
-    fechaFirma: safeDate(formValue.fechaFirma),
-    valorTotal: valorTotal,
-    adiciones: Number(formValue.adiciones) || 0,
-    supervisor: formValue.supervisor,
-    cdp: formValue.cdp,
-    rp: formValue.rp,
-    creadoPor: this.obtenerUsuarioActual(),
-    seDesembolsaAnticipo: !!formValue.seDesembolsaAnticipo,
-    porcentajeAnticipo: formValue.porcentajeAnticipo ? Number(formValue.porcentajeAnticipo) : null,
-    valorAnticipo: formValue.valorAnticipo ? Number(formValue.valorAnticipo) : null,
-    fechaDesembolsoAnticipo: safeDate(formValue.fechaDesembolsoAnticipo),
-    requierePolizas: !!formValue.requierePolizas,
-    polizaCumplimientoNumero: formValue.polizaCumplimientoNumero,
-    polizaCumplimientoAseguradora: formValue.polizaCumplimientoAseguradora,
-    polizaCumplimientoValor: formValue.polizaCumplimientoValor ? Number(formValue.polizaCumplimientoValor) : null,
-    polizaCumplimientoVigenciaDesde: safeDate(formValue.polizaCumplimientoVigenciaDesde),
-    polizaCumplimientoVigenciaHasta: safeDate(formValue.polizaCumplimientoVigenciaHasta),
-    requierePolizaCalidad: !!formValue.requierePolizaCalidad,
-    polizaCalidadNumero: formValue.polizaCalidadNumero,
-    polizaCalidadAseguradora: formValue.polizaCalidadAseguradora,
-    polizaCalidadValor: formValue.polizaCalidadValor ? Number(formValue.polizaCalidadValor) : null,
-    polizaCalidadVigenciaDesde: safeDate(formValue.polizaCalidadVigenciaDesde),
-    polizaCalidadVigenciaHasta: safeDate(formValue.polizaCalidadVigenciaHasta),
-    requierePolizaRC: !!formValue.requierePolizaRC,
-    polizaRCNumero: formValue.polizaRCNumero,
-    polizaRCAseguradora: formValue.polizaRCAseguradora,
-    polizaRCValor: formValue.polizaRCValor ? Number(formValue.polizaRCValor) : null,
-    polizaRCVigenciaDesde: safeDate(formValue.polizaRCVigenciaDesde),
-    polizaRCVigenciaHasta: safeDate(formValue.polizaRCVigenciaHasta),
-  };
+    let request: Observable<any>;
 
-  // ✅ DECLARAR formData AQUÍ
-  const formData = new FormData();
-  formData.append('contrato', JSON.stringify(contratoDto));
-
-  // ✅ ADJUNTAR MINUTA Y ACTA DE INICIO (¡ESTOS FALTABAN!)
-  if (this.minutaFile) {
-    console.log('📎 Adjuntando MINUTA:', this.minutaFile.name);
-    formData.append('minutaFile', this.minutaFile);
-  }
-  if (this.actaInicioFile) {
-    console.log('📎 Adjuntando ACTA DE INICIO:', this.actaInicioFile.name);
-    formData.append('actaInicioFile', this.actaInicioFile);
-  }
-
-  // Adjuntar archivos existentes
-  if (this.cdpFile) {
-    console.log('📎 Adjuntando CDP:', this.cdpFile.name);
-    formData.append('cdpFile', this.cdpFile);
-  }
-  if (this.rpFile) {
-    console.log('📎 Adjuntando RP:', this.rpFile.name);
-    formData.append('rpFile', this.rpFile);
-  }
-  if (this.polizaCumplimientoFile) {
-    console.log('📎 Adjuntando Póliza Cumplimiento:', this.polizaCumplimientoFile.name);
-    formData.append('polizaCumplimientoFile', this.polizaCumplimientoFile);
-  }
-  if (this.polizaCalidadFile) {
-    console.log('📎 Adjuntando Póliza Calidad:', this.polizaCalidadFile.name);
-    formData.append('polizaCalidadFile', this.polizaCalidadFile);
-  }
-  if (this.polizaRCFile) {
-    console.log('📎 Adjuntando Póliza RC:', this.polizaRCFile.name);
-    formData.append('polizaRCFile', this.polizaRCFile);
-  }
-
-  console.log('📦 FormData contiene los siguientes campos:');
-  formData.forEach((value, key) => {
-    if (value instanceof File) {
-      console.log(`  - ${key}: ${value.name} (${value.size} bytes)`);
+    if (this.isEditMode && this.contratoId) {
+      request = this.juridicaService.actualizarContratoConArchivos(this.contratoId, formData);
     } else {
-      console.log(`  - ${key}: ${value.toString().substring(0, 50)}...`);
+      request = this.juridicaService.crearContratoConArchivos(formData);
     }
-  });
 
-  let request: Observable<any>;
+    request.subscribe({
+      next: (resultado: any) => {
+        console.log('✅ Contrato guardado exitosamente:', resultado);
+        this.successMessage = this.isEditMode
+          ? 'Contrato actualizado exitosamente'
+          : '✅ Contrato creado exitosamente con sus documentos';
 
-  if (this.isEditMode && this.contratoId) {
-    request = this.juridicaService.actualizarContratoConArchivos(this.contratoId, formData);
-  } else {
-    request = this.juridicaService.crearContratoConArchivos(formData);
+        this.isSubmitting = false;
+
+        setTimeout(() => {
+          this.router.navigate(['/juridica/list']);
+        }, 1800);
+      },
+      error: (error: any) => {
+        console.error('❌ Error al guardar contrato:', error);
+        this.errorMessage = error.message || 'Error al guardar el contrato';
+        this.isSubmitting = false;
+      }
+    });
   }
-
-  request.subscribe({
-    next: (resultado: any) => {
-      console.log('✅ Contrato guardado exitosamente:', resultado);
-      this.successMessage = this.isEditMode
-        ? 'Contrato actualizado exitosamente'
-        : '✅ Contrato creado exitosamente con sus documentos';
-
-      this.isSubmitting = false;
-
-      setTimeout(() => {
-        console.log('🔄 Redirigiendo a la lista de contratos...');
-        this.router.navigate(['/juridica/list']).then(success => {
-          console.log('✅ Redirección exitosa:', success);
-        }).catch(err => {
-          console.error('❌ Error en redirección:', err);
-        });
-      }, 1800);
-    },
-    error: (error: any) => {
-      console.error('❌ Error al guardar contrato:', error);
-      this.errorMessage = error.message || 'Error al guardar el contrato';
-      this.isSubmitting = false;
-    }
-  });
-}
 
   private obtenerUsuarioActual(): string {
     const userStr = localStorage.getItem('user');
@@ -982,76 +1085,62 @@ guardarContrato(): void {
     this.successMessage = '';
   }
 
-onFileSelected(event: any, tipo: 'cdp' | 'rp' | 'polizaCumplimiento' | 'polizaCalidad' | 'polizaRC' | 'minuta' | 'actaInicio'): void {
-  const file: File = event.target.files[0];
-  if (!file) return;
+  onFileSelected(event: any, tipo: 'cdp' | 'rp' | 'polizaCumplimiento' | 'polizaCalidad' | 'polizaRC' | 'minuta' | 'actaInicio'): void {
+    const file: File = event.target.files[0];
+    if (!file) return;
 
-  if (file.type !== 'application/pdf') {
-    if (tipo === 'cdp') this.cdpFileError = 'Solo se permiten archivos PDF';
-    else if (tipo === 'rp') this.rpFileError = 'Solo se permiten archivos PDF';
-    else if (tipo === 'polizaCumplimiento') this.polizaCumplimientoFileError = 'Solo se permiten archivos PDF';
-    else if (tipo === 'minuta') this.minutaFileError = 'Solo se permiten archivos PDF';
-    else if (tipo === 'actaInicio') this.actaInicioFileError = 'Solo se permiten archivos PDF';
-    return;
+    if (file.type !== 'application/pdf') {
+      if (tipo === 'cdp') this.cdpFileError = 'Solo se permiten archivos PDF';
+      else if (tipo === 'rp') this.rpFileError = 'Solo se permiten archivos PDF';
+      else if (tipo === 'polizaCumplimiento') this.polizaCumplimientoFileError = 'Solo se permiten archivos PDF';
+      else if (tipo === 'minuta') this.minutaFileError = 'Solo se permiten archivos PDF';
+      else if (tipo === 'actaInicio') this.actaInicioFileError = 'Solo se permiten archivos PDF';
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      if (tipo === 'cdp') this.cdpFileError = 'El archivo es demasiado grande (max. 5MB)';
+      else if (tipo === 'rp') this.rpFileError = 'El archivo es demasiado grande (max. 5MB)';
+      else if (tipo === 'polizaCumplimiento') this.polizaCumplimientoFileError = 'El archivo es demasiado grande (max. 5MB)';
+      else if (tipo === 'minuta') this.minutaFileError = 'El archivo es demasiado grande (max. 5MB)';
+      else if (tipo === 'actaInicio') this.actaInicioFileError = 'El archivo es demasiado grande (max. 5MB)';
+      return;
+    }
+
+    if (tipo === 'cdp') {
+      this.cdpFileError = null;
+      this.cdpFile = file;
+      this.cdpFileName = file.name;
+      this.cdpFileId = null; // Limpiar ID de documento existente
+    } else if (tipo === 'rp') {
+      this.rpFileError = null;
+      this.rpFile = file;
+      this.rpFileName = file.name;
+      this.rpFileId = null;
+    } else if (tipo === 'polizaCumplimiento') {
+      this.polizaCumplimientoFileError = null;
+      this.polizaCumplimientoFile = file;
+      this.polizaCumplimientoFileName = file.name;
+      this.polizaCumplimientoFileId = null;
+    } else if (tipo === 'polizaCalidad') {
+      this.polizaCalidadFile = file;
+      this.polizaCalidadFileName = file.name;
+      this.polizaCalidadFileId = null;
+    } else if (tipo === 'polizaRC') {
+      this.polizaRCFile = file;
+      this.polizaRCFileName = file.name;
+      this.polizaRCFileId = null;
+    } else if (tipo === 'minuta') {
+      this.minutaFileError = null;
+      this.minutaFile = file;
+      this.minutaFileName = file.name;
+      this.minutaFileId = null;
+    } else if (tipo === 'actaInicio') {
+      this.actaInicioFileError = null;
+      this.actaInicioFile = file;
+      this.actaInicioFileName = file.name;
+      this.actaInicioFileId = null;
+    }
   }
 
-  if (file.size > 5 * 1024 * 1024) {
-    if (tipo === 'cdp') this.cdpFileError = 'El archivo es demasiado grande (max. 5MB)';
-    else if (tipo === 'rp') this.rpFileError = 'El archivo es demasiado grande (max. 5MB)';
-    else if (tipo === 'polizaCumplimiento') this.polizaCumplimientoFileError = 'El archivo es demasiado grande (max. 5MB)';
-    else if (tipo === 'minuta') this.minutaFileError = 'El archivo es demasiado grande (max. 5MB)';
-    else if (tipo === 'actaInicio') this.actaInicioFileError = 'El archivo es demasiado grande (max. 5MB)';
-    return;
-  }
-
-  if (tipo === 'cdp') {
-    this.cdpFileError = null;
-    this.cdpFile = file;
-    this.cdpFileName = file.name;
-  } else if (tipo === 'rp') {
-    this.rpFileError = null;
-    this.rpFile = file;
-    this.rpFileName = file.name;
-  } else if (tipo === 'polizaCumplimiento') {
-    this.polizaCumplimientoFileError = null;
-    this.polizaCumplimientoFile = file;
-    this.polizaCumplimientoFileName = file.name;
-  } else if (tipo === 'polizaCalidad') {
-    this.polizaCalidadFile = file;
-    this.polizaCalidadFileName = file.name;
-  } else if (tipo === 'polizaRC') {
-    this.polizaRCFile = file;
-    this.polizaRCFileName = file.name;
-  } else if (tipo === 'minuta') {
-    this.minutaFileError = null;
-    this.minutaFile = file;
-    this.minutaFileName = file.name;
-  } else if (tipo === 'actaInicio') {
-    this.actaInicioFileError = null;
-    this.actaInicioFile = file;
-    this.actaInicioFileName = file.name;
-  }
-}
-
-  cargarDocumentosContrato(contratoId: string): void {
-    console.log('📄 Cargando documentos del contrato:', contratoId);
-    this.juridicaService.obtenerDocumentosContrato(contratoId).subscribe({
-      next: (documentos: any[]) => {
-        this.documentosContrato = documentos || [];
-        console.log(`✅ Documentos del contrato cargados: ${this.documentosContrato.length}`);
-
-        if (this.documentosContrato.length > 0) {
-          console.log('📋 Detalles de documentos:', this.documentosContrato.map(d => ({
-            nombre: d.nombreArchivo,
-            tipo: d.tipoDocumento,
-            tamaño: d.tamanoBytes
-          })));
-        }
-      },
-      error: (error: any) => {
-        console.error('❌ Error cargando documentos del contrato:', error);
-        this.documentosContrato = [];
-      }
-    });
-  }
 }

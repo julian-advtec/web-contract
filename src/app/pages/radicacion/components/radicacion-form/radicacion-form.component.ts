@@ -82,16 +82,19 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
     this.radicacionForm = this.createForm();
   }
 
-  ngOnInit(): void {
-    if (this.esSoloLectura && this.documentoId) {
-      this.cargarDocumentoParaVista(this.documentoId);
-    } else {
-      this.cargarContratistas();
-      this.setupAutocomplete();
-      this.setupSincronizacionContratista();
-      this.setupRadicadoListeners();
-    }
+ngOnInit(): void {
+  console.log('[RADICACION-FORM] ngOnInit - modo:', this.modo, 'documentoId:', this.documentoId);
+  
+  if (this.esSoloLectura && this.documentoId) {
+    console.log('[RADICACION-FORM] Cargando documento en modo solo lectura con ID:', this.documentoId);
+    this.cargarDocumentoParaVista(this.documentoId);
+  } else if (!this.esSoloLectura) {
+    this.cargarContratistas();
+    this.setupAutocomplete();
+    this.setupSincronizacionContratista();
+    this.setupRadicadoListeners();
   }
+}
 
   ngAfterViewInit(): void {
     if (!this.esSoloLectura) {

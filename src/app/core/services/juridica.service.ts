@@ -103,21 +103,21 @@ export class JuridicaService {
     );
   }
 
-crearContratoConArchivos(formData: FormData): Observable<Contrato> {
-  const headers = new HttpHeaders({
-    'Authorization': `Bearer ${this.getToken()}`
-  });
+  crearContratoConArchivos(formData: FormData): Observable<Contrato> {
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${this.getToken()}`
+    });
 
-  return this.http.post<any>(`${this.apiUrl}/contratos`, formData, { headers }).pipe(
-    map(response => {
-      console.log('📥 Respuesta creación contrato con archivos:', response);
-      if (response?.success === true && response.data) return response.data;
-      if (response?.data) return response.data;
-      return response;
-    }),
-    catchError(this.handleError.bind(this))
-  );
-}
+    return this.http.post<any>(`${this.apiUrl}/contratos`, formData, { headers }).pipe(
+      map(response => {
+        console.log('📥 Respuesta creación contrato con archivos:', response);
+        if (response?.success === true && response.data) return response.data;
+        if (response?.data) return response.data;
+        return response;
+      }),
+      catchError(this.handleError.bind(this))
+    );
+  }
 
   // ✅ MÉTODO CORREGIDO PARA RADICACIÓN
   obtenerContratoYContratistaPorNumero(numeroContrato: string): Observable<any> {
@@ -280,7 +280,7 @@ crearContratoConArchivos(formData: FormData): Observable<Contrato> {
           console.log(`✅ Contratista encontrado: ${contratista.razonSocial}`);
           console.log(`📋 objetivoContrato: ${contratista.objetivoContrato}`);
           console.log(`📎 Documentos: ${contratista.documentos?.length || 0}`);
-          
+
           return {
             ...contratista,
             objetivoContrato: contratista.objetivoContrato || '',
@@ -355,7 +355,7 @@ crearContratoConArchivos(formData: FormData): Observable<Contrato> {
 
   private handleError(error: HttpErrorResponse): Observable<never> {
     console.error('❌ Error en petición:', error);
-    
+
     if (error.status === 401) {
       localStorage.removeItem('access_token');
       localStorage.removeItem('token');
@@ -363,8 +363,26 @@ crearContratoConArchivos(formData: FormData): Observable<Contrato> {
       this.router.navigate(['/auth/login']);
       return throwError(() => new Error('Tu sesión ha expirado. Por favor inicia sesión nuevamente.'));
     }
-    
+
     const errorMsg = error.error?.message || error.message || 'Error en la petición';
     return throwError(() => new Error(errorMsg));
+  }
+
+  // En juridica.service.ts
+
+  previsualizarDocumento(documentoId: string): Observable<Blob> {
+    const headers = this.getAuthHeaders();
+    return this.http.get(`${this.apiUrl}/contratos/documentos/${documentoId}/previsualizar`, {
+      headers,
+      responseType: 'blob'
+    });
+  }
+
+  descargarDocumentoContrato(documentoId: string): Observable<Blob> {
+    const headers = this.getAuthHeaders();
+    return this.http.get(`${this.apiUrl}/contratos/documentos/${documentoId}/descargar`, {
+      headers,
+      responseType: 'blob'
+    });
   }
 }

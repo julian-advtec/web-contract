@@ -10,10 +10,7 @@
         </h4>
       </div>
       <div class="card-body p-0">
-        <app-radicacion-form 
-          [modo]="'solo-lectura'" 
-          [documentoId]="documentoId!"
-          (volver)="volverALista()">
+        <app-radicacion-form [modo]="'solo-lectura'" [documentoId]="documentoId" (volver)="volverALista()">
         </app-radicacion-form>
       </div>
     </div>
@@ -57,24 +54,24 @@
             <!-- TABS -->
             <ul class="nav nav-tabs mb-4" role="tablist">
               <li class="nav-item">
-                <button class="nav-link" [class.active]="tabActivo === 'auditoria'" 
-                        (click)="tabActivo = 'auditoria'" type="button">
+                <button class="nav-link" [class.active]="tabActivo === 'auditoria'" (click)="tabActivo = 'auditoria'"
+                  type="button">
                   <i class="fas fa-shield-alt me-2"></i>
                   Documentos Requeridos
                   <span class="badge bg-warning text-dark ms-2">{{ contarArchivosRealmenteSubidos() }}/6</span>
                 </button>
               </li>
               <li class="nav-item">
-                <button class="nav-link" [class.active]="tabActivo === 'contratista'" 
-                        (click)="tabActivo = 'contratista'" type="button">
+                <button class="nav-link" [class.active]="tabActivo === 'contratista'"
+                  (click)="tabActivo = 'contratista'" type="button">
                   <i class="fas fa-user me-2"></i>
                   Documentos del Contratista
                   <span class="badge bg-secondary text-white ms-2">{{ documentosContratista.length }}</span>
                 </button>
               </li>
               <li class="nav-item" *ngIf="!esModoContabilidad">
-                <button class="nav-link" [class.active]="tabActivo === 'decision'" 
-                        (click)="tabActivo = 'decision'" type="button">
+                <button class="nav-link" [class.active]="tabActivo === 'decision'" (click)="tabActivo = 'decision'"
+                  type="button">
                   <i class="fas fa-balance-scale me-2"></i>
                   Decisión Final
                 </button>
@@ -87,8 +84,10 @@
                 <i class="fas fa-info-circle me-2"></i>
                 <strong>Documentos requeridos para auditoría:</strong>
                 <ul class="mt-2 mb-0">
-                  <li><strong>RP y CDP</strong> - Provienen del <span class="badge bg-primary">CONTRATO (Jurídica)</span></li>
-                  <li><strong>Póliza, Certificado Bancario, Minuta, Acta de Inicio</strong> - Provienen del <span class="badge bg-success">CONTRATISTA</span></li>
+                  <li><strong>RP y CDP</strong> - Provienen del <span class="badge bg-primary">CONTRATO
+                      (Jurídica)</span></li>
+                  <li><strong>Póliza, Certificado Bancario, Minuta, Acta de Inicio</strong> - Provienen del <span
+                      class="badge bg-success">CONTRATISTA</span></li>
                 </ul>
                 <span *ngIf="primerRadicadoDelAno" class="text-danger fw-bold d-block mt-2">
                   ⚠️ PRIMER RADICADO DEL AÑO - Se requieren los 6 documentos
@@ -106,30 +105,36 @@
                         <i [class]="item.icon" class="fa-3x me-3"></i>
                         <div class="flex-grow-1">
                           <h5 class="mb-1">{{ item.nombre }}</h5>
-                          <small [ngClass]="archivosAuditorFormulario[item.key].subido ? 'text-success fw-bold' : 'text-danger fw-bold'">
+                          <small
+                            [ngClass]="archivosAuditorFormulario[item.key].subido ? 'text-success fw-bold' : 'text-danger fw-bold'">
                             {{ archivosAuditorFormulario[item.key].subido ? '✓ Disponible' : '✗ No disponible' }}
                           </small>
                           <div class="mt-1">
-                            <span class="badge" [ngClass]="archivosAuditorFormulario[item.key].fuente === 'contrato' ? 'bg-primary' : 'bg-success'">
-                              <i class="fas" [ngClass]="archivosAuditorFormulario[item.key].fuente === 'contrato' ? 'fa-file-contract' : 'fa-user'"></i>
+                            <span class="badge"
+                              [ngClass]="archivosAuditorFormulario[item.key].fuente === 'contrato' ? 'bg-primary' : 'bg-success'">
+                              <i class="fas"
+                                [ngClass]="archivosAuditorFormulario[item.key].fuente === 'contrato' ? 'fa-file-contract' : 'fa-user'"></i>
                               {{ getFuenteDocumento(item.key) }}
                             </span>
                           </div>
-                          <small class="d-block text-muted" *ngIf="archivosAuditorFormulario[item.key].metadata?.numero">
+                          <small class="d-block text-muted"
+                            *ngIf="archivosAuditorFormulario[item.key].metadata?.numero">
                             N°: {{ archivosAuditorFormulario[item.key].metadata.numero }}
                           </small>
                         </div>
                         <span *ngIf="archivosAuditorFormulario[item.key].subido" class="badge bg-success">✓</span>
-                        <span *ngIf="!archivosAuditorFormulario[item.key].subido && primerRadicadoDelAno" class="badge bg-danger">!</span>
+                        <span *ngIf="!archivosAuditorFormulario[item.key].subido && primerRadicadoDelAno"
+                          class="badge bg-danger">!</span>
                       </div>
 
-                      <small class="text-muted mb-3 text-truncate" *ngIf="archivosAuditorFormulario[item.key].nombreArchivo">
-                        <i class="fas fa-file me-1"></i> {{ getNombreArchivoSimple(archivosAuditorFormulario[item.key].nombreArchivo) }}
+                      <small class="text-muted mb-3 text-truncate"
+                        *ngIf="archivosAuditorFormulario[item.key].nombreArchivo">
+                        <i class="fas fa-file me-1"></i> {{
+                        getNombreArchivoSimple(archivosAuditorFormulario[item.key].nombreArchivo) }}
                       </small>
 
                       <div class="mt-auto d-flex gap-2">
-                        <button class="btn btn-outline-primary btn-sm flex-fill"
-                          (click)="verArchivoAuditor(item.key)"
+                        <button class="btn btn-outline-primary btn-sm flex-fill" (click)="verArchivoAuditor(item.key)"
                           [disabled]="!puedeAccederArchivo(item.key) || isProcessing">
                           <i class="fas fa-eye me-1"></i> Ver
                         </button>
@@ -161,7 +166,8 @@
 
               <div *ngIf="!hayArchivosAuditorSubidos() && primerRadicadoDelAno" class="alert alert-danger mt-4">
                 <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong>¡Atención!</strong> Faltan documentos requeridos ({{ 6 - contarArchivosRealmenteSubidos() }} de 6).
+                <strong>¡Atención!</strong> Faltan documentos requeridos ({{ 6 - contarArchivosRealmenteSubidos() }} de
+                6).
               </div>
             </div>
 
@@ -231,7 +237,8 @@
                 </div>
               </div>
 
-              <div *ngIf="!cargandoDocumentosContratista && documentosContratista.length === 0" class="text-center py-4">
+              <div *ngIf="!cargandoDocumentosContratista && documentosContratista.length === 0"
+                class="text-center py-4">
                 <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
                 <p class="text-muted">No hay documentos cargados por el contratista</p>
               </div>
@@ -284,13 +291,15 @@
                     </div>
                   </ng-container>
 
-                  <ng-container *ngIf="esModoSoloLectura() || ['APROBADO_AUDITOR','COMPLETADO_AUDITOR','RECHAZADO_AUDITOR','OBSERVADO_AUDITOR'].includes(estadoDocumento)">
+                  <ng-container
+                    *ngIf="esModoSoloLectura() || ['APROBADO_AUDITOR','COMPLETADO_AUDITOR','RECHAZADO_AUDITOR','OBSERVADO_AUDITOR'].includes(estadoDocumento)">
                     <div class="row">
                       <div class="col-md-6">
                         <div class="card border-info">
                           <div class="card-header bg-info text-white">Decisión tomada</div>
                           <div class="card-body text-center">
-                            <h4 [ngClass]="getClaseEstado(decisionAuditor)">{{ decisionAuditor || 'No registrada' | uppercase }}</h4>
+                            <h4 [ngClass]="getClaseEstado(decisionAuditor)">{{ decisionAuditor || 'No registrada' |
+                              uppercase }}</h4>
                           </div>
                         </div>
                       </div>
