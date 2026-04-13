@@ -73,33 +73,42 @@ export class RendicionFormComponent implements OnInit {
   ngOnInit(): void {
     this.cargarUsuarioActual();
 
-    const id = this.documentoId || this.route.snapshot.paramMap.get('id');
-    console.log('📌 ID recibido en ngOnInit:', id);
-    console.log('📌 documentoId input:', this.documentoId);
+    let idParaCargar = this.documentoId;
+    if (!idParaCargar) {
+      idParaCargar = this.route.snapshot.paramMap.get('id');
+    }
 
+    const id = idParaCargar;
     const modo = this.route.snapshot.queryParamMap.get('modo') || 'edicion';
     const soloLecturaParam = this.route.snapshot.queryParamMap.get('soloLectura') === 'true';
     const desdeHistorial = this.route.snapshot.queryParamMap.get('desdeHistorial') === 'true';
     const forceEdit = this.route.snapshot.queryParamMap.get('forceEdit') === 'true';
 
+    // ✅ TEMPORAL: Forzar edición para debug (después lo ajustas)
+    // this.esModoLectura = false;  // ← DESCOMENTAR PARA FORZAR EDICIÓN
+
     this.esModoLectura = forceEdit ? false : (
       soloLecturaParam ||
-      modo === 'consulta' ||
-      modo === 'lectura' ||
-      modo === 'vista' ||
+      (modo === 'consulta') ||
+      (modo === 'lectura') ||
+      (modo === 'vista') ||
       (desdeHistorial && !forceEdit) ||
       this.forceReadOnly
     );
+
+    console.log('🔍 Modo calculado:', {
+      modo,
+      soloLecturaParam,
+      desdeHistorial,
+      forceEdit,
+      esModoLectura: this.esModoLectura
+    });
 
     if (id) {
       this.cargarDocumento(id);
     } else {
       this.mostrarMensaje('No se recibió ID del documento', 'error');
       this.isLoading = false;
-    }
-
-    if (this.esModoLectura || this.estaProcesado) {
-      this.form.disable();
     }
   }
 
@@ -108,52 +117,80 @@ export class RendicionFormComponent implements OnInit {
     this.currentUserRole = currentUser?.role || '';
   }
 
+  // rendicion-form.component.ts
+
   cargarDocumento(id: string): void {
-    console.log('📥 ===== INICIANDO CARGA DE DOCUMENTO =====');
-    console.log('📥 ID recibido para cargar (rendicionId):', id);
-
+    console.log('📥 ID recibido para cargar:', id);
     this.isLoading = true;
-    this.documentoNoEncontrado = false;
 
+    // ✅ PRIMERO intentar como rendiciónId (que es lo que recibes del historial)
     this.rendicionService.obtenerDetalleRendicion(id).subscribe({
       next: (data) => {
-        console.log('✅ Rendición encontrada:', data);
-
-        this.documento = {
-          ...data,
-          // ────────────────────────────────────────────────
-          // NO USAR rendicionId → el modelo usa 'id'
-          // ────────────────────────────────────────────────
-          id: data.id || '',                           // ID de la rendición (para decisiones, liberar, etc.)
-          documentoId: data.documentoId ||             // ID del documento original (para contabilidad, gerencia, etc.)
-            data.documento?.id ||
-            data.id || '',
-
-          // Opcional: copiar algunos campos útiles para UI
-          numeroRadicado: data.numeroRadicado || data.documento?.numeroRadicado,
-          nombreContratista: data.nombreContratista || data.documento?.nombreContratista,
-          // ... puedes agregar más si los necesitas
-        };
-
-        console.log('→ ID de rendición (this.documento.id):', this.documento.id);
-        console.log('→ ID de documento (para hijos):', this.documento.documentoId);
-
-        this.procesarDocumentoCargado(data);
-        this.mostrarMensaje('Documento cargado correctamente', 'success');
-
-        // Cargar contabilidad usando el ID correcto
-        if (this.documento.documentoId) {
-          this.cargarDatosContabilidad(this.documento.documentoId);
-        }
-      },
-      error: (err: any) => {
-        console.error('❌ Error cargando rendición:', err);
-        const msg = err.error?.message || err.message || 'Error al cargar la rendición';
-        this.mostrarMensaje(msg, 'error');
+        console.log('✅ Es rendiciónId, cargando rendición:', data);
+        this.procesarRendicion(data);
         this.isLoading = false;
+      },
+      error: (err) => {
+        // Si falla, intentar como documentoId
+        console.log('⚠️ No es rendiciónId, intentando como documentoId...');
+        this.contabilidadService.obtenerDetalleDocumento(id).subscribe({
+          next: (data) => {
+            console.log('✅ Es documentoId, cargando documento:', data);
+            this.procesarDocumentoOriginal(data);
+            this.isLoading = false;
+          },
+          error: (err2) => {
+            console.error('❌ Error cargando:', err2);
+            this.mostrarMensaje('No se pudo cargar el documento', 'error');
+            this.isLoading = false;
+          }
+        });
       }
     });
   }
+
+private procesarRendicion(data: any): void {
+  const rendicionData = data.data || data;
+  
+  this.documento = {
+    ...rendicionData,
+    id: rendicionData.id,
+    rendicionId: rendicionData.id,  // ← Este es el ID de la rendición
+    documentoId: rendicionData.documento?.id || rendicionData.documentoId,
+    numeroRadicado: rendicionData.numeroRadicado || rendicionData.documento?.numeroRadicado,
+    nombreContratista: rendicionData.nombreContratista || rendicionData.documento?.nombreContratista,
+    numeroContrato: rendicionData.numeroContrato || rendicionData.documento?.numeroContrato,
+    documentoContratista: rendicionData.documentoContratista || rendicionData.documento?.documentoContratista,
+    estado: rendicionData.estado || rendicionData.documento?.estado,
+    observacionesRendicion: rendicionData.observaciones || rendicionData.observacionesRendicion,
+    fechaCreacion: rendicionData.fechaCreacion,
+    fechaActualizacion: rendicionData.fechaActualizacion,
+    // ✅ Guardar ambos IDs para referencia
+    rendicionIdOriginal: rendicionData.id,
+    documentoIdOriginal: rendicionData.documento?.id
+  };
+  
+  console.log('📋 Documento procesado:', {
+    id: this.documento.id,
+    rendicionId: this.documento.rendicionId,
+    documentoId: this.documento.documentoId,
+    estado: this.documento.estado
+  });
+  
+  this.procesarDocumentoCargado(rendicionData);
+}
+
+  private procesarDocumentoOriginal(data: any): void {
+    this.documento = {
+      ...data,
+      id: data.id,
+      documentoId: data.id,
+      numeroRadicado: data.numeroRadicado,
+      nombreContratista: data.nombreContratista,
+    };
+    this.procesarDocumentoCargado(data);
+  }
+
   private cargarDatosContabilidad(documentoId: string): void {
     if (!documentoId) {
       console.warn('No hay documentoId válido para cargar contabilidad');
@@ -347,45 +384,72 @@ export class RendicionFormComponent implements OnInit {
     if (!this.documento?.estado) return false;
 
     const estado = this.documento.estado.toString().toUpperCase();
-    return estado.includes('EN_REVISION') ||
+
+    // ✅ Agregar todos los estados de revisión posibles
+    return estado === 'EN_REVISION' ||
       estado === 'PENDIENTE' ||
-      estado === 'ASIGNADO';
+      estado === 'ASIGNADO' ||
+      estado === 'EN_REVISION_RENDICION' ||
+      estado === 'EN_REVISION_RENDICION_CUENTAS' || // ← AGREGAR ESTE
+      (!this.estaProcesado && !this.esModoLectura);
   }
 
-  /**
-   * Actualiza el método procesarDocumentoCargado para manejar mejor los estados
-   */
-  private procesarDocumentoCargado(data: any): void {
-    // Determinar si está procesado (estados finales)
-    this.estaProcesado = this.estadosProcesados.includes(
-      (data.estado || '').toString().toUpperCase()
-    );
-
-    // Si el estado es APROBADO o RECHAZADO, forzar modo lectura
-    if (this.esEstadoAprobadoORechazado()) {
+  // También en procesarDocumentoCargado, asegurar que no se marque como procesado si está EN_REVISION
+private procesarDocumentoCargado(data: any): void {
+  const estado = (data.estado || '').toString().toUpperCase();
+  
+  console.log('🔍 procesarDocumentoCargado - Estado:', estado);
+  console.log('🔍 esModoLectura actual:', this.esModoLectura);
+  console.log('🔍 estaProcesado actual:', this.estaProcesado);
+  
+  // ✅ Solo marcar como procesado si es estado final
+  this.estaProcesado = ['APROBADO', 'OBSERVADO', 'RECHAZADO', 'COMPLETADO', 'APROBADO_RENDICION', 'RECHAZADO_RENDICION']
+    .includes(estado);
+  
+  // ✅ Determinar modo lectura basado en el estado y los parámetros
+  const esEstadoRevision = this.esEstadoEnRevision();
+  
+  if (esEstadoRevision && !this.estaProcesado) {
+    // Si está en revisión y no está procesado, permitir edición SOLO si no viene de consulta
+    const vieneDeConsulta = this.route.snapshot.queryParamMap.get('modo') === 'consulta';
+    if (!vieneDeConsulta) {
+      this.esModoLectura = false;
+      this.form.enable();
+      console.log('✅ Modo EDICIÓN activado - Documento en revisión');
+    } else {
       this.esModoLectura = true;
-    }
-
-    if (this.esModoLectura || this.estaProcesado) {
       this.form.disable();
+      console.log('🔒 Modo LECTURA - Viene de consulta');
     }
+  } else {
+    this.esModoLectura = true;
+    this.form.disable();
+    console.log('🔒 Modo LECTURA - Documento procesado o no en revisión');
+  }
+  
+  // Actualizar el formulario con los valores existentes
+  let estadoFinal = '';
+  if (estado === 'APROBADO' || estado === 'COMPLETADO' || estado === 'APROBADO_RENDICION')
+    estadoFinal = 'APROBADO';
+  else if (estado === 'OBSERVADO' || estado === 'OBSERVADO_RENDICION')
+    estadoFinal = 'OBSERVADO';
+  else if (estado === 'RECHAZADO' || estado === 'RECHAZADO_RENDICION')
+    estadoFinal = 'RECHAZADO';
+  
+  this.form.patchValue({
+    estadoFinal,
+    observaciones: data.observaciones || data.observacionesRendicion || ''
+  });
+  
+  this.actualizarEstadoBotones();
+  this.isLoading = false;
+  
+  console.log('📊 Estado final después de procesar:', {
+    esModoLectura: this.esModoLectura,
+    estaProcesado: this.estaProcesado,
+    formularioHabilitado: this.form.enabled,
+    estadoDocumento: estado
+  });
 
-    let estadoFinal = '';
-    const estadoDoc = (data.estado || '').toString().toUpperCase();
-
-    if (estadoDoc === 'APROBADO' || estadoDoc === 'COMPLETADO' || estadoDoc === 'APROBADO_RENDICION')
-      estadoFinal = 'APROBADO';
-    else if (estadoDoc === 'OBSERVADO' || estadoDoc === 'OBSERVADO_RENDICION')
-      estadoFinal = 'OBSERVADO';
-    else if (estadoDoc === 'RECHAZADO' || estadoDoc === 'RECHAZADO_RENDICION')
-      estadoFinal = 'RECHAZADO';
-
-    this.form.patchValue({
-      estadoFinal,
-      observaciones: data.observaciones || data.observacionesRendicion || ''
-    });
-
-    this.actualizarEstadoBotones();
-    this.isLoading = false;
   }
 }

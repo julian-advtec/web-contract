@@ -1,20 +1,22 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Subject, Observable, forkJoin, of, throwError } from 'rxjs';
-import { takeUntil, map, catchError, tap } from 'rxjs/operators';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { FormsModule } from '@angular/forms';
-import { SupervisorFormComponent } from '../../../supervisor/components/supervisor-form/supervisor-form.component';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { AuditorService } from '../../../../core/services/auditor.service';
-import { environment } from '../../../../../environments/environment';
+import { ContratistasService } from '../../../../core/services/contratistas.service';
+import { RendicionCuentasService } from '../../../../core/services/rendicion-cuentas.service';
+import { RadicacionFormComponent } from '../../../radicacion/components/radicacion-form/radicacion-form.component';
 
 interface ArchivoAuditor {
   subido: boolean;
   archivo: File | null;
   nombreArchivo: string;
   rutaServidor: string | null;
+  fuente: 'contrato' | 'contratista' | null;
+  metadata?: any;
 }
 
 interface DocumentoAuditoriaItem {
@@ -28,7 +30,7 @@ interface DocumentoAuditoriaItem {
   standalone: true,
   imports: [
     CommonModule,
-    SupervisorFormComponent,
+    RadicacionFormComponent,
     FormsModule
   ],
   templateUrl: './auditor-form.component.html',
@@ -52,6 +54,8 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
   nombreContratista: string = '';
   estadoDocumento: string = '';
   primerRadicadoDelAno = false;
+  contratistaId: string | null = null;
+  numeroContrato: string = '';
 
   observacionesRevision = '';
   decisionSeleccionada = '';
@@ -77,13 +81,19 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
   ];
 
   archivosAuditorFormulario: Record<string, ArchivoAuditor> = {
-    rp: { subido: false, archivo: null, nombreArchivo: '', rutaServidor: null },
-    cdp: { subido: false, archivo: null, nombreArchivo: '', rutaServidor: null },
-    poliza: { subido: false, archivo: null, nombreArchivo: '', rutaServidor: null },
-    certificadoBancario: { subido: false, archivo: null, nombreArchivo: '', rutaServidor: null },
-    minuta: { subido: false, archivo: null, nombreArchivo: '', rutaServidor: null },
-    actaInicio: { subido: false, archivo: null, nombreArchivo: '', rutaServidor: null }
+    rp: { subido: false, archivo: null, nombreArchivo: '', rutaServidor: null, fuente: null },
+    cdp: { subido: false, archivo: null, nombreArchivo: '', rutaServidor: null, fuente: null },
+    poliza: { subido: false, archivo: null, nombreArchivo: '', rutaServidor: null, fuente: null },
+    certificadoBancario: { subido: false, archivo: null, nombreArchivo: '', rutaServidor: null, fuente: null },
+    minuta: { subido: false, archivo: null, nombreArchivo: '', rutaServidor: null, fuente: null },
+    actaInicio: { subido: false, archivo: null, nombreArchivo: '', rutaServidor: null, fuente: null }
   };
+
+  tabActivo: 'auditoria' | 'contratista' | 'decision' = 'auditoria';
+
+  // Documentos del contratista (todos)
+  documentosContratista: any[] = [];
+  cargandoDocumentosContratista = false;
 
   archivosCompletos = false;
 
@@ -96,9 +106,10 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private auditorService: AuditorService,
-    private http: HttpClient,
+    private contratistasService: ContratistasService,
     private notificationService: NotificationService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private rendicionService: RendicionCuentasService
   ) { }
 
   ngOnInit(): void {
@@ -114,43 +125,29 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
 
     if (this.soloLectura === true || this.esModoContabilidad || this.esModoGeneral) {
       this.soloLectura = true;
-      console.log('[AUDITOR] Forzado soloLectura = true (input explícito o modo contabilidad/general)');
+      console.log('[AUDITOR] Forzado soloLectura = true');
     }
 
-    if (this.documentoId) {
-      console.log('[AUDITOR] Usando documentoId recibido:', this.documentoId);
-    } else {
-      this.route.params.subscribe(params => {
-        this.documentoId = params['id'] || null;
-        console.log('[AUDITOR] ID desde ruta (fallback):', this.documentoId);
-        if (this.documentoId) {
-          this.cargarDocumentoParaAuditor(this.documentoId);
-        }
-      });
-    }
-
-    this.route.queryParams.subscribe(qp => {
-      const forzadoPorUrl = qp['soloLectura'] === 'true' ||
-                            qp['modo'] === 'consulta' ||
-                            qp['view'] === 'readonly';
-
-      if (forzadoPorUrl && this.estadoDocumento !== 'EN_REVISION_AUDITOR') {
-        this.soloLectura = true;
-        console.log('[AUDITOR] Forzado soloLectura = true desde query params');
-      } else if (forzadoPorUrl) {
-        console.log('[AUDITOR] Ignorado soloLectura desde URL porque está EN_REVISION_AUDITOR');
+    // ✅ Obtener ID con prioridad: @Input > ruta > rendición
+    let idParaCargar: string | null = this.documentoId;
+    
+    if (!idParaCargar) {
+      const idFromRoute = this.route.snapshot.paramMap.get('id');
+      if (idFromRoute) {
+        idParaCargar = idFromRoute;
+        console.log('[AUDITOR] ID desde ruta:', idParaCargar);
       }
-    });
-
-    if (this.documentoId) {
-      this.cargarDocumentoParaAuditor(this.documentoId);
+    } else {
+      console.log('[AUDITOR] Usando documentoId recibido:', idParaCargar);
     }
 
-    console.log('[AUDITOR] Estado final después de forzado:', {
-      soloLectura: this.soloLectura,
-      esModoSoloLectura: this.esModoSoloLectura(),
-      modoActual: this.modo
-    });
+    if (idParaCargar) {
+      // ✅ Siempre intentar primero como documentoId (usa el ID directamente)
+      // Solo si falla, intentar como rendiciónId
+      this.cargarDocumentoParaAuditor(idParaCargar);
+    } else {
+      console.warn('[AUDITOR] No se encontró ID válido');
+    }
   }
 
   ngOnDestroy(): void {
@@ -164,7 +161,6 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
     }
 
     if (this.estadoDocumento === 'EN_REVISION_AUDITOR') {
-      console.log('[AUDITOR] esModoSoloLectura → false (en revisión activa del auditor)');
       return false;
     }
 
@@ -180,7 +176,6 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
 
   getClaseEstado(estado: string): string {
     if (!estado) return 'bg-secondary text-white';
-
     const upper = estado.toUpperCase();
     if (upper.includes('APROBADO') || upper.includes('COMPLETADO')) return 'bg-success text-white';
     if (upper.includes('OBSERVADO')) return 'bg-warning text-dark';
@@ -192,56 +187,48 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
     if (!estado || estado === 'SIN ESTADO') {
       return 'badge bg-light text-dark';
     }
-
     const upper = estado.toUpperCase();
-
     if (upper.includes('EN_REVISION_AUDITOR')) return 'badge bg-info';
-    if (upper.includes('APROBADO_SUPERVISOR')) return 'badge bg-success';
     if (upper.includes('APROBADO_AUDITOR')) return 'badge bg-success';
     if (upper.includes('RECHAZADO_AUDITOR')) return 'badge bg-danger';
     if (upper.includes('OBSERVADO_AUDITOR')) return 'badge bg-warning';
     if (upper.includes('COMPLETADO_AUDITOR')) return 'badge bg-primary';
-    if (upper.includes('EN_REVISION_CONTABILIDAD')) return 'badge bg-secondary';
-    if (upper.includes('APROBADO_CONTABILIDAD')) return 'badge bg-success';
-    if (upper.includes('EN_REVISION_TESORERIA')) return 'badge bg-secondary';
-    if (upper.includes('APROBADO_TESORERIA')) return 'badge bg-success';
-    if (upper.includes('COMPLETADO')) return 'badge bg-dark';
-
-    if (upper.includes('EN_REVISION')) return 'badge bg-info';
-    if (upper.includes('APROBADO')) return 'badge bg-success';
-    if (upper.includes('RECHAZADO')) return 'badge bg-danger';
-    if (upper.includes('OBSERVADO')) return 'badge bg-warning';
-
     return 'badge bg-light text-dark';
   }
 
+  // ==================== CARGA PRINCIPAL ====================
+
   cargarDocumentoParaAuditor(id: string): void {
     if (!id) {
-      console.warn('[AUDITOR] No se recibió ID válido para cargar');
+      console.warn('[AUDITOR] No se recibió ID válido');
       return;
     }
 
+    console.log('[AUDITOR] Cargando documento con ID:', id);
     this.isLoading = true;
 
     this.auditorService.obtenerDocumentoParaVista(id).subscribe({
       next: (res: any) => {
         const data = res?.data || res;
+        
+        // ✅ Si el documento no se encuentra, intentar como rendiciónId
+        if (!data || !data.documento) {
+          console.log('[AUDITOR] Documento no encontrado, intentando como rendiciónId...');
+          this.cargarViaRendicion(id);
+          return;
+        }
+        
         this.documentoData = data?.documento || null;
         this.numeroRadicado = data?.documento?.numeroRadicado || '';
         this.nombreContratista = data?.documento?.nombreContratista || '';
         this.estadoDocumento = data?.documento?.estado || '';
         this.primerRadicadoDelAno = !!data?.documento?.primerRadicadoDelAno;
+        this.contratistaId = data?.documento?.contratistaId || null;
+        this.numeroContrato = data?.documento?.numeroContrato || '';
 
         if (this.estadoDocumento === 'EN_REVISION_AUDITOR') {
           this.soloLectura = false;
-          console.log('[FORZADO] Modo edición activado porque está EN_REVISION_AUDITOR');
         }
-
-        console.log('[CARGA] Estado final:', this.estadoDocumento);
-        console.log('[CARGA] soloLectura después de forzado:', this.soloLectura);
-        console.log('[CARGA] esModoSoloLectura después de forzado:', this.esModoSoloLectura());
-        console.log('[CARGA] ¿Debería mostrar el formulario de edición?:',
-          this.estadoDocumento === 'EN_REVISION_AUDITOR' && !this.esModoSoloLectura());
 
         if (data?.auditor) {
           const aud = data.auditor;
@@ -249,13 +236,9 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
           this.observacionAuditor = aud.observaciones || '';
           this.fechaDecisionAuditor = aud.fechaAprobacion || aud.fechaFinRevision || null;
           this.nombreAuditor = aud.auditor?.nombre || 'Auditor';
-        } else if (this.estadoDocumento?.includes('_AUDITOR')) {
-          this.decisionAuditor = this.mapearEstadoAuditor(this.estadoDocumento);
-          this.observacionAuditor = this.documentoData?.comentarios || '';
-          this.fechaDecisionAuditor = this.documentoData?.fechaActualizacion || null;
         }
 
-        this.actualizarArchivosDesdeServidor(data?.archivosAuditor || []);
+        this.cargarTodosLosDocumentos();
 
         if (['APROBADO_AUDITOR', 'COMPLETADO_AUDITOR', 'RECHAZADO_AUDITOR', 'OBSERVADO_AUDITOR']
           .includes(this.estadoDocumento)) {
@@ -269,10 +252,272 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
         this.isLoading = false;
       },
       error: (err) => {
+        console.error('[AUDITOR] Error cargando documento:', err);
+        
+        // ✅ Si hay error 404, intentar como rendiciónId
+        if (err.status === 404) {
+          console.log('[AUDITOR] Error 404, intentando como rendiciónId...');
+          this.cargarViaRendicion(id);
+        } else {
+          this.notificationService.error('Error', 'No se pudo cargar el documento');
+          this.isLoading = false;
+        }
+      }
+    });
+  }
+
+  private cargarViaRendicion(rendicionId: string): void {
+    this.isLoading = true;
+    
+    this.rendicionService.obtenerDetalleRendicion(rendicionId).subscribe({
+      next: (data: any) => {
+        const documentoIdReal = data.documento?.id || data.documentoId;
+        if (documentoIdReal) {
+          console.log('[AUDITOR] ✅ DocumentoId real obtenido:', documentoIdReal);
+          this.cargarDocumentoParaAuditor(documentoIdReal);
+        } else {
+          console.error('[AUDITOR] No se pudo obtener documentoId real');
+          this.notificationService.error('Error', 'No se pudo identificar el documento asociado a esta rendición');
+          this.isLoading = false;
+        }
+      },
+      error: (err) => {
+        console.error('[AUDITOR] Error cargando rendición:', err);
         this.notificationService.error('Error', 'No se pudo cargar el documento');
         this.isLoading = false;
       }
     });
+  }
+
+  cargarTodosLosDocumentos(): void {
+    // Reiniciar estado
+    Object.keys(this.archivosAuditorFormulario).forEach(key => {
+      this.archivosAuditorFormulario[key] = {
+        subido: false,
+        archivo: null,
+        nombreArchivo: '',
+        rutaServidor: null,
+        fuente: null
+      };
+    });
+
+    // 1. Cargar documentos desde el CONTRATO (RP, CDP, MINUTA, ACTA_INICIO)
+    if (this.numeroContrato) {
+      this.cargarDocumentosDesdeContrato();
+    }
+
+    // 2. Cargar contratista con sus documentos (PÓLIZA, CERTIFICADO_BANCARIO, MINUTA, ACTA_INICIO)
+    if (this.numeroContrato) {
+      this.cargarContratistaConDocumentos();
+    }
+  }
+
+  cargarContratistaConDocumentos(): void {
+    this.cargandoDocumentosContratista = true;
+    
+    this.auditorService.obtenerContratistaPorNumeroContrato(this.numeroContrato).subscribe({
+      next: (contratista: any) => {
+        if (contratista && contratista.id) {
+          this.contratistaId = contratista.id;
+          
+          const documentos = contratista.documentos || [];
+          this.documentosContratista = documentos;
+          
+          console.log(`[CONTRATISTA] ✅ Contratista encontrado: ${contratista.razonSocial || contratista.nombre}`);
+          console.log(`[CONTRATISTA] 📎 Documentos recibidos: ${documentos.length}`);
+          
+          const mapeoTipos: Record<string, string[]> = {
+            poliza: ['POLIZA', 'POLIZA_CUMPLIMIENTO', 'GARANTIA', 'PÓLIZA'],
+            certificadoBancario: ['CERTIFICADO_BANCARIO', 'CERTIFICADO BANCARIO', 'CERTIFICADO'],
+            minuta: ['MINUTA', 'MINUTA_CONTRATO'],
+            actaInicio: ['ACTA_INICIO', 'ACTA DE INICIO', 'ACTA_INICIO_CONTRATO']
+          };
+
+          const claves = Object.keys(mapeoTipos);
+          
+          for (let i = 0; i < claves.length; i++) {
+            const clave = claves[i];
+            const tiposBuscados = mapeoTipos[clave];
+            
+            const documento = documentos.find((doc: any) => {
+              if (!doc.tipo) return false;
+              const tipoDoc = doc.tipo.toUpperCase();
+              return tiposBuscados.some((tb: string) => tipoDoc.includes(tb) || tipoDoc === tb);
+            });
+
+            if (documento && documento.rutaArchivo) {
+              this.archivosAuditorFormulario[clave] = {
+                subido: true,
+                archivo: null,
+                nombreArchivo: documento.nombreArchivo,
+                rutaServidor: documento.rutaArchivo,
+                fuente: 'contratista',
+                metadata: {
+                  id: documento.id,
+                  tipo: documento.tipo,
+                  fechaSubida: documento.fechaSubida
+                }
+              };
+              console.log(`[CONTRATISTA] ✅ ${clave} cargado:`, documento.nombreArchivo);
+            } else {
+              console.log(`[CONTRATISTA] ❌ No se encontró ${clave} en contratista`);
+            }
+          }
+
+          this.verificarArchivosCompletos();
+        } else {
+          console.warn('[CONTRATISTA] ❌ No se encontró contratista');
+          this.documentosContratista = [];
+        }
+        
+        this.cargandoDocumentosContratista = false;
+        this.cdr.detectChanges();
+      },
+      error: (error: any) => {
+        console.error('[CONTRATISTA] Error:', error);
+        this.documentosContratista = [];
+        this.cargandoDocumentosContratista = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  cargarDocumentosDesdeContrato(): void {
+    this.auditorService.obtenerContratoPorNumero(this.numeroContrato).subscribe({
+      next: (response: any) => {
+        const contrato = response?.data || response;
+        console.log('[CONTRATO] Datos del contrato:', contrato);
+
+        const documentosContrato = contrato?.documentos || [];
+        
+        // Buscar RP
+        const rpDoc = documentosContrato.find((d: any) =>
+          d.tipoDocumento === 'RP' || d.tipoDocumento === 'RP_DOCUMENTO'
+        );
+        
+        if (rpDoc && rpDoc.rutaArchivo) {
+          this.archivosAuditorFormulario['rp'] = {
+            subido: true,
+            archivo: null,
+            nombreArchivo: rpDoc.nombreArchivo,
+            rutaServidor: rpDoc.rutaArchivo,
+            fuente: 'contrato',
+            metadata: { tipo: 'RP', id: rpDoc.id, esArchivo: true }
+          };
+          console.log('[CONTRATO] ✅ RP cargado');
+        } else if (contrato?.rp) {
+          this.archivosAuditorFormulario['rp'] = {
+            subido: true,
+            archivo: null,
+            nombreArchivo: `RP_${contrato.rp}`,
+            rutaServidor: null,
+            fuente: 'contrato',
+            metadata: { numero: contrato.rp, soloNumero: true }
+          };
+        }
+
+        // Buscar CDP
+        const cdpDoc = documentosContrato.find((d: any) =>
+          d.tipoDocumento === 'CDP' || d.tipoDocumento === 'CDP_DOCUMENTO'
+        );
+        
+        if (cdpDoc && cdpDoc.rutaArchivo) {
+          this.archivosAuditorFormulario['cdp'] = {
+            subido: true,
+            archivo: null,
+            nombreArchivo: cdpDoc.nombreArchivo,
+            rutaServidor: cdpDoc.rutaArchivo,
+            fuente: 'contrato',
+            metadata: { tipo: 'CDP', id: cdpDoc.id, esArchivo: true }
+          };
+          console.log('[CONTRATO] ✅ CDP cargado');
+        } else if (contrato?.cdp) {
+          this.archivosAuditorFormulario['cdp'] = {
+            subido: true,
+            archivo: null,
+            nombreArchivo: `CDP_${contrato.cdp}`,
+            rutaServidor: null,
+            fuente: 'contrato',
+            metadata: { numero: contrato.cdp, soloNumero: true }
+          };
+        }
+
+        // Buscar MINUTA
+        const minutaDoc = documentosContrato.find((d: any) =>
+          d.tipoDocumento === 'MINUTA' || d.tipoDocumento === 'MINUTA_CONTRATO'
+        );
+        
+        if (minutaDoc && minutaDoc.rutaArchivo) {
+          this.archivosAuditorFormulario['minuta'] = {
+            subido: true,
+            archivo: null,
+            nombreArchivo: minutaDoc.nombreArchivo,
+            rutaServidor: minutaDoc.rutaArchivo,
+            fuente: 'contrato',
+            metadata: { tipo: 'MINUTA', id: minutaDoc.id, esArchivo: true }
+          };
+          console.log('[CONTRATO] ✅ MINUTA cargada');
+        }
+
+        // Buscar ACTA_INICIO
+        const actaDoc = documentosContrato.find((d: any) =>
+          d.tipoDocumento === 'ACTA_INICIO' || d.tipoDocumento === 'ACTA_DE_INICIO'
+        );
+        
+        if (actaDoc && actaDoc.rutaArchivo) {
+          this.archivosAuditorFormulario['actaInicio'] = {
+            subido: true,
+            archivo: null,
+            nombreArchivo: actaDoc.nombreArchivo,
+            rutaServidor: actaDoc.rutaArchivo,
+            fuente: 'contrato',
+            metadata: { tipo: 'ACTA_INICIO', id: actaDoc.id, esArchivo: true }
+          };
+          console.log('[CONTRATO] ✅ ACTA_INICIO cargada');
+        }
+
+        this.verificarArchivosCompletos();
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        console.error('[CONTRATO] Error:', error);
+      }
+    });
+  }
+
+  // ==================== MÉTODOS DE UTILIDAD ====================
+
+  getIconoArchivo(nombreArchivo: string): string {
+    if (!nombreArchivo) return 'fas fa-file';
+    const extension = nombreArchivo.toLowerCase().split('.').pop();
+    switch (extension) {
+      case 'pdf': return 'fas fa-file-pdf text-danger';
+      case 'doc': case 'docx': return 'fas fa-file-word text-primary';
+      case 'jpg': case 'jpeg': case 'png': return 'fas fa-file-image text-success';
+      case 'xls': case 'xlsx': return 'fas fa-file-excel text-success';
+      default: return 'fas fa-file text-secondary';
+    }
+  }
+
+  getTamanoFormateado(bytes: number): string {
+    if (!bytes || bytes === 0) return '0 KB';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  getNombreArchivoSimple(ruta: string): string {
+    if (!ruta) return 'Sin nombre';
+    const partes = ruta.split(/[\\/]/);
+    return partes[partes.length - 1] || ruta;
+  }
+
+  getFuenteDocumento(key: string): string {
+    const fuente = this.archivosAuditorFormulario[key]?.fuente;
+    if (fuente === 'contrato') return 'Contrato';
+    if (fuente === 'contratista') return 'Contratista';
+    return 'No disponible';
   }
 
   private mapearEstadoAuditor(estado: string): string {
@@ -285,32 +530,9 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
     return estado;
   }
 
-  private actualizarArchivosDesdeServidor(archivos: any[]): void {
-    Object.keys(this.archivosAuditorFormulario).forEach(key => {
-      this.archivosAuditorFormulario[key] = {
-        subido: false,
-        archivo: null,
-        nombreArchivo: '',
-        rutaServidor: null
-      };
-    });
-
-    archivos.forEach((a: any) => {
-      const key = a.tipo;
-      if (this.archivosAuditorFormulario[key]) {
-        this.archivosAuditorFormulario[key] = {
-          subido: !!a.subido,
-          archivo: null,
-          nombreArchivo: a.nombreArchivo || '',
-          rutaServidor: a.rutaServidor || null
-        };
-      }
-    });
-  }
-
   verArchivoAuditor(tipo: string): void {
     if (!this.puedeAccederArchivo(tipo)) {
-      this.notificationService.warning('No disponible', 'Archivo no subido');
+      this.notificationService.warning('No disponible', 'Archivo no disponible');
       return;
     }
     this.auditorService.previsualizarArchivoAuditor(this.documentoId!, tipo);
@@ -318,7 +540,7 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
 
   descargarArchivoAuditor(tipo: string): void {
     if (!this.puedeAccederArchivo(tipo)) {
-      this.notificationService.warning('No disponible', 'Archivo no subido');
+      this.notificationService.warning('No disponible', 'Archivo no disponible');
       return;
     }
     this.auditorService.descargarArchivoAuditorDirecto(this.documentoId!, tipo);
@@ -336,133 +558,34 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
     this.router.navigate(['/auditor/lista']);
   }
 
-  onArchivoSeleccionado(event: any, tipo: string): void {
-    if (this.esModoContabilidad || this.esModoGeneral) {
-      this.notificationService.warning('No permitido', 'No puede subir archivos en modo contabilidad/general');
-      return;
-    }
-
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 15 * 1024 * 1024) {
-      this.notificationService.error('Error', `El archivo excede 15MB`);
-      event.target.value = '';
-      return;
-    }
-
-    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png', 'image/jpg'];
-    if (!allowedTypes.includes(file.type)) {
-      this.notificationService.error('Error', `Tipo de archivo no permitido`);
-      event.target.value = '';
-      return;
-    }
-
-    const key = tipo as keyof typeof this.archivosAuditorFormulario;
-
-    this.archivosAuditorFormulario[key] = {
-      ...this.archivosAuditorFormulario[key],
-      archivo: file,
-      nombreArchivo: file.name,
-      subido: false
-    };
-
-    this.verificarArchivosCompletos();
-    this.cdr.detectChanges();
-  }
-
-  puedeSubirArchivos(): boolean {
-    return this.primerRadicadoDelAno &&
-      this.estadoDocumento === 'EN_REVISION_AUDITOR' &&
-      !this.esModoContabilidad &&
-      !this.esModoGeneral;
-  }
-
   puedeAccederArchivo(tipo: string): boolean {
     const arch = this.archivosAuditorFormulario[tipo];
-    return arch?.subido && !!arch.nombreArchivo;
+    return arch?.subido === true && (!!arch.rutaServidor?.trim() || !!arch.nombreArchivo?.trim());
   }
 
   hayArchivosAuditorSubidos(): boolean {
     return Object.values(this.archivosAuditorFormulario).some(
-      arch => arch.subido && (!!arch.rutaServidor?.trim() || !!arch.nombreArchivo?.trim())
+      arch => arch.subido === true && (!!arch.rutaServidor?.trim() || !!arch.nombreArchivo?.trim())
     );
   }
 
   contarArchivosRealmenteSubidos(): number {
     return Object.values(this.archivosAuditorFormulario)
-      .filter(a => a.subido && (a.rutaServidor || a.nombreArchivo))
+      .filter(a => a.subido === true && (a.rutaServidor || a.nombreArchivo))
       .length;
-  }
-
-  hayArchivosPendientesDeSubir(): boolean {
-    return Object.values(this.archivosAuditorFormulario).some(a => !!a.archivo);
   }
 
   private getArchivosSubidosAuditor(): string[] {
     return Object.keys(this.archivosAuditorFormulario).filter(key => {
       const arch = this.archivosAuditorFormulario[key];
-      return arch.subido && (arch.nombreArchivo?.trim() || arch.rutaServidor?.trim());
-    });
-  }
-
-  descargarTodosArchivosAuditorMejorado(): void {
-    if (this.isDownloadingAll) return;
-
-    const archivosSubidos = this.getArchivosSubidosAuditor();
-    if (archivosSubidos.length === 0) {
-      this.notificationService.info('Sin documentos', 'No hay archivos para descargar');
-      return;
-    }
-
-    this.isDownloadingAll = true;
-    this.isProcessing = true;
-
-    this.notificationService.info('Descarga iniciada', `Descargando ${archivosSubidos.length} archivos...`);
-
-    const descargas: Observable<Blob>[] = [];
-    const nombresArchivos: string[] = [];
-    const tiposArchivos: string[] = [];
-
-    archivosSubidos.forEach(tipo => {
-      if (this.archivosAuditorFormulario[tipo]?.subido) {
-        const nombreArchivo = this.archivosAuditorFormulario[tipo].nombreArchivo || `${tipo}.pdf`;
-        descargas.push(this.auditorService.descargarArchivoAuditorBlob(this.documentoId!, tipo));
-        nombresArchivos.push(nombreArchivo);
-        tiposArchivos.push(tipo);
-      }
-    });
-
-    forkJoin(descargas).subscribe({
-      next: (blobs: Blob[]) => {
-        blobs.forEach((blob, index) => {
-          const tipo = tiposArchivos[index];
-          const nombreArchivo = nombresArchivos[index];
-          setTimeout(() => {
-            this.descargarBlobComoArchivo(blob, nombreArchivo);
-          }, index * 300);
-        });
-
-        this.notificationService.success(
-          'Descarga completada',
-          `${blobs.length} archivos descargados correctamente`
-        );
-
-        this.isDownloadingAll = false;
-        this.isProcessing = false;
-      },
-      error: (error) => {
-        this.notificationService.error('Error', 'No se pudieron descargar todos los archivos');
-        this.isDownloadingAll = false;
-        this.isProcessing = false;
-      }
+      return arch.subido === true && (arch.nombreArchivo?.trim() || arch.rutaServidor?.trim());
     });
   }
 
   descargarTodosArchivosAuditor(): void {
     const subidos = this.getArchivosSubidosAuditor();
     if (subidos.length === 0) {
-      this.notificationService.info('Sin documentos', 'No hay archivos subidos');
+      this.notificationService.info('Sin documentos', 'No hay archivos disponibles');
       return;
     }
     this.auditorService.descargarTodosArchivosAuditor(this.documentoId!);
@@ -471,38 +594,9 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
   abrirTodosArchivosAuditor(): void {
     const subidos = this.getArchivosSubidosAuditor();
     if (subidos.length === 0) return;
-
     subidos.forEach((tipo, i) => {
       setTimeout(() => this.verArchivoAuditor(tipo), i * 700);
     });
-  }
-
-  private descargarBlobComoArchivo(blob: Blob, nombre: string): void {
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = nombre;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  }
-
-  private getAuthHeaders(): HttpHeaders {
-    const token = localStorage.getItem('access_token') || localStorage.getItem('token') || '';
-    const userJson = localStorage.getItem('user');
-    const userId = userJson ? JSON.parse(userJson).id : null;
-
-    const headers = new HttpHeaders({
-      Authorization: token.startsWith('Bearer ') ? token : `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    });
-
-    if (userId) {
-      return headers.set('X-Auditor-Id', userId);
-    }
-
-    return headers;
   }
 
   registrarDecision(): void {
@@ -517,28 +611,26 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (this.decisionSeleccionada === 'APROBADO' && this.primerRadicadoDelAno && !this.archivosCompletos) {
+      this.notificationService.warning('Atención', 'No se puede aprobar. Faltan documentos requeridos.');
+      return;
+    }
+
     this.isProcessing = true;
 
-    const formData = new FormData();
+    const datosRevision = {
+      estado: this.decisionSeleccionada,
+      observaciones: this.observacionesRevision.trim() || 'Sin observaciones adicionales'
+    };
 
-    Object.entries(this.archivosAuditorFormulario).forEach(([key, data]) => {
-      if (data.archivo) {
-        formData.append(key, data.archivo, data.archivo.name);
-      }
-    });
-
-    formData.append('estado', this.decisionSeleccionada);
-    formData.append('observaciones', this.observacionesRevision.trim() || 'Sin observaciones adicionales');
-
-    this.auditorService.registrarDecisionCompleta(this.documentoId!, formData).subscribe({
-      next: (response) => {
+    this.auditorService.guardarRevision(this.documentoId!, datosRevision).subscribe({
+      next: () => {
         this.notificationService.success('Éxito', 'Decisión registrada correctamente');
-        Object.keys(this.archivosAuditorFormulario).forEach(k => {
-          this.archivosAuditorFormulario[k].archivo = null;
-        });
         this.observacionesRevision = '';
         this.decisionSeleccionada = '';
-        this.cargarDocumentoParaAuditor(this.documentoId!);
+        if (this.documentoId) {
+          this.cargarDocumentoParaAuditor(this.documentoId);
+        }
         this.isProcessing = false;
         setTimeout(() => this.router.navigate(['/auditor/lista']), 2000);
       },
@@ -550,8 +642,10 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
   }
 
   liberarDocumento(): void {
+    if (!this.documentoId) return;
+    
     this.isProcessing = true;
-    this.auditorService.liberarDocumento(this.documentoId!).subscribe({
+    this.auditorService.liberarDocumento(this.documentoId).subscribe({
       next: () => {
         this.notificationService.success('Éxito', 'Documento liberado');
         this.cargarDocumentoParaAuditor(this.documentoId!);
@@ -564,299 +658,7 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
     });
   }
 
-  aprobarDocumento(): void {
-    if (!this.observacionesRevision.trim()) {
-      this.notificationService.warning('Advertencia', 'Debe ingresar observaciones');
-      return;
-    }
-
-    this.isProcessing = true;
-    this.auditorService.guardarRevision(this.documentoId!, {
-      estado: 'APROBADO',
-      observaciones: this.observacionesRevision
-    }).subscribe({
-      next: () => {
-        this.notificationService.success('Éxito', 'Documento aprobado');
-        this.isProcessing = false;
-        this.cargarDocumentoParaAuditor(this.documentoId!);
-        this.observacionesRevision = '';
-      },
-      error: err => {
-        this.notificationService.error('Error', err.error?.message || 'No se pudo aprobar el documento');
-        this.isProcessing = false;
-      }
-    });
-  }
-
-  observarDocumento(): void {
-    if (!this.observacionesRevision.trim()) {
-      this.notificationService.warning('Advertencia', 'Debe ingresar observaciones');
-      return;
-    }
-
-    this.isProcessing = true;
-    this.auditorService.guardarRevision(this.documentoId!, {
-      estado: 'OBSERVADO',
-      observaciones: this.observacionesRevision
-    }).subscribe({
-      next: () => {
-        this.notificationService.success('Éxito', 'Documento observado');
-        this.isProcessing = false;
-        this.cargarDocumentoParaAuditor(this.documentoId!);
-        this.observacionesRevision = '';
-      },
-      error: err => {
-        this.notificationService.error('Error', err.error?.message || 'No se pudo observar el documento');
-        this.isProcessing = false;
-      }
-    });
-  }
-
-  rechazarDocumento(): void {
-    if (!this.observacionesRevision.trim()) {
-      this.notificationService.warning('Advertencia', 'Debe ingresar observaciones');
-      return;
-    }
-
-    this.isProcessing = true;
-    this.auditorService.guardarRevision(this.documentoId!, {
-      estado: 'RECHAZADO',
-      observaciones: this.observacionesRevision
-    }).subscribe({
-      next: () => {
-        this.notificationService.success('Éxito', 'Documento rechazado');
-        this.isProcessing = false;
-        this.cargarDocumentoParaAuditor(this.documentoId!);
-        this.observacionesRevision = '';
-      },
-      error: err => {
-        this.notificationService.error('Error', err.error?.message || 'No se pudo rechazar el documento');
-        this.isProcessing = false;
-      }
-    });
-  }
-
-  completarRevision(): void {
-    this.isProcessing = true;
-    this.auditorService.guardarRevision(this.documentoId!, {
-      estado: 'COMPLETADO',
-      observaciones: this.observacionesRevision || 'Revisión completada'
-    }).subscribe({
-      next: () => {
-        this.notificationService.success('Éxito', 'Revisión completada');
-        this.isProcessing = false;
-        this.cargarDocumentoParaAuditor(this.documentoId!);
-        this.observacionesRevision = '';
-      },
-      error: err => {
-        this.notificationService.error('Error', err.error?.message || 'No se pudo completar la revisión');
-        this.isProcessing = false;
-      }
-    });
-  }
-
-  archivosRealmenteSubidos(): boolean {
-    return this.primerRadicadoDelAno ?
-      this.contarArchivosRealmenteSubidos() === 6 : true;
-  }
-
-  private finalizarProceso(): void {
-    this.decisionSeleccionada = '';
-    this.observacionesRevision = '';
-    this.recargarEstadoCompleto();
-    this.isProcessing = false;
-  }
-
-  private enviarRevisionConArchivos(): void {
-    const formData = new FormData();
-    const datosRevision = {
-      estado: this.decisionSeleccionada,
-      observaciones: this.observacionesRevision,
-      timestamp: new Date().toISOString()
-    };
-
-    formData.append('data', JSON.stringify(datosRevision));
-
-    let archivosAgregados = 0;
-    Object.entries(this.archivosAuditorFormulario).forEach(([tipo, datos]) => {
-      if (datos.archivo) {
-        formData.append(tipo, datos.archivo);
-        archivosAgregados++;
-      }
-    });
-
-    this.auditorService.registrarDecisionCompleta(this.documentoId!, formData)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (response) => {
-          this.notificationService.success('Éxito', 'Decisión registrada correctamente');
-          this.finalizarProceso();
-
-          setTimeout(() => {
-            this.router.navigate(['/auditor/lista']);
-          }, 1500);
-        },
-        error: (err) => {
-          this.enviarRevisionSecuencial();
-        }
-      });
-  }
-
-  enviarRevisionSimple(): void {
-    this.auditorService.guardarRevision(this.documentoId!, {
-      estado: this.decisionSeleccionada,
-      observaciones: this.observacionesRevision
-    }).pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: () => {
-          this.notificationService.success('Éxito', 'Decisión registrada correctamente');
-          this.finalizarProceso();
-          setTimeout(() => {
-            this.router.navigate(['/auditor/lista']);
-          }, 1500);
-        },
-        error: (err) => {
-          this.notificationService.error('Error', err.error?.message || 'No se pudo registrar la decisión');
-          this.isProcessing = false;
-        }
-      });
-  }
-
-  contarArchivosSeleccionados(): number {
-    return Object.values(this.archivosAuditorFormulario)
-      .filter(a => a.archivo !== null)
-      .length;
-  }
-
-  private enviarRevisionSecuencial(): void {
-    this.subirArchivosPrimero().pipe(
-      takeUntil(this.destroy$)
-    ).subscribe({
-      next: () => {
-        this.auditorService.guardarRevision(this.documentoId!, {
-          estado: this.decisionSeleccionada,
-          observaciones: this.observacionesRevision
-        }).pipe(takeUntil(this.destroy$)).subscribe({
-          next: (response) => {
-            this.notificationService.success('Éxito', 'Decisión registrada');
-            this.finalizarProceso();
-
-            setTimeout(() => {
-              this.router.navigate(['/auditor/lista']);
-            }, 1500);
-          },
-          error: (error) => {
-            this.notificationService.error('Error', 'No se pudo completar la operación');
-            this.isProcessing = false;
-          }
-        });
-      },
-      error: (error) => {
-        this.notificationService.error('Error', 'No se pudo completar la operación');
-        this.isProcessing = false;
-      }
-    });
-  }
-
-  subirArchivosPrimero(): Observable<any> {
-    const formData = new FormData();
-
-    Object.entries(this.archivosAuditorFormulario).forEach(([key, datos]) => {
-      if (datos.archivo) {
-        formData.append(key, datos.archivo);
-      }
-    });
-
-    if (this.observacionesRevision.trim()) {
-      formData.append('observaciones', this.observacionesRevision.trim());
-    }
-
-    return this.auditorService.subirArchivosAuditor(this.documentoId!, formData).pipe(
-      tap(() => {
-        this.notificationService.success('Éxito', 'Archivos subidos correctamente');
-        Object.keys(this.archivosAuditorFormulario).forEach(key => {
-          this.archivosAuditorFormulario[key].archivo = null;
-        });
-      }),
-      catchError(err => {
-        this.notificationService.error('Error', 'Fallo al subir archivos');
-        return throwError(() => err);
-      })
-    );
-  }
-
-  private intentarMetodoAlternativo(): void {
-    const tieneArchivos = this.contarArchivosSeleccionados() > 0;
-
-    if (tieneArchivos) {
-      this.subirArchivosPrimero().pipe(
-        takeUntil(this.destroy$)
-      ).subscribe({
-        next: () => {
-          this.registrarDecisionDespuesDeSubida();
-        },
-        error: (error) => {
-          this.notificationService.error('Error', 'No se pudo completar la operación');
-          this.isProcessing = false;
-        }
-      });
-    } else {
-      this.registrarDecisionDespuesDeSubida();
-    }
-  }
-
-  private registrarDecisionDespuesDeSubida(): void {
-    this.auditorService.guardarRevision(this.documentoId!, {
-      estado: this.decisionSeleccionada,
-      observaciones: this.observacionesRevision
-    })
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (response) => {
-          this.notificationService.success('Éxito', 'Decisión registrada correctamente');
-          this.finalizarProceso();
-
-          setTimeout(() => {
-            this.router.navigate(['/auditor/lista']);
-          }, 1500);
-        },
-        error: (err) => {
-          this.notificationService.error('Error', err.error?.message || 'Error registrando decisión');
-          this.isProcessing = false;
-        }
-      });
-  }
-
-  private debugResponseStructure(response: any): void {
-    // Método de depuración - puedes usarlo o comentarlo
-  }
-
-  contarDocumentosConfirmados(): number {
-    if (!this.documentoData?.archivosAuditor) return 0;
-    return this.documentoData.archivosAuditor.filter((a: any) => a.subido === true).length;
-  }
-
-  recargarEstadoCompleto(): void {
-    this.cargarDocumentoParaAuditor(this.documentoId!);
-  }
-
-  puedeRegistrarDecision(): boolean {
-    if (this.estadoDocumento !== 'EN_REVISION_AUDITOR') return false;
-    if (!this.decisionSeleccionada) return false;
-
-    if (['OBSERVADO', 'RECHAZADO'].includes(this.decisionSeleccionada) &&
-      !this.observacionesRevision?.trim()) {
-      return false;
-    }
-
-    return true;
-  }
-
-  verificarEstado(): void {
-    // Puedes dejarlo vacío o agregar lógica si lo necesitas
-  }
-
-    verificarArchivosCompletos(): void {
+  verificarArchivosCompletos(): void {
     if (!this.primerRadicadoDelAno) {
       this.archivosCompletos = true;
       return;
@@ -867,5 +669,170 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
       .length;
 
     this.archivosCompletos = subidosConfirmados === 6;
+
+    console.log('[AUDITOR] Verificación archivos:', {
+      primerRadicado: this.primerRadicadoDelAno,
+      subidos: subidosConfirmados,
+      completos: this.archivosCompletos
+    });
+  }
+
+  puedeRegistrarDecision(): boolean {
+    if (this.estadoDocumento !== 'EN_REVISION_AUDITOR') return false;
+    if (!this.decisionSeleccionada) return false;
+    if (this.primerRadicadoDelAno && this.decisionSeleccionada === 'APROBADO') {
+      if (!this.archivosCompletos) return false;
+    }
+    if (['OBSERVADO', 'RECHAZADO'].includes(this.decisionSeleccionada) &&
+      !this.observacionesRevision?.trim()) {
+      return false;
+    }
+    return true;
+  }
+
+  verificarEstado(): void {
+    this.cargarTodosLosDocumentos();
+  }
+
+  recargarEstadoCompleto(): void {
+    if (this.documentoId) {
+      this.cargarDocumentoParaAuditor(this.documentoId);
+    }
+  }
+
+  // ==================== DOCUMENTOS DEL CONTRATISTA (TAB 2) ====================
+
+  cargarDocumentosContratista(): void {
+    if (!this.contratistaId) {
+      this.notificationService.warning('Sin documentos', 'No hay contratista asociado');
+      return;
+    }
+
+    this.cargandoDocumentosContratista = true;
+
+    this.contratistasService.obtenerDocumentos(this.contratistaId).subscribe({
+      next: (documentos: any[]) => {
+        this.documentosContratista = documentos || [];
+        console.log(`✅ Documentos del contratista (TAB2): ${this.documentosContratista.length}`);
+        this.cargandoDocumentosContratista = false;
+        this.cdr.detectChanges();
+      },
+      error: (error: any) => {
+        console.error('Error cargando documentos del contratista:', error);
+        this.documentosContratista = [];
+        this.cargandoDocumentosContratista = false;
+        this.notificationService.error('Error', 'No se pudieron cargar los documentos');
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  verDocumentoContratista(documento: any): void {
+    if (!this.contratistaId || !documento.id) {
+      this.notificationService.warning('Error', 'No se puede visualizar el documento');
+      return;
+    }
+
+    this.contratistasService.descargarDocumento(this.contratistaId, documento.id).subscribe({
+      next: (blob: Blob) => {
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+      },
+      error: (error: any) => {
+        console.error('Error visualizando documento:', error);
+        this.notificationService.error('Error', 'No se pudo visualizar el documento');
+      }
+    });
+  }
+
+  descargarDocumentoContratista(documento: any): void {
+    if (!this.contratistaId || !documento.id) {
+      this.notificationService.warning('Error', 'No se puede descargar el documento');
+      return;
+    }
+
+    this.isProcessing = true;
+    const nombreArchivo = this.getNombreArchivoSimple(documento.nombreArchivo) || `documento_${documento.tipo}.pdf`;
+
+    this.contratistasService.descargarDocumento(this.contratistaId, documento.id).subscribe({
+      next: (blob: Blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = nombreArchivo;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        this.notificationService.success('Descarga completada', `"${nombreArchivo}" descargado`);
+        this.isProcessing = false;
+      },
+      error: (error: any) => {
+        console.error('Error descargando documento:', error);
+        this.notificationService.error('Error', 'No se pudo descargar el documento');
+        this.isProcessing = false;
+      }
+    });
+  }
+
+  abrirTodosDocumentosContratista(): void {
+    if (this.documentosContratista.length === 0) {
+      this.notificationService.warning('Sin documentos', 'No hay documentos para abrir');
+      return;
+    }
+    this.documentosContratista.forEach((doc, index) => {
+      setTimeout(() => this.verDocumentoContratista(doc), index * 500);
+    });
+  }
+
+  descargarTodosDocumentosContratista(): void {
+    if (this.documentosContratista.length === 0) {
+      this.notificationService.warning('Sin documentos', 'No hay documentos para descargar');
+      return;
+    }
+
+    this.isProcessing = true;
+    this.isDownloadingAll = true;
+
+    let descargados = 0;
+    let errores = 0;
+
+    this.documentosContratista.forEach((doc, index) => {
+      setTimeout(() => {
+        const nombreArchivo = this.getNombreArchivoSimple(doc.nombreArchivo) || `documento_${doc.tipo}.pdf`;
+
+        this.contratistasService.descargarDocumento(this.contratistaId!, doc.id).subscribe({
+          next: (blob: Blob) => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = nombreArchivo;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            descargados++;
+            this.verificarFinDescargaContratista(descargados, errores, this.documentosContratista.length);
+          },
+          error: () => {
+            errores++;
+            this.verificarFinDescargaContratista(descargados, errores, this.documentosContratista.length);
+          }
+        });
+      }, index * 800);
+    });
+  }
+
+  private verificarFinDescargaContratista(descargados: number, errores: number, total: number): void {
+    if (descargados + errores === total) {
+      this.isProcessing = false;
+      this.isDownloadingAll = false;
+      if (errores === 0) {
+        this.notificationService.success('Descarga completada', `Todos los ${total} documentos descargados`);
+      } else {
+        this.notificationService.warning('Descarga parcial', `${descargados} descargados, ${errores} errores`);
+      }
+    }
   }
 }

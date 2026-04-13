@@ -73,13 +73,18 @@ export class ContabilidadService {
   }
 
   // 1. Documentos disponibles
-  obtenerDocumentosDisponibles(): Observable<DocumentoContable[]> {
-    return this.http.get<any>(`${this.apiUrl}/documentos/disponibles`, { headers: this.getHeaders() }).pipe(
-      map(res => this.extractArrayData(res)),
-      tap(docs => console.log(`Disponibles: ${docs.length} docs`)),
-      catchError(err => throwError(() => new Error(err.error?.message || 'Error al cargar disponibles')))
-    );
-  }
+obtenerDocumentosDisponibles(): Observable<DocumentoContable[]> {
+  return this.http.get<any>(`${this.apiUrl}/documentos/disponibles`, { headers: this.getHeaders() }).pipe(
+    map(res => {
+      const docs = this.extractArrayData(res);
+      // Filtrar solo APROBADO_SUPERVISOR por si acaso
+      const filtered = docs.filter(doc => doc.estado === 'APROBADO_SUPERVISOR');
+      console.log(`Disponibles: ${filtered.length} docs (APROBADO_SUPERVISOR)`);
+      return filtered;
+    }),
+    catchError(err => throwError(() => new Error(err.error?.message || 'Error al cargar disponibles')))
+  );
+}
 
   // 2. Tomar documento
   tomarDocumento(documentoId: string): Observable<ApiResponse> {

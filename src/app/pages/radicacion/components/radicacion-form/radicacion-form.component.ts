@@ -1,4 +1,3 @@
-// src/app/pages/radicacion/components/radicacion-form/radicacion-form.component.ts
 import {
   Component,
   Output,
@@ -8,7 +7,8 @@ import {
   ViewChild,
   OnDestroy,
   AfterViewInit,
-  ChangeDetectorRef
+  ChangeDetectorRef,
+  Input
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
@@ -19,6 +19,7 @@ import { Contratista } from '../../../../core/models/contratista.model';
 import { debounceTime, distinctUntilChanged, filter } from 'rxjs/operators';
 import { Subscription, fromEvent, timer } from 'rxjs';
 import { JuridicaService } from '../../../../core/services/juridica.service';
+import { Documento } from '../../../../core/models/documento.model';
 
 @Component({
   selector: 'app-radicacion-form',
@@ -28,8 +29,12 @@ import { JuridicaService } from '../../../../core/services/juridica.service';
   styleUrls: ['./radicacion-form.component.scss']
 })
 export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy {
+  @Input() modo: 'creacion' | 'solo-lectura' | 'edicion' = 'creacion';
+  @Input() documentoId: string | null = null;
+  
   @Output() documentoRadicado = new EventEmitter<any>();
   @Output() cancelar = new EventEmitter<void>();
+  @Output() volver = new EventEmitter<void>();
 
   @ViewChild('nombreContainer') nombreContainer!: ElementRef;
   @ViewChild('documentoContainer') documentoContainer!: ElementRef;
@@ -54,6 +59,10 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
   cargandoContratistas = false;
   contratistaSeleccionado: any = null;
 
+  get esSoloLectura(): boolean {
+    return this.modo === 'solo-lectura';
+  }
+
   private debounceTimer?: Subscription;
   private clickSubscription?: Subscription;
   private valueChangesSubscriptions: Subscription[] = [];
@@ -74,19 +83,200 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   ngOnInit(): void {
-    this.cargarContratistas();
-    this.setupAutocomplete();
-    this.setupSincronizacionContratista();
-    this.setupRadicadoListeners();
+    if (this.esSoloLectura && this.documentoId) {
+      this.cargarDocumentoParaVista(this.documentoId);
+    } else {
+      this.cargarContratistas();
+      this.setupAutocomplete();
+      this.setupSincronizacionContratista();
+      this.setupRadicadoListeners();
+    }
   }
 
   ngAfterViewInit(): void {
-    this.setupClickOutsideListeners();
+    if (!this.esSoloLectura) {
+      this.setupClickOutsideListeners();
+    }
   }
 
   ngOnDestroy(): void {
     this.cleanupSubscriptions();
   }
+
+cargarDocumentoParaVista(id: string): void {
+    this.isLoading = true;
+    this.mensaje = 'Cargando documento...';
+    
+    console.log('[RADICACION-VIEW] Cargando documento ID:', id);
+    
+    this.radicacionService.obtenerDocumentoPorId(id).subscribe({
+        next: (documento: Documento) => {
+            console.log('[RADICACION-VIEW] Documento recibido:', documento);
+            
+            if (!documento) {
+                this.mensaje = 'No se encontraron datos del documento';
+                this.isLoading = false;
+                return;
+            }
+            
+            // Guardar los nombres de archivo para mostrar
+            // ✅ IMPORTANTE: Guardar los nombres de los archivos desde los campos correctos
+            if (documento.cuentaCobro) {
+                this.documentosSeleccionados[0] = { name: this.extraerNombreArchivo(documento.cuentaCobro) } as File;
+            }
+            if (documento.seguridadSocial) {
+                this.documentosSeleccionados[1] = { name: this.extraerNombreArchivo(documento.seguridadSocial) } as File;
+            }
+            if (documento.informeActividades) {
+                this.documentosSeleccionados[2] = { name: this.extraerNombreArchivo(documento.informeActividades) } as File;
+            }
+            
+            // Cargar datos en el formulario
+            this.radicacionForm.patchValue({
+                numeroRadicado: documento.numeroRadicado || '',
+                numeroContrato: documento.numeroContrato || '',
+                nombreContratista: documento.nombreContratista || '',
+                documentoContratista: documento.documentoContratista || '',
+                fechaInicio: documento.fechaInicio ? new Date(documento.fechaInicio).toISOString().split('T')[0] : '',
+                fechaFin: documento.fechaFin ? new Date(documento.fechaFin).toISOString().split('T')[0] : '',
+                descripcionCuentaCobro: documento.descripcionCuentaCobro || 'Cuenta de Cobro',
+                descripcionSeguridadSocial: documento.descripcionSeguridadSocial || 'Seguridad Social',
+                descripcionInformeActividades: documento.descripcionInformeActividades || 'Informe de Actividades',
+                observacion: documento.observacion || '',
+                primerRadicadoDelAno: documento.primerRadicadoDelAno || false
+            });
+            
+            // Deshabilitar el formulario para solo lectura
+            this.radicacionForm.disable();
+            
+            this.mensaje = 'Documento cargado correctamente';
+            this.isLoading = false;
+            this.cdRef.detectChanges();
+            
+            setTimeout(() => { this.mensaje = ''; }, 3000);
+        },
+        error: (error) => {
+            console.error('[RADICACION-VIEW] Error:', error);
+            this.mensaje = 'Error al cargar el documento: ' + (error.message || 'Error desconocido');
+            this.isLoading = false;
+            this.cdRef.detectChanges();
+        }
+    });
+}
+
+// Método auxiliar para extraer solo el nombre del archivo de la ruta completa
+private extraerNombreArchivo(ruta: string): string {
+    if (!ruta) return 'Sin archivo';
+    // Si es una ruta con path, extraer solo el nombre del archivo
+    const partes = ruta.split(/[\\/]/);
+    return partes[partes.length - 1];
+}
+
+// CORREGIR los métodos verDocumento y descargarDocumento
+verDocumento(index: number): void {
+    if (!this.documentoId) {
+        this.mostrarMensaje('ID de documento no disponible', 'error');
+        return;
+    }
+
+    const doc = this.documentosSeleccionados[index];
+    if (!doc?.name) {
+        this.mostrarMensaje('Documento no disponible', 'error');
+        return;
+    }
+
+    // ✅ Usar el método de previsualización (abre en nueva pestaña)
+    this.radicacionService.previsualizarArchivo(this.documentoId, index + 1);
+}
+
+descargarDocumento(index: number): void {
+    if (!this.documentoId) {
+        this.mostrarMensaje('ID de documento no disponible', 'error');
+        return;
+    }
+
+    const doc = this.documentosSeleccionados[index];
+    if (!doc?.name) {
+        this.mostrarMensaje('Documento no disponible', 'error');
+        return;
+    }
+
+    const nombreArchivo = doc.name;
+    
+    this.radicacionService.descargarDocumento(this.documentoId, index + 1)
+        .subscribe({
+            next: (blob: Blob) => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = nombreArchivo;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                this.mostrarMensaje('Documento descargado correctamente', 'success');
+            },
+            error: (error) => {
+                console.error('Error al descargar documento:', error);
+                this.mostrarMensaje('No se pudo descargar el documento: ' + (error.message || 'Error desconocido'), 'error');
+            }
+        });
+}
+
+abrirTodosDocumentos(): void {
+    if (!this.tieneDocumentosDisponibles()) {
+        this.mostrarMensaje('No hay documentos disponibles', 'warning');
+        return;
+    }
+
+    // Abrir cada documento en una nueva pestaña
+    for (let i = 0; i < 3; i++) {
+        if (this.documentosSeleccionados[i]?.name) {
+            setTimeout(() => this.verDocumento(i), i * 500);
+        }
+    }
+}
+
+descargarTodosDocumentos(): void {
+    if (!this.tieneDocumentosDisponibles()) {
+        this.mostrarMensaje('No hay documentos disponibles', 'warning');
+        return;
+    }
+
+    let descargados = 0;
+    let errores = 0;
+    const total = this.contarDocumentosDisponibles();
+
+    for (let i = 0; i < 3; i++) {
+        if (this.documentosSeleccionados[i]?.name) {
+            setTimeout(() => {
+                this.radicacionService.descargarDocumento(this.documentoId!, i + 1)
+                    .subscribe({
+                        next: (blob: Blob) => {
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = this.documentosSeleccionados[i]!.name;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            window.URL.revokeObjectURL(url);
+                            descargados++;
+                            if (descargados + errores === total) {
+                                this.mostrarMensaje(`Descargados ${descargados} de ${total} documentos`, 'success');
+                            }
+                        },
+                        error: () => {
+                            errores++;
+                            if (descargados + errores === total) {
+                                this.mostrarMensaje(`Descargados ${descargados} de ${total} documentos`, 'warning');
+                            }
+                        }
+                    });
+            }, i * 800);
+        }
+    }
+}
 
   createForm(): FormGroup {
     return this.fb.group({
@@ -109,6 +299,8 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   cargarContratistas(): void {
+    if (this.esSoloLectura) return;
+    
     this.cargandoContratistas = true;
     this.contratistasService.obtenerTodos().subscribe({
       next: (contratistas) => {
@@ -123,6 +315,8 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   setupAutocomplete(): void {
+    if (this.esSoloLectura) return;
+    
     this.valueChangesSubscriptions.forEach(sub => sub.unsubscribe());
     this.valueChangesSubscriptions = [];
 
@@ -182,6 +376,8 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   setupSincronizacionContratista(): void {
+    if (this.esSoloLectura) return;
+    
     const nombreSyncSub = this.radicacionForm.get('nombreContratista')?.valueChanges.subscribe(nombre => {
       if (!nombre || this.contratistaSeleccionado?.nombreCompleto === nombre) return;
 
@@ -242,6 +438,8 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   private setupClickOutsideListeners(): void {
+    if (this.esSoloLectura) return;
+    
     setTimeout(() => {
       this.clickSubscription = fromEvent(document, 'click').subscribe((event: any) => {
         this.handleClickOutside(event);
@@ -272,6 +470,8 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   onFocusContratista(tipo: 'nombre' | 'documento' | 'contrato'): void {
+    if (this.esSoloLectura) return;
+    
     if (tipo === 'nombre') {
       const valor = this.radicacionForm.get('nombreContratista')?.value?.trim();
 
@@ -323,6 +523,8 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   onInputContratista(tipo: 'nombre' | 'documento' | 'contrato'): void {
+    if (this.esSoloLectura) return;
+    
     const getValue = (): string => {
       switch (tipo) {
         case 'nombre': return this.radicacionForm.get('nombreContratista')?.value || '';
@@ -376,6 +578,8 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   private ejecutarBusqueda(tipo: 'nombre' | 'documento' | 'contrato', termino: string): void {
+    if (this.esSoloLectura) return;
+    
     if (!termino || termino.trim().length < 1) {
       this.contratistasFiltrados = [];
       return;
@@ -395,6 +599,8 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   buscarContratistasPorNombre(nombre: string): void {
+    if (this.esSoloLectura) return;
+    
     if (this.ultimaBusqueda.tipo === 'nombre' &&
       this.ultimaBusqueda.termino === nombre &&
       (Date.now() - this.ultimaBusqueda.timestamp) < 500) {
@@ -444,6 +650,8 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   buscarContratistasPorDocumento(documento: string): void {
+    if (this.esSoloLectura) return;
+    
     if (this.ultimaBusqueda.tipo === 'documento' &&
       this.ultimaBusqueda.termino === documento &&
       (Date.now() - this.ultimaBusqueda.timestamp) < 500) {
@@ -491,138 +699,118 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
       }
     });
   }
-buscarContratistasPorContrato(contrato: string): void {
-  if (this.ultimaBusqueda.tipo === 'contrato' &&
-    this.ultimaBusqueda.termino === contrato &&
-    (Date.now() - this.ultimaBusqueda.timestamp) < 500) {
-    return;
-  }
 
-  this.ultimaBusqueda = {
-    tipo: 'contrato',
-    termino: contrato,
-    timestamp: Date.now()
-  };
+  buscarContratistasPorContrato(contrato: string): void {
+    if (this.esSoloLectura) return;
+    
+    if (this.ultimaBusqueda.tipo === 'contrato' &&
+      this.ultimaBusqueda.termino === contrato &&
+      (Date.now() - this.ultimaBusqueda.timestamp) < 500) {
+      return;
+    }
 
-  this.cargandoContratistas = true;
-  this.cdRef.detectChanges();
+    this.ultimaBusqueda = {
+      tipo: 'contrato',
+      termino: contrato,
+      timestamp: Date.now()
+    };
 
-  this.juridicaService.obtenerContratoYContratistaPorNumero(contrato).subscribe({
-    next: (resultado) => {
-      const valorActual = this.radicacionForm.get('numeroContrato')?.value?.trim() || '';
-      
-      if (resultado && valorActual && valorActual.toLowerCase().includes(contrato.toLowerCase())) {
-        const contratistaData = resultado.contratista;
-        const contratoData = resultado.contrato;
+    this.cargandoContratistas = true;
+    this.cdRef.detectChanges();
+
+    this.juridicaService.obtenerContratoYContratistaPorNumero(contrato).subscribe({
+      next: (resultado) => {
+        const valorActual = this.radicacionForm.get('numeroContrato')?.value?.trim() || '';
         
-        if (contratistaData && contratistaData.nombre) {
-          const item = {
-            id: contratistaData.id,
-            nombreCompleto: contratistaData.nombre,
-            razonSocial: contratistaData.nombre,
-            documentoIdentidad: contratistaData.documento,
-            numeroContrato: contratistaData.numeroContrato || contrato,
-            // ✅ Usar las fechas DIRECTAMENTE como vienen del backend
-            fechaInicioContrato: contratoData?.fechaInicio || null,
-            fechaFinContrato: contratoData?.fechaFin || null
-          };
+        if (resultado && valorActual && valorActual.toLowerCase().includes(contrato.toLowerCase())) {
+          const contratistaData = resultado.contratista;
+          const contratoData = resultado.contrato;
           
-          console.log('✅ Contratista encontrado:', contratistaData.nombre);
-          console.log('✅ Documento:', contratistaData.documento);
-          console.log('✅ Fecha Inicio Contrato (RAW):', contratoData?.fechaInicio);
-          console.log('✅ Fecha Fin Contrato (RAW):', contratoData?.fechaFin);
-          console.log('✅ Objeto item completo:', item);
-
-          // Auto-seleccionar
-          this.seleccionarContratista(item);
-          this.mostrarDropdownContrato = false;
-          this.mostrarDropdownNombre = false;
-          this.mostrarDropdownDocumento = false;
-          
+          if (contratistaData && contratistaData.nombre) {
+            const item = {
+              id: contratistaData.id,
+              nombreCompleto: contratistaData.nombre,
+              razonSocial: contratistaData.nombre,
+              documentoIdentidad: contratistaData.documento,
+              numeroContrato: contratistaData.numeroContrato || contrato,
+              fechaInicioContrato: contratoData?.fechaInicio || null,
+              fechaFinContrato: contratoData?.fechaFin || null
+            };
+            
+            this.seleccionarContratista(item);
+            this.mostrarDropdownContrato = false;
+            this.mostrarDropdownNombre = false;
+            this.mostrarDropdownDocumento = false;
+            
+          } else {
+            this.contratistasFiltrados = [];
+            this.mostrarDropdownContrato = false;
+          }
         } else {
           this.contratistasFiltrados = [];
           this.mostrarDropdownContrato = false;
         }
-      } else {
+
+        this.cargandoContratistas = false;
+        this.cdRef.detectChanges();
+      },
+      error: (error) => {
+        console.error('Error buscando por contrato:', error);
         this.contratistasFiltrados = [];
         this.mostrarDropdownContrato = false;
+        this.cargandoContratistas = false;
+        this.cdRef.detectChanges();
       }
+    });
+  }
 
-      this.cargandoContratistas = false;
-      this.cdRef.detectChanges();
-    },
-    error: (error) => {
-      console.error('Error buscando por contrato:', error);
-      this.contratistasFiltrados = [];
-      this.mostrarDropdownContrato = false;
-      this.cargandoContratistas = false;
-      this.cdRef.detectChanges();
+  seleccionarContratista(contratista: any): void {
+    if (this.esSoloLectura) return;
+    
+    this.contratistaSeleccionado = contratista;
+
+    this.radicacionForm.patchValue({
+      nombreContratista: contratista.nombreCompleto,
+      documentoContratista: contratista.documentoIdentidad,
+      numeroContrato: contratista.numeroContrato || ''
+    }, { emitEvent: false });
+
+    if (contratista.fechaInicioContrato) {
+      const fechaInicioStr = contratista.fechaInicioContrato;
+      this.radicacionForm.patchValue({
+        fechaInicio: fechaInicioStr
+      }, { emitEvent: false });
     }
-  });
-}
 
-seleccionarContratista(contratista: any): void {
-  console.log('🎯 seleccionarContratista llamado con:', contratista);
-  
-  this.contratistaSeleccionado = contratista;
+    if (contratista.fechaFinContrato) {
+      const fechaFinStr = contratista.fechaFinContrato;
+      this.radicacionForm.patchValue({
+        fechaFin: fechaFinStr
+      }, { emitEvent: false });
+    }
 
-  // ✅ 1. Llenar datos del contratista
-  this.radicacionForm.patchValue({
-    nombreContratista: contratista.nombreCompleto,
-    documentoContratista: contratista.documentoIdentidad,
-    numeroContrato: contratista.numeroContrato || ''
-  }, { emitEvent: false });
-  
-  console.log('📝 Nombre contratista:', this.radicacionForm.get('nombreContratista')?.value);
-  console.log('📝 Documento contratista:', this.radicacionForm.get('documentoContratista')?.value);
+    this.cdRef.detectChanges();
 
-  // ✅ 2. Llenar fechas del contrato - USAR DIRECTAMENTE LA FECHA SIN CONVERTIR
-  if (contratista.fechaInicioContrato) {
-    // La fecha ya viene en formato YYYY-MM-DD del backend
-    const fechaInicioStr = contratista.fechaInicioContrato;
-    this.radicacionForm.patchValue({
-      fechaInicio: fechaInicioStr
-    }, { emitEvent: false });
-    console.log(`✅ Fecha de inicio auto-llenada: ${fechaInicioStr}`);
-    console.log(`📝 Valor actual en formulario fechaInicio:`, this.radicacionForm.get('fechaInicio')?.value);
-  } else {
-    console.log('⚠️ No hay fechaInicioContrato en el objeto:', contratista);
+    if (contratista.fechaInicioContrato && contratista.fechaFinContrato) {
+      this.mostrarMensaje(
+        `Contrato ${contratista.numeroContrato} cargado. Fechas: ${contratista.fechaInicioContrato} a ${contratista.fechaFinContrato}`,
+        'success'
+      );
+    } else if (contratista.nombreCompleto) {
+      this.mostrarMensaje(
+        `Contratista ${contratista.nombreCompleto} cargado correctamente.`,
+        'success'
+      );
+    }
+
+    this.mostrarDropdownNombre = false;
+    this.mostrarDropdownDocumento = false;
+    this.mostrarDropdownContrato = false;
   }
-
-  if (contratista.fechaFinContrato) {
-    // La fecha ya viene en formato YYYY-MM-DD del backend
-    const fechaFinStr = contratista.fechaFinContrato;
-    this.radicacionForm.patchValue({
-      fechaFin: fechaFinStr
-    }, { emitEvent: false });
-    console.log(`✅ Fecha de fin auto-llenada: ${fechaFinStr}`);
-    console.log(`📝 Valor actual en formulario fechaFin:`, this.radicacionForm.get('fechaFin')?.value);
-  } else {
-    console.log('⚠️ No hay fechaFinContrato en el objeto:', contratista);
-  }
-
-  // Forzar detección de cambios
-  this.cdRef.detectChanges();
-
-  // ✅ 3. Mostrar mensaje
-  if (contratista.fechaInicioContrato && contratista.fechaFinContrato) {
-    this.mostrarMensaje(
-      `Contrato ${contratista.numeroContrato} cargado. Fechas: ${contratista.fechaInicioContrato} a ${contratista.fechaFinContrato}`,
-      'success'
-    );
-  } else if (contratista.nombreCompleto) {
-    this.mostrarMensaje(
-      `Contratista ${contratista.nombreCompleto} cargado correctamente.`,
-      'success'
-    );
-  }
-
-  this.mostrarDropdownNombre = false;
-  this.mostrarDropdownDocumento = false;
-  this.mostrarDropdownContrato = false;
-}
 
   seleccionarContratistaPorContrato(contratista: any): void {
+    if (this.esSoloLectura) return;
+    
     this.contratistaSeleccionado = contratista;
 
     this.radicacionForm.patchValue({
@@ -642,6 +830,8 @@ seleccionarContratista(contratista: any): void {
   }
 
   puedeCrearNuevoContratista(): boolean {
+    if (this.esSoloLectura) return false;
+    
     const nombre = this.radicacionForm.get('nombreContratista')?.value;
     const documento = this.radicacionForm.get('documentoContratista')?.value;
 
@@ -652,6 +842,8 @@ seleccionarContratista(contratista: any): void {
   }
 
   crearNuevoContratista(): void {
+    if (this.esSoloLectura) return;
+    
     const nombre = this.radicacionForm.get('nombreContratista')?.value?.trim();
     const documento = this.radicacionForm.get('documentoContratista')?.value?.trim();
     const contrato = this.radicacionForm.get('numeroContrato')?.value?.trim();
@@ -694,10 +886,11 @@ seleccionarContratista(contratista: any): void {
   }
 
   private setupRadicadoListeners(): void {
+    if (this.esSoloLectura) return;
+    
     const radicadoSub = this.radicacionForm.get('numeroRadicado')?.valueChanges.subscribe(value => {
       if (value && value.match(/^R\d{4}-\d{4,8}$/)) {
         const ano = value.substring(1, 5);
-        console.log(`✅ Año detectado: ${ano}`);
       }
     });
 
@@ -705,6 +898,8 @@ seleccionarContratista(contratista: any): void {
   }
 
   onPrimerRadicadoChange(event: Event): void {
+    if (this.esSoloLectura) return;
+    
     const input = event.target as HTMLInputElement;
     const checked = input.checked;
 
@@ -722,6 +917,8 @@ seleccionarContratista(contratista: any): void {
   }
 
   verificarPrimerRadicadoDisponible(): void {
+    if (this.esSoloLectura) return;
+    
     this.verificandoPrimerRadicado = true;
     this.mensajePrimerRadicado = 'Verificando si ya existe un primer radicado para este contrato...';
     this.cdRef.detectChanges();
@@ -747,6 +944,8 @@ seleccionarContratista(contratista: any): void {
   }
 
   onFileSelected(event: any, index: number): void {
+    if (this.esSoloLectura) return;
+    
     const file = event.target.files[0];
     if (!file) return;
 
@@ -792,6 +991,8 @@ seleccionarContratista(contratista: any): void {
   }
 
   removeFile(index: number): void {
+    if (this.esSoloLectura) return;
+    
     this.documentosSeleccionados[index] = null;
     this.mostrarMensaje(`Archivo ${index + 1} removido`, 'success');
     this.cdRef.detectChanges();
@@ -802,10 +1003,12 @@ seleccionarContratista(contratista: any): void {
   }
 
   onSubmit(): void {
-    console.log('======= INICIANDO ENVÍO DE RADICACIÓN =======');
-
+    if (this.esSoloLectura) {
+      this.volver.emit();
+      return;
+    }
+    
     if (this.radicacionForm.invalid) {
-      console.log('❌ Formulario inválido');
       this.marcarControlesComoSucios();
       this.mostrarMensaje('Por favor complete todos los campos requeridos correctamente', 'error');
       return;
@@ -820,7 +1023,6 @@ seleccionarContratista(contratista: any): void {
 
     const archivosSeleccionados = this.documentosSeleccionados.filter(file => file !== null);
     if (archivosSeleccionados.length !== 3) {
-      console.log('❌ Archivos insuficientes:', archivosSeleccionados.length);
       this.mostrarMensaje('Debe seleccionar exactamente 3 archivos', 'error');
       return;
     }
@@ -869,13 +1071,10 @@ seleccionarContratista(contratista: any): void {
       primerRadicadoDelAno: this.radicacionForm.get('primerRadicadoDelAno')?.value ?? false
     };
 
-    console.log('📦 DTO a enviar:', createDocumentoDto);
-
     const archivos = archivosSeleccionados as File[];
 
     this.radicacionService.crearDocumento(createDocumentoDto, archivos).subscribe({
       next: (documentoCreado: any) => {
-        console.log('✅ Documento radicado exitosamente:', documentoCreado);
         this.mostrarMensaje('Documento radicado exitosamente', 'success');
         this.documentoRadicado.emit(documentoCreado);
         this.resetForm();
@@ -883,7 +1082,6 @@ seleccionarContratista(contratista: any): void {
         this.cdRef.detectChanges();
       },
       error: (error) => {
-        console.error('❌ Error en radicación:', error);
         this.mostrarMensaje(error.message || 'Error al radicar documento', 'error');
         this.isLoading = false;
         this.cdRef.detectChanges();
@@ -892,11 +1090,17 @@ seleccionarContratista(contratista: any): void {
   }
 
   onCancel(): void {
-    this.cancelar.emit();
-    this.resetForm();
+    if (this.esSoloLectura) {
+      this.volver.emit();
+    } else {
+      this.cancelar.emit();
+      this.resetForm();
+    }
   }
 
   resetForm(): void {
+    if (this.esSoloLectura) return;
+    
     this.radicacionForm.reset({
       descripcionCuentaCobro: 'Cuenta de Cobro',
       descripcionSeguridadSocial: 'Seguridad Social',
@@ -965,4 +1169,16 @@ seleccionarContratista(contratista: any): void {
     }
     return '';
   }
+
+  // Agregar estos métodos en la clase RadicacionFormComponent
+
+tieneDocumentosDisponibles(): boolean {
+  return this.documentosSeleccionados.some(doc => doc?.name);
+}
+
+contarDocumentosDisponibles(): number {
+  return this.documentosSeleccionados.filter(doc => doc?.name).length;
+}
+
+
 }

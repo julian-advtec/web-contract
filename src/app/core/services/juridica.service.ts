@@ -1,4 +1,5 @@
 // src/app/core/services/juridica.service.ts
+
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Observable, throwError, of } from 'rxjs';
@@ -30,8 +31,8 @@ export class JuridicaService {
     }
     return new HttpHeaders({
       'Authorization': `Bearer ${token}`,
-      'Accept': 'application/json',
-      'Content-Type': 'application/json'
+      'Accept': 'application/json'
+      // ⚠️ NO incluir 'Content-Type' para FormData
     });
   }
 
@@ -53,25 +54,21 @@ export class JuridicaService {
       map(response => {
         console.log('📥 Respuesta completa de contratos:', response);
 
-        // ✅ La respuesta tiene estructura: { success: true, count: 3, data: [...] }
         if (response && response.success === true && Array.isArray(response.data)) {
           console.log(`✅ ${response.data.length} contratos encontrados en response.data`);
           return response.data;
         }
 
-        // ✅ Otra estructura posible: { ok: true, data: [...] }
         if (response && response.ok === true && Array.isArray(response.data)) {
           console.log(`✅ ${response.data.length} contratos encontrados en response.data (ok)`);
           return response.data;
         }
 
-        // ✅ Otra estructura: { data: { data: [...] } }
         if (response && response.data && response.data.data && Array.isArray(response.data.data)) {
           console.log(`✅ ${response.data.data.length} contratos encontrados en response.data.data`);
           return response.data.data;
         }
 
-        // ✅ Si es directamente un array
         if (Array.isArray(response)) {
           console.log(`✅ ${response.length} contratos encontrados (array directo)`);
           return response;
@@ -106,33 +103,93 @@ export class JuridicaService {
     );
   }
 
+crearContratoConArchivos(formData: FormData): Observable<Contrato> {
+  const headers = new HttpHeaders({
+    'Authorization': `Bearer ${this.getToken()}`
+  });
+
+  return this.http.post<any>(`${this.apiUrl}/contratos`, formData, { headers }).pipe(
+    map(response => {
+      console.log('📥 Respuesta creación contrato con archivos:', response);
+      if (response?.success === true && response.data) return response.data;
+      if (response?.data) return response.data;
+      return response;
+    }),
+    catchError(this.handleError.bind(this))
+  );
+}
+
+  // ✅ MÉTODO CORREGIDO PARA RADICACIÓN
+  obtenerContratoYContratistaPorNumero(numeroContrato: string): Observable<any> {
+    const headers = this.getAuthHeaders();
+    const url = `${this.apiUrl}/contrato-con-contratista/${encodeURIComponent(numeroContrato)}`;
+
+    console.log('📡 Buscando contrato y contratista por número:', url);
+
+    return this.http.get<any>(url, { headers }).pipe(
+      map(response => {
+        console.log('📥 Respuesta completa de contrato + contratista:', response);
+
+        // Manejo de diferentes estructuras de respuesta
+        if (response?.data?.data?.data) return response.data.data.data;
+        if (response?.data?.data) return response.data.data;
+        if (response?.data) return response.data;
+        if (response?.ok && response.data) return response.data;
+
+        return response;
+      }),
+      catchError((error) => {
+        console.error('❌ Error en obtenerContratoYContratistaPorNumero:', error);
+        return of(null);
+      })
+    );
+  }
+
+  // ✅ ACTUALIZAR CONTRATO CON ARCHIVOS (FormData)
+  actualizarContratoConArchivos(id: string, formData: FormData): Observable<Contrato> {
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${this.getToken()}`
+    });
+
+    return this.http.put<any>(`${this.apiUrl}/contratos/${id}/con-archivos`, formData, { headers }).pipe(
+      map(response => {
+        console.log('📥 Respuesta de actualización con archivos:', response);
+
+        if (response && response.success === true && response.data) {
+          return response.data;
+        }
+        if (response && response.data) {
+          return response.data;
+        }
+        return response;
+      }),
+      catchError(this.handleError.bind(this))
+    );
+  }
+
+  // ✅ CREAR CONTRATO SIN ARCHIVOS (JSON)
   crearContrato(createContratoDto: CreateContratoDto): Observable<Contrato> {
     const headers = this.getAuthHeaders();
     return this.http.post<any>(`${this.apiUrl}/contratos`, createContratoDto, { headers }).pipe(
       map(response => {
         console.log('📥 Respuesta de creación:', response);
 
-        // ✅ La respuesta tiene estructura: { success: true, data: {...} }
         if (response && response.success === true && response.data) {
           return response.data;
         }
-
-        // ✅ Otra estructura: { data: {...} }
         if (response && response.data) {
           return response.data;
         }
-
-        // ✅ Si el response es directamente el contrato
         if (response && response.id) {
           return response;
         }
-
         throw new Error('Respuesta inválida del servidor');
       }),
       catchError(this.handleError.bind(this))
     );
   }
 
+  // ✅ ACTUALIZAR CONTRATO SIN ARCHIVOS (JSON)
   actualizarContrato(id: string, updateContratoDto: UpdateContratoDto): Observable<Contrato> {
     const headers = this.getAuthHeaders();
     return this.http.put<any>(`${this.apiUrl}/contratos/${id}`, updateContratoDto, { headers }).pipe(
@@ -173,6 +230,74 @@ export class JuridicaService {
     );
   }
 
+  buscarContratistaPorId(id: string): Observable<any> {
+    const headers = this.getAuthHeaders();
+    return this.http.get<any>(`${environment.apiUrl}/contratistas/${id}`, { headers }).pipe(
+      map(response => {
+        if (response?.ok === true && response?.data?.data) return response.data.data;
+        if (response?.data?.data) return response.data.data;
+        return null;
+      }),
+      catchError(() => of(null))
+    );
+  }
+
+  obtenerDocumentosContratista(contratistaId: string): Observable<any[]> {
+    const headers = this.getAuthHeaders();
+    return this.http.get<any>(`${environment.apiUrl}/contratistas/${contratistaId}/documentos`, { headers }).pipe(
+      map(response => {
+        if (response?.ok === true && response?.data?.data && Array.isArray(response.data.data)) {
+          return response.data.data;
+        }
+        if (Array.isArray(response)) return response;
+        return [];
+      }),
+      catchError(() => of([]))
+    );
+  }
+
+  buscarContratistaPorNumeroContrato(numeroContrato: string): Observable<any> {
+    const headers = this.getAuthHeaders();
+    const url = `${environment.apiUrl}/contratistas/buscar-por-contrato/${encodeURIComponent(numeroContrato)}`;
+
+    console.log('📡 Buscando contratista por contrato:', url);
+
+    return this.http.get<any>(url, { headers }).pipe(
+      map(response => {
+        console.log('📥 Respuesta completa:', JSON.stringify(response, null, 2));
+
+        let contratista = null;
+
+        if (response?.data?.data?.data) {
+          contratista = response.data.data.data;
+        } else if (response?.data?.data && response.data.data.id) {
+          contratista = response.data.data;
+        } else if (response?.data && response.data.id) {
+          contratista = response.data;
+        }
+
+        if (contratista && contratista.id) {
+          console.log(`✅ Contratista encontrado: ${contratista.razonSocial}`);
+          console.log(`📋 objetivoContrato: ${contratista.objetivoContrato}`);
+          console.log(`📎 Documentos: ${contratista.documentos?.length || 0}`);
+          
+          return {
+            ...contratista,
+            objetivoContrato: contratista.objetivoContrato || '',
+            documentos: contratista.documentos || []
+          };
+        }
+
+        console.warn('⚠️ No se encontró contratista con el número:', numeroContrato);
+        return null;
+      }),
+      catchError((error) => {
+        console.error('❌ Error en búsqueda por contrato:', error);
+        return of(null);
+      })
+    );
+  }
+
   // ==================== DOCUMENTOS ====================
 
   obtenerDocumentosContrato(contratoId: string): Observable<any[]> {
@@ -186,6 +311,7 @@ export class JuridicaService {
       catchError(() => of([]))
     );
   }
+
 
   // ==================== UTILIDADES ====================
 
@@ -209,98 +335,6 @@ export class JuridicaService {
     );
   }
 
-  private handleError(error: HttpErrorResponse): Observable<never> {
-    console.error('❌ Error en petición:', error);
-    if (error.status === 401) {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      this.router.navigate(['/auth/login']);
-      return throwError(() => new Error('Tu sesión ha expirado. Por favor inicia sesión nuevamente.'));
-    }
-    const errorMsg = error.error?.message || error.message || 'Error en la petición';
-    return throwError(() => new Error(errorMsg));
-  }
-
-  healthCheck(): Observable<any> {
-    return this.http.get(`${this.apiUrl}/health`).pipe(
-      catchError(() => of({ status: 'error' }))
-    );
-  }
-
-
-  // Buscar contratista por ID (para obtener datos completos)
-  buscarContratistaPorId(id: string): Observable<any> {
-    const headers = this.getAuthHeaders();
-    return this.http.get<any>(`${environment.apiUrl}/contratistas/${id}`, { headers }).pipe(
-      map(response => {
-        if (response?.ok === true && response?.data?.data) return response.data.data;
-        if (response?.data?.data) return response.data.data;
-        return null;
-      }),
-      catchError(() => of(null))
-    );
-  }
-
-  // Obtener documentos del contratista
-  obtenerDocumentosContratista(contratistaId: string): Observable<any[]> {
-    const headers = this.getAuthHeaders();
-    return this.http.get<any>(`${environment.apiUrl}/contratistas/${contratistaId}/documentos`, { headers }).pipe(
-      map(response => {
-        if (response?.ok === true && response?.data?.data && Array.isArray(response.data.data)) {
-          return response.data.data;
-        }
-        if (Array.isArray(response)) return response;
-        return [];
-      }),
-      catchError(() => of([]))
-    );
-  }
-
-buscarContratistaPorNumeroContrato(numeroContrato: string): Observable<any> {
-  const headers = this.getAuthHeaders();
-  const url = `${environment.apiUrl}/contratistas/buscar-por-contrato/${encodeURIComponent(numeroContrato)}`;
-
-  console.log('📡 Buscando contratista por contrato:', url);
-
-  return this.http.get<any>(url, { headers }).pipe(
-    map(response => {
-      console.log('📥 Respuesta completa:', JSON.stringify(response, null, 2));
-
-      let contratista = null;
-
-      // Extraer el contratista de la estructura anidada
-      if (response?.data?.data?.data) {
-        contratista = response.data.data.data;
-      } else if (response?.data?.data && response.data.data.id) {
-        contratista = response.data.data;
-      } else if (response?.data && response.data.id) {
-        contratista = response.data;
-      }
-
-      if (contratista && contratista.id) {
-        console.log(`✅ Contratista encontrado: ${contratista.razonSocial}`);
-        console.log(`📋 objetivoContrato: ${contratista.objetivoContrato}`);
-        console.log(`📎 Documentos: ${contratista.documentos?.length || 0}`);
-        
-        // ✅ Asegurar que los documentos se pasen correctamente
-        return {
-          ...contratista,
-          objetivoContrato: contratista.objetivoContrato || '',
-          documentos: contratista.documentos || []  // ✅ Incluir documentos
-        };
-      }
-
-      console.warn('⚠️ No se encontró contratista con el número:', numeroContrato);
-      return null;
-    }),
-    catchError((error) => {
-      console.error('❌ Error en búsqueda por contrato:', error);
-      return of(null);
-    })
-  );
-}
-
   autocompleteContratos(termino: string): Observable<any[]> {
     const headers = this.getAuthHeaders();
     if (!termino || termino.trim().length < 2) return of([]);
@@ -311,40 +345,26 @@ buscarContratistaPorNumeroContrato(numeroContrato: string): Observable<any> {
     );
   }
 
-  // src/app/core/services/juridica.service.ts
+  healthCheck(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/health`).pipe(
+      catchError(() => of({ status: 'error' }))
+    );
+  }
 
-/**
- * Obtener contrato y contratista por número de contrato
- * Retorna: { contratista: {nombre, documento}, contrato: {fechaInicio, fechaFin} }
- */
-obtenerContratoYContratistaPorNumero(numeroContrato: string): Observable<any> {
-  const headers = this.getAuthHeaders();
-  const url = `${environment.apiUrl}/juridica/contrato-con-contratista/${encodeURIComponent(numeroContrato)}`;
+  // ==================== MANEJO DE ERRORES ====================
 
-  console.log('📡 Buscando contrato y contratista por número:', url);
-
-  return this.http.get<any>(url, { headers }).pipe(
-    map(response => {
-      console.log('📥 Respuesta completa:', JSON.stringify(response, null, 2));
-
-      // Extraer los datos de la estructura anidada
-      if (response?.data?.data?.data) {
-        return response.data.data.data;
-      }
-      if (response?.data?.data) {
-        return response.data.data;
-      }
-      if (response?.data) {
-        return response.data;
-      }
-      
-      return null;
-    }),
-    catchError((error) => {
-      console.error('❌ Error en búsqueda:', error);
-      return of(null);
-    })
-  );
-}
-
+  private handleError(error: HttpErrorResponse): Observable<never> {
+    console.error('❌ Error en petición:', error);
+    
+    if (error.status === 401) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      this.router.navigate(['/auth/login']);
+      return throwError(() => new Error('Tu sesión ha expirado. Por favor inicia sesión nuevamente.'));
+    }
+    
+    const errorMsg = error.error?.message || error.message || 'Error en la petición';
+    return throwError(() => new Error(errorMsg));
+  }
 }

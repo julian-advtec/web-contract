@@ -8,367 +8,54 @@
   </div>
 
   <div *ngIf="soloLectura && !esModoAuditor" class="alert-message info mb-3">
-    <i class="fas fa-eye"></i> <strong>Modo consulta (solo lectura)</strong> - Este documento ya fue revisado y no se
-    puede modificar.
+    <i class="fas fa-eye"></i> <strong>Modo consulta (solo lectura)</strong> - Este documento ya fue revisado y no se puede modificar.
   </div>
 
   <div *ngIf="!soloLectura" class="alert-message success mb-3">
     <i class="fas fa-edit"></i> <strong>Modo edición</strong> - Puede realizar la revisión del documento.
   </div>
 
-  <form [formGroup]="revisionForm" (ngSubmit)="guardarRevision()" class="supervisor-revision-form">
-    <div class="revision-header">
-      <h2>
+<!-- VISTA DE AUDITORÍA -->
+<div class="card shadow mb-4">
+  <div class="card-header bg-warning text-dark">
+    <h4 class="mb-0">
+      <i class="fas fa-clipboard-list me-2"></i>
+      Documentos de Auditoría
+    </h4>
+  </div>
+  <div class="card-body p-0">
+    <app-auditor-form
+      *ngIf="documentoId"
+      [modo]="'auditoria'"    
+      [documentoId]="documentoId"
+      (volver)="volverALista()">
+    </app-auditor-form>
+  </div>
+</div>
+
+  <!-- REVISIÓN DEL SUPERVISOR -->
+  <div class="card shadow mb-4">
+    <div class="card-header bg-primary text-white">
+      <h4 class="mb-0">
         <i class="fas fa-clipboard-check me-2"></i>
-        {{ esModoAuditor ? 'Vista de Auditoría' :
-        (soloLectura ? 'Consulta de Supervisión' : 'Revisión de Documento Radicado') }}
-      </h2>
-      <div class="header-info">
-        <span class="badge bg-primary me-2">
-          <i class="fas fa-hashtag me-1"></i>{{ revisionForm.get('numeroRadicado')?.value || 'N/A' }}
-        </span>
-        <span class="badge bg-secondary me-2">
-          <i class="fas fa-user-tie me-1"></i>{{ revisionForm.get('nombreContratista')?.value || 'N/A' }}
-        </span>
-        <span class="badge me-2" [ngClass]="getEstadoBadgeClass(revisionForm.get('estadoRevision')?.value)">
-          <i class="fas fa-flag me-1"></i>{{ revisionForm.get('estadoRevision')?.value || 'SIN REVISAR' }}
-        </span>
-
-        <span *ngIf="esModoAuditor" class="badge bg-warning text-dark me-2">
-          <i class="fas fa-search me-1"></i>Auditoría
-        </span>
-
-        <span *ngIf="soloLectura && !esModoAuditor" class="badge bg-info me-2">
-          <i class="fas fa-eye me-1"></i>Solo lectura
-        </span>
-        <span *ngIf="!soloLectura" class="badge bg-success me-2">
-          <i class="fas fa-edit me-1"></i>Modo edición
-        </span>
-
-        <span *ngIf="esModoAuditor && primerRadicadoDelAno" class="badge bg-warning text-dark">
-          <i class="fas fa-star me-1"></i>PRIMER RADICADO DEL AÑO
-        </span>
-      </div>
+        Revisión del Supervisor
+      </h4>
     </div>
-
-    <div class="form-grid">
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">
-            <i class="fas fa-hashtag"></i> Número de Radicado
-          </label>
-          <input type="text" class="form-control" formControlName="numeroRadicado" readonly>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">
-            <i class="fas fa-file-contract"></i> Número de Contrato
-          </label>
-          <input type="text" class="form-control" formControlName="numeroContrato" readonly>
-        </div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">
-            <i class="fas fa-user-tie"></i> Nombre del Contratista
-          </label>
-          <input type="text" class="form-control" formControlName="nombreContratista" readonly>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">
-            <i class="fas fa-id-card"></i> Documento del Contratista
-          </label>
-          <input type="text" class="form-control" formControlName="documentoContratista" readonly>
-        </div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">
-            <i class="fas fa-calendar-alt"></i> Fecha de Inicio
-          </label>
-          <input type="date" class="form-control" formControlName="fechaInicio" readonly>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">
-            <i class="fas fa-calendar-check"></i> Fecha de Fin
-          </label>
-          <input type="date" class="form-control" formControlName="fechaFin" readonly>
-        </div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">
-            <i class="fas fa-user-edit"></i> Radicado por
-          </label>
-          <input type="text" class="form-control" formControlName="radicadorNombre" readonly>
-          <small class="text-muted">Usuario: {{ revisionForm.get('radicadorUsuario')?.value }}</small>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">
-            <i class="fas fa-calendar"></i> Fecha de Radicación
-          </label>
-          <input type="date" class="form-control" formControlName="fechaRadicacion" readonly>
-        </div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">
-            <i class="fas fa-user-shield"></i> Supervisor Asignado
-          </label>
-          <input type="text" class="form-control" formControlName="supervisorAsignado" readonly>
-          <div class="text-muted small mt-1">
-            Supervisor responsable de la revisión
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">
-            <i class="fas fa-calendar-check"></i> Fecha de Asignación
-          </label>
-          <input type="date" class="form-control" formControlName="fechaAsignacion" readonly>
-          <div class="text-muted small mt-1">
-            Fecha en que se asignó el documento
-          </div>
-        </div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group full-width">
-          <label class="form-label">
-            <i class="fas fa-file-download"></i> Acciones masivas de documentos
-          </label>
-          <div class="btn-group w-100">
-            <button type="button" class="btn btn-primary flex-fill" (click)="abrirTodosDocumentos()"
-              [disabled]="!tieneDocumentosDisponibles() || isProcessing">
-              <i class="fas fa-folder-open me-2"></i> Ver los 3 documentos
-            </button>
-
-            <button type="button" class="btn btn-success flex-fill" (click)="descargarTodosDocumentos()"
-              [disabled]="!tieneDocumentosDisponibles() || isProcessing || isDownloadingAll">
-              <i class="fas fa-download me-2"></i>
-              {{ isDownloadingAll ? 'Descargando...' : 'Descargar los 3 documentos' }}
-            </button>
-          </div>
-          <small class="text-muted mt-2 d-block">
-            Disponibles: {{ contarDocumentosDisponibles() }} de 3 documentos
-          </small>
-        </div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group full-width">
-          <label class="form-label">
-            <i class="fas fa-sticky-note"></i> Observación Original del Radicador
-          </label>
-          <textarea class="form-control" formControlName="observacionOriginal" rows="2" readonly></textarea>
-        </div>
-      </div>
-
-      <div class="documentos-section">
-        <h4 class="section-title">
-          <i class="fas fa-file-download"></i> Documentos Adjuntos (Visualización individual)
-        </h4>
-
-        <div class="documentos-grid">
-          <div class="documento-card">
-            <div class="documento-header">
-              <i class="fas fa-file-invoice-dollar documento-icon text-primary"></i>
-              <h5>Cuenta de Cobro</h5>
-              <span *ngIf="documentosExistentes[0].disponible" class="badge bg-success">
-                <i class="fas fa-check"></i> Disponible
-              </span>
-              <span *ngIf="!documentosExistentes[0].disponible" class="badge bg-secondary">
-                <i class="fas fa-times"></i> No disponible
-              </span>
-            </div>
-
-            <div class="documento-body">
-              <div class="documento-actions">
-                <p class="file-info mb-2">
-                  <small>
-                    <i class="fas fa-file me-1"></i>
-                    {{ getNombreArchivo(0) }}
-                  </small>
-                </p>
-
-                <div class="btn-group w-100">
-                  <button type="button" class="btn btn-outline-primary btn-sm flex-fill" (click)="verDocumento(0)"
-                    [disabled]="!documentosExistentes[0].disponible || isProcessing">
-                    <i class="fas fa-eye"></i> Ver
-                  </button>
-
-                  <button type="button" class="btn btn-outline-success btn-sm flex-fill" (click)="descargarDocumento(0)"
-                    [disabled]="!documentosExistentes[0].disponible || isProcessing">
-                    <i class="fas fa-download"></i> Descargar
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="documento-card">
-            <div class="documento-header">
-              <i class="fas fa-shield-alt documento-icon text-success"></i>
-              <h5>Seguridad Social</h5>
-              <span *ngIf="documentosExistentes[1].disponible" class="badge bg-success">
-                <i class="fas fa-check"></i> Disponible
-              </span>
-              <span *ngIf="!documentosExistentes[1].disponible" class="badge bg-secondary">
-                <i class="fas fa-times"></i> No disponible
-              </span>
-            </div>
-
-            <div class="documento-body">
-              <div class="documento-actions">
-                <p class="file-info mb-2">
-                  <small>
-                    <i class="fas fa-file me-1"></i>
-                    {{ getNombreArchivo(1) }}
-                  </small>
-                </p>
-
-                <div class="btn-group w-100">
-                  <button type="button" class="btn btn-outline-primary btn-sm flex-fill" (click)="verDocumento(1)"
-                    [disabled]="!documentosExistentes[1].disponible || isProcessing">
-                    <i class="fas fa-eye"></i> Ver
-                  </button>
-
-                  <button type="button" class="btn btn-outline-success btn-sm flex-fill" (click)="descargarDocumento(1)"
-                    [disabled]="!documentosExistentes[1].disponible || isProcessing">
-                    <i class="fas fa-download"></i> Descargar
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="documento-card">
-            <div class="documento-header">
-              <i class="fas fa-chart-line documento-icon text-info"></i>
-              <h5>Informe de Actividades</h5>
-              <span *ngIf="documentosExistentes[2].disponible" class="badge bg-success">
-                <i class="fas fa-check"></i> Disponible
-              </span>
-              <span *ngIf="!documentosExistentes[2].disponible" class="badge bg-secondary">
-                <i class="fas fa-times"></i> No disponible
-              </span>
-            </div>
-
-            <div class="documento-body">
-              <div class="documento-actions">
-                <p class="file-info mb-2">
-                  <small>
-                    <i class="fas fa-file me-1"></i>
-                    {{ getNombreArchivo(2) }}
-                  </small>
-                </p>
-
-                <div class="btn-group w-100">
-                  <button type="button" class="btn btn-outline-primary btn-sm flex-fill" (click)="verDocumento(2)"
-                    [disabled]="!documentosExistentes[2].disponible || isProcessing">
-                    <i class="fas fa-eye"></i> Ver
-                  </button>
-
-                  <button type="button" class="btn btn-outline-success btn-sm flex-fill" (click)="descargarDocumento(2)"
-                    [disabled]="!documentosExistentes[2].disponible || isProcessing">
-                    <i class="fas fa-download"></i> Descargar
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div *ngIf="esModoAuditor && primerRadicadoDelAno && tieneArchivosAuditor()" class="card mb-4 mt-4">
-        <div class="card-header bg-warning text-dark">
-          <h5 class="mb-0">
-            <i class="fas fa-file-contract me-2"></i>Archivos de Auditor (Primer Radicado del Año)
-            <span class="badge bg-light text-dark ms-2">
-              {{ contarArchivosAuditor() }}/6 disponibles
-            </span>
-          </h5>
-        </div>
-        <div class="card-body">
-          <div class="row">
-            <div class="col-md-4 mb-3" *ngFor="let archivo of archivosAuditor">
-              <div class="card h-100" *ngIf="archivo.subido">
-                <div class="card-header bg-warning text-dark">
-                  <h6 class="mb-0">
-                    <i class="fas fa-file-contract me-1"></i>
-                    {{ archivo.descripcion || archivo.tipo }}
-                  </h6>
-                </div>
-                <div class="card-body">
-                  <p class="card-text">
-                    <small class="text-muted">
-                      <i class="fas fa-file me-1"></i>
-                      {{ archivo.nombreArchivo || archivo.tipo }}
-                    </small>
-                  </p>
-                  <div class="d-grid gap-2">
-                    <button class="btn btn-outline-warning btn-sm" (click)="verArchivoAuditor(archivo.tipo)">
-                      <i class="fas fa-eye me-1"></i>Ver
-                    </button>
-                    <button class="btn btn-outline-dark btn-sm" (click)="descargarArchivoAuditor(archivo.tipo)">
-                      <i class="fas fa-download me-1"></i>Descargar
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div *ngIf="esModoAuditor && primerRadicadoDelAno && !tieneArchivosAuditor()" class="alert alert-info mt-4">
-        <i class="fas fa-info-circle me-2"></i>
-        Este es el primer radicado del año, pero no se han cargado archivos de auditoría.
-      </div>
-
-      <div class="revision-section mt-5">
-        <h4 class="section-title">
-          <i class="fas fa-clipboard-check text-warning"></i>
-          Revisión del Supervisor
-          <small *ngIf="soloLectura || esModoAuditor" class="text-info ms-2">(modo consulta)</small>
-          <small *ngIf="!soloLectura && !esModoAuditor" class="text-success ms-2">(modo edición)</small>
-        </h4>
-
-        <!-- Mensaje claro del modo actual -->
-        <div class="alert mb-4" [ngClass]="{
-    'alert-success': !soloLectura && !esModoAuditor,
-    'alert-info': soloLectura || esModoAuditor
-  }">
-          <strong>
-            <ng-container *ngIf="!soloLectura && !esModoAuditor">
-              <i class="fas fa-edit me-2"></i> Modo edición — Puedes modificar y guardar la revisión
-            </ng-container>
-            <ng-container *ngIf="soloLectura || esModoAuditor">
-              <i class="fas fa-eye me-2"></i> Modo consulta — No puedes modificar este documento
-              <ng-container *ngIf="esModoAuditor"> (Vista de auditoría)</ng-container>
-            </ng-container>
-          </strong>
-        </div>
-
+    <div class="card-body">
+      <form [formGroup]="revisionForm" (ngSubmit)="guardarRevision()">
+        <!-- Supervisor Revisor y Fecha -->
         <div class="form-row">
           <div class="form-group">
             <label class="form-label"><i class="fas fa-user-shield"></i> Supervisor Revisor</label>
             <input type="text" class="form-control" formControlName="supervisorRevisor" readonly>
           </div>
-
           <div class="form-group">
             <label class="form-label"><i class="fas fa-calendar"></i> Fecha de Revisión</label>
             <input type="date" class="form-control" formControlName="fechaRevision" readonly>
           </div>
         </div>
 
+        <!-- Estado de Revisión -->
         <div class="form-row">
           <div class="form-group">
             <label class="form-label"><i class="fas fa-flag"></i> Estado de Revisión</label>
@@ -377,20 +64,16 @@
               <option value="APROBADO">APROBADO</option>
               <option value="OBSERVADO">OBSERVADO</option>
               <option value="RECHAZADO">RECHAZADO</option>
-              <option value="PENDIENTE_CORRECCIONES">PENDIENTE CORRECCIONES</option>
             </select>
             <input *ngIf="soloLectura || esModoAuditor" type="text" class="form-control"
               [value]="revisionForm.get('estadoRevision')?.value || 'No revisado'" readonly>
-            <small *ngIf="!soloLectura && !esModoAuditor" class="text-muted">
-              Seleccione el estado resultante de su revisión
-            </small>
           </div>
 
+          <!-- Documento de Aprobación -->
           <div class="form-group" *ngIf="mostrarCampoArchivo || soloLectura || esModoAuditor">
-            <label class="form-label"><i class="fas fa-file-upload text-info"></i> Documento de Aprobación</label>
+            <label class="form-label"><i class="fas fa-file-upload"></i> Documento de Aprobación</label>
 
-            <div *ngIf="nombreArchivoAprobacionExistente"
-              class="existing-file mb-3 p-3 bg-primary bg-opacity-10 rounded">
+            <div *ngIf="nombreArchivoAprobacionExistente" class="existing-file mb-3 p-3 bg-primary bg-opacity-10 rounded">
               <div class="d-flex align-items-center justify-content-between">
                 <div class="d-flex align-items-center">
                   <i class="fas fa-file-upload text-primary fa-2x me-3"></i>
@@ -416,54 +99,24 @@
               </div>
             </div>
 
-            <div *ngIf="!nombreArchivoAprobacionExistente && (soloLectura || esModoAuditor)"
-              class="alert alert-secondary small">
+            <div *ngIf="!nombreArchivoAprobacionExistente && (soloLectura || esModoAuditor)" class="alert alert-secondary small">
               No se adjuntó documento de aprobación en esta revisión.
             </div>
 
             <div *ngIf="!soloLectura && !esModoAuditor && revisionForm.get('estadoRevision')?.value === 'APROBADO'">
               <div class="mb-3">
-                <label class="form-label small">
-                  <i class="fas fa-upload me-1"></i>
-                  {{ nombreArchivoAprobacionExistente ? 'Reemplazar' : 'Subir' }} documento de aprobación:
-                </label>
-                <div class="input-group">
-                  <input type="file" class="form-control form-control-sm"
-                    (change)="onArchivoAprobacionSeleccionado($event)" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    #archivoAprobacionInput>
-                  <button *ngIf="archivoAprobacion" class="btn btn-outline-danger btn-sm" type="button"
-                    (click)="eliminarArchivoAprobacion(); archivoAprobacionInput.value = ''">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </div>
+                <input type="file" class="form-control" (change)="onArchivoAprobacionSeleccionado($event)" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
                 <div *ngIf="archivoAprobacion" class="mt-2">
-                  <span class="badge bg-success">
-                    <i class="fas fa-check me-1"></i>
-                    {{ archivoAprobacion.name }} ({{ getFileSize(archivoAprobacion.size) }})
-                  </span>
+                  <span class="badge bg-success">{{ archivoAprobacion.name }}</span>
                 </div>
-                <small class="text-muted d-block mt-1">
-                  Formatos: PDF, DOC, DOCX, JPG, PNG (Max. 10MB)
-                </small>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- ===== SECCIÓN DE ÚLTIMO RADICADO (MODIFICADA) ===== -->
-        <div class="checkbox-section mt-4">
-
-          <!-- MODO LECTURA: Solo mostrar mensaje si ESTÁ marcado como último radicado -->
-          <div *ngIf="soloLectura || esModoAuditor">
-            <div *ngIf="revisionForm.get('esUltimoRadicado')?.value" class="alert alert-info">
-              <i class="fas fa-check-circle me-2"></i>
-              <strong>Este documento fue marcado como el ÚLTIMO RADICADO del contratista</strong>
-            </div>
-            <!-- ✅ ELIMINADO: El mensaje de "NO fue marcado" ya no aparece -->
-          </div>
-
-          <!-- MODO EDICIÓN: Checkbox siempre visible -->
-          <div *ngIf="!soloLectura && !esModoAuditor">
+        <!-- Último Radicado -->
+        <div class="form-row mt-4">
+          <div class="form-group">
             <div class="form-check">
               <input class="form-check-input" type="checkbox" formControlName="esUltimoRadicado" id="esUltimoRadicado"
                 [disabled]="soloLectura">
@@ -471,126 +124,70 @@
                 <i class="fas fa-check-circle me-2"></i>
                 Este es el <strong>ÚLTIMO RADICADO</strong> del contratista
               </label>
-              <small class="text-muted d-block mt-1">
-                Marque esta opción si este es el último radicado del contratista para este contrato.
-                <span *ngIf="revisionForm.get('esUltimoRadicado')?.value" class="text-danger fw-bold">
-                  ¡ATENCIÓN! Si marca esta opción, debe adjuntar el paz y salvo.
-                </span>
+              <small class="text-muted d-block mt-1" *ngIf="!soloLectura && !esModoAuditor">
+                Marque esta opción si este es el último radicado. Debe adjuntar el paz y salvo.
               </small>
-            </div>
-          </div>
-
-          <!-- Sección de Paz y Salvo (solo visible si es último radicado o ya hay un archivo) -->
-          <div *ngIf="revisionForm.get('esUltimoRadicado')?.value || nombrePazSalvoExistente">
-            <div class="paz-salvo-section mt-4">
-              <h6 class="section-title mb-3">
-                <i class="fas fa-file-contract"></i> Paz y Salvo del Contratista
-                <span *ngIf="nombrePazSalvoExistente" class="badge bg-success ms-2">
-                  <i class="fas fa-check"></i> Ya cargado
-                </span>
-              </h6>
-
-              <!-- Archivo existente -->
-              <div *ngIf="nombrePazSalvoExistente" class="existing-file mb-3 p-3 bg-success bg-opacity-10 rounded">
-                <div class="d-flex align-items-center justify-content-between">
-                  <div class="d-flex align-items-center">
-                    <i class="fas fa-file-contract text-success fa-2x me-3"></i>
-                    <div>
-                      <strong>{{ getNombreArchivoPazSalvo() }}</strong>
-                      <div *ngIf="fechaPazSalvoExistente" class="small text-muted">
-                        <i class="far fa-calendar-alt me-1"></i>
-                        {{ fechaPazSalvoExistente | date:'dd/MM/yyyy HH:mm' }}
-                      </div>
-                    </div>
-                  </div>
-                  <div class="btn-group">
-                    <button type="button" class="btn btn-sm btn-outline-primary"
-                      (click)="previsualizarArchivosSupervisor('pazsalvo')"
-                      [disabled]="isProcessing || !nombrePazSalvoExistente">
-                      <i class="fas fa-eye"></i> Ver
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-success ms-1"
-                      (click)="descargarArchivosSupervisor('pazsalvo')" [disabled]="isProcessing">
-                      <i class="fas fa-download"></i> Descargar
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Subir nuevo archivo (solo en modo edición) -->
-              <div *ngIf="!soloLectura && !esModoAuditor">
-                <div class="mb-3">
-                  <label class="form-label small">
-                    <i class="fas fa-upload me-1"></i>
-                    {{ nombrePazSalvoExistente ? 'Reemplazar' : 'Subir' }} paz y salvo:
-                  </label>
-                  <div class="input-group">
-                    <input type="file" class="form-control form-control-sm"
-                      (change)="onArchivoPazSalvoSeleccionado($event)" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                      #archivoPazSalvoInput [disabled]="soloLectura">
-                    <button *ngIf="archivoPazSalvo && !soloLectura" class="btn btn-outline-danger btn-sm" type="button"
-                      (click)="eliminarArchivoPazSalvo(); archivoPazSalvoInput.value = ''">
-                      <i class="fas fa-trash"></i>
-                    </button>
-                  </div>
-                  <div *ngIf="archivoPazSalvo" class="mt-2">
-                    <span class="badge bg-success">
-                      <i class="fas fa-check me-1"></i>
-                      {{ archivoPazSalvo.name }} ({{ getFileSize(archivoPazSalvo.size) }})
-                    </span>
-                  </div>
-                  <small class="text-muted d-block mt-1">
-                    <strong *ngIf="revisionForm.get('esUltimoRadicado')?.value" class="text-danger">
-                      REQUERIDO para último radicado:
-                    </strong>
-                    <strong *ngIf="!revisionForm.get('esUltimoRadicado')?.value">
-                      Opcional para no último radicado:
-                    </strong>
-                    Formatos: PDF, DOC, DOCX, JPG, PNG (Max. 10MB)
-                  </small>
-                </div>
-              </div>
             </div>
           </div>
         </div>
 
+        <!-- Paz y Salvo -->
+        <div class="form-row mt-4" *ngIf="revisionForm.get('esUltimoRadicado')?.value || nombrePazSalvoExistente">
+          <div class="form-group">
+            <label class="form-label"><i class="fas fa-file-contract"></i> Paz y Salvo del Contratista</label>
+            
+            <div *ngIf="nombrePazSalvoExistente" class="existing-file mb-3 p-3 bg-success bg-opacity-10 rounded">
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                  <i class="fas fa-file-contract text-success fa-2x me-3"></i>
+                  <div>
+                    <strong>{{ getNombreArchivoParaMostrar(nombrePazSalvoExistente) }}</strong>
+                    <div *ngIf="fechaPazSalvoExistente" class="small text-muted">
+                      Cargado el: {{ fechaPazSalvoExistente | date:'dd/MM/yyyy HH:mm' }}
+                    </div>
+                  </div>
+                </div>
+                <div class="btn-group">
+                  <button type="button" class="btn btn-sm btn-outline-primary"
+                    (click)="previsualizarArchivosSupervisor('pazsalvo')"
+                    [disabled]="isProcessing || !nombrePazSalvoExistente">
+                    <i class="fas fa-eye"></i> Ver
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-success ms-1"
+                    (click)="descargarArchivosSupervisor('pazsalvo')" [disabled]="isProcessing">
+                    <i class="fas fa-download"></i> Descargar
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div *ngIf="!soloLectura && !esModoAuditor && revisionForm.get('esUltimoRadicado')?.value">
+              <input type="file" class="form-control" (change)="onArchivoPazSalvoSeleccionado($event)" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+              <div *ngIf="archivoPazSalvo" class="mt-2">
+                <span class="badge bg-success">{{ archivoPazSalvo.name }}</span>
+              </div>
+              <small class="text-muted">REQUERIDO para último radicado. Formatos: PDF, Word, JPG, PNG (Max. 10MB)</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Observación -->
         <div class="form-row mt-4">
           <div class="form-group full-width">
             <label class="form-label"><i class="fas fa-comment"></i> Observación del Supervisor</label>
             <textarea class="form-control" formControlName="observacionSupervisor" rows="4"
               [readonly]="soloLectura || esModoAuditor"
-              placeholder="{{ !revisionForm.get('observacionSupervisor')?.value && !esModoAuditor ? 'Ingrese sus observaciones (mínimo 10 caracteres)' : '' }}">
-        {{ revisionForm.get('observacionSupervisor')?.value || '' }}
-      </textarea>
-            <small *ngIf="revisionForm.get('observacionSupervisor')?.value && (soloLectura || esModoAuditor)"
-              class="text-muted">
-              Observación registrada por {{ supervisorInfo.supervisorRevisorNombre || 'Supervisor' }}
-            </small>
-            <small *ngIf="!soloLectura && !esModoAuditor" class="text-muted">
-              Ingrese sus observaciones (mínimo 10 caracteres). Esta información será visible para el contratista.
-            </small>
+              placeholder="Ingrese sus observaciones (mínimo 10 caracteres)"></textarea>
           </div>
         </div>
 
+        <!-- Correcciones -->
         <div class="form-row">
           <div class="form-group full-width">
-            <label class="form-label">
-              <i class="fas fa-edit"></i> Correcciones Sugeridas
-              <span *ngIf="revisionForm.get('correcciones')?.value" class="badge bg-info ms-2">
-                {{ contarLineasCorrecciones() }} punto(s)
-              </span>
-            </label>
+            <label class="form-label"><i class="fas fa-edit"></i> Correcciones Sugeridas</label>
             <textarea class="form-control" formControlName="correcciones" rows="3"
               [readonly]="soloLectura || esModoAuditor"
-              placeholder="{{ !revisionForm.get('correcciones')?.value && !esModoAuditor ? 'Ingrese las correcciones que el contratista debe realizar (opcional)' : '' }}">
-        {{ revisionForm.get('correcciones')?.value || '' }}
-      </textarea>
-            <small *ngIf="!soloLectura && !esModoAuditor" class="text-muted">
-              Ingrese las correcciones requeridas. Cada punto debe ir en una nueva línea.
-            </small>
-            <small *ngIf="(soloLectura || esModoAuditor) && revisionForm.get('correcciones')?.value" class="text-muted">
-              {{ contarLineasCorrecciones() }} punto(s) de corrección registrado(s)
-            </small>
+              placeholder="Ingrese las correcciones que el contratista debe realizar (opcional)"></textarea>
           </div>
         </div>
 
@@ -618,7 +215,7 @@
             </button>
           </ng-template>
         </div>
-      </div>
+      </form>
     </div>
-  </form>
+  </div>
 </div>

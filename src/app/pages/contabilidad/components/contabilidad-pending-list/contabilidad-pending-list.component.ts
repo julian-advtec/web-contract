@@ -13,10 +13,10 @@ import { DocumentoContable } from '../../../../core/models/documento-contable.mo
   selector: 'app-contabilidad-pending-list',
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule],
-  templateUrl: './contabilidad-pending-list.component.html',
+  templateUrl: './contabilidad-pending-list.component.html',  // ← CORREGIDO: .html correcto
   styleUrls: ['./contabilidad-pending-list.component.scss']
 })
-export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
+export class ContabilidadPendingListComponent implements OnInit, OnDestroy {  // ← CORREGIDO: nombre correcto
   documentos: DocumentoContable[] = [];
   filteredDocumentos: DocumentoContable[] = [];
   paginatedDocumentos: DocumentoContable[] = [];
@@ -38,7 +38,7 @@ export class ContabilidadPendingListComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
 
-constructor(
+  constructor(
     private contabilidadService: ContabilidadService,
     private notificationService: NotificationService,
     private router: Router
@@ -54,7 +54,7 @@ constructor(
     this.destroy$.complete();
   }
 
- cargarUsuarioActual(): void {
+  cargarUsuarioActual(): void {
     const userStr = localStorage.getItem('user');
     if (userStr) {
       try {
@@ -99,10 +99,10 @@ constructor(
       });
   }
 
- puedeTomarDocumento(doc: DocumentoContable): boolean {
+  puedeTomarDocumento(doc: DocumentoContable): boolean {
     const estado = (doc.estado || '').toUpperCase();
-    const estadosPermitidos = ['APROBADO_AUDITOR', 'COMPLETADO_AUDITOR'];
-    return estadosPermitidos.some(e => estado.includes(e)) && doc.disponible !== false;
+    const estadosPermitidos = ['APROBADO_SUPERVISOR'];
+     return doc.estado === 'APROBADO_SUPERVISOR' && doc.disponible !== false;
   }
 
   esMiDocumentoEnRevision(doc: DocumentoContable): boolean {
@@ -112,11 +112,19 @@ constructor(
            estado.includes('EN_REVISION');
   }
 
-  tomarParaContabilidad(doc: DocumentoContable): void {
-    if (!doc?.id) {
-      this.notificationService.error('Error', 'ID de documento no válido');
-      return;
-    }
+ tomarParaContabilidad(doc: DocumentoContable): void {
+  console.log('[TOMAR] Documento a tomar:', {
+    id: doc.id,
+    numeroRadicado: doc.numeroRadicado,
+    estado: doc.estado,
+    disponible: doc.disponible
+  });
+  
+  // Verificar estado antes de intentar tomar
+  if (doc.estado !== 'APROBADO_SUPERVISOR') {
+    this.notificationService.error('Error', `El documento no está aprobado por supervisor. Estado actual: ${doc.estado}`);
+    return;
+  }
 
     const yaEsMio = this.esMiDocumentoEnRevision(doc);
 
@@ -158,21 +166,16 @@ constructor(
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (res: any) => {
-          console.log('[TOMAR] Respuesta completa del backend:', JSON.stringify(res, null, 2));
+          console.log('[TOMAR] Respuesta:', res);
 
-          // Criterios más amplios para considerar éxito
           const exito = 
             res?.success === true ||
             res?.ok === true ||
             res?.message?.toLowerCase().includes('tomado') ||
-            res?.message?.toLowerCase().includes('éxito') ||
             res?.documento?.estado?.includes('EN_REVISION') ||
             res?.status === 201 || res?.status === 200;
 
           if (exito) {
-            console.log('[TOMAR] Éxito detectado → actualizando lista local');
-
-            // Actualizar en la lista visible
             const idx = this.documentos.findIndex(d => d.id === doc.id);
             if (idx !== -1) {
               this.documentos[idx] = {
@@ -186,63 +189,38 @@ constructor(
 
             this.notificationService.success(
               '¡Documento tomado exitosamente!',
-              `Redirigiendo al procesamiento de ${doc.numeroRadicado || doc.id}...`
+              `Redirigiendo al procesamiento...`
             );
 
-            // Navegación con depuración
             setTimeout(() => {
-              console.log('[NAVEGACIÓN] Redirigiendo a:', ['/contabilidad/procesar', doc.id]);
               this.router.navigate(['/contabilidad/procesar', doc.id], {
-                queryParams: { 
-                  desde: 'pendientes',
-                  refresh: Date.now().toString()  // evita caché
-                }
-              }).then(navSuccess => {
-                console.log('[NAVEGACIÓN] Resultado:', navSuccess ? 'ÉXITO' : 'FALLÓ');
-              }).catch(navError => {
-                console.error('[NAVEGACIÓN] Error al redirigir:', navError);
-                this.notificationService.error('Redirección fallida', 'Intenta ingresar manualmente al documento');
+                queryParams: { desde: 'pendientes', refresh: Date.now().toString() }
               });
-            }, 1800); // un poco más de tiempo para que el usuario vea el mensaje
+            }, 1500);
           } else {
-            console.warn('[TOMAR] No se detectó éxito claro en la respuesta');
-            this.notificationService.error(
-              'Problema al tomar',
-              res?.message || 'El documento no se pudo asignar correctamente. Intenta refrescar.'
-            );
+            this.notificationService.error('Problema al tomar', res?.message || 'No se pudo asignar');
           }
           this.isProcessing = false;
         },
         error: (err: any) => {
-          console.error('[TOMAR] Error HTTP:', err);
+          console.error('[TOMAR] Error:', err);
           let msg = 'No se pudo tomar el documento';
-          
-          if (err.status === 409) msg = err.error?.message || 'El documento ya está siendo revisado por otro usuario';
-          if (err.status === 403) msg = 'No tienes permisos para tomar este documento';
-          if (err.status === 404) msg = 'Documento no encontrado o ya procesado';
-          if (err.status === 500) msg = 'Error interno en el servidor. Contacta soporte si persiste';
-
+          if (err.status === 409) msg = 'El documento ya está siendo revisado por otro usuario';
+          if (err.status === 403) msg = 'No tienes permisos';
+          if (err.status === 404) msg = 'Documento no encontrado';
           this.notificationService.error('Error', msg);
           this.isProcessing = false;
         }
       });
   }
 
-continuarProceso(doc: DocumentoContable): void {
-    console.log('[CONTINUAR] Redirigiendo directamente a procesamiento:', doc.id);
+  continuarProceso(doc: DocumentoContable): void {
     this.router.navigate(['/contabilidad/procesar', doc.id], {
       queryParams: { desde: 'pendientes' }
-    }).then(success => {
-      console.log('[CONTINUAR] Navegación:', success ? 'exitosa' : 'fallida');
-    }).catch(err => {
-      console.error('[CONTINUAR] Error navegación:', err);
     });
   }
 
-
-  
-
-getTextoBoton(doc: DocumentoContable): string {
+  getTextoBoton(doc: DocumentoContable): string {
     return this.esMiDocumentoEnRevision(doc) ? 'Continuar' : 'Procesar';
   }
 
@@ -339,50 +317,36 @@ getTextoBoton(doc: DocumentoContable): string {
   }
 
   esDocumentoReciente(doc: DocumentoContable): boolean {
-    const fechaRef = doc.fechaAprobacionAuditor || doc.fechaRadicacion;
+    const fechaRef = doc.fechaAprobacionSupervisor || doc.fechaRadicacion;
     return this.getDiasTranscurridos(fechaRef) <= 1;
   }
 
   getEstadoClass(estado: string | undefined): string {
     if (!estado) return 'badge bg-secondary';
-    
     const e = estado.toUpperCase();
     
-    if (e.includes('APROBADO_AUDITOR') || e.includes('COMPLETADO_AUDITOR')) {
-      return 'badge bg-success';
-    }
-    if (e.includes('EN_REVISION_CONTABILIDAD')) {
-      return 'badge bg-warning text-dark';
-    }
-    if (e.includes('GLOSADO') || e.includes('OBSERVADO')) {
-      return 'badge bg-danger';
-    }
-    if (e.includes('PROCESADO') || e.includes('COMPLETADO')) {
-      return 'badge bg-primary';
-    }
-    
+    if (e.includes('APROBADO_SUPERVISOR')) return 'badge bg-success';
+    if (e.includes('EN_REVISION_CONTABILIDAD')) return 'badge bg-warning text-dark';
+    if (e.includes('GLOSADO') || e.includes('OBSERVADO')) return 'badge bg-danger';
+    if (e.includes('PROCESADO') || e.includes('COMPLETADO')) return 'badge bg-primary';
     return 'badge bg-secondary';
   }
 
   getEstadoTexto(estado: string | undefined): string {
     if (!estado) return 'Desconocido';
-    
     const e = estado.toUpperCase();
     
-    if (e.includes('APROBADO_AUDITOR')) return 'Aprobado por Auditor';
-    if (e.includes('COMPLETADO_AUDITOR')) return 'Completado Auditor';
+    if (e.includes('APROBADO_SUPERVISOR')) return 'Aprobado por Supervisor';
     if (e.includes('EN_REVISION_CONTABILIDAD')) return 'En Revisión';
     if (e.includes('GLOSADO')) return 'Glosado';
     if (e.includes('OBSERVADO')) return 'Observado';
     if (e.includes('PROCESADO')) return 'Procesado';
     if (e.includes('COMPLETADO')) return 'Completado';
-    
     return estado.replace(/_/g, ' ');
   }
 
   getDiasClass(doc: DocumentoContable): string {
-    const dias = this.getDiasTranscurridos(doc.fechaAprobacionAuditor || doc.fechaRadicacion);
-    
+    const dias = this.getDiasTranscurridos(doc.fechaAprobacionSupervisor || doc.fechaRadicacion);
     if (dias <= 1) return 'text-success fw-bold';
     if (dias <= 3) return 'text-primary';
     if (dias <= 7) return 'text-warning';
@@ -394,11 +358,9 @@ getTextoBoton(doc: DocumentoContable): string {
       `Radicado: ${doc.numeroRadicado || 'N/A'}`,
       `Contratista: ${doc.nombreContratista || 'N/A'}`,
       `Contrato: ${doc.numeroContrato || 'N/A'}`,
-      `Auditor: ${doc.auditor || 'No asignado'}`,
-      `Días desde aprobación: ${this.getDiasTranscurridos(doc.fechaAprobacionAuditor || doc.fechaRadicacion)}`,
-      doc.observacion ? `Observación: ${doc.observacion.substring(0, 100)}${doc.observacion.length > 100 ? '...' : ''}` : ''
+      `Supervisor: ${doc.supervisor || doc.usuarioAsignadoNombre || 'No asignado'}`,
+      `Días desde aprobación: ${this.getDiasTranscurridos(doc.fechaAprobacionSupervisor || doc.fechaRadicacion)}`
     ];
-    
     return lines.filter(Boolean).join('\n');
   }
 
@@ -413,15 +375,6 @@ getTextoBoton(doc: DocumentoContable): string {
   previsualizarDocumentoEspecifico(doc: DocumentoContable, index: number): void {
     if (index < 1 || index > 3) {
       this.notificationService.warning('Advertencia', 'Índice de documento no válido');
-      return;
-    }
-
-    const tipos = ['cuentaCobro', 'seguridadSocial', 'informeActividades'] as const;
-    const tipo = tipos[index - 1];
-    const nombreArchivo = doc[tipo];
-
-    if (!nombreArchivo) {
-      this.notificationService.warning('Documento no disponible', 'Este documento no está disponible para previsualizar');
       return;
     }
 
@@ -446,16 +399,7 @@ getTextoBoton(doc: DocumentoContable): string {
       return;
     }
 
-    const tipos = ['cuentaCobro', 'seguridadSocial', 'informeActividades'] as const;
-    const tipo = tipos[index - 1];
     const nombres = ['cuenta_cobro.pdf', 'seguridad_social.pdf', 'informe_actividades.pdf'];
-    const nombreArchivo = doc[tipo];
-
-    if (!nombreArchivo) {
-      this.notificationService.warning('Documento no disponible', 'Este documento no está disponible para descarga');
-      return;
-    }
-
     this.isProcessing = true;
 
     this.contabilidadService.descargarArchivoRadicado(doc.id!, index)
@@ -470,9 +414,8 @@ getTextoBoton(doc: DocumentoContable): string {
           a.click();
           document.body.removeChild(a);
           window.URL.revokeObjectURL(url);
-
           this.isProcessing = false;
-          this.notificationService.success('Descarga completada', `Documento "${nombres[index - 1]}" descargado`);
+          this.notificationService.success('Descarga completada', `Documento descargado`);
         },
         error: (error: any) => {
           console.error('Error al descargar:', error);

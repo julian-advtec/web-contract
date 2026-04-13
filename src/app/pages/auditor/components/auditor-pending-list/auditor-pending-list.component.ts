@@ -84,15 +84,75 @@ export class AuditorPendingListComponent implements OnInit, OnDestroy {
   }
 
   puedeTomarDocumento(doc: any): boolean {
-    const estado = (doc.estado || '').toUpperCase();
-    return estado.includes('APROBADO_SUPERVISOR') && !doc.auditorAsignado;
+  const estado = (doc.estado || '').toUpperCase();
+  // ✅ CAMBIAR: Tomar documentos en estado RADICADO sin auditor asignado
+  return estado === 'RADICADO' && !doc.auditorAsignado && !doc.enAuditoria;
+}
+
+esMiDocumentoEnRevision(doc: any): boolean {
+  const estado = (doc.estado || '').toUpperCase();
+  return doc.auditorAsignado === this.usuarioActual &&
+         (doc.enAuditoria || doc.enRevision || estado === 'EN_REVISION_AUDITOR');
+}
+
+getEstadoTexto(estado: string): string {
+  if (!estado) return 'Desconocido';
+
+  const estadoUpper = estado.toUpperCase();
+
+  // ✅ Agregar nuevos estados
+  if (estadoUpper === 'RADICADO') return 'Radicado';
+  if (estadoUpper === 'EN_REVISION_AUDITOR') return 'En Auditoría';
+  if (estadoUpper === 'APROBADO_AUDITOR') return 'Aprobado por Auditor';
+  if (estadoUpper === 'APROBADO_SUPERVISOR') return 'Aprobado Supervisor';
+  if (estadoUpper.includes('APROBADO')) return 'Aprobado';
+  if (estadoUpper.includes('PENDIENTE')) return 'Pendiente';
+  if (estadoUpper.includes('OBSERVADO')) return 'Observado';
+  if (estadoUpper.includes('RECHAZADO')) return 'Rechazado';
+
+  return estado;
+}
+
+getEstadoClass(estado: string): string {
+  if (!estado) return 'badge-secondary';
+
+  const estadoUpper = estado.toUpperCase();
+
+  // ✅ Agregar nuevos estados
+  if (estadoUpper === 'RADICADO') return 'badge-primary';
+  if (estadoUpper === 'EN_REVISION_AUDITOR') return 'badge-warning';
+  if (estadoUpper === 'APROBADO_AUDITOR') return 'badge-success';
+  if (estadoUpper === 'APROBADO_SUPERVISOR') return 'badge-success';
+  if (estadoUpper.includes('APROBADO_SUPERVISOR')) return 'badge-success';
+  if (estadoUpper.includes('APROBADO')) return 'badge-success';
+  if (estadoUpper.includes('PENDIENTE') || estadoUpper.includes('EN_AUDITORIA')) return 'badge-warning';
+  if (estadoUpper.includes('OBSERVADO')) return 'badge-info';
+  if (estadoUpper.includes('RECHAZADO')) return 'badge-danger';
+
+  return 'badge-secondary';
+}
+
+getTooltipInfo(doc: any): string {
+  let info = '';
+
+  if (doc.numeroRadicado) {
+    info += `Radicado: ${doc.numeroRadicado}\n`;
   }
 
-  esMiDocumentoEnRevision(doc: any): boolean {
-    const estado = (doc.estado || '').toUpperCase();
-    return doc.auditorAsignado === this.usuarioActual &&
-           (doc.enAuditoria || doc.enRevision || estado.includes('EN_REVISION_AUDITOR'));
+  if (doc.nombreContratista) {
+    info += `Contratista: ${doc.nombreContratista}\n`;
   }
+
+  // ✅ Mostrar estado actual
+  info += `Estado: ${this.getEstadoTexto(doc.estado)}\n`;
+
+  const dias = this.getDiasTranscurridos(doc.fechaRadicacion);
+  info += `Días desde radicación: ${dias}\n`;
+
+  info += `Documentos: ${this.getDocumentCount(doc)}`;
+
+  return info;
+}
 
   tomarParaAuditoria(doc: any): void {
     const yaEsMio = this.esMiDocumentoEnRevision(doc);
@@ -282,35 +342,7 @@ export class AuditorPendingListComponent implements OnInit, OnDestroy {
     return diasTranscurridos < 1;
   }
 
-  getEstadoClass(estado: string): string {
-    if (!estado) return 'badge-secondary';
-
-    const estadoUpper = estado.toUpperCase();
-
-    if (estadoUpper.includes('APROBADO_SUPERVISOR') || estadoUpper.includes('APROBADO')) return 'badge-success';
-    if (estadoUpper.includes('PENDIENTE') || estadoUpper.includes('EN_AUDITORIA')) return 'badge-warning';
-    if (estadoUpper.includes('OBSERVADO')) return 'badge-info';
-    if (estadoUpper.includes('RECHAZADO')) return 'badge-danger';
-    if (estadoUpper.includes('RADICADO')) return 'badge-primary';
-
-    return 'badge-secondary';
-  }
-
-  getEstadoTexto(estado: string): string {
-    if (!estado) return 'Desconocido';
-
-    const estadoUpper = estado.toUpperCase();
-
-    if (estadoUpper.includes('APROBADO_SUPERVISOR')) return 'Aprobado Supervisor';
-    if (estadoUpper.includes('APROBADO')) return 'Aprobado';
-    if (estadoUpper.includes('PENDIENTE')) return 'Pendiente';
-    if (estadoUpper.includes('EN_AUDITORIA') || estadoUpper.includes('EN_AUDITORÍA')) return 'En Auditoría';
-    if (estadoUpper.includes('OBSERVADO')) return 'Observado';
-    if (estadoUpper.includes('RECHAZADO')) return 'Rechazado';
-    if (estadoUpper.includes('RADICADO')) return 'Radicado';
-
-    return estado;
-  }
+  
 
   getDiasClass(doc: any): string {
     const fechaReferencia = doc['fechaAprobacion'] || doc['fechaRevision'] || doc.fechaRadicacion;
@@ -322,28 +354,7 @@ export class AuditorPendingListComponent implements OnInit, OnDestroy {
     return 'text-danger';
   }
 
-  getTooltipInfo(doc: any): string {
-    let info = '';
-
-    if (doc.numeroRadicado) {
-      info += `Radicado: ${doc.numeroRadicado}\n`;
-    }
-
-    if (doc.nombreContratista) {
-      info += `Contratista: ${doc.nombreContratista}\n`;
-    }
-
-    if (doc.supervisorAsignado) {
-      info += `Supervisor: ${doc.supervisorAsignado}\n`;
-    }
-
-    const dias = this.getDiasTranscurridos(doc['fechaAprobacion'] || doc.fechaRadicacion);
-    info += `Días desde aprobación: ${dias}\n`;
-
-    info += `Documentos: ${this.getDocumentCount(doc)}`;
-
-    return info;
-  }
+  
 
   getDocumentCount(doc: any): number {
     let count = 0;

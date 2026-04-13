@@ -1,5 +1,4 @@
 <div class="radicacion-form-container">
-  <!-- Mensaje de estado -->
   <div *ngIf="mensaje" class="alert-message" [class.success]="tipoMensaje === 'success'"
     [class.error]="tipoMensaje === 'error'">
     <i class="fas" [class.fa-check-circle]="tipoMensaje === 'success'"
@@ -7,32 +6,32 @@
     {{ mensaje }}
   </div>
 
+  <div *ngIf="esSoloLectura" class="alert alert-secondary mb-3">
+    <i class="fas fa-eye me-2"></i>
+    <strong>Modo solo lectura</strong> - No puedes editar esta información
+  </div>
+
   <form [formGroup]="radicacionForm" (ngSubmit)="onSubmit()" class="radicacion-form">
     <div class="form-grid">
-      <!-- Fila 1: Número de Radicado y Contrato -->
       <div class="form-row">
-        <!-- Número de Radicado - ACTUALIZADO -->
         <div class="form-group">
           <label for="numeroRadicado" class="form-label">
             <i class="fas fa-hashtag"></i> Número de Radicado *
           </label>
           <input type="text" id="numeroRadicado" class="form-control" formControlName="numeroRadicado"
-            placeholder="Ej: R2025-0001" [class.is-invalid]="radicacionForm.get('numeroRadicado')?.invalid && 
-                            radicacionForm.get('numeroRadicado')?.touched">
-          <div *ngIf="radicacionForm.get('numeroRadicado')?.invalid && 
-             radicacionForm.get('numeroRadicado')?.touched" class="invalid-feedback">
+            placeholder="Ej: R2025-0001" [readonly]="esSoloLectura"
+            [class.is-invalid]="radicacionForm.get('numeroRadicado')?.invalid && radicacionForm.get('numeroRadicado')?.touched">
+          <div *ngIf="!esSoloLectura && radicacionForm.get('numeroRadicado')?.invalid && radicacionForm.get('numeroRadicado')?.touched" class="invalid-feedback">
             {{ getNumeroRadicadoError() }}
           </div>
           <small class="form-text text-muted">
             Formato: RAAAA-NNNN (Año y número consecutivo de 4 a 8 dígitos, ej: R2025-0001, R2025-12345678)
           </small>
-          <!-- Mostrar año detectado -->
           <div *ngIf="getAnoRadicado()" class="text-info small mt-1">
             <i class="fas fa-calendar-alt"></i> Año detectado: {{ getAnoRadicado() }}
           </div>
         </div>
 
-        <!-- ✅ Campo de número de contrato con autocomplete -->
         <div class="form-group autocomplete-container" #contratoContainer>
           <label for="numeroContrato" class="form-label">
             <i class="fas fa-file-contract"></i> Número de Contrato *
@@ -40,11 +39,10 @@
           <div class="input-with-dropdown">
             <input type="text" id="numeroContrato" class="form-control" formControlName="numeroContrato"
               placeholder="Escriba para buscar contratista por número de contrato"
+              [readonly]="esSoloLectura"
               (focus)="onFocusContratista('contrato')" (input)="onInputContratista('contrato')" autocomplete="off"
-              [class.is-invalid]="radicacionForm.get('numeroContrato')?.invalid && 
-                                radicacionForm.get('numeroContrato')?.touched">
+              [class.is-invalid]="radicacionForm.get('numeroContrato')?.invalid && radicacionForm.get('numeroContrato')?.touched">
 
-            <!-- ✅ DROPDOWN DE CONTRATOS CORREGIDO -->
             <div *ngIf="mostrarDropdownContrato" class="autocomplete-dropdown">
               <div class="dropdown-header">
                 <i class="fas fa-file-contract me-2"></i>
@@ -83,7 +81,6 @@
                 <i class="fas fa-chevron-right"></i>
               </div>
 
-              <!-- Opción para crear nuevo contratista -->
               <div *ngIf="puedeCrearNuevoContratista()" class="dropdown-item create-new"
                 (click)="crearNuevoContratista()">
                 <div class="create-new-content">
@@ -104,20 +101,17 @@
         </div>
       </div>
 
-      <!-- Fila 2: Información del Contratista con Dropdown SEPARADOS -->
       <div class="form-row">
-        <!-- Nombre del Contratista con Autocomplete -->
         <div class="form-group autocomplete-container" #nombreContainer>
           <label for="nombreContratista" class="form-label">
             <i class="fas fa-user-tie"></i> Nombre del Contratista *
           </label>
           <div class="input-with-dropdown">
             <input type="text" id="nombreContratista" class="form-control" formControlName="nombreContratista"
-              placeholder="Escriba para buscar o seleccionar" (focus)="onFocusContratista('nombre')"
-              (input)="onInputContratista('nombre')" autocomplete="off" [class.is-invalid]="radicacionForm.get('nombreContratista')?.invalid && 
-                                    radicacionForm.get('nombreContratista')?.touched">
+              placeholder="Escriba para buscar o seleccionar" [readonly]="esSoloLectura"
+              (focus)="onFocusContratista('nombre')" (input)="onInputContratista('nombre')" autocomplete="off"
+              [class.is-invalid]="radicacionForm.get('nombreContratista')?.invalid && radicacionForm.get('nombreContratista')?.touched">
 
-            <!-- Dropdown de contratistas - NOMBRE -->
             <div *ngIf="mostrarDropdownNombre" class="autocomplete-dropdown">
               <div class="dropdown-header">
                 <i class="fas fa-users me-2"></i>
@@ -145,7 +139,6 @@
                     <i class="fas fa-id-card me-1"></i>
                     {{ contratista.documentoIdentidad }}
                   </div>
-                  <!-- ✅ AÑADIR NÚMERO DE CONTRATO -->
                   <div *ngIf="contratista.numeroContrato" class="contratista-contrato">
                     <i class="fas fa-file-contract me-1"></i>
                     Contrato: {{ contratista.numeroContrato }}
@@ -154,7 +147,6 @@
                 <i class="fas fa-chevron-right"></i>
               </div>
 
-              <!-- Opción para crear nuevo contratista -->
               <div *ngIf="puedeCrearNuevoContratista()" class="dropdown-item create-new"
                 (click)="crearNuevoContratista()">
                 <div class="create-new-content">
@@ -175,18 +167,16 @@
           </small>
         </div>
 
-        <!-- Documento del Contratista con Autocomplete -->
         <div class="form-group autocomplete-container" #documentoContainer>
           <label for="documentoContratista" class="form-label">
             <i class="fas fa-id-card"></i> Documento del Contratista *
           </label>
           <div class="input-with-dropdown">
             <input type="text" id="documentoContratista" class="form-control" formControlName="documentoContratista"
-              placeholder="Escriba documento para buscar" (focus)="onFocusContratista('documento')"
-              (input)="onInputContratista('documento')" autocomplete="off" [class.is-invalid]="radicacionForm.get('documentoContratista')?.invalid && 
-                                    radicacionForm.get('documentoContratista')?.touched">
+              placeholder="Escriba documento para buscar" [readonly]="esSoloLectura"
+              (focus)="onFocusContratista('documento')" (input)="onInputContratista('documento')" autocomplete="off"
+              [class.is-invalid]="radicacionForm.get('documentoContratista')?.invalid && radicacionForm.get('documentoContratista')?.touched">
 
-            <!-- Dropdown de documentos - DOCUMENTO -->
             <div *ngIf="mostrarDropdownDocumento" class="autocomplete-dropdown">
               <div class="dropdown-header">
                 <i class="fas fa-id-card me-2"></i>
@@ -214,7 +204,6 @@
                     <i class="fas fa-user me-1"></i>
                     {{ contratista.nombreCompleto }}
                   </div>
-                  <!-- ✅ AÑADIR NÚMERO DE CONTRATO -->
                   <div *ngIf="contratista.numeroContrato" class="contratista-contrato">
                     <i class="fas fa-file-contract me-1"></i>
                     Contrato: {{ contratista.numeroContrato }}
@@ -223,7 +212,6 @@
                 <i class="fas fa-chevron-right"></i>
               </div>
 
-              <!-- Opción para crear nuevo contratista (solo si es relevante) -->
               <div *ngIf="puedeCrearNuevoContratista()" class="dropdown-item create-new"
                 (click)="crearNuevoContratista()">
                 <div class="create-new-content">
@@ -244,16 +232,15 @@
         </div>
       </div>
 
-      <!-- Fila 3: Fechas -->
       <div class="form-row">
         <div class="form-group">
           <label for="fechaInicio" class="form-label">
             <i class="fas fa-calendar-alt"></i> Fecha de Inicio *
           </label>
-          <input type="date" id="fechaInicio" class="form-control" formControlName="fechaInicio" [class.is-invalid]="radicacionForm.get('fechaInicio')?.invalid && 
-                                    radicacionForm.get('fechaInicio')?.touched">
-          <div *ngIf="radicacionForm.get('fechaInicio')?.invalid && 
-                     radicacionForm.get('fechaInicio')?.touched" class="invalid-feedback">
+          <input type="date" id="fechaInicio" class="form-control" formControlName="fechaInicio"
+            [readonly]="esSoloLectura"
+            [class.is-invalid]="radicacionForm.get('fechaInicio')?.invalid && radicacionForm.get('fechaInicio')?.touched">
+          <div *ngIf="!esSoloLectura && radicacionForm.get('fechaInicio')?.invalid && radicacionForm.get('fechaInicio')?.touched" class="invalid-feedback">
             La fecha de inicio es requerida
           </div>
         </div>
@@ -262,23 +249,21 @@
           <label for="fechaFin" class="form-label">
             <i class="fas fa-calendar-check"></i> Fecha de Fin *
           </label>
-          <input type="date" id="fechaFin" class="form-control" formControlName="fechaFin" [class.is-invalid]="radicacionForm.get('fechaFin')?.invalid && 
-                                    radicacionForm.get('fechaFin')?.touched">
-          <div *ngIf="radicacionForm.get('fechaFin')?.invalid && 
-                     radicacionForm.get('fechaFin')?.touched" class="invalid-feedback">
+          <input type="date" id="fechaFin" class="form-control" formControlName="fechaFin"
+            [readonly]="esSoloLectura"
+            [class.is-invalid]="radicacionForm.get('fechaFin')?.invalid && radicacionForm.get('fechaFin')?.touched">
+          <div *ngIf="!esSoloLectura && radicacionForm.get('fechaFin')?.invalid && radicacionForm.get('fechaFin')?.touched" class="invalid-feedback">
             La fecha de fin es requerida
           </div>
         </div>
       </div>
 
-
-      <!-- Campo Primer Radicado del Año -->
       <div class="form-row">
         <div class="form-group full-width">
           <div class="checkbox-container">
             <div class="form-check">
               <input type="checkbox" id="primerRadicadoDelAno" class="form-check-input"
-                formControlName="primerRadicadoDelAno" (change)="onPrimerRadicadoChange($event)">
+                formControlName="primerRadicadoDelAno" [disabled]="esSoloLectura" (change)="onPrimerRadicadoChange($event)">
               <label class="form-check-label" for="primerRadicadoDelAno">
                 <i class="fas fa-star text-warning me-2"></i>
                 <strong>Marcar como primer radicado del contrato</strong>
@@ -288,9 +273,9 @@
                 </span>
 
                 <span *ngIf="!verificandoPrimerRadicado && mensajePrimerRadicado" class="ms-2" [ngClass]="{
-            'text-success': primerRadicadoDisponible,
-            'text-danger': !primerRadicadoDisponible
-          }">
+                    'text-success': primerRadicadoDisponible,
+                    'text-danger': !primerRadicadoDisponible
+                  }">
                   <i class="fas" [class.fa-check-circle]="primerRadicadoDisponible"
                     [class.fa-exclamation-circle]="!primerRadicadoDisponible"></i>
                   {{ mensajePrimerRadicado }}
@@ -312,15 +297,13 @@
         </div>
       </div>
 
-
-      <!-- Sección de Documentos - VERSIÓN CORREGIDA -->
-      <div class="documentos-section">
+      <!-- ===== SECCIÓN DE SUBIDA DE DOCUMENTOS (MODO EDICIÓN) ===== -->
+      <div class="documentos-section" *ngIf="!esSoloLectura">
         <h4 class="section-title">
           <i class="fas fa-file-upload"></i> Documentos a Adjuntar (3 obligatorios)
         </h4>
 
         <div class="documentos-grid">
-          <!-- Documento 1 - Cuenta de Cobro -->
           <div class="documento-card">
             <div class="documento-header">
               <i class="fas fa-file-invoice-dollar documento-icon"></i>
@@ -329,21 +312,22 @@
 
             <div class="documento-body">
               <input type="text" class="form-control mb-2" formControlName="descripcionCuentaCobro"
-                placeholder="Descripción de la cuenta de cobro">
+                placeholder="Descripción de la cuenta de cobro" [readonly]="esSoloLectura">
 
               <div class="file-upload-area" [class.has-file]="documentosSeleccionados[0]">
                 <input type="file" id="file1" class="file-input" (change)="onFileSelected($event, 0)"
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" #fileInput0>
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" #fileInput0 [disabled]="esSoloLectura">
 
                 <label for="file1" class="file-label">
-                  <i class="fas fa-cloud-upload-alt"></i>
-                  <span *ngIf="!documentosSeleccionados[0]">Seleccionar archivo</span>
+                  <i class="fas" [class.fa-cloud-upload-alt]="!esSoloLectura" [class.fa-file]="esSoloLectura"></i>
+                  <span *ngIf="!documentosSeleccionados[0] && !esSoloLectura">Seleccionar archivo</span>
                   <span *ngIf="documentosSeleccionados[0]" class="file-name">
                     {{ getNombreArchivo(0) }}
                   </span>
+                  <span *ngIf="!documentosSeleccionados[0] && esSoloLectura" class="text-muted">No hay archivo</span>
                 </label>
 
-                <div *ngIf="documentosSeleccionados[0]" class="file-actions">
+                <div *ngIf="documentosSeleccionados[0] && !esSoloLectura" class="file-actions">
                   <button type="button" class="btn-remove" (click)="removeFile(0)">
                     <i class="fas fa-times"></i>
                   </button>
@@ -356,7 +340,6 @@
             </div>
           </div>
 
-          <!-- Documento 2 - Seguridad Social -->
           <div class="documento-card">
             <div class="documento-header">
               <i class="fas fa-shield-alt documento-icon"></i>
@@ -365,21 +348,22 @@
 
             <div class="documento-body">
               <input type="text" class="form-control mb-2" formControlName="descripcionSeguridadSocial"
-                placeholder="Descripción de seguridad social">
+                placeholder="Descripción de seguridad social" [readonly]="esSoloLectura">
 
               <div class="file-upload-area" [class.has-file]="documentosSeleccionados[1]">
                 <input type="file" id="file2" class="file-input" (change)="onFileSelected($event, 1)"
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" #fileInput1>
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" #fileInput1 [disabled]="esSoloLectura">
 
                 <label for="file2" class="file-label">
-                  <i class="fas fa-cloud-upload-alt"></i>
-                  <span *ngIf="!documentosSeleccionados[1]">Seleccionar archivo</span>
+                  <i class="fas" [class.fa-cloud-upload-alt]="!esSoloLectura" [class.fa-file]="esSoloLectura"></i>
+                  <span *ngIf="!documentosSeleccionados[1] && !esSoloLectura">Seleccionar archivo</span>
                   <span *ngIf="documentosSeleccionados[1]" class="file-name">
                     {{ getNombreArchivo(1) }}
                   </span>
+                  <span *ngIf="!documentosSeleccionados[1] && esSoloLectura" class="text-muted">No hay archivo</span>
                 </label>
 
-                <div *ngIf="documentosSeleccionados[1]" class="file-actions">
+                <div *ngIf="documentosSeleccionados[1] && !esSoloLectura" class="file-actions">
                   <button type="button" class="btn-remove" (click)="removeFile(1)">
                     <i class="fas fa-times"></i>
                   </button>
@@ -392,7 +376,6 @@
             </div>
           </div>
 
-          <!-- Documento 3 - Informe de Actividades -->
           <div class="documento-card">
             <div class="documento-header">
               <i class="fas fa-chart-line documento-icon"></i>
@@ -401,21 +384,22 @@
 
             <div class="documento-body">
               <input type="text" class="form-control mb-2" formControlName="descripcionInformeActividades"
-                placeholder="Descripción del informe de actividades">
+                placeholder="Descripción del informe de actividades" [readonly]="esSoloLectura">
 
               <div class="file-upload-area" [class.has-file]="documentosSeleccionados[2]">
                 <input type="file" id="file3" class="file-input" (change)="onFileSelected($event, 2)"
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" #fileInput2>
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" #fileInput2 [disabled]="esSoloLectura">
 
                 <label for="file3" class="file-label">
-                  <i class="fas fa-cloud-upload-alt"></i>
-                  <span *ngIf="!documentosSeleccionados[2]">Seleccionar archivo</span>
+                  <i class="fas" [class.fa-cloud-upload-alt]="!esSoloLectura" [class.fa-file]="esSoloLectura"></i>
+                  <span *ngIf="!documentosSeleccionados[2] && !esSoloLectura">Seleccionar archivo</span>
                   <span *ngIf="documentosSeleccionados[2]" class="file-name">
                     {{ getNombreArchivo(2) }}
                   </span>
+                  <span *ngIf="!documentosSeleccionados[2] && esSoloLectura" class="text-muted">No hay archivo</span>
                 </label>
 
-                <div *ngIf="documentosSeleccionados[2]" class="file-actions">
+                <div *ngIf="documentosSeleccionados[2] && !esSoloLectura" class="file-actions">
                   <button type="button" class="btn-remove" (click)="removeFile(2)">
                     <i class="fas fa-times"></i>
                   </button>
@@ -430,15 +414,151 @@
         </div>
       </div>
 
-      <!-- Campo de Observación -->
+      <!-- ===== SECCIÓN DE DOCUMENTOS ADJUNTOS (MODO SOLO LECTURA) ===== -->
+      <div class="documentos-section" *ngIf="esSoloLectura">
+        <h4 class="section-title">
+          <i class="fas fa-file-download"></i> Documentos Adjuntos
+        </h4>
+
+        <div class="documentos-grid">
+          <!-- Cuenta de Cobro -->
+          <div class="documento-card">
+            <div class="documento-header">
+              <i class="fas fa-file-invoice-dollar documento-icon text-primary"></i>
+              <h5>Cuenta de Cobro</h5>
+              <span *ngIf="documentosSeleccionados[0]?.name" class="badge bg-success">
+                <i class="fas fa-check"></i> Disponible
+              </span>
+              <span *ngIf="!documentosSeleccionados[0]?.name" class="badge bg-secondary">
+                <i class="fas fa-times"></i> No disponible
+              </span>
+            </div>
+            <div class="documento-body">
+              <div class="documento-actions">
+                <p class="file-info mb-2">
+                  <small>
+                    <i class="fas fa-file me-1"></i>
+                    {{ getNombreArchivo(0) }}
+                  </small>
+                </p>
+                <div class="btn-group w-100">
+                  <button type="button" class="btn btn-outline-primary btn-sm flex-fill" 
+                          (click)="verDocumento(0)"
+                          [disabled]="!documentosSeleccionados[0]?.name">
+                    <i class="fas fa-eye"></i> Ver
+                  </button>
+                  <button type="button" class="btn btn-outline-success btn-sm flex-fill" 
+                          (click)="descargarDocumento(0)"
+                          [disabled]="!documentosSeleccionados[0]?.name">
+                    <i class="fas fa-download"></i> Descargar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Seguridad Social -->
+          <div class="documento-card">
+            <div class="documento-header">
+              <i class="fas fa-shield-alt documento-icon text-success"></i>
+              <h5>Seguridad Social</h5>
+              <span *ngIf="documentosSeleccionados[1]?.name" class="badge bg-success">
+                <i class="fas fa-check"></i> Disponible
+              </span>
+              <span *ngIf="!documentosSeleccionados[1]?.name" class="badge bg-secondary">
+                <i class="fas fa-times"></i> No disponible
+              </span>
+            </div>
+            <div class="documento-body">
+              <div class="documento-actions">
+                <p class="file-info mb-2">
+                  <small>
+                    <i class="fas fa-file me-1"></i>
+                    {{ getNombreArchivo(1) }}
+                  </small>
+                </p>
+                <div class="btn-group w-100">
+                  <button type="button" class="btn btn-outline-primary btn-sm flex-fill" 
+                          (click)="verDocumento(1)"
+                          [disabled]="!documentosSeleccionados[1]?.name">
+                    <i class="fas fa-eye"></i> Ver
+                  </button>
+                  <button type="button" class="btn btn-outline-success btn-sm flex-fill" 
+                          (click)="descargarDocumento(1)"
+                          [disabled]="!documentosSeleccionados[1]?.name">
+                    <i class="fas fa-download"></i> Descargar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Informe de Actividades -->
+          <div class="documento-card">
+            <div class="documento-header">
+              <i class="fas fa-chart-line documento-icon text-info"></i>
+              <h5>Informe de Actividades</h5>
+              <span *ngIf="documentosSeleccionados[2]?.name" class="badge bg-success">
+                <i class="fas fa-check"></i> Disponible
+              </span>
+              <span *ngIf="!documentosSeleccionados[2]?.name" class="badge bg-secondary">
+                <i class="fas fa-times"></i> No disponible
+              </span>
+            </div>
+            <div class="documento-body">
+              <div class="documento-actions">
+                <p class="file-info mb-2">
+                  <small>
+                    <i class="fas fa-file me-1"></i>
+                    {{ getNombreArchivo(2) }}
+                  </small>
+                </p>
+                <div class="btn-group w-100">
+                  <button type="button" class="btn btn-outline-primary btn-sm flex-fill" 
+                          (click)="verDocumento(2)"
+                          [disabled]="!documentosSeleccionados[2]?.name">
+                    <i class="fas fa-eye"></i> Ver
+                  </button>
+                  <button type="button" class="btn btn-outline-success btn-sm flex-fill" 
+                          (click)="descargarDocumento(2)"
+                          [disabled]="!documentosSeleccionados[2]?.name">
+                    <i class="fas fa-download"></i> Descargar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Botones de acción masiva -->
+        <div class="form-row mt-4" *ngIf="tieneDocumentosDisponibles()">
+          <div class="form-group full-width">
+            <div class="btn-group w-100">
+              <button type="button" class="btn btn-primary flex-fill" (click)="abrirTodosDocumentos()"
+                      [disabled]="!tieneDocumentosDisponibles()">
+                <i class="fas fa-folder-open me-2"></i> Ver los 3 documentos
+              </button>
+              <button type="button" class="btn btn-success flex-fill" (click)="descargarTodosDocumentos()"
+                      [disabled]="!tieneDocumentosDisponibles()">
+                <i class="fas fa-download me-2"></i> Descargar los 3 documentos
+              </button>
+            </div>
+            <small class="text-muted mt-2 d-block">
+              Disponibles: {{ contarDocumentosDisponibles() }} de 3 documentos
+            </small>
+          </div>
+        </div>
+      </div>
+
       <div class="form-row">
         <div class="form-group full-width">
           <label for="observacion" class="form-label">
             <i class="fas fa-sticky-note"></i> Observación
           </label>
           <textarea id="observacion" class="form-control" formControlName="observacion" rows="3"
-            placeholder="Observaciones o comentarios adicionales sobre la radicación..." [class.is-invalid]="radicacionForm.get('observacion')?.invalid && 
-                               radicacionForm.get('observacion')?.touched">
+            [readonly]="esSoloLectura"
+            placeholder="Observaciones o comentarios adicionales sobre la radicación..."
+            [class.is-invalid]="radicacionForm.get('observacion')?.invalid && radicacionForm.get('observacion')?.touched">
           </textarea>
           <small class="form-text text-muted">
             Opcional. Puede incluir información relevante sobre la radicación.
@@ -446,13 +566,13 @@
         </div>
       </div>
 
-      <!-- Botones de acción -->
       <div class="form-actions">
         <button type="button" class="btn btn-secondary" (click)="onCancel()" [disabled]="isLoading">
-          <i class="fas fa-times"></i> Cancelar
+          <i class="fas" [class.fa-times]="!esSoloLectura" [class.fa-arrow-left]="esSoloLectura"></i>
+          {{ esSoloLectura ? 'Volver' : 'Cancelar' }}
         </button>
 
-        <button type="submit" class="btn btn-primary" [disabled]="isLoading || radicacionForm.invalid">
+        <button type="submit" class="btn btn-primary" [disabled]="isLoading || radicacionForm.invalid" *ngIf="!esSoloLectura">
           <span *ngIf="!isLoading">
             <i class="fas fa-paper-plane"></i> Radicar Documento
           </span>

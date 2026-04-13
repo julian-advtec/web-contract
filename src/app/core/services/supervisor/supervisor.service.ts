@@ -154,9 +154,9 @@ export class SupervisorService {
         return this.archivosService.descargarArchivoDirecto(id, index, nombreArchivo);
     }
 
-    getUrlArchivoSupervisor(nombreArchivo: string | null): string {
-        return this.archivosService.getUrlArchivoSupervisor(nombreArchivo);
-    }
+getUrlArchivoSupervisor(nombreArchivo: string | null, tipo: 'aprobacion' | 'pazsalvo' = 'aprobacion'): string {
+    return this.archivosService.getUrlArchivoSupervisor(nombreArchivo, tipo);
+}
 
     descargarTodosArchivosSimple(documentoId: string): Observable<void> {
         return this.archivosService.descargarTodosArchivosSimple(documentoId);

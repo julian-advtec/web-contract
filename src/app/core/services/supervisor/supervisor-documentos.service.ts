@@ -3,15 +3,16 @@ import { Observable, of, throwError } from 'rxjs'; // Añadido throwError
 import { catchError, map } from 'rxjs/operators';
 import { Documento } from '../../models/documento.model';
 import { SupervisorCoreService } from './supervisor-core.service';
+import { environment } from '../../../../environments/environment';
 
 @Injectable({
     providedIn: 'root'
 })
 export class SupervisorDocumentosService extends SupervisorCoreService {
-    
+
     obtenerDocumentosDisponibles(): Observable<Documento[]> {
         const headers = this.getAuthHeaders();
-        console.log('📋 Solicitando documentos disponibles...');
+        console.log('📋 Solicitando documentos APROBADOS POR AUDITOR...');
 
         return this.http.get<any>(`${this.apiUrl}/documentos-disponibles`, { headers }).pipe(
             map(response => {
@@ -20,29 +21,24 @@ export class SupervisorDocumentosService extends SupervisorCoreService {
                 let documentos: Documento[] = [];
 
                 if (response?.data && Array.isArray(response.data)) {
-                    console.log('✅ Caso CORRECTO: Usando response.data');
+                    console.log('✅ Usando response.data');
                     documentos = this.mapearDocumentosDesdeBackend(response.data);
-                } else if (response?.ok && response?.data?.data && Array.isArray(response.data.data)) {
-                    console.log('✅ Caso NestJS: Usando response.data.data');
-                    documentos = this.mapearDocumentosDesdeBackend(response.data.data);
                 } else if (Array.isArray(response)) {
-                    console.log('✅ Caso directo: Usando response como array');
+                    console.log('✅ Usando response como array');
                     documentos = this.mapearDocumentosDesdeBackend(response);
-                } else if (response?.data?.success && Array.isArray(response.data.data)) {
-                    console.log('✅ Caso anidado: Usando response.data.data');
-                    documentos = this.mapearDocumentosDesdeBackend(response.data.data);
                 }
 
-                console.log(`✅ ${documentos.length} documentos mapeados`);
+                // Filtrar solo documentos en estado APROBADO_AUDITOR
+                const filtrados = documentos.filter(doc => {
+                    const estado = (doc.estado || '').toUpperCase();
+                    return estado === 'APROBADO_AUDITOR';
+                });
 
-                if (documentos.length === 0) {
-                    console.warn('⚠️ No se pudieron mapear documentos');
-                }
-
-                return documentos;
+                console.log(`✅ ${filtrados.length} documentos APROBADOS POR AUDITOR encontrados`);
+                return filtrados;
             }),
             catchError(error => {
-                console.error('❌ Error obteniendo documentos disponibles:', error);
+                console.error('❌ Error obteniendo documentos:', error);
                 return of([]);
             })
         );
@@ -113,41 +109,69 @@ export class SupervisorDocumentosService extends SupervisorCoreService {
     }
 
 
-obtenerMisSupervisiones(): Observable<Documento[]> {
-  const headers = this.getAuthHeaders();
-  console.log('📋 Solicitando todas mis supervisiones...');
+    obtenerMisSupervisiones(): Observable<Documento[]> {
+        const headers = this.getAuthHeaders();
+        console.log('📋 Solicitando todas mis supervisiones...');
 
-  return this.http.get<any>(`${this.apiUrl}/documentos/mis-supervisiones`, { headers }).pipe(
-    map(response => {
-      console.log('📊 Respuesta mis supervisiones (completa):', JSON.stringify(response, null, 2));
-      console.log('📊 Estructura data:', response?.data);
-      console.log('📊 Es array?', Array.isArray(response?.data?.data));
+        return this.http.get<any>(`${this.apiUrl}/documentos/mis-supervisiones`, { headers }).pipe(
+            map(response => {
+                console.log('📊 Respuesta mis supervisiones (completa):', JSON.stringify(response, null, 2));
+                console.log('📊 Estructura data:', response?.data);
+                console.log('📊 Es array?', Array.isArray(response?.data?.data));
 
-      let documentos: Documento[] = [];
+                let documentos: Documento[] = [];
 
-      // La respuesta del backend tiene estructura: { success: true, count: 10, data: [...] }
-      if (response?.data && Array.isArray(response.data)) {
-        console.log('✅ Usando response.data');
-        documentos = this.mapearDocumentosDesdeBackend(response.data);
-      } 
-      // Si viene como { success: true, data: { data: [...] } }
-      else if (response?.data?.data && Array.isArray(response.data.data)) {
-        console.log('✅ Usando response.data.data');
-        documentos = this.mapearDocumentosDesdeBackend(response.data.data);
-      }
-      // Si viene como array directo
-      else if (Array.isArray(response)) {
-        console.log('✅ Usando response como array');
-        documentos = this.mapearDocumentosDesdeBackend(response);
-      }
+                // La respuesta del backend tiene estructura: { success: true, count: 10, data: [...] }
+                if (response?.data && Array.isArray(response.data)) {
+                    console.log('✅ Usando response.data');
+                    documentos = this.mapearDocumentosDesdeBackend(response.data);
+                }
+                // Si viene como { success: true, data: { data: [...] } }
+                else if (response?.data?.data && Array.isArray(response.data.data)) {
+                    console.log('✅ Usando response.data.data');
+                    documentos = this.mapearDocumentosDesdeBackend(response.data.data);
+                }
+                // Si viene como array directo
+                else if (Array.isArray(response)) {
+                    console.log('✅ Usando response como array');
+                    documentos = this.mapearDocumentosDesdeBackend(response);
+                }
 
-      console.log(`📊 Documentos mapeados: ${documentos.length}`);
-      return documentos;
-    }),
-    catchError(error => {
-      console.error('❌ Error obteniendo mis supervisiones:', error);
-      return of([]);
-    })
-  );
-}
+                console.log(`📊 Documentos mapeados: ${documentos.length}`);
+                return documentos;
+            }),
+            catchError(error => {
+                console.error('❌ Error obteniendo mis supervisiones:', error);
+                return of([]);
+            })
+        );
+    }
+
+    verArchivoAuditor(documentoId: string, tipo: string): void {
+        if (!documentoId || !tipo) {
+            console.warn('[verArchivoAuditor] Falta documentoId o tipo');
+            return;
+        }
+
+        console.log(`👁️ Supervisor viendo archivo auditor: ${tipo} del documento ${documentoId}`);
+
+        const token = this.getAuthToken();
+        const apiBase = environment.apiUrl;
+        const url = `${apiBase}/supervisor/ver-archivo-auditor/${documentoId}/${tipo}?token=${encodeURIComponent(token.replace('Bearer ', ''))}`;
+
+        window.open(url, '_blank');
+    }
+
+    /**
+     * ✅ OBTENER URL PARA ARCHIVO DEL AUDITOR
+     */
+    getUrlArchivoAuditor(documentoId: string, tipo: string): string {
+        if (!documentoId || !tipo) return '#';
+
+        const token = this.getAuthToken();
+        const apiBase = environment.apiUrl;
+        const rawToken = token.replace('Bearer ', '');
+
+        return `${apiBase}/supervisor/ver-archivo-auditor/${documentoId}/${tipo}?token=${encodeURIComponent(rawToken)}`;
+    }
 }

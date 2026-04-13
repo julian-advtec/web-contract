@@ -195,21 +195,28 @@ export class RendicionListComponent implements OnInit, OnDestroy {
     });
   }
 
-  tomarDocumento(doc: any): void {
-    if (this.isProcessing) return;
-    this.isProcessing = true;
+// ✅ CORREGIDO - Implementación real
+tomarDocumento(doc: any): void {
+  if (this.isProcessing) return;
+  this.isProcessing = true;
 
-    console.log('Tomando documento:', doc.id);
-
-    // Aquí llamas a tu servicio real cuando lo tengas implementado
-    // this.rendicionService.tomarDocumento(doc.id).subscribe(...)
-
-    setTimeout(() => {
+  this.rendicionService.tomarDocumentoParaRevision(doc.id).subscribe({
+    next: (response) => {
       this.isProcessing = false;
       this.successMessage = 'Documento tomado correctamente';
-      this.cargarDocumentos();
-    }, 1500);
-  }
+      this.cargarDocumentos(); // Recargar la lista
+      
+      // Opcional: navegar al formulario
+      if (response.rendicionId) {
+        this.router.navigate(['/rendicion-cuentas/procesar', response.rendicionId]);
+      }
+    },
+    error: (err) => {
+      this.isProcessing = false;
+      this.errorMessage = err.message || 'Error al tomar el documento';
+    }
+  });
+}
 
   procesarDocumento(doc: any): void {
     if (this.isProcessing) return;

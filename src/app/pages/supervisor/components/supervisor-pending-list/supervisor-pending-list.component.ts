@@ -70,72 +70,73 @@ export class SupervisorPendingListComponent implements OnInit, OnDestroy {
   }
 
   cargarDocumentosRadicados(): void {
-    this.isLoading = true;
-    this.errorMessage = '';
-    this.successMessage = '';
-    this.infoMessage = '';
+  this.isLoading = true;
+  this.errorMessage = '';
+  this.successMessage = '';
+  this.infoMessage = '';
 
-    console.log('📋 Solicitando documentos RADICADOS disponibles...');
+  console.log('📋 Solicitando documentos APROBADOS POR AUDITOR...');
 
-    this.supervisorService.obtenerDocumentosDisponibles()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (docs: Documento[]) => {
-          console.log('[SUPERVISOR] Documentos recibidos del backend:', docs.length, docs);
+  this.supervisorService.obtenerDocumentosDisponibles()
+    .pipe(takeUntil(this.destroy$))
+    .subscribe({
+      next: (docs: Documento[]) => {
+        console.log('[SUPERVISOR] Documentos recibidos del backend:', docs.length, docs);
 
-          // Filtrar solo los que realmente están en RADICADO
-          this.documentos = docs.filter(doc => {
-            const estado = (doc.estado || '').toUpperCase();
-            return estado.includes('RADICADO');
-          });
+        // ✅ CAMBIO IMPORTANTE: Filtrar documentos en estado APROBADO_AUDITOR
+        this.documentos = docs.filter(doc => {
+          const estado = (doc.estado || '').toUpperCase();
+          // El supervisor debe ver documentos APROBADOS POR AUDITOR
+          return estado === 'APROBADO_AUDITOR';
+        });
 
-          console.log(`📊 Filtrados ${this.documentos.length} documentos en estado RADICADO`);
+        console.log(`📊 Filtrados ${this.documentos.length} documentos en estado APROBADO_AUDITOR`);
 
-          if (this.documentos.length > 0) {
-            this.successMessage = `Se encontraron ${this.documentos.length} documentos RADICADOS`;
-            setTimeout(() => this.successMessage = '', 4000);
-          } else {
-            this.infoMessage = 'No hay documentos en estado RADICADO disponibles';
-          }
-
-          this.filteredDocumentos = [...this.documentos];
-          this.updatePagination();
-          this.isLoading = false;
-        },
-        error: (err: any) => {
-          console.error('[SUPERVISOR] Error cargando documentos:', err);
-          this.errorMessage = err.error?.message || err.message || 'Error al cargar documentos RADICADOS';
-          this.notificationService.error('Error', this.errorMessage);
-          this.isLoading = false;
+        if (this.documentos.length > 0) {
+          this.successMessage = `Se encontraron ${this.documentos.length} documentos APROBADOS POR AUDITOR`;
+          setTimeout(() => this.successMessage = '', 4000);
+        } else {
+          this.infoMessage = 'No hay documentos APROBADOS POR AUDITOR disponibles';
         }
-      });
-  }
+
+        this.filteredDocumentos = [...this.documentos];
+        this.updatePagination();
+        this.isLoading = false;
+      },
+      error: (err: any) => {
+        console.error('[SUPERVISOR] Error cargando documentos:', err);
+        this.errorMessage = err.error?.message || err.message || 'Error al cargar documentos';
+        this.notificationService.error('Error', this.errorMessage);
+        this.isLoading = false;
+      }
+    });
+}
 
   // ───────────────────────────────────────────────────────────────
   // Métodos corregidos: tomar y continuar (los más importantes)
   // ───────────────────────────────────────────────────────────────
 
-  puedeTomarDocumento(doc: Documento): boolean {
-    const estado = (doc.estado || '').toUpperCase();
-    const esRadicado = estado.includes('RADICADO');
+ puedeTomarDocumento(doc: Documento): boolean {
+  const estado = (doc.estado || '').toUpperCase();
+  // ✅ El supervisor puede tomar documentos APROBADOS_POR_AUDITOR
+  const puedeTomar = estado === 'APROBADO_AUDITOR';
+  
+  // Si ya está en revisión por este supervisor, también puede continuar
+  const enRevisionPorMi = estado === 'EN_REVISION_SUPERVISOR' && 
+    (doc.supervisorAsignado || doc['asignacion']?.['supervisorActual']) === this.usuarioActual;
 
-    // Si ya está en revisión, solo puede continuar quien ya lo tiene asignado
-    const enRevision = estado.includes('EN_REVISION_SUPERVISOR') ||
-      estado.includes('EN_REVISION');
+  return puedeTomar || enRevisionPorMi;
+}
 
-    const soyYo = (doc.supervisorAsignado || doc['asignacion']?.['supervisorActual'] || '') === this.usuarioActual;
+getTextoBoton(doc: Documento): string {
+  const estado = (doc.estado || '').toUpperCase();
+  const enRevisionPorMi = estado === 'EN_REVISION_SUPERVISOR' && 
+    (doc.supervisorAsignado || doc['asignacion']?.['supervisorActual']) === this.usuarioActual;
 
-    return esRadicado && (!enRevision || (enRevision && soyYo));
-  }
-
-  getTextoBoton(doc: Documento): string {
-    const enRevision = (doc.estado || '').toUpperCase().includes('EN_REVISION');
-    const soyYo = (doc.supervisorAsignado || doc['asignacion']?.['supervisorActual'] || '') === this.usuarioActual;
-
-    if (enRevision && soyYo) return 'Continuar';
-    return 'Tomar';
-  }
-
+  if (enRevisionPorMi) return 'Continuar';
+  if (estado === 'APROBADO_AUDITOR') return 'Tomar';
+  return 'No disponible';
+}
   tomarParaRevision(doc: Documento): void {
     if (!doc?.id) {
       this.notificationService.error('Error', 'ID de documento no válido');

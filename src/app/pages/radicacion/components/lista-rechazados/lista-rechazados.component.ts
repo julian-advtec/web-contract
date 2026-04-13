@@ -411,7 +411,7 @@ ngOnInit(): void {
                     console.log(`   Descargando: ${nombreArchivo} (índice: ${indice})`);
 
                     setTimeout(() => {
-                        this.radicacionService.descargarArchivo(blob, nombreArchivo);
+                     this.radicacionService.descargarArchivo(blob, nombreArchivo);
                     }, index * 300);
                 });
 

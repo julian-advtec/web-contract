@@ -75,41 +75,22 @@
       </strong>
     </div>
 
-<!-- Supervisor -->
-<section class="mb-5">
-  <div class="card shadow border-info">
-    <div class="card-header bg-info text-white">
-      <h5 class="mb-0">
-        <i class="fas fa-user-tie me-2"></i>
-        Revisión de Supervisor (solo lectura)
-      </h5>
-    </div>
-    <div class="card-body p-0 force-readonly-wrapper">  
-<app-supervisor-form 
-    [documentoId]="documento.documentoId" 
-    [modo]="'contabilidad'" 
-    [soloLectura]="true">
-  </app-supervisor-form>
-    </div>
-  </div>
-</section>
-    <!-- Auditoría (solo lectura) -->
+    <!-- Supervisor -->
     <section class="mb-5">
-      <div class="card shadow border-warning">
-        <div class="card-header bg-warning text-dark">
+      <div class="card shadow border-info">
+        <div class="card-header bg-info text-white">
           <h5 class="mb-0">
-            <i class="fas fa-gavel me-2"></i> Información de Auditoría (solo lectura)
+            <i class="fas fa-user-tie me-2"></i>
+            Revisión de Supervisor (solo lectura)
           </h5>
         </div>
-        <div class="card-body p-0">
-<app-auditor-form 
-    [documentoId]="documento.documentoId" 
-    [modo]="'contabilidad'" 
-    [soloLectura]="true">
-  </app-auditor-form>
+        <div class="card-body p-0 force-readonly-wrapper">
+          <app-supervisor-form [documentoId]="documento.documentoId" [modo]="'contabilidad'" [soloLectura]="true">
+          </app-supervisor-form>
         </div>
       </div>
     </section>
+    <
 
     <!-- Contabilidad -->
     <section>
@@ -117,14 +98,15 @@
         <div class="card-header bg-primary text-white">
           <h5 class="mb-0">
             <i class="fas fa-calculator me-2"></i>
-            {{ estaEnRevision && !esSoloLectura && !esDocumentoDeOtroRol ? 'Revisión en curso' : 'Información registrada' }}
+            {{ estaEnRevision && !esSoloLectura && !esDocumentoDeOtroRol ? 'Revisión en curso' : 'Información
+            registrada' }}
           </h5>
         </div>
 
         <div class="card-body">
           <!-- Formulario de edición (solo cuando se puede modificar) -->
-          <form [formGroup]="form" (ngSubmit)="onSubmit()" 
-                *ngIf="estaEnRevision && !esDocumentoDeOtroRol && !esSoloLectura; else vistaSoloLectura">
+          <form [formGroup]="form" (ngSubmit)="onSubmit()"
+            *ngIf="estaEnRevision && !esDocumentoDeOtroRol && !esSoloLectura; else vistaSoloLectura">
             <div class="row g-4">
               <div class="col-md-6">
                 <label class="form-label fw-bold required">Decisión final</label>
@@ -160,31 +142,13 @@
             <div class="mt-5">
               <h5><i class="fas fa-upload me-2"></i> Adjuntar documentos</h5>
               <p class="text-muted small mb-4">Los archivos deben ser PDF, DOC o DOCX (máx 15MB)</p>
-              
+
               <div class="row g-4">
-                <!-- Comprobante de Egreso -->
-                <div class="col-lg-6">
-                  <div class="card border-primary h-100">
-                    <div class="card-header bg-primary text-white">Comprobante de Egreso</div>
-                    <div class="card-body">
-                      <div class="text-center mb-3">
-                        <i class="fas fa-file-invoice fa-3x text-primary"></i>
-                      </div>
-                      <p class="small text-center mb-3">Obligatorio para APROBAR</p>
-                      <input type="file" class="form-control" 
-                             (change)="onFileSelected($event, 'comprobanteEgreso')"
-                             accept=".pdf,.doc,.docx"
-                             [disabled]="isProcessing">
-                      <small *ngIf="archivos['comprobanteEgreso']" class="text-success mt-2 d-block">
-                        <i class="fas fa-check-circle me-1"></i>
-                        {{ archivos['comprobanteEgreso']!.name }}
-                      </small>
-                    </div>
-                  </div>
-                </div>
+               
 
                 <!-- Extracto Bancario -->
-                <div class="col-lg-6" *ngIf="form.get('tipoProceso')?.value && form.get('tipoProceso')?.value !== 'nada'">
+                <div class="col-lg-6"
+                  *ngIf="form.get('tipoProceso')?.value && form.get('tipoProceso')?.value !== 'nada'">
                   <div class="card border-info h-100">
                     <div class="card-header bg-info text-white">Extracto Bancario</div>
                     <div class="card-body">
@@ -192,10 +156,8 @@
                         <i class="fas fa-university fa-3x text-info"></i>
                       </div>
                       <p class="small text-center mb-3">Requerido para Glosa o Causación</p>
-                      <input type="file" class="form-control" 
-                             (change)="onFileSelected($event, 'extracto')"
-                             accept=".pdf,.doc,.docx"
-                             [disabled]="isProcessing">
+                      <input type="file" class="form-control" (change)="onFileSelected($event, 'extracto')"
+                        accept=".pdf,.doc,.docx" [disabled]="isProcessing">
                       <small *ngIf="archivos['extracto']" class="text-success mt-2 d-block">
                         <i class="fas fa-check-circle me-1"></i>
                         {{ archivos['extracto']!.name }}
@@ -213,10 +175,8 @@
                         <i class="fas fa-file-signature fa-3x text-danger"></i>
                       </div>
                       <p class="small text-center mb-3">Requerido para proceso con Glosa</p>
-                      <input type="file" class="form-control" 
-                             (change)="onFileSelected($event, 'glosa')"
-                             accept=".pdf,.doc,.docx"
-                             [disabled]="isProcessing">
+                      <input type="file" class="form-control" (change)="onFileSelected($event, 'glosa')"
+                        accept=".pdf,.doc,.docx" [disabled]="isProcessing">
                       <small *ngIf="archivos['glosa']" class="text-success mt-2 d-block">
                         <i class="fas fa-check-circle me-1"></i>
                         {{ archivos['glosa']!.name }}
@@ -234,10 +194,8 @@
                         <i class="fas fa-file-invoice-dollar fa-3x text-success"></i>
                       </div>
                       <p class="small text-center mb-3">Requerido para proceso con Causación</p>
-                      <input type="file" class="form-control" 
-                             (change)="onFileSelected($event, 'causacion')"
-                             accept=".pdf,.doc,.docx"
-                             [disabled]="isProcessing">
+                      <input type="file" class="form-control" (change)="onFileSelected($event, 'causacion')"
+                        accept=".pdf,.doc,.docx" [disabled]="isProcessing">
                       <small *ngIf="archivos['causacion']" class="text-success mt-2 d-block">
                         <i class="fas fa-check-circle me-1"></i>
                         {{ archivos['causacion']!.name }}
@@ -250,19 +208,17 @@
 
             <!-- Botones de acción (edición) -->
             <div class="mt-5 d-flex gap-3 justify-content-end flex-wrap">
-              <button type="button" class="btn btn-outline-danger btn-lg px-4"
-                      (click)="liberarDocumento()" 
-                      [disabled]="!puedeLiberar || isProcessing">
+              <button type="button" class="btn btn-outline-danger btn-lg px-4" (click)="liberarDocumento()"
+                [disabled]="!puedeLiberar || isProcessing">
                 <i class="fas fa-unlock me-2"></i> Liberar
               </button>
 
-              <button type="button" class="btn btn-outline-secondary btn-lg px-4"
-                      (click)="volverALista()" [disabled]="isProcessing">
+              <button type="button" class="btn btn-outline-secondary btn-lg px-4" (click)="volverALista()"
+                [disabled]="isProcessing">
                 <i class="fas fa-times me-2"></i> Cancelar
               </button>
 
-              <button type="submit" class="btn btn-primary btn-lg px-5"
-                      [disabled]="!puedeGuardar || isProcessing">
+              <button type="submit" class="btn btn-primary btn-lg px-5" [disabled]="!puedeGuardar || isProcessing">
                 <i class="fas" [ngClass]="isProcessing ? 'fa-spinner fa-spin' : 'fa-save'"></i>
                 {{ isProcessing ? 'Guardando...' : 'Guardar y Finalizar' }}
               </button>
@@ -285,8 +241,8 @@
                   <label class="text-muted small fw-bold">Tipo de proceso</label>
                   <div class="fs-5">
                     {{ documento.tipoProceso === 'glosa' ? 'Con Glosa' :
-                       documento.tipoProceso === 'causacion' ? 'Con Causación' : 
-                       'Sin glosa ni causación' }}
+                    documento.tipoProceso === 'causacion' ? 'Con Causación' :
+                    'Sin glosa ni causación' }}
                   </div>
                 </div>
 
@@ -311,8 +267,7 @@
                 <div *ngIf="archivosPrevios.length > 0" class="row g-4">
                   <div class="col-lg-6 col-xl-4" *ngFor="let arch of archivosPrevios">
                     <div class="card h-100 shadow-sm border">
-                      <div class="card-header d-flex align-items-center" 
-                           [ngClass]="getCardHeaderClass(arch.tipo)">
+                      <div class="card-header d-flex align-items-center" [ngClass]="getCardHeaderClass(arch.tipo)">
                         <i class="fas fa-2x me-3" [ngClass]="getIconoPorTipo(arch.tipo)"></i>
                         <div>
                           <h6 class="mb-0">{{ getTituloPorTipo(arch.tipo) }}</h6>
@@ -324,18 +279,15 @@
                       <div class="card-body d-flex flex-column justify-content-between">
                         <div class="mt-auto d-grid gap-2">
                           <!-- Botón Ver / Previsualizar -->
-                          <button class="btn btn-outline-primary btn-sm"
-                                  (click)="previsualizarArchivo(arch.tipo)"
-                                  [disabled]="!arch.path || isProcessing"
-                                  title="Previsualizar archivo">
+                          <button class="btn btn-outline-primary btn-sm" (click)="previsualizarArchivo(arch.tipo)"
+                            [disabled]="!arch.path || isProcessing" title="Previsualizar archivo">
                             <i class="fas fa-eye me-1"></i> Ver / Previsualizar
                           </button>
-                          
+
                           <!-- Botón Descargar -->
                           <button class="btn btn-outline-success btn-sm"
-                                  (click)="descargarArchivoContabilidad(arch.tipo, arch.nombre)"
-                                  [disabled]="!arch.path || isProcessing"
-                                  title="Descargar archivo">
+                            (click)="descargarArchivoContabilidad(arch.tipo, arch.nombre)"
+                            [disabled]="!arch.path || isProcessing" title="Descargar archivo">
                             <i class="fas fa-download me-1"></i> Descargar
                           </button>
                         </div>

@@ -49,12 +49,12 @@
           <div class="empty-state">
             <i class="fas fa-file-invoice-dollar fa-4x text-secondary mb-4"></i>
             <h4 class="text-muted mb-2">No hay documentos pendientes</h4>
-            <p class="text-muted mb-3">Los documentos aprobados por auditoría sin proceso contable aparecerán aquí</p>
+            <p class="text-muted mb-3">Los documentos aprobados por supervisor sin proceso contable aparecerán aquí</p>
             
             <div class="mt-4">
               <p class="text-start"><strong>¿Por qué no hay documentos?</strong></p>
               <ul class="list-unstyled text-start">
-                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Verifica que hay documentos aprobados por auditoría</li>
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Verifica que hay documentos aprobados por supervisor</li>
                 <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Los documentos deben estar sin contador asignado</li>
                 <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Asegúrate de estar autenticado como contabilidad</li>
               </ul>
@@ -77,7 +77,7 @@
             <div class="header-item">Contratista</div>
             <div class="header-item">Contrato</div>
             <div class="header-item">Estado</div>
-            <div class="header-item">Auditor / Fechas</div>
+            <div class="header-item">Supervisor / Fechas</div>
             <div class="header-item acciones-header">Acciones</div>
           </div>
 
@@ -137,22 +137,22 @@
                 </span>
                 <small class="d-block mt-1 text-center" [ngClass]="getDiasClass(doc)">
                   <i class="far fa-clock me-1"></i>
-                  {{ getDiasTranscurridos(doc.fechaAprobacionAuditor || doc.fechaRadicacion) }} días
+                  {{ getDiasTranscurridos(doc.fechaAprobacionSupervisor || doc.fechaRadicacion) }} días
                 </small>
               </div>
 
-              <!-- Auditor/Fechas -->
+              <!-- Supervisor / Fechas -->
               <div class="documento-supervisor-fechas">
                 <div class="supervisor-info mb-2">
-                  <small class="d-block text-success">
+                  <small class="d-block text-primary">
                     <i class="fas fa-user-check me-1"></i>
-                    <strong>Auditor:</strong> {{ doc.auditor || 'No asignado' }}
+                    <strong>Supervisor:</strong> {{ doc.supervisor || doc.usuarioAsignadoNombre || 'No asignado' }}
                   </small>
                 </div>
                 <div class="fechas-container small">
                   <div class="fecha-line">
                     <span class="fecha-label">Aprobado:</span>
-                    <span class="fecha-value">{{ formatDateShort(doc.fechaAprobacionAuditor) || 'N/A' }}</span>
+                    <span class="fecha-value">{{ formatDateShort(doc.fechaAprobacionSupervisor) || 'N/A' }}</span>
                   </div>
                   <div class="fecha-line" *ngIf="doc.fechaAsignacionContabilidad">
                     <span class="fecha-label">Asignado:</span>

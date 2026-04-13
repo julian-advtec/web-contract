@@ -41,12 +41,11 @@
         </div>
 
         <!-- Empty State -->
-        <div *ngIf="!isLoading && filteredDocumentos.length === 0" class="text-center py-5">
-          <div class="empty-state">
-            <i class="fas fa-file-search fa-4x text-secondary mb-4"></i>
-            <h4 class="text-muted mb-2">No hay documentos RADICADOS disponibles</h4>
-            <p class="text-muted mb-3">Los documentos que están en estado "RADICADO" aparecerán aquí para revisión</p>
-
+<div *ngIf="!isLoading && filteredDocumentos.length === 0" class="text-center py-5">
+  <div class="empty-state">
+    <i class="fas fa-check-circle fa-4x text-success mb-4"></i>
+    <h4 class="text-muted mb-2">No hay documentos APROBADOS POR AUDITOR</h4>
+    <p class="text-muted mb-3">Los documentos que el auditor ha aprobado aparecerán aquí para tu revisión</p>
             <div class="mt-4">
               <p class="text-start"><strong>¿Por qué no hay documentos?</strong></p>
               <ul class="list-unstyled text-start">

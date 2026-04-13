@@ -754,67 +754,125 @@
     </div>
 
     <!-- PASO 3: DOCUMENTOS DEL CONTRATO Y CONTRATISTA -->
-    <div class="card mb-4" *ngIf="pasoActual === 3">
-      <div class="card-header bg-success text-white">
-        <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>3. Documentos del Contrato y Contratista</h5>
-      </div>
+   <div class="card mb-4" *ngIf="pasoActual === 3">
+  <div class="card-header bg-success text-white">
+    <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>3. Documentos del Contrato y Contratista</h5>
+  </div>
 
-      <div class="card-body">
-        <div class="alert alert-info mb-4">
-          <i class="fas fa-info-circle me-2"></i>
-          Esta sección muestra los documentos asociados al contrato y al contratista.
-        </div>
+  <div class="card-body">
+    <div class="alert alert-info mb-4">
+      <i class="fas fa-info-circle me-2"></i>
+      Esta sección muestra los documentos asociados al contrato y al contratista.
+    </div>
 
-        <!-- Documentos del Contrato -->
-        <div class="section-title mb-4">
-          <i class="fas fa-file-contract me-2"></i>
-          DOCUMENTOS DEL CONTRATO
-        </div>
+    <!-- ===== SUBIR MINUTA Y ACTA DE INICIO ===== -->
+    <div class="section-title mb-4">
+      <i class="fas fa-file-contract me-2"></i>
+      SUBIR DOCUMENTOS DEL CONTRATO
+    </div>
 
-        <div *ngIf="documentosContrato.length > 0" class="mb-4">
-          <div class="table-responsive">
-            <table class="table table-sm">
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>Tipo</th>
-                  <th>Tamaño</th>
-                  <th>Fecha</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let doc of documentosContrato">
-                  <td>{{ doc.nombreArchivo }}</td>
-                  <td>{{ doc.tipoDocumento }}</td>
-                  <td>{{ (doc.tamanoBytes / 1024).toFixed(1) }} KB</td>
-                  <td>{{ doc.fechaCarga | date:'dd/MM/yyyy' }}</td>
-                  <td>
-                    <button type="button" class="btn btn-sm btn-outline-info" (click)="verDocumento(doc.tipoDocumento)">
-                      <i class="fas fa-eye"></i> Ver
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-success ms-1"
-                      (click)="descargarDocumento(doc.tipoDocumento)">
-                      <i class="fas fa-download"></i> Descargar
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+    <div class="row g-4 mb-4">
+      <!-- MINUTA -->
+      <div class="col-md-6">
+        <div class="form-group-vertical">
+          <label class="form-label d-block mb-1">
+            <i class="fas fa-gavel me-1"></i> Minuta de Contrato *
+          </label>
+          <div class="upload-container" [class.invalid]="submitted && minutaFileError">
+            <input type="file" class="file-input" id="minutaFile" (change)="onFileSelected($event, 'minuta')"
+              accept=".pdf">
+            <label for="minutaFile" class="upload-label">
+              <i class="fas fa-cloud-upload-alt me-2"></i>
+              {{ minutaFileName ? 'Cambiar archivo' : 'Seleccionar archivo PDF' }}
+            </label>
+            <small class="text-muted d-block mt-1">Máximo 5 MB - Solo PDF</small>
+            <div *ngIf="minutaFileName" class="file-name mt-2 text-success">
+              <i class="fas fa-file-pdf me-2"></i>{{ minutaFileName }}
+            </div>
+            <div *ngIf="submitted && minutaFileError" class="text-danger mt-1 small">
+              {{ minutaFileError }}
+            </div>
           </div>
         </div>
+      </div>
 
-        <div *ngIf="documentosContrato.length === 0" class="text-center py-3">
-          <p class="text-muted">No hay documentos asociados a este contrato</p>
+      <!-- ACTA DE INICIO -->
+      <div class="col-md-6">
+        <div class="form-group-vertical">
+          <label class="form-label d-block mb-1">
+            <i class="fas fa-clipboard-list me-1"></i> Acta de Inicio *
+          </label>
+          <div class="upload-container" [class.invalid]="submitted && actaInicioFileError">
+            <input type="file" class="file-input" id="actaInicioFile" (change)="onFileSelected($event, 'actaInicio')"
+              accept=".pdf">
+            <label for="actaInicioFile" class="upload-label">
+              <i class="fas fa-cloud-upload-alt me-2"></i>
+              {{ actaInicioFileName ? 'Cambiar archivo' : 'Seleccionar archivo PDF' }}
+            </label>
+            <small class="text-muted d-block mt-1">Máximo 5 MB - Solo PDF</small>
+            <div *ngIf="actaInicioFileName" class="file-name mt-2 text-success">
+              <i class="fas fa-file-pdf me-2"></i>{{ actaInicioFileName }}
+            </div>
+            <div *ngIf="submitted && actaInicioFileError" class="text-danger mt-1 small">
+              {{ actaInicioFileError }}
+            </div>
+          </div>
         </div>
+      </div>
+    </div>
 
-        <hr class="my-4">
+    <hr class="my-4">
 
-        <!-- Documentos del Contratista -->
-        <div class="section-title mb-4">
-          <i class="fas fa-user me-2"></i>
-          DOCUMENTOS DEL CONTRATISTA
-        </div>
+    <!-- Documentos del Contrato (ya subidos) -->
+    <div class="section-title mb-4">
+      <i class="fas fa-folder-open me-2"></i>
+      DOCUMENTOS DEL CONTRATO SUBIDOS
+    </div>
+
+    <div *ngIf="documentosContrato.length > 0" class="mb-4">
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Tipo</th>
+              <th>Tamaño</th>
+              <th>Fecha</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let doc of documentosContrato">
+              <td>{{ doc.nombreArchivo }}</td>
+              <td><span class="badge bg-info">{{ doc.tipoDocumento }}</span></td>
+              <td>{{ (doc.tamanoBytes / 1024).toFixed(1) }} KB</td>
+              <td>{{ doc.fechaCarga | date:'dd/MM/yyyy' }}</td>
+              <td>
+                <button type="button" class="btn btn-sm btn-outline-info" (click)="verDocumento(doc.tipoDocumento)">
+                  <i class="fas fa-eye"></i> Ver
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-success ms-1"
+                  (click)="descargarDocumento(doc.tipoDocumento)">
+                  <i class="fas fa-download"></i> Descargar
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div *ngIf="documentosContrato.length === 0" class="text-center py-3">
+      <p class="text-muted">No hay documentos asociados a este contrato</p>
+    </div>
+
+    <hr class="my-4">
+
+    <!-- Documentos del Contratista -->
+    <div class="section-title mb-4">
+      <i class="fas fa-user me-2"></i>
+      DOCUMENTOS DEL CONTRATISTA
+    </div>
 
         <!-- Estado de carga -->
         <div *ngIf="cargandoDocumentosContratista" class="text-center py-3">

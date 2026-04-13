@@ -451,77 +451,111 @@ crearDocumento(createDocumentoDto: CreateDocumentoDto, archivos: File[]): Observ
     /**
      * Obtener documento por ID
      */
-    obtenerDocumentoPorId(id: string): Observable<Documento> {
-        const headers = this.getAuthHeaders();
+obtenerDocumentoPorId(id: string): Observable<Documento> {
+    const headers = this.getAuthHeaders();
 
-        if (!headers.get('Authorization')) {
-            return throwError(() => new Error('No estás autenticado. Por favor inicia sesión.'));
-        }
-
-        return this.http.get<DocumentoResponse>(`${this.apiUrl}/${id}`, { headers }).pipe(
-            map(response => {
-                if (response && response.success && response.data) {
-                    return response.data;
-                }
-                throw new Error('Documento no encontrado');
-            }),
-            catchError((error: HttpErrorResponse) => {
-                if (error.status === 401) {
-                    localStorage.removeItem('access_token');
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('user');
-                    this.router.navigate(['/auth/login']);
-                }
-                return throwError(() => error);
-            })
-        );
+    if (!headers.get('Authorization')) {
+        return throwError(() => new Error('No estás autenticado. Por favor inicia sesión.'));
     }
 
-    /**
-     * Descargar documento
-     */
-    descargarDocumento(id: string, numeroDocumento: number): Observable<Blob> {
-        const headers = this.getAuthHeaders();
-
-        if (!headers.get('Authorization')) {
-            return throwError(() => new Error('No estás autenticado. Por favor inicia sesión.'));
-        }
-
-        return this.http.get(`${this.apiUrl}/${id}/descargar/${numeroDocumento}`, {
-            headers,
-            responseType: 'blob'
-        }).pipe(
-            catchError((error: HttpErrorResponse) => {
-                console.error('❌ Error descargando documento:', error);
-
-                if (error.status === 401) {
-                    this.notificationService.error('Sesión expirada', 'Por favor inicia sesión nuevamente');
-                    localStorage.removeItem('access_token');
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('user');
-                    this.router.navigate(['/auth/login']);
-                } else if (error.status === 403) {
-                    this.notificationService.error('Sin permisos', 'No tienes permisos para descargar este archivo');
-                } else if (error.status === 404) {
-                    this.notificationService.error('No encontrado', 'El archivo no existe');
+    // ✅ URL CORRECTA: /radicacion/documento/:id
+    return this.http.get<any>(`${this.apiUrl}/documento/${id}`, { headers }).pipe(
+        map(response => {
+            console.log('[RadicacionService] Respuesta completa:', response);
+            
+            // Extraer correctamente los datos
+            let documento = null;
+            
+            // Caso 1: { success: true, data: {...} }
+            if (response && response.success === true && response.data) {
+                documento = response.data;
+            }
+            // Caso 2: { ok: true, data: {...} }
+            else if (response && response.ok === true && response.data) {
+                if (response.data.success === true && response.data.data) {
+                    documento = response.data.data;
+                } else {
+                    documento = response.data;
                 }
+            }
+            // Caso 3: Es directamente el documento
+            else if (response && response.id) {
+                documento = response;
+            }
+            
+            console.log('[RadicacionService] Documento extraído:', documento);
+            
+            if (!documento) {
+                throw new Error('Documento no encontrado en la respuesta');
+            }
+            
+            return documento as Documento;
+        }),
+        catchError((error: HttpErrorResponse) => {
+            console.error('[RadicacionService] Error obtenerDocumentoPorId:', error);
+            if (error.status === 401) {
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                this.router.navigate(['/auth/login']);
+            }
+            return throwError(() => error);
+        })
+    );
+}
 
-                return throwError(() => error);
-            })
-        );
+/**
+ * Descargar documento - CORREGIDO
+ * @param id ID del documento
+ * @param numeroDocumento Número del documento (1, 2, o 3)
+ */
+descargarDocumento(id: string, numeroDocumento: number): Observable<Blob> {
+    const headers = this.getAuthHeaders();
+
+    if (!headers.get('Authorization')) {
+        return throwError(() => new Error('No estás autenticado. Por favor inicia sesión.'));
     }
 
-    /**
-     * Descargar archivo como Blob
-     */
-    descargarArchivo(blob: Blob, nombreArchivo: string): void {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = nombreArchivo;
-        a.click();
-        window.URL.revokeObjectURL(url);
-    }
+    // ✅ URL CORRECTA: /radicacion/:id/descargar/:numeroDocumento
+    return this.http.get(`${this.apiUrl}/${id}/descargar/${numeroDocumento}`, {
+        headers,
+        responseType: 'blob'
+    }).pipe(
+        catchError((error: HttpErrorResponse) => {
+            console.error('❌ Error descargando documento:', error);
+
+            if (error.status === 401) {
+                this.notificationService.error('Sesión expirada', 'Por favor inicia sesión nuevamente');
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                this.router.navigate(['/auth/login']);
+            } else if (error.status === 403) {
+                this.notificationService.error('Sin permisos', 'No tienes permisos para descargar este archivo');
+            } else if (error.status === 404) {
+                this.notificationService.error('No encontrado', 'El archivo no existe');
+            }
+
+            return throwError(() => error);
+        })
+    );
+}
+
+/**
+ * Obtener URL para previsualizar documento (usando el endpoint público)
+ */
+getArchivoPreviewUrl(id: string, index: number): string {
+    const token = this.getToken();
+    return `${this.apiUrl}/${id}/archivo/${index}?token=${token}`;
+}
+
+/**
+ * Método para previsualizar archivo en nueva pestaña
+ */
+previsualizarArchivo(id: string, index: number): void {
+    const url = this.getArchivoPreviewUrl(id, index);
+    window.open(url, '_blank');
+}
 
     /**
      * Validar formato de radicado
@@ -614,13 +648,7 @@ crearDocumento(createDocumentoDto: CreateDocumentoDto, archivos: File[]): Observ
         return `${baseUrl}?${params.toString()}`;
     }
 
-    /**
-     * Abre el archivo en nueva pestaña para previsualización
-     */
-    previsualizarArchivo(id: string, index: number): void {
-        const url = this.getArchivoUrlConToken(id, index, false);
-        window.open(url, '_blank');
-    }
+ 
 
     /**
      * Descarga directamente el archivo sin pasar por Blob
@@ -659,14 +687,6 @@ crearDocumento(createDocumentoDto: CreateDocumentoDto, archivos: File[]): Observ
      * Obtener URL de preview para Word
      */
     getArchivoPreviewWordUrl(id: string, index: number): string {
-        const token = this.getToken();
-        return `${this.apiUrl}/${id}/archivo/${index}/preview?token=${token}`;
-    }
-
-    /**
-     * Obtener URL de preview
-     */
-    getArchivoPreviewUrl(id: string, index: number): string {
         const token = this.getToken();
         return `${this.apiUrl}/${id}/archivo/${index}/preview?token=${token}`;
     }
@@ -885,4 +905,21 @@ crearDocumento(createDocumentoDto: CreateDocumentoDto, archivos: File[]): Observ
             })
         );
     }
+
+    descargarArchivo(blob: Blob, nombreArchivo: string): void {
+    try {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = nombreArchivo;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        console.log(`✅ Archivo descargado: ${nombreArchivo}`);
+    } catch (error) {
+        console.error('❌ Error descargando archivo:', error);
+        this.notificationService.error('Error', 'No se pudo descargar el archivo');
+    }
+}
 }

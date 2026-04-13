@@ -18,7 +18,8 @@
 
     <ng-container *ngIf="documento && !isLoading">
       <!-- Cabecera -->
-      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+      <div
+        class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
         <div>
           <h3 class="mb-1">
             <i class="fas fa-user-check me-2 text-primary"></i>Revisión Asesor Gerencia
@@ -45,45 +46,46 @@
             <h5 class="mb-0"><i class="fas fa-calculator me-2"></i>Revisión Contabilidad</h5>
           </div>
           <div class="card-body p-0">
-<app-contabilidad-form 
-  [documentoId]="documento?.id || documento?.documento?.id || documentoId" 
-  [forceReadOnly]="true">
-</app-contabilidad-form>
+           <app-contabilidad-form 
+         [documentoId]="documentoId" 
+        [forceReadOnly]="true">
+      </app-contabilidad-form>
           </div>
         </div>
       </section>
 
-<!-- 1. COMPROBANTE YA FIRMADO (modo vista / procesado) -->
-<div class="card shadow mb-5 border-success" *ngIf="(esModoLectura || estaProcesado) && documento?.comprobanteFirmadoPath">
-  <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-    <h5 class="mb-0">
-      <i class="fas fa-file-invoice-dollar me-2"></i>
-      Comprobante Firmado por Gerencia
-    </h5>
-    <span class="badge bg-light text-dark" *ngIf="documento?.firmaAplicada">
-      <i class="fas fa-signature text-primary me-1"></i>Firmado digitalmente
-    </span>
-  </div>
-  <div class="card-body">
-    <div class="d-flex align-items-center justify-content-between p-3 bg-light rounded border">
-      <div class="d-flex align-items-center">
-        <i class="fas fa-file-pdf fa-3x text-danger me-3"></i>
-        <div>
-          <strong>Archivo firmado</strong>
-          <div class="small text-muted">
-            {{ getNombreArchivoFirmado(documento.comprobanteFirmadoPath) }}
-          </div>
-          <div class="small text-muted" *ngIf="documento.fechaFinRevision">
-            Fecha: {{ documento.fechaFinRevision | date:'dd/MM/yyyy HH:mm' }}
+      <!-- 1. COMPROBANTE YA FIRMADO (modo vista / procesado) -->
+      <div class="card shadow mb-5 border-success"
+        *ngIf="(esModoLectura || estaProcesado) && documento?.comprobanteFirmadoPath">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">
+            <i class="fas fa-file-invoice-dollar me-2"></i>
+            Comprobante Firmado por Gerencia
+          </h5>
+          <span class="badge bg-light text-dark" *ngIf="documento?.firmaAplicada">
+            <i class="fas fa-signature text-primary me-1"></i>Firmado digitalmente
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between p-3 bg-light rounded border">
+            <div class="d-flex align-items-center">
+              <i class="fas fa-file-pdf fa-3x text-danger me-3"></i>
+              <div>
+                <strong>Archivo firmado</strong>
+                <div class="small text-muted">
+                  {{ getNombreArchivoFirmado(documento.comprobanteFirmadoPath) }}
+                </div>
+                <div class="small text-muted" *ngIf="documento.fechaFinRevision">
+                  Fecha: {{ documento.fechaFinRevision | date:'dd/MM/yyyy HH:mm' }}
+                </div>
+              </div>
+            </div>
+            <button class="btn btn-outline-primary" (click)="verComprobanteFirmado()" [disabled]="isProcessing">
+              <i class="fas fa-eye me-1"></i> Ver PDF
+            </button>
           </div>
         </div>
       </div>
-      <button class="btn btn-outline-primary" (click)="verComprobanteFirmado()" [disabled]="isProcessing">
-        <i class="fas fa-eye me-1"></i> Ver PDF
-      </button>
-    </div>
-  </div>
-</div>
 
       <!-- 2. ÁREA DE FIRMA (SOLO modo edición / pendiente) -->
       <div *ngIf="!esModoLectura && !estaProcesado" class="card shadow mb-5 border-success">
@@ -110,12 +112,11 @@
               Haz clic en el PDF para posicionar la firma
             </small>
 
-            <app-signature-position
-              [pdfFile]="comprobanteFile"
-              (positionChange)="onPositionSelected($event)">
+            <app-signature-position [pdfFile]="comprobanteFile" (positionChange)="onPositionSelected($event)">
             </app-signature-position>
 
-            <div *ngIf="!firmaPosicion && form.get('estadoFinal')?.value === 'APROBADO'" class="alert alert-danger mt-3">
+            <div *ngIf="!firmaPosicion && form.get('estadoFinal')?.value === 'APROBADO'"
+              class="alert alert-danger mt-3">
               <i class="fas fa-exclamation-triangle me-2"></i>
               Debes seleccionar la posición de la firma para aprobar
             </div>
@@ -124,16 +125,19 @@
       </div>
 
       <!-- Observaciones del Tesorero -->
-      <div class="card shadow mb-5 border-warning" *ngIf="documento?.observacionesTesoreria || documento?.observacion || documento?.observaciones">
+      <div class="card shadow mb-5 border-warning"
+        *ngIf="documento?.observacionesTesoreria || documento?.observacion || documento?.observaciones">
         <div class="card-header bg-warning text-dark">
           <h5 class="mb-0">
             <i class="fas fa-comment-dots me-2"></i>Observaciones del Tesorero
           </h5>
         </div>
         <div class="card-body">
-          <p class="mb-0 pre-wrap">{{ documento.observacionesTesoreria || documento.observacion || documento.observaciones || 'Sin observaciones registradas por tesorería' }}</p>
+          <p class="mb-0 pre-wrap">{{ documento.observacionesTesoreria || documento.observacion ||
+            documento.observaciones || 'Sin observaciones registradas por tesorería' }}</p>
           <small class="text-muted d-block mt-2">
-            Registrado el: {{ documento.fechaActualizacionTesoreria || documento.fechaActualizacion || documento.fechaPagoRealizado | date:'dd/MM/yyyy HH:mm' || 'No disponible' }}
+            Registrado el: {{ documento.fechaActualizacionTesoreria || documento.fechaActualizacion ||
+            documento.fechaPagoRealizado | date:'dd/MM/yyyy HH:mm' || 'No disponible' }}
           </small>
         </div>
       </div>
@@ -160,12 +164,14 @@
             <div class="col-md-6">
               <label class="form-label fw-bold">Observaciones de Gerencia</label>
               <p class="form-control-static pre-wrap">
-                {{ documento.observacionesGerencia || documento.observaciones || documento.observacion || 'Sin observaciones registradas por gerencia' }}
+                {{ documento.observacionesGerencia || documento.observaciones || documento.observacion || 'Sin
+                observaciones registradas por gerencia' }}
               </p>
             </div>
           </div>
           <small class="text-muted d-block mt-3">
-            Procesado el: {{ documento.fechaFinRevision || documento.fechaActualizacion | date:'dd/MM/yyyy HH:mm' || 'No disponible' }}
+            Procesado el: {{ documento.fechaFinRevision || documento.fechaActualizacion | date:'dd/MM/yyyy HH:mm' || 'No
+            disponible' }}
           </small>
         </div>
       </div>
@@ -173,8 +179,9 @@
       <!-- Alerta modo -->
       <div class="alert alert-info shadow mb-5">
         <i class="fas fa-info-circle me-2 fa-lg"></i>
-        <strong>Modo actual:</strong> 
-        {{ estaProcesado ? 'Ya procesado por gerencia' : (esModoLectura ? 'Solo consulta' : 'Edición / firma pendiente') }}
+        <strong>Modo actual:</strong>
+        {{ estaProcesado ? 'Ya procesado por gerencia' : (esModoLectura ? 'Solo consulta' : 'Edición / firma pendiente')
+        }}
       </div>
 
       <!-- Formulario + botones SOLO en modo edición -->
@@ -206,26 +213,27 @@
                 </div>
 
                 <div class="col-md-6">
-                  <label class="form-label fw-bold" [class.text-danger]="form.get('estadoFinal')?.value === 'OBSERVADO' || form.get('estadoFinal')?.value === 'RECHAZADO'">
+                  <label class="form-label fw-bold"
+                    [class.text-danger]="form.get('estadoFinal')?.value === 'OBSERVADO' || form.get('estadoFinal')?.value === 'RECHAZADO'">
                     <i class="fas fa-comment-dots me-1 text-primary"></i>Observaciones / Justificación
-                    <span class="text-danger ms-1" *ngIf="form.get('estadoFinal')?.value === 'OBSERVADO' || form.get('estadoFinal')?.value === 'RECHAZADO'">*</span>
+                    <span class="text-danger ms-1"
+                      *ngIf="form.get('estadoFinal')?.value === 'OBSERVADO' || form.get('estadoFinal')?.value === 'RECHAZADO'">*</span>
                   </label>
                   <textarea class="form-control" rows="6" formControlName="observaciones"
-                            placeholder="Detalla motivos, correcciones necesarias o razones de rechazo..."></textarea>
+                    placeholder="Detalla motivos, correcciones necesarias o razones de rechazo..."></textarea>
                 </div>
               </div>
 
               <div class="d-flex flex-wrap justify-content-end gap-3 mt-5">
-                <button type="button" class="btn btn-outline-danger btn-lg px-4" 
-                        (click)="liberarDocumento()" [disabled]="isProcessing || !puedeLiberar">
+                <button type="button" class="btn btn-outline-danger btn-lg px-4" (click)="liberarDocumento()"
+                  [disabled]="isProcessing || !puedeLiberar">
                   <i class="fas fa-unlock me-2"></i>Liberar documento
                 </button>
-                <button type="button" class="btn btn-outline-secondary btn-lg px-4" 
-                        (click)="volverALista()" [disabled]="isProcessing">
+                <button type="button" class="btn btn-outline-secondary btn-lg px-4" (click)="volverALista()"
+                  [disabled]="isProcessing">
                   <i class="fas fa-times me-2"></i>Cancelar
                 </button>
-                <button type="submit" class="btn btn-primary btn-lg px-5" 
-                        [disabled]="isProcessing || !puedeGuardar">
+                <button type="submit" class="btn btn-primary btn-lg px-5" [disabled]="isProcessing || !puedeGuardar">
                   <span *ngIf="!isProcessing">
                     <i class="fas fa-save me-2"></i>Guardar y Finalizar
                   </span>
@@ -249,11 +257,7 @@
   </div>
 
   <!-- Modal PDF -->
-  <app-pdf-viewer-modal 
-    *ngIf="showPdfModal"
-    [blob]="pdfBlob" 
-    [title]="pdfModalTitle"
-    (closed)="cerrarModalPdf()">
+  <app-pdf-viewer-modal *ngIf="showPdfModal" [blob]="pdfBlob" [title]="pdfModalTitle" (closed)="cerrarModalPdf()">
   </app-pdf-viewer-modal>
 
   <!-- Mensaje flotante -->

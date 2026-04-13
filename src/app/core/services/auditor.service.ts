@@ -12,12 +12,20 @@ interface HistorialResponse {
   [key: string]: any;
 }
 
+interface ApiResponse {
+  success?: boolean;
+  data?: any;
+  message?: string;
+  ok?: boolean;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class AuditorService {
   private apiUrl = `${environment.apiUrl}/auditor`;
   private baseUrl = `${environment.apiUrl}/auditor`;
+  private juridicaUrl = `${environment.apiUrl}/juridica`;
 
   constructor(private http: HttpClient) { }
 
@@ -39,7 +47,6 @@ export class AuditorService {
     return headers;
   }
 
-  // Método clave para obtener token
   private getToken(): string {
     const token = localStorage.getItem('access_token')
       || localStorage.getItem('token')
@@ -90,7 +97,7 @@ export class AuditorService {
     tipos.forEach((tipo, index) => {
       setTimeout(() => {
         this.descargarArchivoAuditorDirecto(documentoId, tipo);
-      }, index * 800); // retraso para evitar bloqueo
+      }, index * 800);
     });
   }
 
@@ -104,19 +111,47 @@ export class AuditorService {
   }
 
   // ────────────────────────────────────────────────────────────────
+  // MÉTODOS PARA OBTENER DATOS DEL CONTRATO Y CONTRATISTA
+  // ────────────────────────────────────────────────────────────────
+
+ 
+  /**
+   * Obtiene los documentos del contrato (RP, CDP, etc.)
+   */
+  obtenerDocumentosContrato(numeroContrato: string): Observable<any[]> {
+    return this.obtenerContratoPorNumero(numeroContrato).pipe(
+      map(contrato => contrato?.documentos || [])
+    );
+  }
+
+  /**
+   * Obtiene documento específico del contrato por tipo (RP o CDP)
+   */
+  obtenerDocumentoContratoPorTipo(numeroContrato: string, tipo: 'RP' | 'CDP'): Observable<any> {
+    return this.obtenerDocumentosContrato(numeroContrato).pipe(
+      map(documentos => {
+        return documentos.find((d: any) => 
+          d.tipoDocumento === tipo || 
+          d.tipoDocumento?.toUpperCase() === tipo ||
+          d.nombreArchivo?.toLowerCase().includes(tipo.toLowerCase())
+        );
+      })
+    );
+  }
+
+  // ────────────────────────────────────────────────────────────────
   // MÉTODOS PROTEGIDOS - CON TOKEN
   // ────────────────────────────────────────────────────────────────
 
   obtenerPendientesParaAuditoria(): Observable<any[]> {
-    return this.http.get<any>(`${this.baseUrl}/documentos/disponibles`, {
+    return this.http.get<ApiResponse>(`${this.baseUrl}/documentos/disponibles`, {
       headers: this.getAuthHeaders()
     }).pipe(
-      map(response => {
-        const docs = Array.isArray(response) ? response : (response?.data || []);
+      map((response: ApiResponse) => {
+        const docs = Array.isArray(response) ? response : ((response as any)?.data || []);
         return docs.filter((doc: any) => {
           const estado = doc.estado?.toUpperCase() || '';
-          return estado.includes('APROBADO') &&
-            (estado.includes('SUPERVISOR') || estado.includes('APROBADO_SUPERVISOR'));
+          return estado === 'RADICADO';
         });
       }),
       catchError(err => {
@@ -213,10 +248,10 @@ export class AuditorService {
   }
 
   obtenerEstadisticas(): Observable<any> {
-    return this.http.get<any>(`${this.baseUrl}/estadisticas`, {
+    return this.http.get<ApiResponse>(`${this.baseUrl}/estadisticas`, {
       headers: this.getAuthHeaders()
     }).pipe(
-      map(response => response || { totalDocumentosDisponibles: 0, misDocumentos: { total: 0 } }),
+      map((response: ApiResponse) => (response as any) || { totalDocumentosDisponibles: 0, misDocumentos: { total: 0 } }),
       catchError(err => {
         console.error('Error estadísticas:', err);
         return of({ totalDocumentosDisponibles: 0, misDocumentos: { total: 0 } });
@@ -259,60 +294,48 @@ export class AuditorService {
   obtenerHistorial(): Observable<any[]> {
     console.log('[AUDITOR SERVICE] Solicitando historial...');
 
-    return this.http.get<any>(`${this.baseUrl}/historial`, {
+    return this.http.get<ApiResponse>(`${this.baseUrl}/historial`, {
       headers: this.getAuthHeaders()
     }).pipe(
-      map((response: any) => {
-        console.log('[AUDITOR SERVICE] Respuesta cruda del historial:', response);
-
+      map((response: ApiResponse) => {
         // CASO 1: Si la respuesta es directamente un array
         if (Array.isArray(response)) {
-          console.log(`[AUDITOR SERVICE] Es array directo con ${response.length} registros`);
           return response;
         }
 
+        const resp = response as any;
+        
         // CASO 2: Si la respuesta tiene propiedad 'data' que es array
-        if (response && typeof response === 'object') {
-          // Verificar si existe data y es array
-          if (response.data && Array.isArray(response.data)) {
-            console.log(`[AUDITOR SERVICE] Usando response.data con ${response.data.length} registros`);
-            return response.data;
+        if (resp && typeof resp === 'object') {
+          if (resp.data && Array.isArray(resp.data)) {
+            return resp.data;
           }
-
-          // Verificar si existe 'historial' y es array
-          if (response.historial && Array.isArray(response.historial)) {
-            console.log(`[AUDITOR SERVICE] Usando response.historial con ${response.historial.length} registros`);
-            return response.historial;
+          if (resp.historial && Array.isArray(resp.historial)) {
+            return resp.historial;
           }
-
-          // Verificar si existe 'items' y es array
-          if (response.items && Array.isArray(response.items)) {
-            console.log(`[AUDITOR SERVICE] Usando response.items con ${response.items.length} registros`);
-            return response.items;
+          if (resp.items && Array.isArray(resp.items)) {
+            return resp.items;
           }
 
           // Buscar cualquier propiedad que sea array
           const possibleArrays: any[][] = [];
-          Object.keys(response).forEach(key => {
-            const value = response[key];
+          Object.keys(resp).forEach(key => {
+            const value = resp[key];
             if (Array.isArray(value)) {
               possibleArrays.push(value);
             }
           });
 
           if (possibleArrays.length > 0) {
-            console.log(`[AUDITOR SERVICE] Usando primera propiedad array encontrada con ${possibleArrays[0].length} registros`);
             return possibleArrays[0];
           }
         }
 
-        // CASO 3: Si no encontramos ningún array, retornar array vacío
-        console.warn('[AUDITOR SERVICE] No se pudo encontrar un array en la respuesta:', response);
         return [];
       }),
       catchError((error: any) => {
         console.error('[AUDITOR SERVICE] Error obteniendo historial:', error);
-        return of([]); // Retornar array vacío en caso de error
+        return of([]);
       })
     );
   }
@@ -354,10 +377,7 @@ export class AuditorService {
     return this.http.get<any[]>(`${this.apiUrl}/mis-auditorias`, {
       headers: this.getAuthHeaders()
     }).pipe(
-      map(response => {
-        console.log('[AuditorService] Respuesta cruda de mis-auditorias:', response);
-        return response || [];
-      }),
+      map(response => response || []),
       catchError(err => {
         console.error('[AuditorService] Error en mis-auditorias:', err);
         return of([]);
@@ -390,11 +410,11 @@ export class AuditorService {
       params.soloLectura = 'true';
     }
 
-    return this.http.get<any>(`${this.apiUrl}/documentos/${id}/vista`, {
+    return this.http.get<ApiResponse>(`${this.apiUrl}/documentos/${id}/vista`, {
       headers: this.getAuthHeaders(),
       params
     }).pipe(
-      map(res => res?.data || res),
+      map((response: ApiResponse) => (response as any)?.data || response),
       catchError(err => {
         console.error('[AuditorService] Error en /vista:', err);
         return of(null);
@@ -403,11 +423,11 @@ export class AuditorService {
   }
 
   verificarArchivosExistentes(documentoId: string): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/documentos/${documentoId}/vista`, {
+    return this.http.get<ApiResponse>(`${this.apiUrl}/documentos/${documentoId}/vista`, {
       headers: this.getAuthHeaders()
     }).pipe(
-      map(response => {
-        const archivosAuditor = response?.data?.archivosAuditor || [];
+      map((response: ApiResponse) => {
+        const archivosAuditor = (response as any)?.data?.archivosAuditor || [];
         return archivosAuditor.filter((archivo: any) => archivo.subido);
       }),
       catchError(err => {
@@ -418,10 +438,10 @@ export class AuditorService {
   }
 
   obtenerEstadoArchivos(documentoId: string): Observable<any> {
-    return this.http.get<any>(`${this.baseUrl}/documentos/${documentoId}/estado-archivos`, {
+    return this.http.get<ApiResponse>(`${this.baseUrl}/documentos/${documentoId}/estado-archivos`, {
       headers: this.getAuthHeaders()
     }).pipe(
-      map(response => response?.data || response),
+      map((response: ApiResponse) => (response as any)?.data || response),
       catchError(err => {
         console.error('[AuditorService] Error obteniendo estado de archivos:', err);
         return of(null);
@@ -446,8 +466,6 @@ export class AuditorService {
     const formData = datos.archivos;
     formData.append('estado', datos.estado);
     formData.append('observaciones', datos.observaciones);
-
-    console.log('[AuditorService] Enviando FormData con archivos y decisión');
 
     return this.http.post<any>(
       `${this.baseUrl}/documentos/${documentoId}/revision-completa`,
@@ -527,27 +545,16 @@ export class AuditorService {
           error: err.error,
           url: err.url
         });
-
         return throwError(() => err);
       })
     );
   }
 
-  // src/app/core/services/auditor.service.ts
-  // AÑADIR este método completo
-
-  /**
-   * Previsualizar archivo radicado (cuenta cobro, seguridad social, informe)
-   * @param documentoId ID del documento
-   * @param numeroArchivo Número de archivo (1, 2 o 3)
-   */
   previsualizarArchivoRadicado(documentoId: string, numeroArchivo: number): void {
     const url = `${this.apiUrl}/documentos/${documentoId}/descargar-radicado/${numeroArchivo}?download=false`;
     console.log('[PREVISUALIZAR RADICADO]', url);
     window.open(url, '_blank');
   }
-
-
 
   descargarArchivoAuditor(documentoId: string, tipo: string): Observable<Blob> {
     return this.http.get(
@@ -557,10 +564,9 @@ export class AuditorService {
   }
 
   getTodosDocumentos(): Observable<any[]> {
-    return this.http.get<any>(`${this.apiUrl}/todos-documentos`, { headers: this.getAuthHeaders() }).pipe(
-      map(response => {
-        console.log('[SERVICE] Todos documentos - respuesta:', response);
-        const data = response?.data || response || [];
+    return this.http.get<ApiResponse>(`${this.apiUrl}/todos-documentos`, { headers: this.getAuthHeaders() }).pipe(
+      map((response: ApiResponse) => {
+        const data = (response as any)?.data || response || [];
         return Array.isArray(data) ? data : [];
       }),
       catchError(err => {
@@ -569,4 +575,62 @@ export class AuditorService {
       })
     );
   }
+
+
+
+obtenerContratoPorNumero(numeroContrato: string): Observable<any> {
+  console.log('[AuditorService] Buscando contrato:', numeroContrato);
+  return this.http.get(`${this.juridicaUrl}/contratos/numero/${numeroContrato}`, {
+    headers: this.getAuthHeaders()
+  }).pipe(
+    map((response: any) => {
+      console.log('[AuditorService] Respuesta contrato:', response);
+      return response?.data || response;
+    }),
+    catchError(err => {
+      console.error('[AuditorService] Error obteniendo contrato:', err);
+      return of(null);
+    })
+  );
+}
+
+
+
+obtenerContratistaPorNumeroContrato(numeroContrato: string): Observable<any> {
+  console.log('[AuditorService] Buscando contratista por contrato:', numeroContrato);
+  
+  return this.http.get(`${environment.apiUrl}/contratistas/buscar-por-contrato/${numeroContrato}`, {
+    headers: this.getAuthHeaders()
+  }).pipe(
+    map((response: any) => {
+      console.log('[AuditorService] Respuesta COMPLETA:', response);
+      
+      // ✅ La estructura correcta es response.data.data.data
+      let contratista = response?.data?.data?.data || 
+                        response?.data?.data || 
+                        response?.data || 
+                        response;
+      
+      // Si es un array, tomar el primero
+      if (Array.isArray(contratista) && contratista.length > 0) {
+        contratista = contratista[0];
+      }
+      
+      console.log('[AuditorService] Contratista extraído:', contratista?.razonSocial);
+      console.log('[AuditorService] Documentos encontrados:', contratista?.documentos?.length || 0);
+      
+      if (contratista?.documentos && contratista.documentos.length > 0) {
+        console.log('[AuditorService] Tipos de documentos:', contratista.documentos.map((d: any) => d.tipo).join(', '));
+      }
+      
+      return contratista;
+    }),
+    catchError(err => {
+      console.error('[AuditorService] Error:', err);
+      return of(null);
+    })
+  );
+}
+
+
 }

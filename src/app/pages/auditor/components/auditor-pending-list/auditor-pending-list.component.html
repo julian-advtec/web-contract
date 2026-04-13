@@ -97,17 +97,17 @@
                 </small>
               </div>
 
-              <div class="documento-estado">
-                <span class="estado-badge" [ngClass]="getEstadoClass(doc.estado)">
-                  <i class="fas fa-file-alt me-1"></i> {{ getEstadoTexto(doc.estado) }}
-                </span>
-                <div class="dias-transcurridos mt-1">
-                  <small [ngClass]="getDiasClass(doc)">
-                    <i class="far fa-clock me-1"></i>
-                    {{ getDiasTranscurridos(doc['fechaAprobacion'] || doc.fechaRadicacion) }} días
-                  </small>
-                </div>
-              </div>
+          <div class="documento-estado">
+  <span class="estado-badge" [ngClass]="getEstadoClass(doc.estado)">
+    <i class="fas fa-file-alt me-1"></i> {{ getEstadoTexto(doc.estado) }}
+  </span>
+  <div class="dias-transcurridos mt-1">
+    <small [ngClass]="getDiasClass(doc)">
+      <i class="far fa-clock me-1"></i>
+      {{ getDiasTranscurridos(doc.fechaRadicacion) }} días desde radicación
+    </small>
+  </div>
+</div>
 
               <div class="documento-supervisor-fechas">
                 <div class="supervisor-info mb-2">

@@ -29,6 +29,8 @@ export class RendicionHistoryComponent implements OnInit, OnDestroy {
   totalPages = 0;
   pages: number[] = [];
 
+   usuarioId = '';
+  usuarioNombre = '';
   sidebarCollapsed = false;
 
   private destroy$ = new Subject<void>();
@@ -47,6 +49,22 @@ export class RendicionHistoryComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
+cargarUsuarioActual(): void {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        this.usuarioId = user.id || user.userId || '';
+        this.usuarioNombre = user.fullName || user.name || user.username || 'Usuario';
+      } catch (error) {
+        console.error('Error parsing user:', error);
+        this.usuarioId = '';
+        this.usuarioNombre = 'Usuario';
+      }
+    }
+  }
+
+  // ✅ CORREGIR el método cargarHistorial() usando this.usuarioId
   cargarHistorial(): void {
     this.isLoading = true;
     this.errorMessage = '';
@@ -55,11 +73,33 @@ export class RendicionHistoryComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (data: any[]) => {
-          console.log('📋 Historial recibido:', data);
-          this.historial = data.sort((a, b) => 
+          console.log('📋 Historial RAW recibido:', JSON.stringify(data, null, 2));
+          
+          // ✅ Normalizar los datos con this.usuarioId
+          this.historial = (data || []).map(item => ({
+            id: item.id || item.rendicionId || item.documentoId,
+            rendicionId: item.rendicionId || item.id,
+            documentoId: item.documento?.id || item.documentoId,
+            numeroRadicado: item.numeroRadicado || item.documento?.numeroRadicado,
+            nombreContratista: item.nombreContratista || item.documento?.nombreContratista,
+            numeroContrato: item.numeroContrato || item.documento?.numeroContrato,
+            documentoContratista: item.documentoContratista || item.documento?.documentoContratista,
+            estado: item.estado || item.documento?.estado,
+            responsableNombre: item.responsableNombre || item.responsable?.nombre,
+            responsableId: item.responsableId || item.responsable?.id,
+            fechaCreacion: item.fechaCreacion || item.createdAt,
+            fechaInicioRevision: item.fechaInicioRevision || item.fechaAsignacion,
+            fechaDecision: item.fechaDecision || item.fechaActualizacion,
+            esMio: (item.responsableId || item.responsable?.id) === this.usuarioId, // ✅ AHORA SÍ EXISTE this.usuarioId
+            disponible: item.disponible !== false
+          }));
+          
+          // Ordenar por fecha más reciente
+          this.historial.sort((a, b) => 
             new Date(b.fechaCreacion || b.fechaInicioRevision).getTime() - 
             new Date(a.fechaCreacion || a.fechaInicioRevision).getTime()
           );
+          
           this.filteredHistorial = [...this.historial];
           this.updatePagination();
           this.isLoading = false;
@@ -165,12 +205,15 @@ export class RendicionHistoryComponent implements OnInit, OnDestroy {
     return 'fa-history';
   }
 
-  verDetalle(item: any): void {
-    const id = item.rendicionId || item.id;
-    if (id) {
-      this.router.navigate(['/rendicion-cuentas/procesar', id, { modo: 'consulta' }]);
-    }
+verDetalle(item: any): void {
+  const id = item.rendicionId || item.id;
+  if (id) {
+    // ✅ Cambiar a 'edicion' en lugar de 'consulta' si quieres permitir edición
+    this.router.navigate(['/rendicion-cuentas/procesar', id], { 
+      queryParams: { modo: 'edicion' }  // ← CAMBIAR A 'edicion'
+    });
   }
+}
 
   trackById(index: number, item: any): string {
     return item.id || index.toString();
