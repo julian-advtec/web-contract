@@ -12,6 +12,7 @@ import { AuditorService } from '../../../../core/services/auditor.service';
 import { SupervisorEstadisticasService } from '../../../../core/services/supervisor';
 import { AuditorFormComponent } from '../../../auditor/components/auditor-form/auditor-form.component';
 import { RendicionCuentasService } from '../../../../core/services/rendicion-cuentas.service';
+import { SupervisorArchivosService } from '../../../../core/services/supervisor';
 
 @Component({
   selector: 'app-supervisor-form',
@@ -22,7 +23,7 @@ import { RendicionCuentasService } from '../../../../core/services/rendicion-cue
     CommonModule,
     ReactiveFormsModule,
     AuditorFormComponent,
-    
+
   ]
 })
 export class SupervisorFormComponent implements OnInit, OnDestroy {
@@ -33,8 +34,8 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
 
   @Output() volver = new EventEmitter<void>();
 
-  
-  
+
+
   radicadoData: any = null;
   isLoading = false;
   isProcessing = false;
@@ -84,6 +85,24 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     observacionSupervisor: ''
   };
 
+  private mapearEstadoParaDropdown(estadoBackend: string): string {
+    // Mapeo de estados del backend a valores del dropdown
+    const estadoMap: { [key: string]: string } = {
+      'APROBADO_SUPERVISOR': 'APROBADO',
+      'APROBADO': 'APROBADO',
+      'OBSERVADO_SUPERVISOR': 'OBSERVADO',
+      'OBSERVADO': 'OBSERVADO',
+      'RECHAZADO_SUPERVISOR': 'RECHAZADO',
+      'RECHAZADO': 'RECHAZADO',
+      'EN_REVISION_SUPERVISOR': '',
+      'EN_REVISION': '',
+      'RADICADO': '',
+      'PENDIENTE': ''
+    };
+
+    return estadoMap[estadoBackend] || '';
+  }
+
   historialEstados: any[] = [];
   cargandoVer: { [key: string]: boolean } = {};
 
@@ -102,14 +121,15 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     private router: Router,
     private fb: FormBuilder,
     private supervisorService: SupervisorService,
+    private supervisorArchivosService: SupervisorArchivosService,
     private auditorService: AuditorService,
     private notificationService: NotificationService,
     private cdr: ChangeDetectorRef,
     private estadisticasService: SupervisorEstadisticasService,
-    private rendicionService?: RendicionCuentasService 
+    private rendicionService?: RendicionCuentasService
   ) { }
 
- ngOnInit(): void {
+  ngOnInit(): void {
     console.log('🚀 SupervisorForm: Inicializando componente...');
 
     this.initializeForm();
@@ -119,14 +139,14 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     if (!idParaCargar) {
       idParaCargar = this.route.snapshot.paramMap.get('id');
     }
-    
+
     if (!idParaCargar) {
       console.error('[SupervisorForm] No se encontró ID del documento');
       this.notificationService.error('Error crítico', 'No se pudo identificar el documento');
       this.isLoading = false;
       return;
     }
-    
+
     // Verificar si es rendiciónId
     if (this.router.url.includes('/rendicion-cuentas/')) {
       this.cargarViaRendicion(idParaCargar);
@@ -136,7 +156,7 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
 
     // ✅ Asignar documentoId correctamente
     this.documentoId = idParaCargar;
-    
+
     // Verificar si es rendiciónId
     if (this.router.url.includes('/rendicion-cuentas/')) {
       this.cargarViaRendicion(idParaCargar);
@@ -163,7 +183,7 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
 
     // OBTENER EL ID REAL DE LA RUTA
     const idFromRoute = this.route.snapshot.paramMap.get('id');
-    
+
     if (idFromRoute) {
       this.documentoId = idFromRoute;
       console.log('✅ ID REAL asignado a documentoId:', this.documentoId);
@@ -212,7 +232,7 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     }, 1000);
   }
 
-   private cargarViaRendicion(id: string): void {
+  private cargarViaRendicion(id: string): void {
     this.rendicionService?.obtenerDetalleRendicion(id).subscribe({
       next: (data) => {
         const documentoIdReal = data.documento?.id || data.documentoId;
@@ -339,12 +359,12 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
    */
   private determinarModoPorEstadoDocumento(documentoData: any): void {
     const estadoDocumento = (documentoData.estado || '').toUpperCase().trim();
-    
+
     console.log('🔍 [determinarModoPorEstadoDocumento] Estado del documento:', estadoDocumento);
-    
+
     // Verificar si el estado fuerza solo lectura
     const esEstadoFinal = this.estadosSoloLecturaForzado.some(e => estadoDocumento.includes(e));
-    
+
     if (esEstadoFinal) {
       // FORZAR solo lectura independientemente de la URL
       this.soloLectura = true;
@@ -352,22 +372,22 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
       console.log('🔒 FORZADO SOLO LECTURA - Estado final del documento:', estadoDocumento);
       return;
     }
-    
+
     // Si el documento está en estado editable, permitir edición
     const estadosEditables = ['RADICADO', 'EN_REVISION', 'EN_REVISION_SUPERVISOR', 'PENDIENTE', 'PENDIENTE_CORRECCIONES', 'OBSERVADO'];
     const esEstadoEditable = estadosEditables.some(e => estadoDocumento.includes(e));
-    
+
     if (esEstadoEditable) {
       // Verificar si el supervisor actual es el asignado
       const usuarioActual = this.getCurrentUser().trim();
       let supervisorAsignado = documentoData.supervisorAsignado || documentoData.asignacion?.supervisorActual || '';
       supervisorAsignado = supervisorAsignado.trim();
-      
+
       const soyElSupervisor = this.compararNombres(supervisorAsignado, usuarioActual) ||
         usuarioActual.includes('Administrador') ||
         !supervisorAsignado ||
         supervisorAsignado === 'Sin asignar';
-      
+
       if (soyElSupervisor) {
         // Permitir edición SOLO si el supervisor actual es el asignado
         this.soloLectura = false;
@@ -381,7 +401,7 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
         return;
       }
     }
-    
+
     // Por defecto, solo lectura
     this.soloLectura = true;
     this.modoEdicion = false;
@@ -468,6 +488,16 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
         next: (registroSupervisor: any) => {
           if (registroSupervisor) {
             console.log('✅ Archivos del supervisor encontrados en historial:', registroSupervisor);
+
+            // 🔑 También actualizar el estado del formulario si viene del historial
+            if (registroSupervisor.estado) {
+              const estadoMapeado = this.mapearEstadoParaDropdown(registroSupervisor.estado);
+              if (estadoMapeado) {
+                this.revisionForm.patchValue({ estadoRevision: estadoMapeado });
+                console.log(`📌 Estado actualizado desde historial: ${registroSupervisor.estado} → ${estadoMapeado}`);
+              }
+            }
+
             if (registroSupervisor.nombreArchivoSupervisor) {
               this.nombreArchivoAprobacionExistente = registroSupervisor.nombreArchivoSupervisor;
               this.fechaArchivoAprobacionExistente = registroSupervisor.fechaAprobacion ? new Date(registroSupervisor.fechaAprobacion) : null;
@@ -493,7 +523,11 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     const docData = documento.documento || documento;
 
     const historial = docData.historialEstados || [];
-    const estadoAprobado = historial.find((h: any) => h.estado === 'APROBADO' || h.estado === 'APROBADO_SUPERVISOR');
+    const estadoAprobado = historial.find((h: any) =>
+      h.estado === 'APROBADO' ||
+      h.estado === 'APROBADO_SUPERVISOR' ||
+      h.estado === 'APROBADO_AUDITOR'
+    );
 
     if (estadoAprobado) {
       this.revisionForm.patchValue({ observacionSupervisor: estadoAprobado.observacion || '' });
@@ -521,6 +555,12 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     const docData = documento.documento || documento;
     const supervisorActual = this.getCurrentUser();
 
+    // 🔑 CLAVE: Mapear el estado del backend al valor del dropdown
+    const estadoBackend = docData.estado || '';
+    const estadoParaDropdown = this.mapearEstadoParaDropdown(estadoBackend);
+
+    console.log(`🔀 Mapeando estado: "${estadoBackend}" → "${estadoParaDropdown}"`);
+
     this.revisionForm.patchValue({
       numeroRadicado: docData.numeroRadicado || '',
       numeroContrato: docData.numeroContrato || '',
@@ -536,7 +576,7 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
       fechaAsignacion: this.formatDateForInput(docData.fechaAsignacion || new Date()),
       supervisorRevisor: supervisorActual,
       fechaRevision: this.getCurrentDate(),
-      estadoRevision: docData.estado || ''
+      estadoRevision: estadoParaDropdown  // ✅ Usar el estado mapeado
     });
 
     if (docData.historialEstados && Array.isArray(docData.historialEstados)) {
@@ -579,7 +619,7 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
   private configurarFormularioSegunModo(): void {
     // Obtener el estado actual del documento
     const estadoActual = this.revisionForm.get('estadoRevision')?.value;
-    
+
     console.log('[configurarFormularioSegunModo] soloLectura =', this.soloLectura);
     console.log('[configurarFormularioSegunModo] estadoDocumento =', estadoActual);
 
@@ -596,13 +636,13 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
 
     // ✏️ MODO EDICIÓN
     console.log('✏️ MODO EDICIÓN - Habilitando campos editables');
-    
+
     // Habilitar SOLO los campos editables
     this.revisionForm.get('estadoRevision')?.enable();
     this.revisionForm.get('observacionSupervisor')?.enable();
     this.revisionForm.get('correcciones')?.enable();
     this.revisionForm.get('esUltimoRadicado')?.enable();
-    
+
     // Asegurar que los campos de solo lectura permanezcan deshabilitados
     this.revisionForm.get('numeroRadicado')?.disable();
     this.revisionForm.get('numeroContrato')?.disable();
@@ -623,7 +663,7 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     this.mostrarCampoArchivo = estadoActual === 'APROBADO';
 
     this.cdr.detectChanges();
-    
+
     console.log('[configurarFormularioSegunModo] estadoRevision enabled?', this.revisionForm.get('estadoRevision')?.enabled);
   }
 
@@ -895,42 +935,27 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
   }
 
 previsualizarArchivosSupervisor(tipo: 'aprobacion' | 'pazsalvo'): void {
+    console.log(`[DEBUG] previsualizarArchivosSupervisor llamado con tipo: ${tipo}`);
+    
     let nombreArchivo = '';
     
     if (tipo === 'aprobacion') {
-        nombreArchivo = this.nombreArchivoAprobacionExistente || this.supervisorInfo?.nombreArchivoAprobacion || '';
-        if (!nombreArchivo) {
-            this.notificationService.warning('Sin archivo', 'No hay archivo de aprobación para previsualizar');
-            return;
-        }
+        nombreArchivo = this.nombreArchivoAprobacionExistente;
+        console.log(`nombreArchivoAprobacionExistente: ${nombreArchivo}`);
     } else {
-        nombreArchivo = this.nombrePazSalvoExistente || this.supervisorInfo?.nombrePazSalvo || '';
-        if (!nombreArchivo) {
-            this.notificationService.warning('Sin archivo', 'No hay archivo de paz y salvo para previsualizar');
-            return;
-        }
+        nombreArchivo = this.nombrePazSalvoExistente;
+        console.log(`nombrePazSalvoExistente: ${nombreArchivo}`);
     }
     
-    // ✅ Usar el método genérico que ya acepta el tipo
-    const url = this.supervisorService.getUrlArchivoSupervisor(nombreArchivo, tipo);
-    
-    if (url && url !== '#') {
-        window.open(url, '_blank');
-    } else {
-        this.notificationService.error('Error', 'No se pudo generar la URL del archivo');
-    }
-}
-
-// Eliminar el método previsualizarPazSalvo o dejarlo como está
-previsualizarPazSalvo(): void {
-    const nombreArchivo = this.nombrePazSalvoExistente || this.supervisorInfo?.nombrePazSalvo || '';
     if (!nombreArchivo) {
-        this.notificationService.warning('Sin archivo', 'No hay archivo de paz y salvo para previsualizar');
+        this.notificationService.warning('Sin archivo', 'No hay archivo para previsualizar');
         return;
     }
     
-    // ✅ Usar el método genérico con tipo 'pazsalvo'
-    const url = this.supervisorService.getUrlArchivoSupervisor(nombreArchivo, 'pazsalvo');
+    // ✅ IMPORTANTE: Usar SupervisorArchivosService, NO SupervisorService
+    const url = this.supervisorArchivosService.getUrlArchivoSupervisor(nombreArchivo, tipo);
+    
+    console.log(`URL generada por supervisorArchivosService: ${url}`);
     
     if (url && url !== '#') {
         window.open(url, '_blank');
@@ -939,56 +964,73 @@ previsualizarPazSalvo(): void {
     }
 }
 
-// Método separado para paz y salvo si es necesario
+  previsualizarPazSalvo(): void {
+    const nombreArchivo = this.nombrePazSalvoExistente || this.supervisorInfo?.nombrePazSalvo || '';
+    if (!nombreArchivo) {
+      this.notificationService.warning('Sin archivo', 'No hay archivo de paz y salvo para previsualizar');
+      return;
+    }
+
+    // ✅ Usar supervisorArchivosService en lugar de supervisorService
+    const url = this.supervisorArchivosService.getUrlArchivoSupervisor(nombreArchivo, 'pazsalvo');
+
+    if (url && url !== '#') {
+      window.open(url, '_blank');
+    } else {
+      this.notificationService.error('Error', 'No se pudo generar la URL del archivo');
+    }
+  }
+
+  // Método separado para paz y salvo si es necesario
 
 
-descargarArchivosSupervisor(tipo: 'aprobacion' | 'pazsalvo'): void {
+  descargarArchivosSupervisor(tipo: 'aprobacion' | 'pazsalvo'): void {
     let nombreArchivo = '';
     let tipoArchivo: 'aprobacion' | 'pazsalvo' = tipo;
-    
+
     if (tipo === 'aprobacion') {
-        nombreArchivo = this.nombreArchivoAprobacionExistente || this.supervisorInfo?.nombreArchivoAprobacion || '';
-        if (!nombreArchivo) {
-            this.notificationService.warning('Sin archivo', 'No hay archivo de aprobación para descargar');
-            return;
-        }
+      nombreArchivo = this.nombreArchivoAprobacionExistente || this.supervisorInfo?.nombreArchivoAprobacion || '';
+      if (!nombreArchivo) {
+        this.notificationService.warning('Sin archivo', 'No hay archivo de aprobación para descargar');
+        return;
+      }
     } else {
-        nombreArchivo = this.nombrePazSalvoExistente || this.supervisorInfo?.nombrePazSalvo || '';
-        if (!nombreArchivo) {
-            this.notificationService.warning('Sin archivo', 'No hay archivo de paz y salvo para descargar');
-            return;
-        }
+      nombreArchivo = this.nombrePazSalvoExistente || this.supervisorInfo?.nombrePazSalvo || '';
+      if (!nombreArchivo) {
+        this.notificationService.warning('Sin archivo', 'No hay archivo de paz y salvo para descargar');
+        return;
+      }
     }
-    
+
     this.isProcessing = true;
-    
+
     let servicioObservable: Observable<Blob>;
     if (tipo === 'aprobacion') {
-        servicioObservable = this.supervisorService.descargarArchivoAprobacion(nombreArchivo);
+      servicioObservable = this.supervisorService.descargarArchivoAprobacion(nombreArchivo);
     } else {
-        servicioObservable = this.supervisorService.descargarPazSalvo(nombreArchivo);
+      servicioObservable = this.supervisorService.descargarPazSalvo(nombreArchivo);
     }
-    
+
     servicioObservable.subscribe({
-        next: (blob: Blob) => {
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = nombreArchivo;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-            this.notificationService.success('Descarga completada', 'Archivo descargado correctamente');
-            this.isProcessing = false;
-        },
-        error: (error) => {
-            console.error('Error descargando:', error);
-            this.notificationService.error('Error', 'No se pudo descargar el archivo');
-            this.isProcessing = false;
-        }
+      next: (blob: Blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = nombreArchivo;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        this.notificationService.success('Descarga completada', 'Archivo descargado correctamente');
+        this.isProcessing = false;
+      },
+      error: (error) => {
+        console.error('Error descargando:', error);
+        this.notificationService.error('Error', 'No se pudo descargar el archivo');
+        this.isProcessing = false;
+      }
     });
-}
+  }
 
   verDocumento(index: number): void {
     if (!this.documentosExistentes[index]?.disponible) {

@@ -245,84 +245,115 @@
             </div>
 
             <!-- TAB 3: DECISIÓN FINAL -->
-            <div class="tab-content" *ngIf="!esModoContabilidad && tabActivo === 'decision'">
-              <div class="card border-primary shadow-lg">
-                <div class="card-header bg-primary text-white">
-                  <h5 class="mb-0">Decisión Final del Auditor</h5>
-                </div>
-                <div class="card-body">
+       
+<div class="tab-content" *ngIf="!esModoContabilidad && tabActivo === 'decision'">
+  <div class="card border-primary shadow-lg">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0">Decisión Final del Auditor</h5>
+    </div>
+    <div class="card-body">
 
-                  <ng-container *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR' && !esModoSoloLectura()">
-                    <div class="alert alert-info mb-4">
-                      <i class="fas fa-info-circle me-2"></i>
-                      <strong>En revisión</strong> – Registra tu decisión cuando estés listo.
-                    </div>
-
-                    <div *ngIf="primerRadicadoDelAno && !archivosCompletos" class="alert alert-danger mb-4">
-                      <i class="fas fa-exclamation-triangle me-2"></i>
-                      <strong>¡Atención!</strong> Faltan documentos ({{ 6 - contarArchivosRealmenteSubidos() }} de 6).
-                    </div>
-
-                    <div class="mb-4">
-                      <label class="form-label fw-bold">Observaciones *</label>
-                      <textarea class="form-control" rows="4" [(ngModel)]="observacionesRevision"
-                        placeholder="Ingrese observaciones detalladas... (obligatorio para observar o rechazar)">
-                      </textarea>
-                    </div>
-
-                    <div class="mb-4">
-                      <label class="form-label fw-bold">Decisión</label>
-                      <select class="form-select" [(ngModel)]="decisionSeleccionada">
-                        <option value="" disabled>Seleccione una decisión</option>
-                        <option value="APROBADO" [disabled]="primerRadicadoDelAno && !archivosCompletos">
-                          Aprobar {{ primerRadicadoDelAno && !archivosCompletos ? '(Documentos pendientes)' : '' }}
-                        </option>
-                        <option value="OBSERVADO">Observar</option>
-                        <option value="RECHAZADO">Rechazar</option>
-                        <option value="COMPLETADO">Completar revisión</option>
-                      </select>
-                    </div>
-
-                    <div class="text-center">
-                      <button class="btn btn-primary btn-lg px-5" (click)="registrarDecision()"
-                        [disabled]="!puedeRegistrarDecision() || isProcessing">
-                        <i class="fas fa-check-double me-2"></i> Registrar Decisión
-                      </button>
-                    </div>
-                  </ng-container>
-
-                  <ng-container
-                    *ngIf="esModoSoloLectura() || ['APROBADO_AUDITOR','COMPLETADO_AUDITOR','RECHAZADO_AUDITOR','OBSERVADO_AUDITOR'].includes(estadoDocumento)">
-                    <div class="row">
-                      <div class="col-md-6">
-                        <div class="card border-info">
-                          <div class="card-header bg-info text-white">Decisión tomada</div>
-                          <div class="card-body text-center">
-                            <h4 [ngClass]="getClaseEstado(decisionAuditor)">{{ decisionAuditor || 'No registrada' |
-                              uppercase }}</h4>
-                          </div>
-                        </div>
-                      </div>
-                      <div class="col-md-6">
-                        <div class="card border-info">
-                          <div class="card-header bg-info text-white">Observaciones</div>
-                          <div class="card-body">
-                            <p>{{ observacionAuditor || 'Sin observaciones' }}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </ng-container>
-
-                </div>
+      <!-- ✅ CONDICIÓN CORREGIDA: Mostrar decisión si existe O si es solo lectura -->
+      <ng-container 
+        *ngIf="(decisionAuditor && decisionAuditor !== '') || esModoSoloLectura() || 
+                ['APROBADO_AUDITOR','COMPLETADO_AUDITOR','RECHAZADO_AUDITOR','OBSERVADO_AUDITOR'].includes(estadoDocumento)">
+        
+        <div class="row">
+          <div class="col-md-6">
+            <div class="card border-info">
+              <div class="card-header bg-info text-white">
+                <i class="fas fa-gavel me-2"></i>
+                Decisión tomada
               </div>
-
-              <div class="text-center mt-4" *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR' && !esModoSoloLectura()">
-                <button class="btn btn-outline-secondary" (click)="liberarDocumento()">
-                  <i class="fas fa-unlock me-2"></i> Liberar Documento
-                </button>
+              <div class="card-body text-center">
+                <!-- Mostrar decisión o mensaje si no hay -->
+                <h4 [ngClass]="getClaseEstado(getDecisionParaMostrar())">
+                  {{ getDecisionParaMostrar() | uppercase }}
+                </h4>
+                <small class="text-muted" *ngIf="fechaDecisionAuditor">
+                  <i class="fas fa-calendar me-1"></i>
+                  {{ fechaDecisionAuditor | date:'dd/MM/yyyy HH:mm' }}
+                </small>
+                <small class="text-muted d-block mt-1" *ngIf="nombreAuditor">
+                  <i class="fas fa-user-check me-1"></i>
+                  Por: {{ nombreAuditor }}
+                </small>
               </div>
             </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card border-info h-100">
+              <div class="card-header bg-info text-white">
+                <i class="fas fa-comment me-2"></i>
+                Observaciones
+              </div>
+              <div class="card-body">
+                <p class="mb-0">{{ getObservacionParaMostrar() }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mostrar también el estado actual del documento -->
+        <div class="alert alert-secondary mt-3 mb-0">
+          <i class="fas fa-info-circle me-2"></i>
+          <strong>Estado actual del documento:</strong>
+          <span class="badge ms-2" [ngClass]="getEstadoBadgeClass(estadoDocumento)">
+            {{ estadoDocumento || 'SIN ESTADO' }}
+          </span>
+        </div>
+      </ng-container>
+
+      <!-- MODO EDICIÓN (solo cuando está en revisión y NO hay decisión) -->
+      <ng-container 
+        *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR' && !esModoSoloLectura() && (!decisionAuditor || decisionAuditor === '')">
+        <div class="alert alert-info mb-4">
+          <i class="fas fa-info-circle me-2"></i>
+          <strong>En revisión</strong> – Registra tu decisión cuando estés listo.
+        </div>
+
+        <div *ngIf="primerRadicadoDelAno && !archivosCompletos" class="alert alert-danger mb-4">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          <strong>¡Atención!</strong> Faltan documentos ({{ 6 - contarArchivosRealmenteSubidos() }} de 6).
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-bold">Observaciones *</label>
+          <textarea class="form-control" rows="4" [(ngModel)]="observacionesRevision"
+            placeholder="Ingrese observaciones detalladas... (obligatorio para observar o rechazar)">
+          </textarea>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-bold">Decisión</label>
+          <select class="form-select" [(ngModel)]="decisionSeleccionada">
+            <option value="" disabled>Seleccione una decisión</option>
+            <option value="APROBADO" [disabled]="primerRadicadoDelAno && !archivosCompletos">
+              Aprobar {{ primerRadicadoDelAno && !archivosCompletos ? '(Documentos pendientes)' : '' }}
+            </option>
+            <option value="OBSERVADO">Observar</option>
+            <option value="RECHAZADO">Rechazar</option>
+            <option value="COMPLETADO">Completar revisión</option>
+          </select>
+        </div>
+
+        <div class="text-center">
+          <button class="btn btn-primary btn-lg px-5" (click)="registrarDecision()"
+            [disabled]="!puedeRegistrarDecision() || isProcessing">
+            <i class="fas fa-check-double me-2"></i> Registrar Decisión
+          </button>
+        </div>
+      </ng-container>
+
+    </div>
+  </div>
+
+  <div class="text-center mt-4" *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR' && !esModoSoloLectura()">
+    <button class="btn btn-outline-secondary" (click)="liberarDocumento()">
+      <i class="fas fa-unlock me-2"></i> Liberar Documento
+    </button>
+  </div>
+</div>
 
           </div>
         </div>

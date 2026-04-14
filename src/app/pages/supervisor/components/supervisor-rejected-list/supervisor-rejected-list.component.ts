@@ -422,7 +422,7 @@ export class SupervisorRejectedListComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.supervisorService.previsualizarArchivo(doc.id, index);
+    
   }
 
   descargarDocumentoEspecifico(doc: DocumentoExtendido, index: number): void {

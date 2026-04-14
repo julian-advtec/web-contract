@@ -8,30 +8,28 @@
   </div>
 
   <div *ngIf="soloLectura && !esModoAuditor" class="alert-message info mb-3">
-    <i class="fas fa-eye"></i> <strong>Modo consulta (solo lectura)</strong> - Este documento ya fue revisado y no se puede modificar.
+    <i class="fas fa-eye"></i> <strong>Modo consulta (solo lectura)</strong> - Este documento ya fue revisado y no se
+    puede modificar.
   </div>
 
   <div *ngIf="!soloLectura" class="alert-message success mb-3">
     <i class="fas fa-edit"></i> <strong>Modo edición</strong> - Puede realizar la revisión del documento.
   </div>
 
-<!-- VISTA DE AUDITORÍA -->
-<div class="card shadow mb-4">
-  <div class="card-header bg-warning text-dark">
-    <h4 class="mb-0">
-      <i class="fas fa-clipboard-list me-2"></i>
-      Documentos de Auditoría
-    </h4>
+  <!-- VISTA DE AUDITORÍA -->
+  <div class="card shadow mb-4">
+    <div class="card-header bg-warning text-dark">
+      <h4 class="mb-0">
+        <i class="fas fa-clipboard-list me-2"></i>
+        Documentos de Auditoría
+      </h4>
+    </div>
+    <div class="card-body p-0">
+
+      <app-auditor-form *ngIf="documentoId" [modo]="'auditoria'" [documentoId]="documentoId" (volver)="volverALista()">
+      </app-auditor-form>
+    </div>
   </div>
-  <div class="card-body p-0">
-    <app-auditor-form
-      *ngIf="documentoId"
-      [modo]="'auditoria'"    
-      [documentoId]="documentoId"
-      (volver)="volverALista()">
-    </app-auditor-form>
-  </div>
-</div>
 
   <!-- REVISIÓN DEL SUPERVISOR -->
   <div class="card shadow mb-4">
@@ -73,7 +71,8 @@
           <div class="form-group" *ngIf="mostrarCampoArchivo || soloLectura || esModoAuditor">
             <label class="form-label"><i class="fas fa-file-upload"></i> Documento de Aprobación</label>
 
-            <div *ngIf="nombreArchivoAprobacionExistente" class="existing-file mb-3 p-3 bg-primary bg-opacity-10 rounded">
+            <div *ngIf="nombreArchivoAprobacionExistente"
+              class="existing-file mb-3 p-3 bg-primary bg-opacity-10 rounded">
               <div class="d-flex align-items-center justify-content-between">
                 <div class="d-flex align-items-center">
                   <i class="fas fa-file-upload text-primary fa-2x me-3"></i>
@@ -99,13 +98,15 @@
               </div>
             </div>
 
-            <div *ngIf="!nombreArchivoAprobacionExistente && (soloLectura || esModoAuditor)" class="alert alert-secondary small">
+            <div *ngIf="!nombreArchivoAprobacionExistente && (soloLectura || esModoAuditor)"
+              class="alert alert-secondary small">
               No se adjuntó documento de aprobación en esta revisión.
             </div>
 
             <div *ngIf="!soloLectura && !esModoAuditor && revisionForm.get('estadoRevision')?.value === 'APROBADO'">
               <div class="mb-3">
-                <input type="file" class="form-control" (change)="onArchivoAprobacionSeleccionado($event)" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                <input type="file" class="form-control" (change)="onArchivoAprobacionSeleccionado($event)"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
                 <div *ngIf="archivoAprobacion" class="mt-2">
                   <span class="badge bg-success">{{ archivoAprobacion.name }}</span>
                 </div>
@@ -135,7 +136,7 @@
         <div class="form-row mt-4" *ngIf="revisionForm.get('esUltimoRadicado')?.value || nombrePazSalvoExistente">
           <div class="form-group">
             <label class="form-label"><i class="fas fa-file-contract"></i> Paz y Salvo del Contratista</label>
-            
+
             <div *ngIf="nombrePazSalvoExistente" class="existing-file mb-3 p-3 bg-success bg-opacity-10 rounded">
               <div class="d-flex align-items-center justify-content-between">
                 <div class="d-flex align-items-center">
@@ -162,11 +163,13 @@
             </div>
 
             <div *ngIf="!soloLectura && !esModoAuditor && revisionForm.get('esUltimoRadicado')?.value">
-              <input type="file" class="form-control" (change)="onArchivoPazSalvoSeleccionado($event)" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+              <input type="file" class="form-control" (change)="onArchivoPazSalvoSeleccionado($event)"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
               <div *ngIf="archivoPazSalvo" class="mt-2">
                 <span class="badge bg-success">{{ archivoPazSalvo.name }}</span>
               </div>
-              <small class="text-muted">REQUERIDO para último radicado. Formatos: PDF, Word, JPG, PNG (Max. 10MB)</small>
+              <small class="text-muted">REQUERIDO para último radicado. Formatos: PDF, Word, JPG, PNG (Max.
+                10MB)</small>
             </div>
           </div>
         </div>

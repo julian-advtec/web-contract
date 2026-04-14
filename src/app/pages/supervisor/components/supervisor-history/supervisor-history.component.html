@@ -138,10 +138,10 @@
               <!-- Columna 4: Estado y Fecha -->
               <div class="documento-estado">
                 <div class="estado-info">
-                  <span class="estado-badge" [ngClass]="getEstadoBadgeClass(item.estado)">
-                    <i class="fas fa-flag me-1"></i>
-                    {{ getEstadoTexto(item.estado) }}
-                  </span>
+                 <span class="estado-badge" [ngClass]="getEstadoBadgeClass(item.estado)" [title]="getEstadoTexto(item.estado)">
+    <i class="fas fa-flag me-1"></i>
+    {{ getEstadoTexto(item.estado) }}
+</span>
                   <span class="estado-fecha">
                     <i class="far fa-calendar-alt me-1"></i>
                     {{ formatDateOnly(item.fechaActualizacion || item.updatedAt) }}

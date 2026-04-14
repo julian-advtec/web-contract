@@ -119,22 +119,22 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
     if (item.documento?.supervisorAsignado) {
       return item.documento.supervisorAsignado;
     }
-    
+
     // Prioridad 2: Supervisor actual de la asignación
     if (item.documento?.asignacion?.supervisorActual) {
       return item.documento.asignacion.supervisorActual;
     }
-    
+
     // Prioridad 3: Usuario asignado del documento
     if (item.documento?.usuarioAsignadoNombre) {
       return item.documento.usuarioAsignadoNombre;
     }
-    
+
     // Prioridad 4: Supervisor revisor del historial
     if (item.supervisorRevisor) {
       return item.supervisorRevisor;
     }
-    
+
     // Prioridad 5: Usuario actual como fallback
     return this.usuarioActual;
   }
@@ -148,7 +148,7 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
   // ✅ NUEVO MÉTODO: Comparar nombres de forma flexible
   compararNombres(nombre1: string, nombre2: string): boolean {
     if (!nombre1 || !nombre2) return false;
-    
+
     const normalizar = (nombre: string) => {
       return nombre.toLowerCase()
         .trim()
@@ -156,52 +156,52 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
         .replace(/[áä]/g, 'a').replace(/[éë]/g, 'e').replace(/[íï]/g, 'i')
         .replace(/[óö]/g, 'o').replace(/[úü]/g, 'u');
     };
-    
+
     const nombre1Normalizado = normalizar(nombre1);
     const nombre2Normalizado = normalizar(nombre2);
-    
-    return nombre1Normalizado === nombre2Normalizado || 
-           nombre1Normalizado.includes(nombre2Normalizado) ||
-           nombre2Normalizado.includes(nombre1Normalizado);
+
+    return nombre1Normalizado === nombre2Normalizado ||
+      nombre1Normalizado.includes(nombre2Normalizado) ||
+      nombre2Normalizado.includes(nombre1Normalizado);
   }
 
-revisarNuevamente(item: any): void {
-  console.log('🔄 Revisar documento desde historial:', item);
+  revisarNuevamente(item: any): void {
+    console.log('🔄 Revisar documento desde historial:', item);
 
-  let documentoId = '';
+    let documentoId = '';
 
-  if (item.documento?.id) {
-    documentoId = item.documento.id;
-  } else if (item.id) {
-    documentoId = item.id;
-  } else if (item.documentoId) {
-    documentoId = item.documentoId;
+    if (item.documento?.id) {
+      documentoId = item.documento.id;
+    } else if (item.id) {
+      documentoId = item.id;
+    } else if (item.documentoId) {
+      documentoId = item.documentoId;
+    }
+
+    if (!documentoId) {
+      console.error('❌ No hay ID de documento disponible');
+      this.notificationService.error('Error', 'No se puede revisar el documento: ID no disponible');
+      return;
+    }
+
+    const estado = item.estado?.toUpperCase() || '';
+    const supervisorAsignado = this.getSupervisorAsignado(item);
+    const soyElSupervisor = this.esMiDocumento(item);
+
+    const queryParams = this.determinarModoNavegacion(estado, supervisorAsignado, soyElSupervisor);
+
+    console.log('🚀 Navegando a formulario con:', {
+      documentoId,  // ← Usamos documentoId, no doc.id
+      estado,
+      supervisorAsignado,
+      soyElSupervisor,
+      usuarioActual: this.usuarioActual,
+      queryParams
+    });
+
+    // ✅ CORREGIDO: Usar documentoId en lugar de doc.id
+    this.router.navigate(['/supervisor/revisar', documentoId], { queryParams });
   }
-
-  if (!documentoId) {
-    console.error('❌ No hay ID de documento disponible');
-    this.notificationService.error('Error', 'No se puede revisar el documento: ID no disponible');
-    return;
-  }
-
-  const estado = item.estado?.toUpperCase() || '';
-  const supervisorAsignado = this.getSupervisorAsignado(item);
-  const soyElSupervisor = this.esMiDocumento(item);
-  
-  const queryParams = this.determinarModoNavegacion(estado, supervisorAsignado, soyElSupervisor);
-  
-  console.log('🚀 Navegando a formulario con:', {
-    documentoId,  // ← Usamos documentoId, no doc.id
-    estado,
-    supervisorAsignado,
-    soyElSupervisor,
-    usuarioActual: this.usuarioActual,
-    queryParams
-  });
-
-  // ✅ CORREGIDO: Usar documentoId en lugar de doc.id
-  this.router.navigate(['/supervisor/revisar', documentoId], { queryParams });
-}
 
 
   private determinarModoNavegacion(estado: string, supervisorAsignado: string, soyElSupervisor: boolean): any {
@@ -217,9 +217,9 @@ revisarNuevamente(item: any): void {
 
     const estadosSoloLecturaFinal = ['APROBADO', 'RECHAZADO'];
     const estadosPotencialmenteEditables = [
-      'RADICADO', 
-      'EN_REVISION', 
-      'EN_REVISION_SUPERVISOR', 
+      'RADICADO',
+      'EN_REVISION',
+      'EN_REVISION_SUPERVISOR',
       'OBSERVADO',
       'PENDIENTE',
       'PENDIENTE_CORRECCIONES'
@@ -295,47 +295,41 @@ revisarNuevamente(item: any): void {
     }
   }
 
-  getEstadoBadgeClass(estado: string): string {
-    if (!estado) return 'badge bg-light text-dark';
-
-    const estadoUpper = estado.toUpperCase();
-
-    switch (estadoUpper) {
-      case 'APROBADO':
-      case 'APROBADO_SUPERVISOR':
-        return 'badge bg-success';
-      case 'OBSERVADO':
-      case 'OBSERVADO_SUPERVISOR':
-        return 'badge bg-warning text-dark';
-      case 'RECHAZADO':
-      case 'RECHAZADO_SUPERVISOR':
-        return 'badge bg-danger';
-      case 'PENDIENTE':
-        return 'badge bg-secondary';
-      case 'EN_REVISION_SUPERVISOR':
-      case 'EN_REVISION':
-        return 'badge bg-info';
-      case 'RADICADO':
-        return 'badge bg-primary';
-      default:
-        return 'badge bg-light text-dark';
-    }
-  }
-
-  getEstadoTexto(estado: string): string {
-    if (!estado) return 'Desconocido';
-
-    const estadoUpper = estado.toUpperCase();
-
-    if (estadoUpper.includes('APROBADO')) return 'Aprobado';
-    if (estadoUpper.includes('OBSERVADO')) return 'Observado';
-    if (estadoUpper.includes('RECHAZADO')) return 'Rechazado';
-    if (estadoUpper.includes('PENDIENTE')) return 'Pendiente';
-    if (estadoUpper.includes('EN_REVISION')) return 'En Revisión';
-    if (estadoUpper.includes('RADICADO')) return 'Radicado';
-
-    return estado;
-  }
+getEstadoBadgeClass(estado: string): string {
+    if (!estado) return 'bg-secondary';
+    
+    const e = estado.toUpperCase();
+    
+    // ✅ Devolver las clases CSS correctas (bg-* en lugar de badge-*)
+    if (e === 'APROBADO_AUDITOR') return 'bg-success';
+    if (e === 'APROBADO_SUPERVISOR') return 'bg-success';
+    if (e === 'APROBADO') return 'bg-success';
+    
+    if (e === 'COMPLETADO_AUDITOR') return 'bg-primary';
+    if (e === 'COMPLETADO') return 'bg-primary';
+    
+    if (e === 'RECHAZADO_AUDITOR') return 'bg-danger';
+    if (e === 'RECHAZADO_SUPERVISOR') return 'bg-danger';
+    if (e === 'RECHAZADO') return 'bg-danger';
+    
+    if (e === 'OBSERVADO_AUDITOR') return 'bg-warning text-dark';
+    if (e === 'OBSERVADO_SUPERVISOR') return 'bg-warning text-dark';
+    if (e === 'OBSERVADO') return 'bg-warning text-dark';
+    
+    if (e === 'EN_REVISION_AUDITOR') return 'bg-info text-dark';
+    if (e === 'EN_REVISION_SUPERVISOR') return 'bg-info text-dark';
+    if (e === 'EN_REVISION') return 'bg-info text-dark';
+    if (e === 'EN_REVISION_ASESOR_GERENCIA') return 'bg-info text-dark';
+    if (e === 'EN_REVISION_CONTABILIDAD') return 'bg-info text-dark';
+    
+    if (e === 'RADICADO') return 'bg-primary';
+    if (e === 'PENDIENTE') return 'bg-secondary';
+    
+    return 'bg-secondary';
+}
+getEstadoTexto(estado: string): string {
+    return estado || 'SIN ESTADO';
+}
 
   formatDate(fecha: Date | string): string {
     if (!fecha) return 'N/A';
@@ -537,7 +531,7 @@ revisarNuevamente(item: any): void {
     }
 
     try {
-      this.supervisorService.previsualizarArchivo(documentoId, index);
+
       console.log(`✅ Documento ${index} abierto`);
       this.notificationService.info('Documento abierto', `El documento se ha abierto en una nueva pestaña`);
     } catch (error: any) {

@@ -547,7 +547,7 @@ getTextoBoton(doc: Documento): string {
     }
 
     // Usar el método del servicio de supervisor
-    this.supervisorService.previsualizarArchivo(doc.id, index);
+    
   }
 
   descargarDocumentoEspecifico(doc: Documento, index: number): void {

@@ -8,14 +8,6 @@ import { SupervisorEstadisticasService } from './supervisor-estadisticas.service
 import { SupervisorOperacionesService } from './supervisor-operaciones.service';
 import { FiltrosEstadisticasSupervisor, PeriodoStats } from '../../models/supervisor-estadisticas.model';
 
-interface SupervisorStats {
-    pendientes: number;
-    aprobados: number;
-    observados: number;
-    rechazados: number;
-    total: number;
-}
-
 @Injectable({
     providedIn: 'root'
 })
@@ -26,9 +18,9 @@ export class SupervisorService {
     private estadisticasService = inject(SupervisorEstadisticasService);
     private operacionesService = inject(SupervisorOperacionesService);
 
-    /**
-     * ✅ Documentos
-     */
+    // ===============================
+    // Documentos
+    // ===============================
     obtenerDocumentosDisponibles(): Observable<Documento[]> {
         return this.documentosService.obtenerDocumentosDisponibles();
     }
@@ -49,9 +41,13 @@ export class SupervisorService {
         return this.documentosService.obtenerDocumentosRevisados();
     }
 
-    /**
-     * ✅ Revisiones
-     */
+    obtenerMisSupervisiones(): Observable<Documento[]> {
+        return this.documentosService.obtenerMisSupervisiones();
+    }
+
+    // ===============================
+    // Revisiones
+    // ===============================
     guardarRevision(documentoId: string, datosRevision: any): Observable<any> {
         return this.revisionService.guardarRevision(documentoId, datosRevision);
     }
@@ -107,37 +103,44 @@ export class SupervisorService {
         return this.revisionService.observarDocumento(id, observaciones);
     }
 
-    /**
-     * ✅ Archivos
-     */
+    // ===============================
+    // Archivos - DESCARGA
+    // ===============================
     descargarArchivo(documentoId: string, numeroArchivo: number): Observable<Blob> {
         return this.archivosService.descargarArchivo(documentoId, numeroArchivo);
-    }
-
-    previsualizarArchivo(id: string, index: number): void {
-        return this.archivosService.previsualizarArchivo(id, index);
-    }
-
-    previsualizarDocumento(documentoId: string, index: number): void {
-        return this.archivosService.previsualizarDocumento(documentoId, index);
-    }
-
-    descargarPazSalvo(nombreArchivo: string): Observable<Blob> {
-        return this.archivosService.descargarPazSalvo(nombreArchivo);
-    }
-
-    previsualizarPazSalvo(nombreArchivo: string): void {
-        return this.archivosService.previsualizarPazSalvo(nombreArchivo);
     }
 
     descargarArchivoAprobacion(nombreArchivo: string): Observable<Blob> {
         return this.archivosService.descargarArchivoAprobacion(nombreArchivo);
     }
 
-    verArchivoAprobacion(nombreArchivo: string): void {
-        return this.archivosService.verArchivoAprobacion(nombreArchivo);
+    descargarPazSalvo(nombreArchivo: string): Observable<Blob> {
+        return this.archivosService.descargarPazSalvo(nombreArchivo);
     }
 
+    descargarArchivoDirecto(id: string, index: number, nombreArchivo?: string): void {
+        return this.archivosService.descargarArchivoDirecto(id, index, nombreArchivo);
+    }
+
+    descargarTodosArchivosSimple(documentoId: string): Observable<void> {
+        return this.archivosService.descargarTodosArchivosSimple(documentoId);
+    }
+
+    // ===============================
+    // Archivos - PREVISUALIZACIÓN
+    // ===============================
+    previsualizarArchivoAprobacion(nombreArchivo: string): void {
+        return this.archivosService.previsualizarArchivoAprobacion(nombreArchivo);
+    }
+
+    previsualizarPazSalvo(nombreArchivo: string): void {
+        return this.archivosService.previsualizarPazSalvo(nombreArchivo);
+    }
+
+  
+    // ===============================
+    // Archivos - URLs
+    // ===============================
     getArchivoUrlConToken(id: string, index: number, download = false): string {
         return this.archivosService.getArchivoUrlConToken(id, index, download);
     }
@@ -150,30 +153,32 @@ export class SupervisorService {
         return this.archivosService.getDownloadUrl(documentoId, index);
     }
 
-    descargarArchivoDirecto(id: string, index: number, nombreArchivo?: string): void {
-        return this.archivosService.descargarArchivoDirecto(id, index, nombreArchivo);
+    getUrlArchivoSupervisor(nombreArchivo: string | null, tipo: 'aprobacion' | 'pazsalvo' = 'aprobacion'): string {
+        return this.archivosService.getUrlArchivoSupervisor(nombreArchivo, tipo);
     }
 
-getUrlArchivoSupervisor(nombreArchivo: string | null, tipo: 'aprobacion' | 'pazsalvo' = 'aprobacion'): string {
-    return this.archivosService.getUrlArchivoSupervisor(nombreArchivo, tipo);
-}
-
-    descargarTodosArchivosSimple(documentoId: string): Observable<void> {
-        return this.archivosService.descargarTodosArchivosSimple(documentoId);
+    getUrlArchivoAprobacion(nombreArchivo: string | null): string {
+        return this.archivosService.getUrlArchivoAprobacion(nombreArchivo);
     }
 
-    /**
-     * ✅ Estadísticas
-     */
+    getUrlPazSalvo(nombreArchivo: string | null): string {
+        return this.archivosService.getUrlPazSalvo(nombreArchivo);
+    }
+
+    // ===============================
+    // Estadísticas
+    // ===============================
     obtenerEstadisticas(filtros: FiltrosEstadisticasSupervisor = { periodo: PeriodoStats.ANO }): Observable<any> {
         return this.estadisticasService.obtenerEstadisticas(filtros);
     }
 
+    obtenerHistorial(): Observable<any[]> {
+        return this.estadisticasService.obtenerHistorial();
+    }
 
-
-    /**
-     * ✅ Operaciones
-     */
+    // ===============================
+    // Operaciones
+    // ===============================
     forzarAsignacionDocumentos(): Observable<any> {
         return this.operacionesService.forzarAsignacionDocumentos();
     }
@@ -185,16 +190,4 @@ getUrlArchivoSupervisor(nombreArchivo: string | null, tipo: 'aprobacion' | 'pazs
     obtenerInfoContratista(documentoId: string): Observable<any> {
         return this.operacionesService.obtenerInfoContratista(documentoId);
     }
-
-    obtenerHistorial(): Observable<any[]> {
-        return this.estadisticasService.obtenerHistorial();
-    }
-
-    obtenerMisSupervisiones(): Observable<Documento[]> {
-        return this.documentosService.obtenerMisSupervisiones();
-    }
-
-    obtenerRevisionSupervisorPorDocumento(documentoId: string): Observable<any> {
-  return this.documentosService.obtenerRevisionSupervisorPorDocumento(documentoId);
-}
 }

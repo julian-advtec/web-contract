@@ -91,7 +91,6 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
 
   tabActivo: 'auditoria' | 'contratista' | 'decision' = 'auditoria';
 
-  // Documentos del contratista (todos)
   documentosContratista: any[] = [];
   cargandoDocumentosContratista = false;
 
@@ -128,7 +127,6 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
       console.log('[AUDITOR] Forzado soloLectura = true');
     }
 
-    // ✅ Obtener ID con prioridad: @Input > ruta > rendición
     let idParaCargar: string | null = this.documentoId;
 
     if (!idParaCargar) {
@@ -142,8 +140,6 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
     }
 
     if (idParaCargar) {
-      // ✅ Siempre intentar primero como documentoId (usa el ID directamente)
-      // Solo si falla, intentar como rendiciónId
       this.cargarDocumentoParaAuditor(idParaCargar);
     } else {
       console.warn('[AUDITOR] No se encontró ID válido');
@@ -155,122 +151,169 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  esModoSoloLectura(): boolean {
-    if (this.esModoContabilidad || this.esModoGeneral || this.soloLectura === true) {
-      return true;
-    }
+  // ==================== MÉTODOS PRINCIPALES ====================
 
-    if (this.estadoDocumento === 'EN_REVISION_AUDITOR') {
-      return false;
-    }
-
-    const esEstadoFinal = [
-      'APROBADO_AUDITOR',
-      'COMPLETADO_AUDITOR',
-      'RECHAZADO_AUDITOR',
-      'OBSERVADO_AUDITOR'
-    ].includes(this.estadoDocumento);
-
-    return esEstadoFinal || this.soloLectura;
+cargarDocumentoParaAuditor(id: string): void {
+  if (!id) {
+    console.warn('[AUDITOR] No se recibió ID válido');
+    return;
   }
 
-  getClaseEstado(estado: string): string {
-    if (!estado) return 'bg-secondary text-white';
-    const upper = estado.toUpperCase();
-    if (upper.includes('APROBADO') || upper.includes('COMPLETADO')) return 'bg-success text-white';
-    if (upper.includes('OBSERVADO')) return 'bg-warning text-dark';
-    if (upper.includes('RECHAZADO')) return 'bg-danger text-white';
-    return 'bg-secondary text-white';
-  }
+  console.log('[AUDITOR] Cargando documento con ID:', id);
+  this.isLoading = true;
 
-  getEstadoBadgeClass(estado: string): string {
-    if (!estado || estado === 'SIN ESTADO') {
-      return 'badge bg-light text-dark';
-    }
-    const upper = estado.toUpperCase();
-    if (upper.includes('EN_REVISION_AUDITOR')) return 'badge bg-info';
-    if (upper.includes('APROBADO_AUDITOR')) return 'badge bg-success';
-    if (upper.includes('RECHAZADO_AUDITOR')) return 'badge bg-danger';
-    if (upper.includes('OBSERVADO_AUDITOR')) return 'badge bg-warning';
-    if (upper.includes('COMPLETADO_AUDITOR')) return 'badge bg-primary';
-    return 'badge bg-light text-dark';
-  }
+  this.documentoId = id;
 
-  // ==================== CARGA PRINCIPAL ====================
+  this.auditorService.obtenerDocumentoParaVista(id).subscribe({
+    next: (res: any) => {
+      console.log('[AUDITOR] Respuesta completa de vista:', res);
 
-  cargarDocumentoParaAuditor(id: string): void {
-    if (!id) {
-      console.warn('[AUDITOR] No se recibió ID válido');
-      return;
-    }
+      const data = res?.data || res;
+      const documento = data?.documento || data;
 
-    console.log('[AUDITOR] Cargando documento con ID:', id);
-    this.isLoading = true;
+      console.log('[AUDITOR] Documento extraído:', documento);
 
-    // ✅ GUARDAR EL ID PARA PASARLO AL COMPONENTE HIJO
-    this.documentoId = id;
+      if (!documento || !documento.id) {
+        console.log('[AUDITOR] Documento no encontrado, intentando como rendiciónId...');
+        this.cargarViaRendicion(id);
+        return;
+      }
 
-    this.auditorService.obtenerDocumentoParaVista(id).subscribe({
-      next: (res: any) => {
-        console.log('[AUDITOR] Respuesta completa de vista:', res);
+      this.documentoData = documento;
+      this.numeroRadicado = documento.numeroRadicado || '';
+      this.nombreContratista = documento.nombreContratista || '';
+      this.estadoDocumento = documento.estado || '';
+      this.primerRadicadoDelAno = !!documento.primerRadicadoDelAno;
+      this.contratistaId = documento.contratistaId || null;
+      this.numeroContrato = documento.numeroContrato || '';
 
-        // ✅ Extraer correctamente los datos
-        const data = res?.data || res;
-        const documento = data?.documento || data;
+      // ✅ Cargar la decisión del auditor
+      this.cargarDecisionAuditor(data, documento);
 
-        console.log('[AUDITOR] Documento extraído:', documento);
-
-        if (!documento || !documento.id) {
-          console.log('[AUDITOR] Documento no encontrado, intentando como rendiciónId...');
-          this.cargarViaRendicion(id);
-          return;
-        }
-
-        this.documentoData = documento;
-        this.numeroRadicado = documento.numeroRadicado || '';
-        this.nombreContratista = documento.nombreContratista || '';
-        this.estadoDocumento = documento.estado || '';
-        this.primerRadicadoDelAno = !!documento.primerRadicadoDelAno;
-        this.contratistaId = documento.contratistaId || null;
-        this.numeroContrato = documento.numeroContrato || '';
-
-        if (this.estadoDocumento === 'EN_REVISION_AUDITOR') {
-          this.soloLectura = false;
-        }
-
-        if (data?.auditor) {
-          const aud = data.auditor;
-          this.decisionAuditor = this.mapearEstadoAuditor(aud.estado);
-          this.observacionAuditor = aud.observaciones || '';
-          this.fechaDecisionAuditor = aud.fechaAprobacion || aud.fechaFinRevision || null;
-          this.nombreAuditor = aud.auditor?.nombre || 'Auditor';
-        }
-
-        this.cargarTodosLosDocumentos();
-
-        if (['APROBADO_AUDITOR', 'COMPLETADO_AUDITOR', 'RECHAZADO_AUDITOR', 'OBSERVADO_AUDITOR']
-          .includes(this.estadoDocumento)) {
-          this.soloLectura = true;
-        }
-
-        this.documentoEnRevision = this.estadoDocumento === 'EN_REVISION_AUDITOR';
-        this.estaEnRevision = this.documentoEnRevision;
-
-        // ✅ FORZAR ACTUALIZACIÓN DEL COMPONENTE HIJO
-        this.cdr.detectChanges();
-        this.isLoading = false;
-      },
-      error: (err) => {
-        console.error('[AUDITOR] Error cargando documento:', err);
-
-        if (err.status === 404) {
-          console.log('[AUDITOR] Error 404, intentando como rendiciónId...');
-          this.cargarViaRendicion(id);
-        } else {
-          this.notificationService.error('Error', 'No se pudo cargar el documento');
-          this.isLoading = false;
+      // ✅ FORZAR LA DECISIÓN SI ES NECESARIO
+      // Si el documento tiene un estado de auditor, extraer la decisión
+      if (!this.decisionAuditor && this.estadoDocumento) {
+        if (this.estadoDocumento.includes('APROBADO')) {
+          this.decisionAuditor = 'APROBADO';
+        } else if (this.estadoDocumento.includes('OBSERVADO')) {
+          this.decisionAuditor = 'OBSERVADO';
+        } else if (this.estadoDocumento.includes('RECHAZADO')) {
+          this.decisionAuditor = 'RECHAZADO';
+        } else if (this.estadoDocumento.includes('COMPLETADO')) {
+          this.decisionAuditor = 'COMPLETADO';
         }
       }
+
+      // ✅ FORZAR OBSERVACIÓN SI ES NECESARIO
+      if (!this.observacionAuditor && documento.observacionAuditor) {
+        this.observacionAuditor = documento.observacionAuditor;
+      }
+
+      if (this.estadoDocumento === 'EN_REVISION_AUDITOR') {
+        this.soloLectura = false;
+      }
+
+      this.cargarTodosLosDocumentos();
+
+      if (['APROBADO_AUDITOR', 'COMPLETADO_AUDITOR', 'RECHAZADO_AUDITOR', 'OBSERVADO_AUDITOR']
+        .includes(this.estadoDocumento)) {
+        this.soloLectura = true;
+      }
+
+      this.documentoEnRevision = this.estadoDocumento === 'EN_REVISION_AUDITOR';
+      this.estaEnRevision = this.documentoEnRevision;
+
+    
+
+      this.cdr.detectChanges();
+      this.isLoading = false;
+    },
+    error: (err) => {
+      console.error('[AUDITOR] Error cargando documento:', err);
+      if (err.status === 404) {
+        console.log('[AUDITOR] Error 404, intentando como rendiciónId...');
+        this.cargarViaRendicion(id);
+      } else {
+        this.notificationService.error('Error', 'No se pudo cargar el documento');
+        this.isLoading = false;
+      }
+    }
+  });
+}
+
+  // ✅ NUEVO MÉTODO: Cargar la decisión del auditor desde múltiples fuentes
+  private cargarDecisionAuditor(data: any, documento: any): void {
+    // Reiniciar valores
+    this.decisionAuditor = '';
+    this.observacionAuditor = '';
+    this.fechaDecisionAuditor = null;
+    this.nombreAuditor = 'Auditor';
+
+    // Fuente 1: data.auditor
+    if (data?.auditor) {
+      const aud = data.auditor;
+      this.decisionAuditor = this.mapearEstadoAuditor(aud.estado || aud.decision);
+      this.observacionAuditor = aud.observaciones || aud.observacion || '';
+      this.fechaDecisionAuditor = aud.fechaAprobacion || aud.fechaFinRevision || aud.fechaDecision || null;
+      this.nombreAuditor = aud.auditor?.nombre || aud.nombreAuditor || 'Auditor';
+      
+      console.log('[AUDITOR] Decisión cargada desde data.auditor:', {
+        decision: this.decisionAuditor,
+        observacion: this.observacionAuditor
+      });
+    }
+
+    // Fuente 2: Si no se encontró en data.auditor, buscar en el documento
+    if (!this.decisionAuditor && documento) {
+      // Buscar en documento.auditoria
+      if (documento.auditoria) {
+        this.decisionAuditor = this.mapearEstadoAuditor(documento.auditoria.estado || documento.auditoria.decision);
+        this.observacionAuditor = documento.auditoria.observaciones || documento.auditoria.observacion || '';
+        this.fechaDecisionAuditor = documento.auditoria.fechaDecision || documento.auditoria.fecha;
+        console.log('[AUDITOR] Decisión cargada desde documento.auditoria:', this.decisionAuditor);
+      }
+      
+      // Buscar en documento.revisionAuditor
+      if (!this.decisionAuditor && documento.revisionAuditor) {
+        this.decisionAuditor = this.mapearEstadoAuditor(documento.revisionAuditor.estado);
+        this.observacionAuditor = documento.revisionAuditor.observaciones || '';
+        console.log('[AUDITOR] Decisión cargada desde documento.revisionAuditor:', this.decisionAuditor);
+      }
+    }
+
+    // Fuente 3: Extraer del estado del documento
+    if (!this.decisionAuditor && this.estadoDocumento) {
+      const estadoUpper = this.estadoDocumento.toUpperCase();
+      if (estadoUpper.includes('APROBADO')) {
+        this.decisionAuditor = 'APROBADO';
+      } else if (estadoUpper.includes('OBSERVADO')) {
+        this.decisionAuditor = 'OBSERVADO';
+      } else if (estadoUpper.includes('RECHAZADO')) {
+        this.decisionAuditor = 'RECHAZADO';
+      } else if (estadoUpper.includes('COMPLETADO')) {
+        this.decisionAuditor = 'COMPLETADO';
+      }
+      console.log('[AUDITOR] Decisión extraída del estado del documento:', this.decisionAuditor);
+    }
+
+    // Fuente 4: Buscar en el historial de estados
+    if (!this.decisionAuditor && documento.historialEstados && Array.isArray(documento.historialEstados)) {
+      const estadosAuditor = documento.historialEstados.filter((h: any) => 
+        h.estado?.includes('AUDITOR') || h.rol === 'AUDITOR'
+      );
+      if (estadosAuditor.length > 0) {
+        const ultimoEstado = estadosAuditor[estadosAuditor.length - 1];
+        this.decisionAuditor = this.mapearEstadoAuditor(ultimoEstado.estado);
+        this.observacionAuditor = ultimoEstado.observacion || ultimoEstado.observaciones || '';
+        this.fechaDecisionAuditor = ultimoEstado.fecha || ultimoEstado.createdAt;
+        console.log('[AUDITOR] Decisión cargada desde historial:', this.decisionAuditor);
+      }
+    }
+
+    console.log('[AUDITOR] Decisión final del auditor:', {
+      decision: this.decisionAuditor,
+      observacion: this.observacionAuditor,
+      fecha: this.fechaDecisionAuditor
     });
   }
 
@@ -299,7 +342,6 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
   }
 
   cargarTodosLosDocumentos(): void {
-    // Reiniciar estado
     Object.keys(this.archivosAuditorFormulario).forEach(key => {
       this.archivosAuditorFormulario[key] = {
         subido: false,
@@ -310,12 +352,10 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
       };
     });
 
-    // 1. Cargar documentos desde el CONTRATO (RP, CDP, MINUTA, ACTA_INICIO)
     if (this.numeroContrato) {
       this.cargarDocumentosDesdeContrato();
     }
 
-    // 2. Cargar contratista con sus documentos (PÓLIZA, CERTIFICADO_BANCARIO, MINUTA, ACTA_INICIO)
     if (this.numeroContrato) {
       this.cargarContratistaConDocumentos();
     }
@@ -401,7 +441,6 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
 
         const documentosContrato = contrato?.documentos || [];
 
-        // Buscar RP
         const rpDoc = documentosContrato.find((d: any) =>
           d.tipoDocumento === 'RP' || d.tipoDocumento === 'RP_DOCUMENTO'
         );
@@ -427,7 +466,6 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
           };
         }
 
-        // Buscar CDP
         const cdpDoc = documentosContrato.find((d: any) =>
           d.tipoDocumento === 'CDP' || d.tipoDocumento === 'CDP_DOCUMENTO'
         );
@@ -453,7 +491,6 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
           };
         }
 
-        // Buscar MINUTA
         const minutaDoc = documentosContrato.find((d: any) =>
           d.tipoDocumento === 'MINUTA' || d.tipoDocumento === 'MINUTA_CONTRATO'
         );
@@ -470,7 +507,6 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
           console.log('[CONTRATO] ✅ MINUTA cargada');
         }
 
-        // Buscar ACTA_INICIO
         const actaDoc = documentosContrato.find((d: any) =>
           d.tipoDocumento === 'ACTA_INICIO' || d.tipoDocumento === 'ACTA_DE_INICIO'
         );
@@ -497,6 +533,47 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
   }
 
   // ==================== MÉTODOS DE UTILIDAD ====================
+
+  esModoSoloLectura(): boolean {
+    if (this.esModoContabilidad || this.esModoGeneral || this.soloLectura === true) {
+      return true;
+    }
+
+    if (this.estadoDocumento === 'EN_REVISION_AUDITOR') {
+      return false;
+    }
+
+    const esEstadoFinal = [
+      'APROBADO_AUDITOR',
+      'COMPLETADO_AUDITOR',
+      'RECHAZADO_AUDITOR',
+      'OBSERVADO_AUDITOR'
+    ].includes(this.estadoDocumento);
+
+    return esEstadoFinal || this.soloLectura;
+  }
+
+  getClaseEstado(estado: string): string {
+    if (!estado) return 'bg-secondary text-white';
+    const upper = estado.toUpperCase();
+    if (upper.includes('APROBADO') || upper.includes('COMPLETADO')) return 'bg-success text-white';
+    if (upper.includes('OBSERVADO')) return 'bg-warning text-dark';
+    if (upper.includes('RECHAZADO')) return 'bg-danger text-white';
+    return 'bg-secondary text-white';
+  }
+
+  getEstadoBadgeClass(estado: string): string {
+    if (!estado || estado === 'SIN ESTADO') {
+      return 'badge bg-light text-dark';
+    }
+    const upper = estado.toUpperCase();
+    if (upper.includes('EN_REVISION_AUDITOR')) return 'badge bg-info';
+    if (upper.includes('APROBADO_AUDITOR')) return 'badge bg-success';
+    if (upper.includes('RECHAZADO_AUDITOR')) return 'badge bg-danger';
+    if (upper.includes('OBSERVADO_AUDITOR')) return 'badge bg-warning';
+    if (upper.includes('COMPLETADO_AUDITOR')) return 'badge bg-primary';
+    return 'badge bg-light text-dark';
+  }
 
   getIconoArchivo(nombreArchivo: string): string {
     if (!nombreArchivo) return 'fas fa-file';
@@ -539,6 +616,30 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
     if (upper.includes('RECHAZADO')) return 'RECHAZADO';
     if (upper.includes('COMPLETADO')) return 'COMPLETADO';
     return estado;
+  }
+
+  // ✅ MÉTODO CORREGIDO: Obtener la decisión a mostrar (prioriza decisionAuditor)
+  getDecisionParaMostrar(): string {
+    if (this.decisionAuditor) {
+      return this.decisionAuditor;
+    }
+    // Fallback: extraer del estado del documento
+    if (this.estadoDocumento) {
+      const estadoUpper = this.estadoDocumento.toUpperCase();
+      if (estadoUpper.includes('APROBADO')) return 'APROBADO';
+      if (estadoUpper.includes('COMPLETADO')) return 'COMPLETADO';
+      if (estadoUpper.includes('RECHAZADO')) return 'RECHAZADO';
+      if (estadoUpper.includes('OBSERVADO')) return 'OBSERVADO';
+    }
+    return 'No registrada';
+  }
+
+  // ✅ MÉTODO CORREGIDO: Obtener las observaciones a mostrar
+  getObservacionParaMostrar(): string {
+    if (this.observacionAuditor) {
+      return this.observacionAuditor;
+    }
+    return 'Sin observaciones';
   }
 
   verArchivoAuditor(tipo: string): void {
@@ -711,7 +812,7 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ==================== DOCUMENTOS DEL CONTRATISTA (TAB 2) ====================
+  // ==================== DOCUMENTOS DEL CONTRATISTA ====================
 
   cargarDocumentosContratista(): void {
     if (!this.contratistaId) {
@@ -853,6 +954,8 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
     console.log('Número Contrato:', this.numeroContrato);
     console.log('Primer radicado:', this.primerRadicadoDelAno);
     console.log('Estado documento:', this.estadoDocumento);
+    console.log('Decisión auditor:', this.decisionAuditor);
+    console.log('Observación auditor:', this.observacionAuditor);
 
     console.log('\n📁 ARCHIVOS DE AUDITORÍA:');
     Object.keys(this.archivosAuditorFormulario).forEach(key => {
