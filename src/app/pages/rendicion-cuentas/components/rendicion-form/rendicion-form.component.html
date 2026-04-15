@@ -26,10 +26,10 @@
           </h5>
         </div>
         <div class="card-body p-0">
-<app-asesor-gerencia-form 
-        [documentoId]="documento?.rendicionId || documento?.id" 
-        [forceReadOnly]="esModoLectura || estaProcesado">  
-      </app-asesor-gerencia-form>
+          <!-- En lugar de rendicionId, pasar el documentoId real -->
+          <app-asesor-gerencia-form [documentoId]="documento?.documentoId || documento?.id"
+            [forceReadOnly]="esModoLectura || estaProcesado">
+          </app-asesor-gerencia-form>
         </div>
       </div>
 

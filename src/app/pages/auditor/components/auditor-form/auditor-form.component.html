@@ -10,7 +10,10 @@
         </h4>
       </div>
       <div class="card-body p-0">
-        <app-radicacion-form [modo]="'solo-lectura'" [documentoId]="documentoId" (volver)="volverALista()">
+        <app-radicacion-form 
+        [modo]="'solo-lectura'" 
+        [documentoId]="documentoId" 
+        (volver)="volverALista()">
         </app-radicacion-form>
       </div>
     </div>
@@ -245,7 +248,8 @@
             </div>
 
             <!-- TAB 3: DECISIÓN FINAL -->
-       
+
+           <!-- TAB 3: DECISIÓN FINAL - VERSIÓN CORREGIDA -->
 <div class="tab-content" *ngIf="!esModoContabilidad && tabActivo === 'decision'">
   <div class="card border-primary shadow-lg">
     <div class="card-header bg-primary text-white">
@@ -253,10 +257,9 @@
     </div>
     <div class="card-body">
 
-      <!-- ✅ CONDICIÓN CORREGIDA: Mostrar decisión si existe O si es solo lectura -->
+      <!-- MOSTRAR DECISIÓN EXISTENTE (si ya hay decisión tomada y no está en revisión) -->
       <ng-container 
-        *ngIf="(decisionAuditor && decisionAuditor !== '') || esModoSoloLectura() || 
-                ['APROBADO_AUDITOR','COMPLETADO_AUDITOR','RECHAZADO_AUDITOR','OBSERVADO_AUDITOR'].includes(estadoDocumento)">
+        *ngIf="decisionAuditor && decisionAuditor !== 'EN_REVISION' && decisionAuditor !== ''">
         
         <div class="row">
           <div class="col-md-6">
@@ -266,9 +269,8 @@
                 Decisión tomada
               </div>
               <div class="card-body text-center">
-                <!-- Mostrar decisión o mensaje si no hay -->
-                <h4 [ngClass]="getClaseEstado(getDecisionParaMostrar())">
-                  {{ getDecisionParaMostrar() | uppercase }}
+                <h4 [ngClass]="getClaseEstado(decisionAuditor)">
+                  {{ decisionAuditor | uppercase }}
                 </h4>
                 <small class="text-muted" *ngIf="fechaDecisionAuditor">
                   <i class="fas fa-calendar me-1"></i>
@@ -294,7 +296,6 @@
           </div>
         </div>
 
-        <!-- Mostrar también el estado actual del documento -->
         <div class="alert alert-secondary mt-3 mb-0">
           <i class="fas fa-info-circle me-2"></i>
           <strong>Estado actual del documento:</strong>
@@ -304,9 +305,10 @@
         </div>
       </ng-container>
 
-      <!-- MODO EDICIÓN (solo cuando está en revisión y NO hay decisión) -->
+      <!-- MODO EDICIÓN (CORREGIDO - usa estaEnModoEdicion) -->
       <ng-container 
-        *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR' && !esModoSoloLectura() && (!decisionAuditor || decisionAuditor === '')">
+        *ngIf="estaEnModoEdicion() && (!decisionAuditor || decisionAuditor === 'EN_REVISION' || decisionAuditor === '')">
+        
         <div class="alert alert-info mb-4">
           <i class="fas fa-info-circle me-2"></i>
           <strong>En revisión</strong> – Registra tu decisión cuando estés listo.
@@ -345,11 +347,22 @@
         </div>
       </ng-container>
 
+      <!-- Mensaje cuando no se puede editar -->
+      <ng-container 
+        *ngIf="!estaEnModoEdicion() && (!decisionAuditor || decisionAuditor === 'EN_REVISION' || decisionAuditor === '')">
+        <div class="alert alert-warning text-center">
+          <i class="fas fa-lock me-2"></i>
+          <strong>No puedes editar este documento</strong><br>
+          <small>{{ getRazonNoEditable() }}</small>
+        </div>
+      </ng-container>
+
     </div>
   </div>
 
-  <div class="text-center mt-4" *ngIf="estadoDocumento === 'EN_REVISION_AUDITOR' && !esModoSoloLectura()">
-    <button class="btn btn-outline-secondary" (click)="liberarDocumento()">
+  <!-- Botón liberar solo si está en modo edición -->
+  <div class="text-center mt-4" *ngIf="estaEnModoEdicion()">
+    <button class="btn btn-outline-secondary" (click)="liberarDocumento()" [disabled]="isProcessing">
       <i class="fas fa-unlock me-2"></i> Liberar Documento
     </button>
   </div>

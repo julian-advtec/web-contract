@@ -71,19 +71,38 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
     }
   }
 
-  loadHistorial(): void {
+loadHistorial(): void {
     this.loading = true;
     this.error = '';
     this.successMessage = '';
     this.infoMessage = '';
 
-    this.estadisticasService.obtenerHistorial()  // ✅ AHORA SÍ FUNCIONA
+    this.estadisticasService.obtenerHistorial()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (historialData: any[] | null) => {
           this.loading = false;
 
-          if (!historialData || historialData.length === 0) {
+          console.log('📊 DATOS RECIBIDOS CRUDOS:', historialData);
+
+          // 🔥 IMPORTANTE: Verificar la estructura de los datos
+          let documentos: any[] = [];
+          
+          if (historialData && Array.isArray(historialData)) {
+            documentos = historialData;
+          } 
+          // Si los datos vienen envueltos en un objeto data
+          else if (historialData && (historialData as any).data && Array.isArray((historialData as any).data)) {
+            documentos = (historialData as any).data;
+          }
+          // Si vienen en response.data.data (como en tu log)
+          else if (historialData && (historialData as any).data?.data && Array.isArray((historialData as any).data.data)) {
+            documentos = (historialData as any).data.data;
+          }
+          
+          console.log('📊 Documentos extraídos:', documentos.length);
+          
+          if (!documentos || documentos.length === 0) {
             this.infoMessage = 'No hay supervisiones en el historial';
             this.historial = [];
             this.filteredHistorial = [];
@@ -91,8 +110,23 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
             return;
           }
 
-          this.historial = historialData;
+          // Mostrar los estados de cada documento
+          documentos.forEach((doc, idx) => {
+            console.log(`📄 Documento ${idx + 1}:`, {
+              radicado: doc.numeroRadicado,
+              estado: doc.estado,
+              tieneEstado: !!doc.estado
+            });
+          });
+
+          this.historial = documentos;
           console.log('✅ Historial cargado con', this.historial.length, 'registros');
+
+          // Debug de estados
+          console.log('📊 ESTADOS RECIBIDOS:');
+          this.historial.forEach((item, index) => {
+            console.log(`${index + 1}. ${item.numeroRadicado} → ESTADO: "${item.estado}"`);
+          });
 
           this.filteredHistorial = [...this.historial];
           this.updatePagination();
@@ -111,7 +145,7 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
           this.notificationService.error('Error', this.error);
         }
       });
-  }
+}
 
   // ✅ NUEVO: Obtener supervisor asignado del documento
   getSupervisorAsignado(item: any): string {
@@ -295,41 +329,57 @@ export class SupervisorHistoryComponent implements OnInit, OnDestroy {
     }
   }
 
-getEstadoBadgeClass(estado: string): string {
+  getEstadoReal(item: any): string {
+    // El estado está directamente en el item (como viene del endpoint mis-supervisiones)
+    if (item.estado) {
+      return item.estado;
+    }
+
+    // Fallback: si por alguna razón viene en documento
+    if (item.documento?.estado) {
+      return item.documento.estado;
+    }
+
+    return 'SIN ESTADO';
+  }
+
+
+  getEstadoBadgeClass(estado: string): string {
     if (!estado) return 'bg-secondary';
-    
+
     const e = estado.toUpperCase();
-    
-    // ✅ Devolver las clases CSS correctas (bg-* en lugar de badge-*)
-    if (e === 'APROBADO_AUDITOR') return 'bg-success';
-    if (e === 'APROBADO_SUPERVISOR') return 'bg-success';
-    if (e === 'APROBADO') return 'bg-success';
-    
-    if (e === 'COMPLETADO_AUDITOR') return 'bg-primary';
-    if (e === 'COMPLETADO') return 'bg-primary';
-    
-    if (e === 'RECHAZADO_AUDITOR') return 'bg-danger';
-    if (e === 'RECHAZADO_SUPERVISOR') return 'bg-danger';
-    if (e === 'RECHAZADO') return 'bg-danger';
-    
-    if (e === 'OBSERVADO_AUDITOR') return 'bg-warning text-dark';
-    if (e === 'OBSERVADO_SUPERVISOR') return 'bg-warning text-dark';
-    if (e === 'OBSERVADO') return 'bg-warning text-dark';
-    
-    if (e === 'EN_REVISION_AUDITOR') return 'bg-info text-dark';
-    if (e === 'EN_REVISION_SUPERVISOR') return 'bg-info text-dark';
-    if (e === 'EN_REVISION') return 'bg-info text-dark';
-    if (e === 'EN_REVISION_ASESOR_GERENCIA') return 'bg-info text-dark';
-    if (e === 'EN_REVISION_CONTABILIDAD') return 'bg-info text-dark';
-    
-    if (e === 'RADICADO') return 'bg-primary';
-    if (e === 'PENDIENTE') return 'bg-secondary';
-    
+
+    // Log para debug (puedes quitarlo después)
+    console.log('🎨 Estado para badge:', e);
+
+    // Solo colores genéricos basados en palabras clave
+    if (e.includes('APROBADO') || e.includes('COMPLETADO') || e === 'PAGADO') {
+      return 'bg-success';
+    }
+
+    if (e.includes('RECHAZADO')) {
+      return 'bg-danger';
+    }
+
+    if (e.includes('OBSERVADO') || e.includes('GLOSADO')) {
+      return 'bg-warning text-dark';
+    }
+
+    if (e.includes('REVISION') || e === 'RADICADO' || e === 'EN_PROCESO') {
+      return 'bg-info text-dark';
+    }
+
+    if (e === 'PENDIENTE') {
+      return 'bg-secondary';
+    }
+
     return 'bg-secondary';
-}
-getEstadoTexto(estado: string): string {
+  }
+
+  // ✅ getEstadoTexto - devuelve el texto literal
+  getEstadoTexto(estado: string): string {
     return estado || 'SIN ESTADO';
-}
+  }
 
   formatDate(fecha: Date | string): string {
     if (!fecha) return 'N/A';

@@ -123,20 +123,22 @@ export class RendicionFormComponent implements OnInit {
     console.log('📥 ID recibido para cargar:', id);
     this.isLoading = true;
 
-    // ✅ PRIMERO intentar como rendiciónId (que es lo que recibes del historial)
-    this.rendicionService.obtenerDetalleRendicion(id).subscribe({
+    // ✅ PRIMERO intentar como documentoId (más probable)
+    this.contabilidadService.obtenerDetalleDocumento(id).subscribe({
       next: (data) => {
-        console.log('✅ Es rendiciónId, cargando rendición:', data);
-        this.procesarRendicion(data);
+        console.log('✅ Es documentoId, cargando documento:', data);
+        console.log('📊 ESTRUCTURA COMPLETA:', JSON.stringify(data, null, 2));
+        console.log('📊 ESTADO DEL DOCUMENTO:', data.estado || data.data?.estado);
+        this.procesarDocumentoOriginal(data);
         this.isLoading = false;
       },
       error: (err) => {
-        // Si falla, intentar como documentoId
-        console.log('⚠️ No es rendiciónId, intentando como documentoId...');
-        this.contabilidadService.obtenerDetalleDocumento(id).subscribe({
+        console.log('⚠️ No es documentoId, intentando como rendicionId...');
+        this.rendicionService.obtenerDetalleRendicion(id).subscribe({
           next: (data) => {
-            console.log('✅ Es documentoId, cargando documento:', data);
-            this.procesarDocumentoOriginal(data);
+            console.log('✅ Es rendicionId, cargando rendición:', data);
+            console.log('📊 ESTADO DE LA RENDICIÓN:', data.estado);
+            this.procesarRendicion(data);
             this.isLoading = false;
           },
           error: (err2) => {
@@ -149,46 +151,155 @@ export class RendicionFormComponent implements OnInit {
     });
   }
 
-private procesarRendicion(data: any): void {
-  const rendicionData = data.data || data;
-  
-  this.documento = {
-    ...rendicionData,
-    id: rendicionData.id,
-    rendicionId: rendicionData.id,  // ← Este es el ID de la rendición
-    documentoId: rendicionData.documento?.id || rendicionData.documentoId,
-    numeroRadicado: rendicionData.numeroRadicado || rendicionData.documento?.numeroRadicado,
-    nombreContratista: rendicionData.nombreContratista || rendicionData.documento?.nombreContratista,
-    numeroContrato: rendicionData.numeroContrato || rendicionData.documento?.numeroContrato,
-    documentoContratista: rendicionData.documentoContratista || rendicionData.documento?.documentoContratista,
-    estado: rendicionData.estado || rendicionData.documento?.estado,
-    observacionesRendicion: rendicionData.observaciones || rendicionData.observacionesRendicion,
-    fechaCreacion: rendicionData.fechaCreacion,
-    fechaActualizacion: rendicionData.fechaActualizacion,
-    // ✅ Guardar ambos IDs para referencia
-    rendicionIdOriginal: rendicionData.id,
-    documentoIdOriginal: rendicionData.documento?.id
-  };
-  
-  console.log('📋 Documento procesado:', {
-    id: this.documento.id,
-    rendicionId: this.documento.rendicionId,
-    documentoId: this.documento.documentoId,
-    estado: this.documento.estado
-  });
-  
-  this.procesarDocumentoCargado(rendicionData);
-}
+  private procesarRendicion(data: any): void {
+    const rendicionData = data.data || data;
+
+    this.documento = {
+      ...rendicionData,
+      id: rendicionData.id,
+      rendicionId: rendicionData.id,
+      // ✅ IMPORTANTE: Guardar el ID del documento original
+      documentoId: rendicionData.documento?.id || rendicionData.documentoId,
+      numeroRadicado: rendicionData.numeroRadicado || rendicionData.documento?.numeroRadicado,
+      nombreContratista: rendicionData.nombreContratista || rendicionData.documento?.nombreContratista,
+      numeroContrato: rendicionData.numeroContrato || rendicionData.documento?.numeroContrato,
+      documentoContratista: rendicionData.documentoContratista || rendicionData.documento?.documentoContratista,
+      estado: rendicionData.estado || rendicionData.documento?.estado,
+      observacionesRendicion: rendicionData.observaciones || rendicionData.observacionesRendicion,
+      fechaCreacion: rendicionData.fechaCreacion,
+      fechaActualizacion: rendicionData.fechaActualizacion,
+      // ✅ Guardar ambos IDs para referencia
+      rendicionIdOriginal: rendicionData.id,
+      documentoIdOriginal: rendicionData.documento?.id
+    };
+
+    console.log('📋 Documento procesado:', {
+      id: this.documento.id,
+      rendicionId: this.documento.rendicionId,
+      documentoId: this.documento.documentoId,  // ← Este debe ser el ID correcto
+      estado: this.documento.estado
+    });
+
+    this.procesarDocumentoCargado(rendicionData);
+  }
+
+  // src/app/pages/rendicion-cuentas/components/rendicion-form/rendicion-form.component.ts
 
   private procesarDocumentoOriginal(data: any): void {
+    console.log('📦 Datos recibidos en procesarDocumentoOriginal:', data);
+
+    // Extraer datos correctamente (puede venir envuelto en data.data)
+    const documentoData = data.data || data;
+
+    console.log('📦 Documento extraído:', documentoData);
+    console.log('📊 ESTADO DEL DOCUMENTO:', documentoData.estado);
+
     this.documento = {
-      ...data,
-      id: data.id,
-      documentoId: data.id,
-      numeroRadicado: data.numeroRadicado,
-      nombreContratista: data.nombreContratista,
+      ...documentoData,
+      id: documentoData.id,
+      documentoId: documentoData.id,
+      rendicionId: documentoData.rendicionId || null,
+      numeroRadicado: documentoData.numeroRadicado,
+      nombreContratista: documentoData.nombreContratista,
+      numeroContrato: documentoData.numeroContrato,
+      documentoContratista: documentoData.documentoContratista,
+      fechaRadicacion: documentoData.fechaRadicacion,
+      fechaInicio: documentoData.fechaInicio,
+      fechaFin: documentoData.fechaFin,
+      // ✅ IMPORTANTE: Asegurar que el estado se capture correctamente
+      estado: documentoData.estado || documentoData.estadoDocumento || 'SIN ESTADO',
+      observaciones: documentoData.observacion || documentoData.observaciones,
+      rutaCarpetaRadicado: documentoData.rutaCarpetaRadicado
     };
-    this.procesarDocumentoCargado(data);
+
+    console.log('📋 Documento original procesado:', {
+      id: this.documento.id,
+      documentoId: this.documento.documentoId,
+      rendicionId: this.documento.rendicionId,
+      estado: this.documento.estado
+    });
+
+    // Pasar los datos correctamente a procesarDocumentoCargado
+    this.procesarDocumentoCargado(documentoData);
+  }
+
+  private procesarDocumentoCargado(data: any): void {
+    // ✅ Obtener el estado de la fuente correcta
+    const estado = (data.estado || data.estadoDocumento || this.documento?.estado || '').toString().toUpperCase();
+
+    console.log('🔍 procesarDocumentoCargado - Estado:', estado);
+    console.log('🔍 esModoLectura actual:', this.esModoLectura);
+    console.log('🔍 estaProcesado actual:', this.estaProcesado);
+
+    // ✅ Estados finales (NO editables)
+    const estadosFinales = [
+      'APROBADO', 'APROBADO_SUPERVISOR', 'APROBADO_AUDITOR',
+      'RECHAZADO', 'RECHAZADO_SUPERVISOR', 'RECHAZADO_AUDITOR',
+      'RECHAZADO_CONTABILIDAD', 'RECHAZADO_TESORERIA',
+      'COMPLETADO', 'COMPLETADO_CONTABILIDAD', 'COMPLETADO_TESORERIA',
+      'APROBADO_RENDICION', 'RECHAZADO_RENDICION', 'COMPLETADO_RENDICION'
+    ];
+
+    // ✅ Estados de revisión (editables)
+    const estadosRevision = [
+      'EN_REVISION', 'EN_REVISION_SUPERVISOR', 'EN_REVISION_AUDITOR',
+      'EN_REVISION_CONTABILIDAD', 'EN_REVISION_TESORERIA',
+      'EN_REVISION_RENDICION', 'EN_REVISION_RENDICION_CUENTAS',
+      'PENDIENTE', 'ASIGNADO', 'RADICADO', 'EN_PROCESO'
+    ];
+
+    // ✅ Determinar si está procesado (estado final)
+    this.estaProcesado = estadosFinales.includes(estado);
+
+    // ✅ Determinar si está en revisión (editable)
+    const esEstadoRevision = estadosRevision.includes(estado) || estado.includes('REVISION');
+
+    console.log('🔍 esEstadoRevision:', esEstadoRevision);
+    console.log('🔍 estaProcesado:', this.estaProcesado);
+
+    if (esEstadoRevision && !this.estaProcesado) {
+      // Si está en revisión y no está procesado, permitir edición
+      const vieneDeConsulta = this.route.snapshot.queryParamMap.get('modo') === 'consulta';
+      const forceReadOnly = this.route.snapshot.queryParamMap.get('soloLectura') === 'true';
+
+      if (!vieneDeConsulta && !forceReadOnly) {
+        this.esModoLectura = false;
+        this.form.enable();
+        console.log('✅ Modo EDICIÓN activado - Documento en revisión');
+      } else {
+        this.esModoLectura = true;
+        this.form.disable();
+        console.log('🔒 Modo LECTURA - Viene de consulta o forceReadOnly');
+      }
+    } else {
+      this.esModoLectura = true;
+      this.form.disable();
+      console.log('🔒 Modo LECTURA - Documento procesado o no en revisión');
+    }
+
+    // Actualizar el formulario con los valores existentes
+    let estadoFinal = '';
+    if (estado.includes('APROBADO') || estado.includes('COMPLETADO'))
+      estadoFinal = 'APROBADO';
+    else if (estado.includes('OBSERVADO'))
+      estadoFinal = 'OBSERVADO';
+    else if (estado.includes('RECHAZADO'))
+      estadoFinal = 'RECHAZADO';
+
+    this.form.patchValue({
+      estadoFinal,
+      observaciones: data.observaciones || data.observacionesRendicion || ''
+    });
+
+    this.actualizarEstadoBotones();
+    this.isLoading = false;
+
+    console.log('📊 Estado final después de procesar:', {
+      esModoLectura: this.esModoLectura,
+      estaProcesado: this.estaProcesado,
+      formularioHabilitado: this.form.enabled,
+      estadoDocumento: estado
+    });
   }
 
   private cargarDatosContabilidad(documentoId: string): void {
@@ -385,71 +496,25 @@ private procesarRendicion(data: any): void {
 
     const estado = this.documento.estado.toString().toUpperCase();
 
-    // ✅ Agregar todos los estados de revisión posibles
-    return estado === 'EN_REVISION' ||
-      estado === 'PENDIENTE' ||
-      estado === 'ASIGNADO' ||
-      estado === 'EN_REVISION_RENDICION' ||
-      estado === 'EN_REVISION_RENDICION_CUENTAS' || // ← AGREGAR ESTE
-      (!this.estaProcesado && !this.esModoLectura);
+    // ✅ AGREGAR TODOS los estados de revisión posibles
+    // Incluir específicamente EN_REVISION_RENDICION_CUENTAS
+    const estadosRevision = [
+      'EN_REVISION',
+      'PENDIENTE',
+      'ASIGNADO',
+      'EN_REVISION_RENDICION',
+      'EN_REVISION_RENDICION_CUENTAS',  // ← AGREGAR ESTE
+      'EN_REVISION_RENDICION_CUENTAS',  // ← POR SI VIENE CON ESPACIOS
+    ];
+
+    // Verificar si el estado está en la lista O contiene la palabra REVISION
+    const esRevision = estadosRevision.some(e => estado === e) ||
+      estado.includes('REVISION');
+
+    console.log('🔍 esEstadoEnRevision - Estado:', estado, 'Resultado:', esRevision);
+
+    return esRevision;
   }
 
-  // También en procesarDocumentoCargado, asegurar que no se marque como procesado si está EN_REVISION
-private procesarDocumentoCargado(data: any): void {
-  const estado = (data.estado || '').toString().toUpperCase();
-  
-  console.log('🔍 procesarDocumentoCargado - Estado:', estado);
-  console.log('🔍 esModoLectura actual:', this.esModoLectura);
-  console.log('🔍 estaProcesado actual:', this.estaProcesado);
-  
-  // ✅ Solo marcar como procesado si es estado final
-  this.estaProcesado = ['APROBADO', 'OBSERVADO', 'RECHAZADO', 'COMPLETADO', 'APROBADO_RENDICION', 'RECHAZADO_RENDICION']
-    .includes(estado);
-  
-  // ✅ Determinar modo lectura basado en el estado y los parámetros
-  const esEstadoRevision = this.esEstadoEnRevision();
-  
-  if (esEstadoRevision && !this.estaProcesado) {
-    // Si está en revisión y no está procesado, permitir edición SOLO si no viene de consulta
-    const vieneDeConsulta = this.route.snapshot.queryParamMap.get('modo') === 'consulta';
-    if (!vieneDeConsulta) {
-      this.esModoLectura = false;
-      this.form.enable();
-      console.log('✅ Modo EDICIÓN activado - Documento en revisión');
-    } else {
-      this.esModoLectura = true;
-      this.form.disable();
-      console.log('🔒 Modo LECTURA - Viene de consulta');
-    }
-  } else {
-    this.esModoLectura = true;
-    this.form.disable();
-    console.log('🔒 Modo LECTURA - Documento procesado o no en revisión');
-  }
-  
-  // Actualizar el formulario con los valores existentes
-  let estadoFinal = '';
-  if (estado === 'APROBADO' || estado === 'COMPLETADO' || estado === 'APROBADO_RENDICION')
-    estadoFinal = 'APROBADO';
-  else if (estado === 'OBSERVADO' || estado === 'OBSERVADO_RENDICION')
-    estadoFinal = 'OBSERVADO';
-  else if (estado === 'RECHAZADO' || estado === 'RECHAZADO_RENDICION')
-    estadoFinal = 'RECHAZADO';
-  
-  this.form.patchValue({
-    estadoFinal,
-    observaciones: data.observaciones || data.observacionesRendicion || ''
-  });
-  
-  this.actualizarEstadoBotones();
-  this.isLoading = false;
-  
-  console.log('📊 Estado final después de procesar:', {
-    esModoLectura: this.esModoLectura,
-    estaProcesado: this.estaProcesado,
-    formularioHabilitado: this.form.enabled,
-    estadoDocumento: estado
-  });
-
-  }
+ 
 }
