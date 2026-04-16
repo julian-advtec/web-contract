@@ -1,3 +1,5 @@
+// src/app/core/services/supervisor/supervisor-archivos.service.ts
+
 import { Injectable } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
@@ -8,6 +10,12 @@ import { SupervisorCoreService } from './supervisor-core.service';
     providedIn: 'root'
 })
 export class SupervisorArchivosService extends SupervisorCoreService {
+
+    // ✅ Método para obtener token raw (sin 'Bearer ')
+    private getRawToken(): string {
+        const token = localStorage.getItem('access_token') || localStorage.getItem('token') || '';
+        return token.startsWith('Bearer ') ? token.slice(7) : token;
+    }
 
     descargarArchivo(documentoId: string, numeroArchivo: number): Observable<Blob> {
         const headers = this.getAuthHeaders();
@@ -29,9 +37,8 @@ export class SupervisorArchivosService extends SupervisorCoreService {
         }).pipe(catchError(this.handleError));
     }
 
-
     getArchivoUrlConToken(id: string, index: number, download = false): string {
-        const token = this.getAuthToken().replace('Bearer ', ''); // Remover 'Bearer ' para query
+        const token = this.getAuthToken().replace('Bearer ', '');
         const baseUrl = `${this.apiUrl}/descargar/${id}/archivo/${index}`;
         const params = new URLSearchParams();
         if (download) params.append('download', 'true');
@@ -71,7 +78,13 @@ export class SupervisorArchivosService extends SupervisorCoreService {
             return '#';
         }
         const apiBase = environment.apiUrl;
-        return `${apiBase}/supervisor/ver-archivo-supervisor/${encodeURIComponent(nombreArchivo)}`;
+        const rawToken = this.getRawToken();
+        const nombreCodificado = encodeURIComponent(nombreArchivo);
+        let url = `${apiBase}/supervisor/ver-archivo-supervisor/${nombreCodificado}`;
+        if (rawToken) {
+            url += `?token=${encodeURIComponent(rawToken)}`;
+        }
+        return url;
     }
 
     // Método para obtener URL de paz y salvo
@@ -80,11 +93,42 @@ export class SupervisorArchivosService extends SupervisorCoreService {
             return '#';
         }
         const apiBase = environment.apiUrl;
-        return `${apiBase}/supervisor/ver-paz-salvo/${encodeURIComponent(nombreArchivo)}`;
+        const rawToken = this.getRawToken();
+        const nombreCodificado = encodeURIComponent(nombreArchivo);
+        let url = `${apiBase}/supervisor/ver-paz-salvo/${nombreCodificado}`;
+        if (rawToken) {
+            url += `?token=${encodeURIComponent(rawToken)}`;
+        }
+        return url;
     }
 
+    // ✅ MÉTODO CORREGIDO: getUrlArchivoSupervisor con token
+    getUrlArchivoSupervisor(nombreArchivo: string | null, tipo: 'aprobacion' | 'pazsalvo' = 'aprobacion'): string {
+        if (!nombreArchivo || nombreArchivo.trim() === '') {
+            return '#';
+        }
 
-    // ✅ Método para descarga (requiere autenticación)
+        const apiBase = environment.apiUrl;
+        const nombreCodificado = encodeURIComponent(nombreArchivo);
+        const rawToken = this.getRawToken();
+
+        let url: string;
+        if (tipo === 'pazsalvo') {
+            url = `${apiBase}/supervisor/ver-paz-salvo/${nombreCodificado}`;
+        } else {
+            url = `${apiBase}/supervisor/ver-archivo-supervisor/${nombreCodificado}`;
+        }
+
+        // ✅ AGREGAR TOKEN A LA URL
+        if (rawToken) {
+            url += `?token=${encodeURIComponent(rawToken)}`;
+        }
+
+        console.log(`[SupervisorArchivosService] URL generada con token: ${url.substring(0, 150)}...`);
+        return url;
+    }
+
+    // Método para descarga (requiere autenticación)
     getDownloadUrlArchivoSupervisor(nombreArchivo: string | null, tipo: 'aprobacion' | 'pazsalvo' = 'aprobacion'): string {
         if (!nombreArchivo || nombreArchivo.trim() === '') {
             return '#';
@@ -111,83 +155,89 @@ export class SupervisorArchivosService extends SupervisorCoreService {
 
     descargarTodosArchivosSimple(documentoId: string): Observable<void> {
         console.log(`📥 Preparando descarga múltiple para documento ${documentoId}...`);
-
         return new Observable<void>(observer => {
             observer.next();
             observer.complete();
         });
     }
- previsualizarArchivoAprobacion(nombreArchivo: string): void {
-    if (!nombreArchivo || nombreArchivo.trim() === '') {
-        console.warn('⚠️ No hay nombre de archivo para previsualizar');
-        return;
+
+    previsualizarArchivoAprobacion(nombreArchivo: string): void {
+        if (!nombreArchivo || nombreArchivo.trim() === '') {
+            console.warn('⚠️ No hay nombre de archivo para previsualizar');
+            return;
+        }
+
+        const rawToken = this.getRawToken();
+        const nombreCodificado = encodeURIComponent(nombreArchivo);
+        let url = `${environment.apiUrl}/supervisor/ver-archivo-supervisor/${nombreCodificado}`;
+        
+        if (rawToken) {
+            url += `?token=${encodeURIComponent(rawToken)}`;
+        }
+        
+        console.log(`👁️ Abriendo previsualización de aprobación: ${url}`);
+        
+        fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${rawToken}`
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            const blobUrl = URL.createObjectURL(blob);
+            window.open(blobUrl, '_blank');
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        })
+        .catch(error => {
+            console.error('Error al previsualizar archivo de aprobación:', error);
+        });
     }
 
-    const token = localStorage.getItem('access_token') || localStorage.getItem('token') || '';
-    const rawToken = token.startsWith('Bearer ') ? token.slice(7) : token;
-    const nombreCodificado = encodeURIComponent(nombreArchivo);
-    const url = `${environment.apiUrl}/supervisor/ver-archivo-supervisor/${nombreCodificado}`;
-    
-    console.log(`👁️ Abriendo previsualización de aprobación: ${url}`);
-    
-    // Usar fetch con headers en lugar de window.open directo
-    fetch(url, {
-        headers: {
-            'Authorization': `Bearer ${rawToken}`
+    /**
+     * Previsualizar paz y salvo (usando fetch con headers)
+     */
+    previsualizarPazSalvo(nombreArchivo: string): void {
+        if (!nombreArchivo || nombreArchivo.trim() === '') {
+            console.warn('⚠️ No hay nombre de archivo de paz y salvo');
+            return;
         }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        return response.blob();
-    })
-    .then(blob => {
-        const blobUrl = URL.createObjectURL(blob);
-        window.open(blobUrl, '_blank');
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-    })
-    .catch(error => {
-        console.error('Error al previsualizar archivo de aprobación:', error);
-    });
-}
 
-/**
- * Previsualizar paz y salvo (usando fetch con headers)
- */
-previsualizarPazSalvo(nombreArchivo: string): void {
-    if (!nombreArchivo || nombreArchivo.trim() === '') {
-        console.warn('⚠️ No hay nombre de archivo de paz y salvo');
-        return;
+        const rawToken = this.getRawToken();
+        const nombreCodificado = encodeURIComponent(nombreArchivo);
+        let url = `${environment.apiUrl}/supervisor/ver-paz-salvo/${nombreCodificado}`;
+        
+        if (rawToken) {
+            url += `?token=${encodeURIComponent(rawToken)}`;
+        }
+        
+        console.log(`👁️ Abriendo previsualización de paz y salvo: ${url}`);
+        
+        fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${rawToken}`
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            const blobUrl = URL.createObjectURL(blob);
+            window.open(blobUrl, '_blank');
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        })
+        .catch(error => {
+            console.error('Error al previsualizar paz y salvo:', error);
+        });
     }
 
-    const token = localStorage.getItem('access_token') || localStorage.getItem('token') || '';
-    const rawToken = token.startsWith('Bearer ') ? token.slice(7) : token;
-    const nombreCodificado = encodeURIComponent(nombreArchivo);
-    const url = `${environment.apiUrl}/supervisor/ver-paz-salvo/${nombreCodificado}`;
-    
-    console.log(`👁️ Abriendo previsualización de paz y salvo: ${url}`);
-    
-    fetch(url, {
-        headers: {
-            'Authorization': `Bearer ${rawToken}`
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        return response.blob();
-    })
-    .then(blob => {
-        const blobUrl = URL.createObjectURL(blob);
-        window.open(blobUrl, '_blank');
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-    })
-    .catch(error => {
-        console.error('Error al previsualizar paz y salvo:', error);
-    });
-}
     /**
      * ✅ DESCARGAR PAZ Y SALVO
      */
@@ -198,38 +248,5 @@ previsualizarPazSalvo(nombreArchivo: string): void {
             headers,
             responseType: 'blob'
         }).pipe(catchError(this.handleError));
-    }
-    /**
-     * ✅ OBTENER URL PARA PREVISUALIZACIÓN
-     */
-  getUrlArchivoSupervisor(nombreArchivo: string | null, tipo: 'aprobacion' | 'pazsalvo' = 'aprobacion'): string {
-    if (!nombreArchivo || nombreArchivo.trim() === '') {
-        return '#';
-    }
-
-    const apiBase = environment.apiUrl;
-    const nombreCodificado = encodeURIComponent(nombreArchivo);
-
-    if (tipo === 'pazsalvo') {
-        return `${apiBase}/supervisor/ver-paz-salvo/${nombreCodificado}`;
-    } else {
-        return `${apiBase}/supervisor/ver-archivo-supervisor/${nombreCodificado}`;
-    }
-}
-
-    // En jwt-auth.guard.ts
-    private extractTokenFromRequest(request: any): string | null {
-        // Primero intentar desde headers
-        const authHeader = request.headers.authorization;
-        if (authHeader && authHeader.startsWith('Bearer ')) {
-            return authHeader.substring(7);
-        }
-
-        // Luego intentar desde query params
-        if (request.query && request.query.token) {
-            return request.query.token;
-        }
-
-        return null;
     }
 }

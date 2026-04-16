@@ -43,49 +43,82 @@ export class SupervisorDocumentosService extends SupervisorCoreService {
         );
     }
 
-    obtenerDocumentoPorId(id: string): Observable<any> {
-        const headers = this.getAuthHeaders();
-        console.log(`🔍 Supervisor obteniendo documento con ID: ${id}`);
+// En supervisor-documentos.service.ts
 
-        return this.http.get<any>(`${this.apiUrl}/documento/${id}`, { headers }).pipe(
-            map(response => {
-                console.log('📊 Respuesta obtenerDocumentoPorId (supervisor):', response);
+// src/app/core/services/supervisor/supervisor-documentos.service.ts
 
-                let documento = null;
+obtenerDocumentoPorId(id: string): Observable<any> {
+    const headers = this.getAuthHeaders();
+    console.log(`🔍 Supervisor obteniendo documento con ID: ${id}`);
 
-                if (response?.data?.documento) {
-                    documento = response.data.documento;
-                    console.log('✅ Usando response.data.documento');
-                } else if (response?.documento) {
-                    documento = response.documento;
-                    console.log('✅ Usando response.documento');
-                } else if (response?.data && response.data.id) {
-                    documento = response.data;
-                    console.log('✅ Usando response.data');
-                } else if (response?.id) {
-                    documento = response;
-                    console.log('✅ Usando response directamente');
-                }
+    return this.http.get<any>(`${this.apiUrl}/documento/${id}`, { headers }).pipe(
+        map(response => {
+            console.log('📊 Respuesta obtenerDocumentoPorId:', response);
+            
+            // ✅ Extraer correctamente el documento
+            let documento = null;
+            
+            // Caso 1: response.data.documento (estructura común)
+            if (response?.data?.documento) {
+                documento = response.data.documento;
+                console.log('✅ response.data.documento');
+            }
+            // Caso 2: response.data (si tiene id y estado directamente)
+            else if (response?.data && response.data.id && response.data.estado) {
+                documento = response.data;
+                console.log('✅ response.data (con id y estado)');
+            }
+            // Caso 3: response.data.data (estructura anidada)
+            else if (response?.data?.data && response.data.data.id) {
+                documento = response.data.data;
+                console.log('✅ response.data.data');
+            }
+            // Caso 4: response.documento
+            else if (response?.documento) {
+                documento = response.documento;
+                console.log('✅ response.documento');
+            }
+            // Caso 5: response directamente
+            else if (response?.id) {
+                documento = response;
+                console.log('✅ response');
+            }
+            // Caso 6: response.data y luego buscar dentro
+            else if (response?.data) {
+                // Intentar encontrar cualquier objeto con id y estado
+                const findDocumento = (obj: any): any => {
+                    if (!obj) return null;
+                    if (obj.id && obj.estado) return obj;
+                    for (const key in obj) {
+                        if (obj[key] && typeof obj[key] === 'object') {
+                            const found = findDocumento(obj[key]);
+                            if (found) return found;
+                        }
+                    }
+                    return null;
+                };
+                documento = findDocumento(response.data);
+                if (documento) console.log('✅ Encontrado documento buscando recursivamente');
+            }
 
-                if (documento) {
-                    console.log('📄 Documento extraído:', {
-                        id: documento.id,
-                        numeroRadicado: documento.numeroRadicado,
-                        estado: documento.estado,
-                        yaAprobado: documento.yaAprobado  // ✅ Este flag viene del backend
-                    });
-                } else {
-                    console.warn('⚠️ No se pudo extraer el documento de la respuesta');
-                }
+            if (documento) {
+                console.log('📄 Documento extraído:', {
+                    id: documento.id,
+                    numeroRadicado: documento.numeroRadicado,
+                    estado: documento.estado
+                });
+            } else {
+                console.error('❌ No se pudo extraer documento de la respuesta:', JSON.stringify(response, null, 2));
+            }
 
-                return documento || response;
-            }),
-            catchError(error => {
-                console.error('❌ Error obteniendo documento en supervisor service:', error);
-                return throwError(() => new Error('Error al cargar el documento'));
-            })
-        );
-    }
+            return documento || response;
+        }),
+        catchError(error => {
+            console.error('❌ Error obteniendo documento:', error);
+            return throwError(() => new Error('Error al cargar el documento'));
+        })
+    );
+}
 
     obtenerMisRevisiones(): Observable<Documento[]> {
         const headers = this.getAuthHeaders();

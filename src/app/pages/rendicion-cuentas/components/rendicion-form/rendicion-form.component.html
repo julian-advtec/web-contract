@@ -1,3 +1,5 @@
+<!-- src/app/pages/rendicion-cuentas/components/rendicion-form/rendicion-form.component.html -->
+
 <div class="rendicion-form-container">
   <div class="container-fluid py-4">
     <div *ngIf="isLoading" class="text-center py-5">
@@ -17,23 +19,11 @@
     </div>
 
     <ng-container *ngIf="documento && !isLoading">
+      <app-asesor-gerencia-form [documentoId]="documento?.documentoId || radicacionDocumentoId" [forceReadOnly]="true">
+      </app-asesor-gerencia-form>
 
-      <!-- ⭐ COMPONENTE ASESOR GERENCIA - SIEMPRE VISIBLE ⭐ -->
-      <div class="card shadow mb-5 border-info">
-        <div class="card-header bg-info text-white">
-          <h5 class="mb-0">
-            <i class="fas fa-user-tie me-2"></i>Revisión Asesor Gerencia
-          </h5>
-        </div>
-        <div class="card-body p-0">
-          <!-- En lugar de rendicionId, pasar el documentoId real -->
-          <app-asesor-gerencia-form [documentoId]="documento?.documentoId || documento?.id"
-            [forceReadOnly]="esModoLectura || estaProcesado">
-          </app-asesor-gerencia-form>
-        </div>
-      </div>
 
-      <!-- ⭐ BOTÓN DE DESCARGA - SIEMPRE VISIBLE ⭐ -->
+      <!-- ⭐ BOTÓN DE DESCARGA - SOLO UNA VEZ ⭐ -->
       <div class="card shadow mb-5 border-info">
         <div class="card-header bg-info text-white">
           <h5 class="mb-0">
@@ -49,14 +39,23 @@
               </p>
               <p class="text-muted small mb-0">
                 <i class="fas fa-info-circle me-1"></i>
-                Descarga todos los archivos del contrato (PDF, DOC, imágenes) en un archivo ZIP.
-                Los archivos .txt de registro son excluidos automáticamente.
+                Descarga todos los archivos del contrato en un archivo ZIP.
+                Los archivos de registro (.txt) son excluidos automáticamente.
+              </p>
+              <p class="text-muted small mt-1" *ngIf="documento?.numeroRadicado">
+                <i class="fas fa-tag me-1"></i>
+                Radicado: {{ documento.numeroRadicado }}
               </p>
             </div>
             <button class="btn btn-info btn-lg px-4" (click)="descargarCarpeta()" [disabled]="isDescargando">
               <i class="fas" [ngClass]="isDescargando ? 'fa-spinner fa-spin' : 'fa-download'"></i>
-              {{ isDescargando ? 'Descargando...' : 'Descargar Carpeta Completa' }}
+              {{ isDescargando ? 'Preparando descarga...' : 'Descargar Carpeta Completa' }}
             </button>
+          </div>
+          <!-- Barra de progreso -->
+          <div *ngIf="isDescargando" class="progress mt-3" style="height: 5px;">
+            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%">
+            </div>
           </div>
         </div>
       </div>

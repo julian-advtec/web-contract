@@ -12,6 +12,7 @@ import { SignatureService, Signature } from '../../../../core/services/signature
 import { ContabilidadFormComponent } from '../../../contabilidad/components/contabilidad-form/contabilidad-form.component';
 import { SignaturePositionComponent, SignaturePosition } from '../../../signature/components/signature-position/signature-position.component';
 import { PdfViewerModalComponent } from '../pdf-viewer-modal/pdf-viewer-modal.component';
+import { RadicacionFormComponent } from '../../../radicacion/components/radicacion-form/radicacion-form.component';
 
 @Component({
   selector: 'app-asesor-gerencia-form',
@@ -21,7 +22,8 @@ import { PdfViewerModalComponent } from '../pdf-viewer-modal/pdf-viewer-modal.co
     ReactiveFormsModule,
     ContabilidadFormComponent,
     SignaturePositionComponent,
-    PdfViewerModalComponent
+    PdfViewerModalComponent,
+    RadicacionFormComponent,
   ],
   templateUrl: './asesor-gerencia-form.component.html',
   styleUrls: ['./asesor-gerencia-form.component.scss']
@@ -73,7 +75,8 @@ export class AsesorGerenciaFormComponent implements OnInit {
     private notificationService: NotificationService,
     private authService: AuthService,
     public signatureService: SignatureService,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+
   ) {
     this.form = this.fb.group({
       observaciones: ['', [Validators.minLength(10)]],
@@ -95,66 +98,61 @@ export class AsesorGerenciaFormComponent implements OnInit {
   }
 
 
-ngOnInit(): void {
-  this.cargarFirmaUsuario();
+  ngOnInit(): void {
+    this.cargarFirmaUsuario();
 
-  console.log('📌 [AsesorGerenciaForm] ID recibido como @Input:', this.documentoId);
-  console.log('📌 [AsesorGerenciaForm] ID desde ruta (si aplica):', this.route.snapshot.paramMap.get('id'));
+    console.log('📌 [AsesorGerenciaForm] ID recibido como @Input:', this.documentoId);
+    console.log('📌 [AsesorGerenciaForm] ID desde ruta (si aplica):', this.route.snapshot.paramMap.get('id'));
 
-  // ───────────────────────────────────────────────────────────────
-  // Prioridad absoluta: usar @Input cuando existe (modo embebido)
-  // Solo fallback a ruta si NO hay input (modo standalone/directo)
-  // ───────────────────────────────────────────────────────────────
-  let idParaCargar: string | null = null;
+    // Prioridad absoluta: usar @Input cuando existe (modo embebido)
+    let idParaCargar: string | null = null;
 
-  if (this.documentoId) {
-    // Caso más común ahora: viene desde rendición o padre
-    idParaCargar = this.documentoId;
-    console.log('✅ Usando ID desde @Input (prioridad alta):', idParaCargar);
-  } else {
-    // Modo standalone (URL directa)
-    idParaCargar = this.route.snapshot.paramMap.get('id');
-    console.log('⚡ Usando ID desde ruta (fallback):', idParaCargar);
+    if (this.documentoId) {
+      idParaCargar = this.documentoId;
+      console.log('✅ Usando ID desde @Input (prioridad alta):', idParaCargar);
+    } else {
+      idParaCargar = this.route.snapshot.paramMap.get('id');
+      console.log('⚡ Usando ID desde ruta (fallback):', idParaCargar);
+    }
+
+    const modo = this.route.snapshot.queryParamMap.get('modo') || 'edicion';
+    const soloLecturaParam = this.route.snapshot.queryParamMap.get('soloLectura') === 'true';
+    const desdeHistorial = this.route.snapshot.queryParamMap.get('desdeHistorial') === 'true';
+    const forceEdit = this.route.snapshot.queryParamMap.get('forceEdit') === 'true';
+
+    // Prioridad: si viene forceEdit=true (continuar revisión), SIEMPRE edición
+    this.esModoLectura = forceEdit ? false : (
+      soloLecturaParam ||
+      modo === 'consulta' ||
+      modo === 'lectura' ||
+      modo === 'vista' ||
+      (desdeHistorial && !forceEdit) ||
+      this.forceReadOnly
+    );
+
+    console.log('📊 Modo calculado:', {
+      esModoLectura: this.esModoLectura,
+      forceReadOnly: this.forceReadOnly,
+      forceEdit,
+      soloLecturaParam,
+      desdeHistorial
+    });
+
+    if (idParaCargar) {
+      console.log('🚀 Cargando documento con ID:', idParaCargar);
+      this.cargarDocumento(idParaCargar);
+    } else {
+      console.error('❌ No hay ID válido para cargar en asesor-gerencia');
+      this.mostrarMensaje('No se recibió ID del documento', 'error');
+      this.isLoading = false;
+    }
+
+    if (this.esModoLectura || this.estaProcesado) {
+      this.form.disable();
+    } else {
+      this.form.enable();  // Asegurar que se habilite si es edición
+    }
   }
-
-  const modo = this.route.snapshot.queryParamMap.get('modo') || 'edicion';
-  const soloLecturaParam = this.route.snapshot.queryParamMap.get('soloLectura') === 'true';
-  const desdeHistorial = this.route.snapshot.queryParamMap.get('desdeHistorial') === 'true';
-  const forceEdit = this.route.snapshot.queryParamMap.get('forceEdit') === 'true';
-
-  // Prioridad: si viene forceEdit=true (continuar revisión), SIEMPRE edición
-  this.esModoLectura = forceEdit ? false : (
-    soloLecturaParam ||
-    modo === 'consulta' ||
-    modo === 'lectura' ||
-    modo === 'vista' ||
-    (desdeHistorial && !forceEdit) ||
-    this.forceReadOnly
-  );
-
-  console.log('📊 Modo calculado:', {
-    esModoLectura: this.esModoLectura,
-    forceReadOnly: this.forceReadOnly,
-    forceEdit,
-    soloLecturaParam,
-    desdeHistorial
-  });
-
-  if (idParaCargar) {
-    console.log('🚀 Cargando documento con ID:', idParaCargar);
-    this.cargarDocumento(idParaCargar);
-  } else {
-    console.error('❌ No hay ID válido para cargar en asesor-gerencia');
-    this.mostrarMensaje('No se recibió ID del documento', 'error');
-    this.isLoading = false;
-  }
-
-  if (this.esModoLectura || this.estaProcesado) {
-    this.form.disable();
-  } else {
-    this.form.enable();  // Asegurar que se habilite si es edición
-  }
-}
 
   cargarFirmaUsuario(): void {
     if (this.esModoLectura || this.estaProcesado) return;
@@ -201,6 +199,21 @@ ngOnInit(): void {
         this.documento.estado?.toUpperCase() || ''
       );
 
+      // ✅ FORZAR MODO LECTURA si ya está procesado O si forceReadOnly es true
+      if (this.estaProcesado || this.forceReadOnly) {
+        this.esModoLectura = true;
+        this.form.disable();
+      } else {
+        this.esModoLectura = false;
+        this.form.enable();
+      }
+
+      console.log('📊 Estado después de cargar:', {
+        estado: this.documento.estado,
+        estaProcesado: this.estaProcesado,
+        forceReadOnly: this.forceReadOnly,
+        esModoLectura: this.esModoLectura
+      });
       if (this.esModoLectura || this.estaProcesado) {
         this.form.disable();
       }

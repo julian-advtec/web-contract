@@ -72,6 +72,8 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
     timestamp: 0
   };
 
+  @Input() forceReadOnly: boolean = false;
+  
   constructor(
     private fb: FormBuilder,
     private radicacionService: RadicacionService,

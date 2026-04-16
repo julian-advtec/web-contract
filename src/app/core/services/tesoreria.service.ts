@@ -184,55 +184,55 @@ export class TesoreriaService {
     );
   }
 
-obtenerRechazadosVisibles(): Observable<any[]> {
-  return this.http.get<any>(`${this.apiUrl}/rechazados-visibles`, {
-    headers: this.getHeaders()
-  }).pipe(
-    map(res => {
-      console.log('[Service] Respuesta rechazados COMPLETA:', res);
-      
-      // El backend devuelve: { ok: true, path: '/api/tesoreria/rechazados-visibles', timestamp: '...', data: [...] }
-      
-      // 1. Si la respuesta tiene data y es un array
-      if (res?.data && Array.isArray(res.data)) {
-        console.log('[Service] Usando res.data:', res.data.length);
-        return res.data;
-      }
-      
-      // 2. Si la respuesta tiene data.data y es un array (estructura anidada)
-      if (res?.data?.data && Array.isArray(res.data.data)) {
-        console.log('[Service] Usando res.data.data:', res.data.data.length);
-        return res.data.data;
-      }
-      
-      // 3. Si la respuesta es directamente un array
-      if (Array.isArray(res)) {
-        console.log('[Service] Usando res como array:', res.length);
-        return res;
-      }
-      
-      // 4. Si tiene propiedad documentos
-      if (res?.documentos && Array.isArray(res.documentos)) {
-        console.log('[Service] Usando res.documentos:', res.documentos.length);
-        return res.documentos;
-      }
-      
-      // 5. Si tiene propiedad resultados
-      if (res?.resultados && Array.isArray(res.resultados)) {
-        console.log('[Service] Usando res.resultados:', res.resultados.length);
-        return res.resultados;
-      }
-      
-      console.warn('[Service] Formato de respuesta no reconocido:', res);
-      return [];
-    }),
-    catchError(err => {
-      console.error('[Service] Error en rechazados:', err);
-      const errorMsg = err.error?.message || err.message || 'Error desconocido';
-      return throwError(() => new Error(errorMsg));
-    })
-  );
-}
+  obtenerRechazadosVisibles(): Observable<any[]> {
+    return this.http.get<any>(`${this.apiUrl}/rechazados-visibles`, {
+      headers: this.getHeaders()
+    }).pipe(
+      map(res => {
+        console.log('[Service] Respuesta rechazados COMPLETA:', res);
+
+        // El backend devuelve: { ok: true, path: '/api/tesoreria/rechazados-visibles', timestamp: '...', data: [...] }
+
+        // 1. Si la respuesta tiene data y es un array
+        if (res?.data && Array.isArray(res.data)) {
+          console.log('[Service] Usando res.data:', res.data.length);
+          return res.data;
+        }
+
+        // 2. Si la respuesta tiene data.data y es un array (estructura anidada)
+        if (res?.data?.data && Array.isArray(res.data.data)) {
+          console.log('[Service] Usando res.data.data:', res.data.data.length);
+          return res.data.data;
+        }
+
+        // 3. Si la respuesta es directamente un array
+        if (Array.isArray(res)) {
+          console.log('[Service] Usando res como array:', res.length);
+          return res;
+        }
+
+        // 4. Si tiene propiedad documentos
+        if (res?.documentos && Array.isArray(res.documentos)) {
+          console.log('[Service] Usando res.documentos:', res.documentos.length);
+          return res.documentos;
+        }
+
+        // 5. Si tiene propiedad resultados
+        if (res?.resultados && Array.isArray(res.resultados)) {
+          console.log('[Service] Usando res.resultados:', res.resultados.length);
+          return res.resultados;
+        }
+
+        console.warn('[Service] Formato de respuesta no reconocido:', res);
+        return [];
+      }),
+      catchError(err => {
+        console.error('[Service] Error en rechazados:', err);
+        const errorMsg = err.error?.message || err.message || 'Error desconocido';
+        return throwError(() => new Error(errorMsg));
+      })
+    );
+  }
 
   obtenerDetallePago(documentoId: string): Observable<any> {
     return this.http.get<any>(
@@ -287,5 +287,49 @@ obtenerRechazadosVisibles(): Observable<any[]> {
         return throwError(() => new Error('No se pudo descargar el archivo'));
       })
     );
+  }
+
+  private getRawToken(): string {
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token') || '';
+    return token.startsWith('Bearer ') ? token.slice(7) : token;
+  }
+
+  /**
+   * Obtener URL para previsualización de archivo contable con token en query param
+   */
+  getPreviewUrlWithToken(documentoId: string, tipo: string): string {
+    const rawToken = this.getRawToken();
+    const url = `${this.apiUrl}/documentos/${documentoId}/preview-contable/${tipo}`;
+
+    if (rawToken) {
+      return `${url}?token=${encodeURIComponent(rawToken)}`;
+    }
+
+    console.warn('[ContabilidadService] No hay token disponible para previsualización');
+    return url;
+  }
+
+  /**
+   * Previsualizar archivo contable - método CORREGIDO
+   * Abre una nueva ventana con el token en la URL
+   */
+  previsualizarArchivoContable(documentoId: string, tipo: string): boolean {
+    if (!documentoId) {
+      console.error('[PREVIEW] No hay documentoId');
+      return false;
+    }
+
+    const url = this.getPreviewUrlWithToken(documentoId, tipo);
+    console.log(`[PREVIEW] Abriendo URL con token: ${url.substring(0, 150)}...`);
+
+    // Abrir en nueva pestaña
+    const newWindow = window.open(url, '_blank');
+
+    if (!newWindow) {
+      console.error('[PREVIEW] Bloqueador de popups detectado');
+      return false;
+    }
+
+    return true;
   }
 }

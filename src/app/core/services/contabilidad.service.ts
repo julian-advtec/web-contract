@@ -1,11 +1,12 @@
 // src/app/core/services/contabilidad.service.ts
+
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http'; // ← IMPORTAR HttpParams
-import { Observable, throwError, of } from 'rxjs'; // ← IMPORTAR of
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { Observable, throwError, of } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { DocumentoContable } from '../models/documento-contable.model';
-import { NotificationService } from './notification.service'; // ← IMPORTAR NotificationService
+import { NotificationService } from './notification.service';
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -13,7 +14,6 @@ export interface ApiResponse<T = any> {
   data?: T;
 }
 
-// Interfaz para documentos rechazados (puedes moverla a un archivo de modelos)
 export interface RechazadoResponse {
   id: string;
   documento: {
@@ -54,7 +54,7 @@ export class ContabilidadService {
 
   constructor(
     private http: HttpClient,
-    private notificationService: NotificationService // ← INYECTAR NotificationService
+    private notificationService: NotificationService
   ) { }
 
   private getHeaders(): HttpHeaders {
@@ -72,19 +72,28 @@ export class ContabilidadService {
     });
   }
 
+  private getAuthToken(): string {
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token') || '';
+    return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+  }
+
+  private getRawToken(): string {
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token') || '';
+    return token.startsWith('Bearer ') ? token.slice(7) : token;
+  }
+
   // 1. Documentos disponibles
-obtenerDocumentosDisponibles(): Observable<DocumentoContable[]> {
-  return this.http.get<any>(`${this.apiUrl}/documentos/disponibles`, { headers: this.getHeaders() }).pipe(
-    map(res => {
-      const docs = this.extractArrayData(res);
-      // Filtrar solo APROBADO_SUPERVISOR por si acaso
-      const filtered = docs.filter(doc => doc.estado === 'APROBADO_SUPERVISOR');
-      console.log(`Disponibles: ${filtered.length} docs (APROBADO_SUPERVISOR)`);
-      return filtered;
-    }),
-    catchError(err => throwError(() => new Error(err.error?.message || 'Error al cargar disponibles')))
-  );
-}
+  obtenerDocumentosDisponibles(): Observable<DocumentoContable[]> {
+    return this.http.get<any>(`${this.apiUrl}/documentos/disponibles`, { headers: this.getHeaders() }).pipe(
+      map(res => {
+        const docs = this.extractArrayData(res);
+        const filtered = docs.filter(doc => doc.estado === 'APROBADO_SUPERVISOR');
+        console.log(`Disponibles: ${filtered.length} docs (APROBADO_SUPERVISOR)`);
+        return filtered;
+      }),
+      catchError(err => throwError(() => new Error(err.error?.message || 'Error al cargar disponibles')))
+    );
+  }
 
   // 2. Tomar documento
   tomarDocumento(documentoId: string): Observable<ApiResponse> {
@@ -308,7 +317,71 @@ obtenerDocumentosDisponibles(): Observable<DocumentoContable[]> {
     );
   }
 
-  // 19. Previsualizar archivo contabilidad
+  // ============================================================
+  // ✅ MÉTODOS NUEVOS PARA PREVISUALIZACIÓN CON TOKEN
+  // ============================================================
+
+  /**
+   * Obtener URL para previsualización de archivo contable con token incluido
+   */
+  getPreviewUrlWithToken(documentoId: string, tipo: string): string {
+    const rawToken = this.getRawToken();
+    let url = `${this.apiUrl}/documentos/${documentoId}/preview-contable/${tipo}`;
+    
+    if (rawToken) {
+      url += `?token=${encodeURIComponent(rawToken)}`;
+    }
+    
+    console.log(`[PREVIEW URL] Generada: ${url}`);
+    return url;
+  }
+
+  /**
+   * Previsualizar archivo contable abriendo nueva ventana con token en URL
+   */
+  previsualizarArchivoConToken(documentoId: string, tipo: string): boolean {
+    if (!documentoId) {
+      console.error('[PREVIEW] No hay documentoId para previsualizar');
+      this.notificationService.error('Error', 'No se puede previsualizar: documento no identificado');
+      return false;
+    }
+
+    const url = this.getPreviewUrlWithToken(documentoId, tipo);
+    
+    if (!url || url === '#') {
+      this.notificationService.error('Error', 'No se pudo generar la URL de previsualización');
+      return false;
+    }
+
+    console.log(`[PREVIEW] Abriendo ventana con URL: ${url}`);
+    
+    // Abrir en nueva pestaña
+    const nuevaVentana = window.open(url, '_blank');
+    
+    if (!nuevaVentana) {
+      this.notificationService.warning('Bloqueador detectado', 
+        'Por favor, permite ventanas emergentes para este sitio o usa el botón de descarga');
+      return false;
+    }
+    
+    this.notificationService.info('Previsualizando', `Abriendo ${this.getTituloPorTipo(tipo)}...`);
+    return true;
+  }
+
+  /**
+   * Obtener título del tipo de archivo (helper)
+   */
+  private getTituloPorTipo(tipo: string): string {
+    const titulos: Record<string, string> = {
+      comprobanteEgreso: 'Comprobante de Egreso',
+      extracto: 'Extracto Bancario',
+      glosa: 'Documento de Glosa',
+      causacion: 'Documento de Causación'
+    };
+    return titulos[tipo] || tipo;
+  }
+
+  // 19. Previsualizar archivo contabilidad (método original con blob - se mantiene)
   previsualizarArchivoContabilidad(documentoId: string, tipo: string): Observable<Blob> {
     return this.http.get(
       `${this.apiUrl}/documentos/${documentoId}/preview-contable/${tipo}`,
@@ -321,9 +394,9 @@ obtenerDocumentosDisponibles(): Observable<DocumentoContable[]> {
     );
   }
 
-  // 20. Obtener documentos rechazados (CORREGIDO)
+  // 20. Obtener documentos rechazados
   obtenerRechazados(filtros?: { desde?: Date; hasta?: Date; soloMios?: boolean }): Observable<RechazadoResponse[]> {
-    const headers = this.getHeaders(); // ← Usar getHeaders() en lugar de getAuthHeaders()
+    const headers = this.getHeaders();
     let params = new HttpParams();
 
     if (filtros?.desde) {
@@ -336,11 +409,10 @@ obtenerDocumentosDisponibles(): Observable<DocumentoContable[]> {
       params = params.set('soloMios', filtros.soloMios.toString());
     }
 
-    return this.http.get<any>(`${this.apiUrl}/rechazados-visibles`, { headers, params }).pipe( // ← Endpoint correcto para contabilidad
+    return this.http.get<any>(`${this.apiUrl}/rechazados-visibles`, { headers, params }).pipe(
       map(response => {
         console.log('[Contabilidad Rechazados] Respuesta completa:', response);
 
-        // Extraer los datos de la estructura anidada
         let data = response;
 
         if (data?.ok === true && data?.data) {

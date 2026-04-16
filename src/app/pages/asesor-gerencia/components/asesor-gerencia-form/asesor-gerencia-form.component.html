@@ -46,10 +46,8 @@
             <h5 class="mb-0"><i class="fas fa-calculator me-2"></i>Revisión Contabilidad</h5>
           </div>
           <div class="card-body p-0">
-           <app-contabilidad-form 
-         [documentoId]="documentoId" 
-        [forceReadOnly]="true">
-      </app-contabilidad-form>
+            <app-contabilidad-form [documentoId]="documentoId" [forceReadOnly]="true">
+            </app-contabilidad-form>
           </div>
         </div>
       </section>
@@ -143,7 +141,8 @@
       </div>
 
       <!-- Decisión de Asesor Gerencia (vista) -->
-      <div class="card shadow border-primary mb-5">
+      <!-- Decisión de Asesor Gerencia (vista) - SOLO EN MODO LECTURA O PROCESADO -->
+      <div class="card shadow border-primary mb-5" *ngIf="esModoLectura || estaProcesado">
         <div class="card-header bg-primary text-white">
           <h4 class="mb-0">
             <i class="fas fa-gavel me-2"></i>Decisión de Asesor Gerencia
@@ -154,10 +153,10 @@
             <div class="col-md-6">
               <label class="form-label fw-bold">Estado final</label>
               <p class="form-control-static fw-bold fs-5" [ngClass]="{
-                'text-success': documento.estado === 'COMPLETADO_ASESOR_GERENCIA',
-                'text-warning': documento.estado === 'OBSERVADO_ASESOR_GERENCIA',
-                'text-danger': documento.estado === 'RECHAZADO_ASESOR_GERENCIA'
-              }">
+          'text-success': documento.estado === 'COMPLETADO_ASESOR_GERENCIA',
+          'text-warning': documento.estado === 'OBSERVADO_ASESOR_GERENCIA',
+          'text-danger': documento.estado === 'RECHAZADO_ASESOR_GERENCIA'
+        }">
                 {{ getEstadoTexto(documento.estado) }}
               </p>
             </div>
@@ -176,15 +175,7 @@
         </div>
       </div>
 
-      <!-- Alerta modo -->
-      <div class="alert alert-info shadow mb-5">
-        <i class="fas fa-info-circle me-2 fa-lg"></i>
-        <strong>Modo actual:</strong>
-        {{ estaProcesado ? 'Ya procesado por gerencia' : (esModoLectura ? 'Solo consulta' : 'Edición / firma pendiente')
-        }}
-      </div>
-
-      <!-- Formulario + botones SOLO en modo edición -->
+      <!-- Formulario + botones SOLO en modo edición (NO lectura, NO procesado) -->
       <div *ngIf="!esModoLectura && !estaProcesado">
         <div class="card shadow border-primary">
           <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">

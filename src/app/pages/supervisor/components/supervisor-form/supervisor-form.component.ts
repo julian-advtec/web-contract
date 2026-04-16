@@ -268,145 +268,206 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     });
   }
 
-  cargarDocumentoCompleto(id: string): void {
+// En supervisor-form.component.ts
+
+cargarDocumentoCompleto(id: string): void {
     this.isLoading = true;
 
     const url = this.router.url;
     const esRutaSupervisor = url.includes('/supervisor/');
 
-    console.log('📥 Iniciando carga completa del documento con ID:', id, {
-      modoEdicion: this.modoEdicion,
-      soloLectura: this.soloLectura,
-      desdeHistorial: this.desdeHistorial,
-      esModoAuditor: this.esModoAuditor,
-      esRutaSupervisor,
-      modoInput: this.modo
-    });
+    console.log('📥 Iniciando carga completa del documento con ID:', id);
 
     let servicioObservable: Observable<any>;
 
     if (this.esModoAuditor && !esRutaSupervisor) {
-      console.log('→ Usando servicio AUDITOR para vista');
-      servicioObservable = this.auditorService.obtenerDocumentoParaVista(id);
+        console.log('→ Usando servicio AUDITOR para vista');
+        servicioObservable = this.auditorService.obtenerDocumentoParaVista(id);
     } else {
-      console.log('→ Usando servicio SUPERVISOR normal');
-      servicioObservable = this.supervisorService.obtenerDocumentoPorId(id);
+        console.log('→ Usando servicio SUPERVISOR normal');
+        servicioObservable = this.supervisorService.obtenerDocumentoPorId(id);
     }
 
     servicioObservable
-      .pipe(
-        map((response: any) => {
-          console.log('📊 Respuesta cruda del servicio:', response);
-          const documentoData = response?.data?.documento ||
-            response?.documento ||
-            response?.data ||
-            response;
-          return documentoData;
-        }),
-        catchError(error => {
-          console.error('❌ Error cargando documento:', error);
-          this.notificationService.error('Error', 'No se pudo cargar la información del documento');
-          this.isLoading = false;
-          return of(null);
-        })
-      )
-      .subscribe({
-        next: (documentoData: any) => {
-          if (!documentoData) {
-            this.isLoading = false;
-            return;
-          }
+        .pipe(
+            map((response: any) => {
+                console.log('📊 Respuesta cruda del servicio:', response);
+                
+                // ✅ MEJORAR EXTRACCIÓN - Probar múltiples estructuras
+                let documentoData = null;
+                
+                // Caso 1: response.data.documento
+                if (response?.data?.documento) {
+                    documentoData = response.data.documento;
+                    console.log('✅ Extrayendo de response.data.documento');
+                }
+                // Caso 2: response.data.data (estructura anidada)
+                else if (response?.data?.data?.id) {
+                    documentoData = response.data.data;
+                    console.log('✅ Extrayendo de response.data.data');
+                }
+                // Caso 3: response.data (si tiene id directamente)
+                else if (response?.data?.id) {
+                    documentoData = response.data;
+                    console.log('✅ Extrayendo de response.data');
+                }
+                // Caso 4: response.documento
+                else if (response?.documento) {
+                    documentoData = response.documento;
+                    console.log('✅ Extrayendo de response.documento');
+                }
+                // Caso 5: response directamente
+                else if (response?.id) {
+                    documentoData = response;
+                    console.log('✅ Extrayendo de response');
+                }
+                
+                // ✅ Si encontramos documentoData, asegurar que tenga el estado
+                if (documentoData && !documentoData.estado && response?.data?.estado) {
+                    documentoData.estado = response.data.estado;
+                }
+                
+                // ✅ Log para debug
+                if (documentoData) {
+                    console.log('📄 Documento extraído correctamente:', {
+                        id: documentoData.id,
+                        numeroRadicado: documentoData.numeroRadicado,
+                        estado: documentoData.estado
+                    });
+                } else {
+                    console.error('❌ No se pudo extraer documento de la respuesta:', response);
+                }
+                
+                return documentoData;
+            }),
+            catchError(error => {
+                console.error('❌ Error cargando documento:', error);
+                this.notificationService.error('Error', 'No se pudo cargar la información del documento');
+                this.isLoading = false;
+                return of(null);
+            })
+        )
+        .subscribe({
+            next: (documentoData: any) => {
+                if (!documentoData) {
+                    this.isLoading = false;
+                    return;
+                }
 
-          this.radicadoData = documentoData;
+                this.radicadoData = documentoData;
 
-          console.log('🔍 Datos del documento recibidos:', {
-            estado: documentoData.estado,
-            supervisorAsignado: documentoData.supervisorAsignado,
-            asignacion: documentoData.asignacion
-          });
+                console.log('🔍 Datos del documento recibidos:', {
+                    estado: documentoData.estado,
+                    supervisorAsignado: documentoData.supervisorAsignado,
+                    numeroRadicado: documentoData.numeroRadicado
+                });
 
-          if (this.esModoAuditor) {
-            this.cargarDatosAuditorEspecificos(documentoData);
-          }
+                if (this.esModoAuditor) {
+                    this.cargarDatosAuditorEspecificos(documentoData);
+                }
 
-          // Determinar modo basado en el ESTADO DEL DOCUMENTO (prioridad sobre URL)
-          this.determinarModoPorEstadoDocumento(documentoData);
+                // ✅ Determinar modo basado en el estado
+                this.determinarModoPorEstadoDocumento(documentoData);
 
-          this.poblarFormulario(documentoData);
-          this.cargarDocumentosExistentes(documentoData);
-          this.cargarArchivosSupervisorDesdeBackend(id, documentoData);
+                this.poblarFormulario(documentoData);
+                this.cargarDocumentosExistentes(documentoData);
+                this.cargarArchivosSupervisorDesdeBackend(id, documentoData);
 
-          this.isLoading = false;
-          this.configurarFormularioSegunModo();
+                this.isLoading = false;
+                this.configurarFormularioSegunModo();
 
-          console.log('✅ Carga completa finalizada. Modo actual:', {
-            soloLectura: this.soloLectura,
-            modoEdicion: this.modoEdicion,
-            esModoAuditor: this.esModoAuditor
-          });
+                console.log('✅ Carga completa finalizada. Modo actual:', {
+                    soloLectura: this.soloLectura,
+                    modoEdicion: this.modoEdicion,
+                    esModoAuditor: this.esModoAuditor
+                });
 
-          this.mostrarNotificacionModo();
-        },
-        error: (err) => {
-          console.error('[SupervisorForm] Falló carga completa con ID:', id, err);
-          this.isLoading = false;
-        }
-      });
-  }
+                this.mostrarNotificacionModo();
+            },
+            error: (err) => {
+                console.error('[SupervisorForm] Falló carga completa con ID:', id, err);
+                this.isLoading = false;
+            }
+        });
+}
 
-  /**
-   * ✅ Determinar modo basado en el ESTADO del documento (prioridad sobre URL)
-   */
-  private determinarModoPorEstadoDocumento(documentoData: any): void {
-    const estadoDocumento = (documentoData.estado || '').toUpperCase().trim();
+/**
+ * ✅ Determinar modo basado en el ESTADO del documento
+ */
+private determinarModoPorEstadoDocumento(documentoData: any): void {
+    // ✅ Intentar obtener el estado de diferentes lugares
+    let estadoDocumento = '';
+    
+    if (documentoData.estado) {
+        estadoDocumento = documentoData.estado;
+    } else if (documentoData.documento?.estado) {
+        estadoDocumento = documentoData.documento.estado;
+    } else if (documentoData.data?.estado) {
+        estadoDocumento = documentoData.data.estado;
+    }
+    
+    estadoDocumento = (estadoDocumento || '').toUpperCase().trim();
 
     console.log('🔍 [determinarModoPorEstadoDocumento] Estado del documento:', estadoDocumento);
 
-    // Verificar si el estado fuerza solo lectura
+    // ✅ Si el estado está vacío, intentar obtener del radicadoData
+    if (!estadoDocumento && this.radicadoData?.estado) {
+        estadoDocumento = this.radicadoData.estado.toUpperCase().trim();
+        console.log('🔍 [determinarModoPorEstadoDocumento] Estado desde radicadoData:', estadoDocumento);
+    }
+
+    // ✅ Verificar si el estado fuerza solo lectura
     const esEstadoFinal = this.estadosSoloLecturaForzado.some(e => estadoDocumento.includes(e));
 
     if (esEstadoFinal) {
-      // FORZAR solo lectura independientemente de la URL
-      this.soloLectura = true;
-      this.modoEdicion = false;
-      console.log('🔒 FORZADO SOLO LECTURA - Estado final del documento:', estadoDocumento);
-      return;
+        this.soloLectura = true;
+        this.modoEdicion = false;
+        console.log('🔒 FORZADO SOLO LECTURA - Estado final:', estadoDocumento);
+        return;
     }
 
-    // Si el documento está en estado editable, permitir edición
-    const estadosEditables = ['RADICADO', 'EN_REVISION', 'EN_REVISION_SUPERVISOR', 'PENDIENTE', 'PENDIENTE_CORRECCIONES', 'OBSERVADO'];
+    // ✅ CASO ESPECÍFICO: EN_REVISION_SUPERVISOR - Debe ser editable
+    if (estadoDocumento === 'EN_REVISION_SUPERVISOR') {
+        this.soloLectura = false;
+        this.modoEdicion = true;
+        console.log('✏️ MODO EDICIÓN - Documento en EN_REVISION_SUPERVISOR');
+        return;
+    }
+
+    // ✅ Otros estados editables
+    const estadosEditables = ['RADICADO', 'EN_REVISION', 'PENDIENTE', 'PENDIENTE_CORRECCIONES', 'OBSERVADO'];
     const esEstadoEditable = estadosEditables.some(e => estadoDocumento.includes(e));
 
     if (esEstadoEditable) {
-      // Verificar si el supervisor actual es el asignado
-      const usuarioActual = this.getCurrentUser().trim();
-      let supervisorAsignado = documentoData.supervisorAsignado || documentoData.asignacion?.supervisorActual || '';
-      supervisorAsignado = supervisorAsignado.trim();
+        const usuarioActual = this.getCurrentUser().trim();
+        let supervisorAsignado = documentoData.supervisorAsignado || 
+                                 documentoData.asignacion?.supervisorActual || 
+                                 documentoData.usuarioAsignadoNombre || '';
+        supervisorAsignado = supervisorAsignado.trim();
 
-      const soyElSupervisor = this.compararNombres(supervisorAsignado, usuarioActual) ||
-        usuarioActual.includes('Administrador') ||
-        !supervisorAsignado ||
-        supervisorAsignado === 'Sin asignar';
+        const soyElSupervisor = this.compararNombres(supervisorAsignado, usuarioActual) ||
+            usuarioActual.includes('Administrador') ||
+            !supervisorAsignado ||
+            supervisorAsignado === 'Sin asignar';
 
-      if (soyElSupervisor) {
-        // Permitir edición SOLO si el supervisor actual es el asignado
-        this.soloLectura = false;
-        this.modoEdicion = true;
-        console.log('✏️ MODO EDICIÓN - Documento editable y soy el supervisor asignado');
-        return;
-      } else {
-        this.soloLectura = true;
-        this.modoEdicion = false;
-        console.log('🔒 SOLO LECTURA - Documento editable pero NO soy el supervisor asignado');
-        return;
-      }
+        if (soyElSupervisor) {
+            this.soloLectura = false;
+            this.modoEdicion = true;
+            console.log('✏️ MODO EDICIÓN - Documento editable y soy el supervisor asignado');
+            return;
+        } else {
+            this.soloLectura = true;
+            this.modoEdicion = false;
+            console.log('🔒 SOLO LECTURA - No soy el supervisor asignado');
+            return;
+        }
     }
 
     // Por defecto, solo lectura
     this.soloLectura = true;
     this.modoEdicion = false;
     console.log('⚠️ Por defecto: SOLO LECTURA');
-  }
+}
 
   private determinarModoDesdeParams(params: any, url: string): void {
     console.log('🔍 Determinando modo desde parámetros (referencia):', params);

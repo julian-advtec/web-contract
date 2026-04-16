@@ -1,17 +1,14 @@
 // src/app/core/services/rendicion-cuentas.service.ts
+
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, throwError, of } from 'rxjs'; // ← IMPORTAR 'of' aquí
+import { Observable, throwError, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
 import {
   RendicionCuentasProceso,
-  RendicionCuentasHistorialItem,
   TomarDecisionDto,
-  IniciarRevisionDto,
-  CreateRendicionCuentasDto,
-  FiltrosRendicionCuentas,
   RendicionCuentasEstado
 } from '../models/rendicion-cuentas.model';
 
@@ -23,36 +20,18 @@ export class RendicionCuentasService {
 
   constructor(private http: HttpClient) { }
 
-  // ==============================================
-  // MÉTODOS PRINCIPALES
-  // ==============================================
-
-  /**
-   * Obtener documentos disponibles (los que vienen de asesor gerencia)
-   * GET /rendicion-cuentas/documentos/disponibles
-   */
   obtenerDocumentosDisponibles(): Observable<RendicionCuentasProceso[]> {
     return this.http.get<any>(`${this.apiUrl}/documentos/disponibles`).pipe(
-      map(res => {
-        console.log('📥 Documentos disponibles:', res);
-        return this.handleListResponse(res);
-      }),
+      map(res => this.handleListResponse(res)),
       catchError(err => this.handleError(err, 'cargar documentos disponibles'))
     );
   }
 
-  /**
-   * Tomar un documento para revisión
-   * POST /rendicion-cuentas/documentos/:documentoId/tomar
-   */
   tomarDocumentoParaRevision(documentoId: string): Observable<any> {
     if (!documentoId) return throwError(() => new Error('ID requerido'));
 
-    console.log('📤 Tomando documento para revisión:', documentoId);
-
     return this.http.post<any>(`${this.apiUrl}/documentos/${documentoId}/tomar`, {}).pipe(
       map(res => {
-        console.log('📥 Respuesta tomar documento:', res);
         if (res.ok || res.success) return res;
         throw new Error(res.message || 'No se pudo tomar el documento');
       }),
@@ -60,10 +39,6 @@ export class RendicionCuentasService {
     );
   }
 
-  /**
-   * Obtener mis documentos en revisión
-   * GET /rendicion-cuentas/mis-documentos
-   */
   obtenerMisDocumentos(): Observable<RendicionCuentasProceso[]> {
     return this.http.get<any>(`${this.apiUrl}/mis-documentos`).pipe(
       map(res => this.handleListResponse(res)),
@@ -71,23 +46,13 @@ export class RendicionCuentasService {
     );
   }
 
-
-  /**
-   * Obtener detalle de una rendición por su ID
-   * GET /rendicion-cuentas/rendiciones/:rendicionId/detalle
-   */
   obtenerDetalleRendicion(rendicionId: string): Observable<RendicionCuentasProceso> {
     if (!rendicionId) return throwError(() => new Error('ID de rendición requerido'));
 
-    console.log(`[Service] Obteniendo detalle rendición: ${rendicionId}`);
-
     return this.http.get<any>(`${this.apiUrl}/rendiciones/${rendicionId}/detalle`).pipe(
       map(res => {
-        console.log('[Service] Respuesta cruda de detalle rendición:', res);
-
         let datos = res.data || res;
         if (!datos) throw new Error('No se encontraron datos en la respuesta');
-
         return this.mapearProceso(datos);
       }),
       catchError(err => this.handleError(err, `obtener detalle rendición ${rendicionId}`))
@@ -95,151 +60,106 @@ export class RendicionCuentasService {
   }
 
   tomarDecision(rendicionId: string, dto: TomarDecisionDto): Observable<RendicionCuentasProceso> {
-    console.log(`[Service] Tomando decisión en rendición ${rendicionId}:`, dto);
-
     return this.http.patch<any>(`${this.apiUrl}/documentos/${rendicionId}/decision`, dto).pipe(
       map(res => this.handleActionResponse(res)),
       catchError(err => this.handleError(err, `tomar decisión en ${rendicionId}`))
     );
   }
 
-  descargarCarpeta(documentoId: string): Observable<Blob> {
-    console.log(`[Service] Descargando carpeta completa del documento: ${documentoId}`);
-
-    return this.http.get(`${this.apiUrl}/documentos/${documentoId}/descargar`, {
-      responseType: 'blob'
-    });
+descargarCarpeta(documentoId: string): Observable<Blob> {
+  if (!documentoId) {
+    console.error('[Service] ID de documento requerido pero no recibido');
+    return throwError(() => new Error('ID de documento requerido'));
   }
 
-  /**
-   * Alias para mantener compatibilidad
-   */
+  const url = `${this.apiUrl}/documentos/${documentoId}/descargar`;
+  console.log('[Service] URL de descarga:', url);
+  console.log('[Service] documentoId:', documentoId);
+
+  return this.http.get(url, {
+    responseType: 'blob',
+    observe: 'response'
+  }).pipe(
+    map(response => {
+      console.log('[Service] Respuesta recibida:', response);
+      const blob = response.body as Blob;
+      console.log('[Service] Tamaño del blob:', blob.size);
+      
+      const contentDisposition = response.headers.get('content-disposition');
+      let filename = `documento_${documentoId}.zip`;
+
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="?([^"]+)"?/);
+        if (match) filename = match[1];
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      return blob;
+    }),
+    catchError(err => {
+      console.error('[Service] Error en descarga:', err);
+      const errorMsg = err.error?.message || err.message || 'Error al descargar la carpeta';
+      return throwError(() => new Error(errorMsg));
+    })
+  );
+}
   obtenerDetalleRevision(id: string): Observable<RendicionCuentasProceso> {
     return this.obtenerDetalleRendicion(id);
   }
 
-  /**
-   * Obtener todos los documentos de rendición (lista completa)
-   * GET /rendicion-cuentas/todos-documentos
-   */
   obtenerTodosDocumentos(): Observable<any[]> {
-    console.log('📥 Solicitando todos los documentos de rendición...');
-
     return this.http.get<any>(`${this.apiUrl}/todos-documentos`).pipe(
       map(res => {
-        console.log('📥 Respuesta completa de todos-documentos:', JSON.stringify(res, null, 2));
-
-        // Caso 1: Respuesta directa array
-        if (Array.isArray(res)) {
-          console.log(`→ Array directo (${res.length} docs)`);
-          return res;
-        }
-
-        // Caso 2: { ok: true, data: [...] }
-        if (res?.ok === true && Array.isArray(res.data)) {
-          console.log(`→ ok + data array (${res.data.length} docs)`);
-          return res.data;
-        }
-
-        // Caso 3: { data: [...] }
-        if (res?.data && Array.isArray(res.data)) {
-          console.log(`→ data array (${res.data.length} docs)`);
-          return res.data;
-        }
-
-        // Caso 4: doble anidamiento { ok: true, data: { ok: true, data: [...] } }
-        if (res?.ok && res.data?.ok && Array.isArray(res.data.data)) {
-          console.log(`→ doble anidamiento ok + data.data (${res.data.data.length} docs)`);
-          return res.data.data;
-        }
-
-        // Caso 5: { data: { documentos: [...] } }
-        if (res?.data?.documentos && Array.isArray(res.data.documentos)) {
-          console.log(`→ data.documentos (${res.data.documentos.length} docs)`);
-          return res.data.documentos;
-        }
-
-        // Caso 6: cualquier propiedad que sea array
-        const arraysPosibles = Object.values(res || {}).filter(val => Array.isArray(val)) as any[];
-        if (arraysPosibles.length > 0) {
-          const primerArray = arraysPosibles[0];
-          console.log(`→ Primer array encontrado (${primerArray.length} docs)`);
-          return primerArray;
-        }
-
-        // Fallo total
-        console.warn('⚠️ No se encontró array en la respuesta:', res);
+        if (Array.isArray(res)) return res;
+        if (res?.ok === true && Array.isArray(res.data)) return res.data;
+        if (res?.data && Array.isArray(res.data)) return res.data;
+        if (res?.data?.documentos && Array.isArray(res.data.documentos)) return res.data.documentos;
         return [];
       }),
       catchError(err => {
-        console.error('❌ Error en obtenerTodosDocumentos:', err);
+        console.error('Error en obtenerTodosDocumentos:', err);
         return of([]);
       })
     );
   }
 
-  /**
-   * Obtener historial del usuario
-   * GET /rendicion-cuentas/historial
-   */
   obtenerHistorial(): Observable<any[]> {
     return this.http.get<any>(`${this.apiUrl}/historial`).pipe(
       map(res => {
-        console.log('📥 Respuesta historial:', res);
-
-        // Si la respuesta es directamente un array
-        if (Array.isArray(res)) {
-          return res;
-        }
-
-        // Si tiene estructura { ok: true, data: [...] }
-        if (res?.ok === true && Array.isArray(res.data)) {
-          return res.data;
-        }
-
-        // Si tiene estructura { data: [...] }
-        if (res?.data && Array.isArray(res.data)) {
-          return res.data;
-        }
-
+        if (Array.isArray(res)) return res;
+        if (res?.ok === true && Array.isArray(res.data)) return res.data;
+        if (res?.data && Array.isArray(res.data)) return res.data;
         return [];
       }),
       catchError(err => {
-        console.error('❌ Error en obtenerHistorial:', err);
+        console.error('Error en obtenerHistorial:', err);
         return of([]);
       })
     );
   }
 
-  /**
-   * Liberar documento (no implementado en backend)
-   */
   liberarDocumento(id: string): Observable<any> {
-    console.warn('liberarDocumento no está implementado en el backend actual');
     return throwError(() => new Error('Método no implementado'));
   }
-
-  // =============================================================================
-  // MÉTODOS DE MAPEO
-  // =============================================================================
 
   private handleListResponse(response: any): RendicionCuentasProceso[] {
     if (response?.ok === true && Array.isArray(response.data)) {
       return response.data.map((d: any) => this.mapearProceso(d));
     }
-
     if (Array.isArray(response)) {
       return response.map((d: any) => this.mapearProceso(d));
     }
-
     if (response && Array.isArray(response.data)) {
       return response.data.map((d: any) => this.mapearProceso(d));
     }
-
-    if (response?.data && Array.isArray(response.data.data)) {
-      return response.data.data.map((d: any) => this.mapearProceso(d));
-    }
-
     return [];
   }
 
@@ -247,22 +167,17 @@ export class RendicionCuentasService {
     if (response?.ok === true && response.data) {
       return this.mapearProceso(response.data);
     }
-
     if (response?.data) {
       return this.mapearProceso(response.data);
     }
-
     if (response?.id) {
       return this.mapearProceso(response);
     }
-
     throw new Error(response?.message || 'Error en la operación');
   }
 
   private mapearProceso(data: any): RendicionCuentasProceso {
-    if (!data) {
-      throw new Error('No se recibieron datos para mapear');
-    }
+    if (!data) throw new Error('No se recibieron datos para mapear');
 
     const procesoData = data.data || data;
 
@@ -279,7 +194,7 @@ export class RendicionCuentasService {
     const estaDisponible = procesoData.disponible === true;
 
     if (estaDisponible) {
-      estado = RendicionCuentasEstado.PENDIENTE;
+      estado = 'PENDIENTE';
     } else {
       estado = this.normalizarEstado(estado);
     }
@@ -297,7 +212,6 @@ export class RendicionCuentasService {
       fechaDecision: procesoData.fechaDecision ? new Date(procesoData.fechaDecision) : undefined,
       fechaCreacion: new Date(procesoData.fechaCreacion || procesoData.fechaRadicacion || new Date()),
       fechaActualizacion: new Date(procesoData.fechaActualizacion || new Date()),
-
       numeroRadicado: procesoData.documento?.numeroRadicado || procesoData.numeroRadicado,
       nombreContratista: procesoData.documento?.nombreContratista || procesoData.nombreContratista,
       documentoContratista: procesoData.documento?.documentoContratista || procesoData.documentoContratista,
@@ -307,7 +221,6 @@ export class RendicionCuentasService {
         ? new Date(procesoData.documento.fechaCompletadoContabilidad)
         : undefined,
       disponible: estaDisponible,
-
       informesPresentados: procesoData.informesPresentados || [],
       documentosAdjuntos: procesoData.documentosAdjuntos || [],
       montoRendido: procesoData.montoRendido,
@@ -322,21 +235,18 @@ export class RendicionCuentasService {
     return throwError(() => new Error(msg));
   }
 
-  normalizarEstado(estadoRaw: string | undefined): RendicionCuentasEstado | string {
+  normalizarEstado(estadoRaw: string | undefined): string {
     if (!estadoRaw) return 'DESCONOCIDO';
-
     const upper = estadoRaw.toUpperCase().trim();
-
-    if (upper.includes('COMPLETADO') || upper.includes('APROBADO')) return RendicionCuentasEstado.COMPLETADO;
-    if (upper.includes('EN_REVISION')) return RendicionCuentasEstado.EN_REVISION;
-    if (upper.includes('PENDIENTE')) return RendicionCuentasEstado.PENDIENTE;
-    if (upper.includes('OBSERVADO')) return RendicionCuentasEstado.OBSERVADO;
-    if (upper.includes('RECHAZADO')) return RendicionCuentasEstado.RECHAZADO;
-
+    if (upper.includes('COMPLETADO') || upper.includes('APROBADO')) return 'COMPLETADO';
+    if (upper.includes('EN_REVISION')) return 'EN_REVISION';
+    if (upper.includes('PENDIENTE')) return 'PENDIENTE';
+    if (upper.includes('OBSERVADO')) return 'OBSERVADO';
+    if (upper.includes('RECHAZADO')) return 'RECHAZADO';
     return upper;
   }
 
-  getEstadoClass(estado: string | RendicionCuentasEstado | undefined): string {
+  getEstadoClass(estado: string | undefined): string {
     const e = (estado || '').toString().toUpperCase();
     if (e.includes('APROBADO') || e.includes('COMPLETADO')) return 'badge-success';
     if (e.includes('OBSERVADO')) return 'badge-warning';
@@ -346,7 +256,7 @@ export class RendicionCuentasService {
     return 'badge-dark';
   }
 
-  getEstadoTexto(estado: string | RendicionCuentasEstado | undefined): string {
+  getEstadoTexto(estado: string | undefined): string {
     const e = (estado || '').toString().toUpperCase();
     if (e.includes('APROBADO')) return 'Aprobado';
     if (e.includes('OBSERVADO')) return 'Observado';
