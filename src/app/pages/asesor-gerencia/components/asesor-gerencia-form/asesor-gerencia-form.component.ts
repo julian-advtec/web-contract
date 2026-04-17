@@ -1,8 +1,9 @@
+// src/app/pages/asesor-gerencia/components/asesor-gerencia-form/asesor-gerencia-form.component.ts
+
 import { Component, OnInit, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { DomSanitizer } from '@angular/platform-browser';
 
 import { AsesorGerenciaService } from '../../../../core/services/asesor-gerencia.service';
 import { NotificationService } from '../../../../core/services/notification.service';
@@ -12,7 +13,6 @@ import { SignatureService, Signature } from '../../../../core/services/signature
 import { ContabilidadFormComponent } from '../../../contabilidad/components/contabilidad-form/contabilidad-form.component';
 import { SignaturePositionComponent, SignaturePosition } from '../../../signature/components/signature-position/signature-position.component';
 import { PdfViewerModalComponent } from '../pdf-viewer-modal/pdf-viewer-modal.component';
-import { RadicacionFormComponent } from '../../../radicacion/components/radicacion-form/radicacion-form.component';
 
 @Component({
   selector: 'app-asesor-gerencia-form',
@@ -22,14 +22,15 @@ import { RadicacionFormComponent } from '../../../radicacion/components/radicaci
     ReactiveFormsModule,
     ContabilidadFormComponent,
     SignaturePositionComponent,
-    PdfViewerModalComponent,
-    RadicacionFormComponent,
+    PdfViewerModalComponent
   ],
   templateUrl: './asesor-gerencia-form.component.html',
   styleUrls: ['./asesor-gerencia-form.component.scss']
 })
 export class AsesorGerenciaFormComponent implements OnInit {
   form: FormGroup;
+
+  @Input() rendicionId: string | null = null;
 
   isProcessing = false;
   isLoading = true;
@@ -43,8 +44,6 @@ export class AsesorGerenciaFormComponent implements OnInit {
 
   comprobanteBlob: Blob | null = null;
   comprobanteFile: File | null = null;
-
-
 
   showPdfModal = false;
   pdfBlob: Blob | null = null;
@@ -74,9 +73,7 @@ export class AsesorGerenciaFormComponent implements OnInit {
     private asesorGerenciaService: AsesorGerenciaService,
     private notificationService: NotificationService,
     private authService: AuthService,
-    public signatureService: SignatureService,
-    private sanitizer: DomSanitizer,
-
+    public signatureService: SignatureService
   ) {
     this.form = this.fb.group({
       observaciones: ['', [Validators.minLength(10)]],
@@ -87,46 +84,28 @@ export class AsesorGerenciaFormComponent implements OnInit {
     this.form.get('estadoFinal')?.valueChanges.subscribe(() => this.onEstadoFinalChange());
   }
 
-
-  getNombreArchivoFirmado(path: string | undefined): string {
-    if (!path) {
-      return 'comprobante_firmado.pdf';
-    }
-    // Divide por \ o / y toma el último segmento (el nombre del archivo)
-    const partes = path.split(/[\\/]/);
-    return partes[partes.length - 1] || 'comprobante_firmado.pdf';
-  }
-
-
   ngOnInit(): void {
     this.cargarFirmaUsuario();
 
     console.log('📌 [AsesorGerenciaForm] ID recibido como @Input:', this.documentoId);
-    console.log('📌 [AsesorGerenciaForm] ID desde ruta (si aplica):', this.route.snapshot.paramMap.get('id'));
 
-    // Prioridad absoluta: usar @Input cuando existe (modo embebido)
     let idParaCargar: string | null = null;
 
     if (this.documentoId) {
       idParaCargar = this.documentoId;
-      console.log('✅ Usando ID desde @Input (prioridad alta):', idParaCargar);
+      console.log('✅ Usando ID desde @Input:', idParaCargar);
     } else {
       idParaCargar = this.route.snapshot.paramMap.get('id');
       console.log('⚡ Usando ID desde ruta (fallback):', idParaCargar);
     }
 
-    const modo = this.route.snapshot.queryParamMap.get('modo') || 'edicion';
     const soloLecturaParam = this.route.snapshot.queryParamMap.get('soloLectura') === 'true';
     const desdeHistorial = this.route.snapshot.queryParamMap.get('desdeHistorial') === 'true';
     const forceEdit = this.route.snapshot.queryParamMap.get('forceEdit') === 'true';
 
-    // Prioridad: si viene forceEdit=true (continuar revisión), SIEMPRE edición
     this.esModoLectura = forceEdit ? false : (
       soloLecturaParam ||
-      modo === 'consulta' ||
-      modo === 'lectura' ||
-      modo === 'vista' ||
-      (desdeHistorial && !forceEdit) ||
+      desdeHistorial ||
       this.forceReadOnly
     );
 
@@ -142,7 +121,7 @@ export class AsesorGerenciaFormComponent implements OnInit {
       console.log('🚀 Cargando documento con ID:', idParaCargar);
       this.cargarDocumento(idParaCargar);
     } else {
-      console.error('❌ No hay ID válido para cargar en asesor-gerencia');
+      console.error('❌ No hay ID válido');
       this.mostrarMensaje('No se recibió ID del documento', 'error');
       this.isLoading = false;
     }
@@ -150,7 +129,7 @@ export class AsesorGerenciaFormComponent implements OnInit {
     if (this.esModoLectura || this.estaProcesado) {
       this.form.disable();
     } else {
-      this.form.enable();  // Asegurar que se habilite si es edición
+      this.form.enable();
     }
   }
 
@@ -199,21 +178,6 @@ export class AsesorGerenciaFormComponent implements OnInit {
         this.documento.estado?.toUpperCase() || ''
       );
 
-      // ✅ FORZAR MODO LECTURA si ya está procesado O si forceReadOnly es true
-      if (this.estaProcesado || this.forceReadOnly) {
-        this.esModoLectura = true;
-        this.form.disable();
-      } else {
-        this.esModoLectura = false;
-        this.form.enable();
-      }
-
-      console.log('📊 Estado después de cargar:', {
-        estado: this.documento.estado,
-        estaProcesado: this.estaProcesado,
-        forceReadOnly: this.forceReadOnly,
-        esModoLectura: this.esModoLectura
-      });
       if (this.esModoLectura || this.estaProcesado) {
         this.form.disable();
       }
@@ -231,35 +195,13 @@ export class AsesorGerenciaFormComponent implements OnInit {
           this.documento.observacion || ''
       });
 
-      // Cargar siempre el comprobante de pago (para edición) y el firmado (para vista)
+      // Siempre cargar comprobante de pago
       this.cargarComprobantePago();
-      if (this.documento?.comprobanteFirmadoPath) {
-        this.cargarComprobanteFirmado();
-      }
 
       this.actualizarEstadoBotones();
-
-      if (this.esModoLectura || this.estaProcesado) {
-        // Modo solo lectura o ya procesado → prioridad absoluta al firmado
-        if (this.documento?.comprobanteFirmadoPath) {
-          this.cargarComprobanteFirmado();   // ← esto debe asignar a comprobanteBlob
-        } else {
-          this.comprobanteBlob = null;
-          this.comprobanteFile = null;
-          console.warn('No hay comprobanteFirmadoPath → no se muestra tarjeta de firmado');
-          // Opcional: mostrar un mensaje o card alternativa aquí
-        }
-      } else {
-        // Modo edición → cargamos el original para firmar
-        this.cargarComprobantePago();        // ← asigna a comprobanteBlob
-      }
-
     } catch (err: any) {
       const msg = err.error?.message || err.message || 'No se pudo cargar el documento';
       this.mostrarMensaje(msg, 'error');
-      if (msg.toLowerCase().includes('no encontrado') || msg.toLowerCase().includes('acceso')) {
-        setTimeout(() => this.volverALista(), 3000);
-      }
     } finally {
       this.isLoading = false;
     }
@@ -279,7 +221,7 @@ export class AsesorGerenciaFormComponent implements OnInit {
         this.comprobanteBlob = blob;
         this.comprobanteFile = new File([blob], 'comprobante_pago.pdf', { type: 'application/pdf' });
         this.actualizarEstadoBotones();
-        console.log('Comprobante de pago cargado OK → botón debería habilitarse si todo OK');
+        console.log('Comprobante de pago cargado OK');
       },
       error: (err) => {
         console.error('[cargarComprobantePago] Error al cargar pagoRealizado:', err);
@@ -292,66 +234,35 @@ export class AsesorGerenciaFormComponent implements OnInit {
     });
   }
 
-  cargarComprobanteFirmado(): void {
-    if (!this.documento?.id) return;
-
-    console.log('[cargarComprobanteFirmado] Iniciando carga automática del firmado...');
-
-    // ← COMENTA O ELIMINA ESTA PARTE (esto es lo que causa el 404 al cargar la página)
-    // this.asesorGerenciaService.verArchivo(this.documento.id, 'comprobanteFirmado').subscribe({
-    //   next: (blob: Blob) => {
-    //     console.log('[cargarComprobanteFirmado] Firmado cargado automáticamente OK - tamaño:', blob.size);
-    //     this.pdfBlobFirmado = blob;  // o lo que uses
-    //   },
-    //   error: (err) => {
-    //     console.error('[cargarComprobanteFirmado] Error carga automática:', err);
-    //     // No mostrar mensaje aquí para no molestar al usuario al cargar la página
-    //   }
-    // });
-
-    // Si quieres, puedes dejar un log para confirmar que ya no se ejecuta
-    console.log('[cargarComprobanteFirmado] Carga automática DESACTIVADA - se carga solo al clic en Ver PDF');
-  }
-
+  // ✅ Método para ver comprobante firmado (solo en modo lectura)
   verComprobanteFirmado(): void {
-    if (this.esModoLectura || this.estaProcesado) {
-      if (!this.documento?.comprobanteFirmadoPath) {
-        this.mostrarMensaje('No hay comprobante firmado registrado para este documento', 'warning');
-        return;
-      }
-
-      console.log('[VER PDF] Solicitando vía endpoint dedicado /comprobante-firmado');
-
-      this.asesorGerenciaService.obtenerComprobanteFirmado(this.documento.id).subscribe({
-        next: (blob: Blob) => {
-          console.log('[VER PDF] Comprobante firmado cargado OK - tamaño:', blob.size);
-          if (blob.size === 0) {
-            this.mostrarMensaje('El archivo firmado está vacío', 'warning');
-            return;
-          }
-          this.pdfBlob = blob;
-          this.pdfModalTitle = `Comprobante Firmado por Gerencia - ${this.documento.numeroRadicado || 'N/A'}`;
-          this.showPdfModal = true;
-        },
-        error: (err) => {
-          console.error('[VER PDF] Error al cargar comprobante firmado:', err);
-          if (err.status === 404) {
-            this.mostrarMensaje('El comprobante firmado no se encuentra en el servidor (404)', 'error');
-          } else {
-            this.mostrarMensaje('Error al cargar el comprobante firmado', 'error');
-          }
-        }
-      });
-    } else {
-      // Modo edición (sin cambios)
-      if (!this.comprobanteBlob) {
-        this.mostrarMensaje('No hay comprobante disponible para ver', 'warning');
-        return;
-      }
-      this.pdfBlob = this.comprobanteBlob;
-      this.pdfModalTitle = `Comprobante para Firma - ${this.documento.numeroRadicado || 'N/A'}`;
-      this.showPdfModal = true;
+    if (!this.documento?.comprobanteFirmadoPath) {
+      this.mostrarMensaje('No hay comprobante firmado registrado para este documento', 'warning');
+      return;
     }
+
+    console.log('[VER PDF] Solicitando comprobante firmado');
+
+    this.asesorGerenciaService.verArchivo(this.documento.id, 'comprobanteFirmado').subscribe({
+      next: (blob: Blob) => {
+        console.log('[VER PDF] Comprobante firmado cargado OK - tamaño:', blob.size);
+        if (blob.size === 0) {
+          this.mostrarMensaje('El archivo firmado está vacío', 'warning');
+          return;
+        }
+        this.pdfBlob = blob;
+        this.pdfModalTitle = `Comprobante Firmado - ${this.documento.numeroRadicado || 'N/A'}`;
+        this.showPdfModal = true;
+      },
+      error: (err) => {
+        console.error('[VER PDF] Error al cargar comprobante firmado:', err);
+        if (err.status === 404) {
+          this.mostrarMensaje('El comprobante firmado no se encuentra en el servidor', 'error');
+        } else {
+          this.mostrarMensaje('Error al cargar el comprobante firmado', 'error');
+        }
+      }
+    });
   }
 
   cerrarModalPdf(): void {
@@ -495,4 +406,13 @@ export class AsesorGerenciaFormComponent implements OnInit {
     if (u.includes('RECHAZADO_ASESOR_GERENCIA')) return 'RECHAZADO';
     return 'PENDIENTE';
   }
+
+  getNombreArchivoFirmado(path: string | undefined): string {
+  if (!path) {
+    return 'comprobante_firmado.pdf';
+  }
+  // Divide por \ o / y toma el último segmento (el nombre del archivo)
+  const partes = path.split(/[\\/]/);
+  return partes[partes.length - 1] || 'comprobante_firmado.pdf';
+}
 }

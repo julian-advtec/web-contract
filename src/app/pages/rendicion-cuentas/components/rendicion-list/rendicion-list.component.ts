@@ -1,3 +1,5 @@
+// src/app/pages/rendicion-cuentas/components/rendicion-list/rendicion-list.component.ts
+
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -6,6 +8,7 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
 import { RendicionCuentasService } from '../../../../core/services/rendicion-cuentas.service';
+import { NotificationService } from '../../../../core/services/notification.service';
 
 @Component({
   selector: 'app-rendicion-list',
@@ -30,20 +33,19 @@ export class RendicionListComponent implements OnInit, OnDestroy {
   totalPages = 0;
   pages: number[] = [];
 
-  usuarioId = ''; // Se llenará con el ID real del usuario logueado
+  usuarioId = '';
 
   private destroy$ = new Subject<void>();
 
   constructor(
     private rendicionService: RendicionCuentasService,
+    private notificationService: NotificationService,
     private router: Router
   ) { }
 
   ngOnInit(): void {
-    // Obtener ID del usuario logueado (ajusta según tu authService)
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     this.usuarioId = user?.id || '';
-
     this.cargarDocumentos();
   }
 
@@ -63,22 +65,10 @@ export class RendicionListComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (docs) => {
-          console.log('[Lista Completa] Documentos recibidos del servicio:', docs?.length || 0);
-
-          if (docs && docs.length > 0) {
-            console.log('[Lista Completa] Primer documento:', docs[0]);
-          }
-
+          console.log('[Lista Completa] Documentos recibidos:', docs?.length || 0);
           this.documentos = docs || [];
           this.filteredDocumentos = [...this.documentos];
           this.updatePagination();
-
-          if (this.documentos.length === 0) {
-            this.successMessage = 'No se encontraron documentos';
-          } else {
-            this.successMessage = `Se encontraron ${this.documentos.length} documentos`;
-          }
-
           this.isLoading = false;
         },
         error: (err) => {
@@ -87,6 +77,34 @@ export class RendicionListComponent implements OnInit, OnDestroy {
           this.isLoading = false;
         }
       });
+  }
+
+  // ✅ Método para tomar documento (usado en el HTML)
+  tomarDocumento(doc: any): void {
+    if (this.isProcessing) return;
+    this.isProcessing = true;
+
+    this.rendicionService.tomarDocumento(doc.documentoId || doc.id).subscribe({
+      next: (response: any) => {
+        this.isProcessing = false;
+        this.notificationService.success('Documento tomado correctamente');
+        this.cargarDocumentos(); // Recargar la lista
+
+        if (response.rendicionId) {
+          this.router.navigate(['/rendicion-cuentas/procesar', response.rendicionId]);
+        }
+      },
+      error: (err: any) => {
+        this.isProcessing = false;
+        this.notificationService.error('Error', err.message);
+      }
+    });
+  }
+
+  // ✅ Método para continuar revisión
+  continuarRevision(doc: any): void {
+    if (this.isProcessing) return;
+    this.router.navigate(['/rendicion-cuentas/procesar', doc.rendicionId || doc.id]);
   }
 
   onSearch(): void {
@@ -133,6 +151,12 @@ export class RendicionListComponent implements OnInit, OnDestroy {
   trackById(index: number, doc: any): string {
     return doc?.id || index.toString();
   }
+
+  refreshData(): void {
+    this.cargarDocumentos();
+  }
+
+  // ==================== MÉTODOS AUXILIARES ====================
 
   esReciente(doc: any): boolean {
     const fecha = doc.fechaCreacion;
@@ -195,52 +219,13 @@ export class RendicionListComponent implements OnInit, OnDestroy {
     });
   }
 
-// ✅ CORREGIDO - Implementación real
-tomarDocumento(doc: any): void {
-  if (this.isProcessing) return;
-  this.isProcessing = true;
-
-  this.rendicionService.tomarDocumentoParaRevision(doc.id).subscribe({
-    next: (response) => {
-      this.isProcessing = false;
-      this.successMessage = 'Documento tomado correctamente';
-      this.cargarDocumentos(); // Recargar la lista
-      
-      // Opcional: navegar al formulario
-      if (response.rendicionId) {
-        this.router.navigate(['/rendicion-cuentas/procesar', response.rendicionId]);
-      }
-    },
-    error: (err) => {
-      this.isProcessing = false;
-      this.errorMessage = err.message || 'Error al tomar el documento';
-    }
-  });
-}
-
-  procesarDocumento(doc: any): void {
-    if (this.isProcessing) return;
-    this.isProcessing = true;
-
-    console.log('Procesando documento:', doc.id);
-
-    setTimeout(() => {
-      this.isProcessing = false;
-      this.router.navigate(['/rendicion-cuentas/procesar', doc.id]);
-    }, 800);
+  getFechaRelevante(doc: any): Date | string | undefined {
+    return doc.fechaRadicacion || doc.fechaDecision || doc.fechaActualizacion || doc.fechaCreacion;
   }
 
   verDocumento(doc: any): void {
     this.router.navigate(['/rendicion-cuentas/documento', doc.id], {
       queryParams: { modo: 'consulta' }
     });
-  }
-
-  refreshData(): void {
-    this.cargarDocumentos();
-  }
-
-  getFechaRelevante(doc: any): Date | string | undefined {
-    return doc.fechaRadicacion || doc.fechaDecision || doc.fechaActualizacion || doc.fechaCreacion;
   }
 }

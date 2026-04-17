@@ -1,57 +1,11 @@
-// src/app/core/models/rendicion-cuentas.model.ts
-
-export enum RendicionCuentasEstado {
-  PENDIENTE = 'PENDIENTE',
-  EN_REVISION = 'EN_REVISION',
-  APROBADO = 'APROBADO',
-  OBSERVADO = 'OBSERVADO',
-  RECHAZADO = 'RECHAZADO',
-  COMPLETADO = 'COMPLETADO'
-}
-
-export const RendicionCuentasColores: Record<string, string> = {
-  [RendicionCuentasEstado.PENDIENTE]: '#FFC107',
-  [RendicionCuentasEstado.EN_REVISION]: '#2196F3',
-  [RendicionCuentasEstado.APROBADO]: '#4CAF50',
-  [RendicionCuentasEstado.OBSERVADO]: '#FF9800',
-  [RendicionCuentasEstado.RECHAZADO]: '#F44336',
-  [RendicionCuentasEstado.COMPLETADO]: '#9E9E9E',
-};
-
-export interface RendicionCuentasDocumento {
-  id: string;
-  radicadoId: string;
-  numeroRadicado: string;
-  nombreContratista: string;
-  documentoContratista: string;
-  numeroContrato: string;
-  estado: RendicionCuentasEstado | string;
-  responsableId?: string;
-  responsableAsignado?: string;
-  observaciones?: string;
-  fechaAsignacion?: Date;
-  fechaInicioRevision?: Date;
-  fechaDecision?: Date;
-  fechaCreacion: Date;
-  fechaActualizacion: Date;
-  
-  // Campos extendidos para UI
-  contadorAsignado?: string;
-  fechaCompletadoContabilidad?: Date;
-  disponible?: boolean;
-}
-
 export interface RendicionCuentasProceso {
   id: string;
   documentoId: string;
-  documento: RendicionCuentasDocumento;
+  rendicionId?: string;  // ← AÑADIR esta propiedad
   responsableId?: string;
-  responsable?: {
-    id: string;
-    nombreCompleto: string;
-    email: string;
-  };
-  estado: RendicionCuentasEstado | string;
+  responsable?: string;
+  responsableNombre?: string;  // ← AÑADIR esta propiedad
+  estado: string;
   observaciones?: string;
   fechaAsignacion?: Date;
   fechaInicioRevision?: Date;
@@ -59,7 +13,7 @@ export interface RendicionCuentasProceso {
   fechaCreacion: Date;
   fechaActualizacion: Date;
   
-  // Campos de ayuda para UI
+  // Propiedades adicionales del documento
   numeroRadicado?: string;
   nombreContratista?: string;
   documentoContratista?: string;
@@ -68,56 +22,59 @@ export interface RendicionCuentasProceso {
   fechaCompletadoContabilidad?: Date;
   disponible?: boolean;
   
-  // Campos específicos para rendición
-  informesPresentados?: string[];
-  documentosAdjuntos?: string[];
+  // Arrays
+  informesPresentados?: any[];
+  documentosAdjuntos?: any[];
+  
+  // Montos
   montoRendido?: number;
   montoAprobado?: number;
   observacionesRendicion?: string;
+  
+  // Propiedades adicionales para compatibilidad
+  nombreCompleto?: string;
+  radicado?: string;
+  fechaRadicacion?: Date;
+}
+
+// Exportar el enum de estados
+export enum RendicionCuentasEstado {
+  PENDIENTE = 'PENDIENTE',
+  EN_REVISION = 'EN_REVISION',
+  OBSERVADO = 'OBSERVADO',
+  RECHAZADO = 'RECHAZADO',
+  COMPLETADO = 'COMPLETADO'
+}
+
+// Exportar los DTOs faltantes
+export interface TomarDecisionDto {
+  decision: string;
+  observacion?: string;
+}
+
+export interface IniciarRevisionDto {
+  documentoId: string;
+  responsableId?: string;
+}
+
+export interface CreateRendicionCuentasDto {
+  documentoId: string;
+  responsableId: string;
+}
+
+export interface FiltrosRendicionCuentas {
+  estado?: string;
+  fechaDesde?: Date;
+  fechaHasta?: Date;
+  responsableId?: string;
+  numeroRadicado?: string;
 }
 
 export interface RendicionCuentasHistorialItem {
   id: string;
   documentoId: string;
-  usuarioId: string;
-  usuarioNombre: string;
-  estadoAnterior: string;
-  estadoNuevo: string;
   accion: string;
-  observacion?: string;
-  fechaCreacion: Date;
-  
-  // Para UI
-  documento?: {
-    numeroRadicado: string;
-    nombreContratista: string;
-    numeroContrato: string;
-  };
-}
-
-export interface TomarDecisionDto {
-  decision: RendicionCuentasEstado.APROBADO | RendicionCuentasEstado.OBSERVADO | RendicionCuentasEstado.RECHAZADO;
-  observacion?: string;
-}
-
-export interface IniciarRevisionDto {
-  observacion?: string;
-}
-
-export interface AsignarResponsableDto {
-  responsableId: string;
-}
-
-export interface CreateRendicionCuentasDto {
-  documentoId: string;
-  responsableId?: string;
-}
-
-export interface FiltrosRendicionCuentas {
-  estados?: RendicionCuentasEstado[];
-  responsableId?: string;
-  desde?: string;
-  hasta?: string;
-  limit?: number;
-  offset?: number;
+  usuario: string;
+  fecha: Date;
+  detalles?: any;
 }

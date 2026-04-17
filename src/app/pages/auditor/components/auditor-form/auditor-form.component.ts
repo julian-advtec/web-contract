@@ -172,90 +172,225 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ✅ MÉTODO CORREGIDO: Determina si está en modo edición
-  estaEnModoEdicion(): boolean {
-    // Si es solo lectura forzado, no
-    if (this.soloLectura === true) {
-      console.log('[AUDITOR] estaEnModoEdicion: false (soloLectura=true)');
-      return false;
-    }
-    
-    // Si es modo contabilidad o general, no
-    if (this.esModoContabilidad || this.esModoGeneral) {
-      console.log('[AUDITOR] estaEnModoEdicion: false (modo contabilidad/general)');
-      return false;
-    }
-    
-    // Si no hay estado, no
-    if (!this.estadoDocumento) {
-      console.log('[AUDITOR] estaEnModoEdicion: false (sin estado)');
-      return false;
-    }
-    
-    const estado = this.estadoDocumento.toUpperCase();
-    
-    // Estados donde NO se puede editar (finales)
-    const estadosFinales = [
-      'APROBADO', 'APROBADO_AUDITOR', 'APROBADO_SUPERVISOR', 'APROBADO_ASESOR_GERENCIA',
-      'COMPLETADO', 'COMPLETADO_AUDITOR', 'COMPLETADO_TESORERIA',
-      'RECHAZADO', 'RECHAZADO_AUDITOR', 'RECHAZADO_SUPERVISOR', 'RECHAZADO_TESORERIA',
-      'OBSERVADO', 'OBSERVADO_AUDITOR', 'OBSERVADO_TESORERIA',
-      'PAGADO', 'ANULADO'
-    ];
-    
-    // Si es estado final, no se puede editar
-    if (estadosFinales.some(e => estado.includes(e))) {
-      console.log('[AUDITOR] estaEnModoEdicion: false (estado final:', estado, ')');
-      return false;
-    }
-    
-    // Estados de revisión donde SÍ se puede editar
-    const estadosRevision = [
-      'EN_REVISION_AUDITOR',
-      'EN_REVISION_ASESOR_GERENCIA',
-      'EN_REVISION_RENDICION_CUENTAS'
-    ];
-    
-    // Verificar si está en estado de revisión
-    const esEstadoRevision = estadosRevision.some(e => estado === e);
-    
-    // Verificar si el auditor actual es el asignado (si aplica)
-    const esMiAuditoria = !this.nombreAuditorAsignado || 
-                          this.nombreAuditorAsignado === this.usuarioActual;
-    
-    // Puede editar si está en estado de revisión Y (es su auditoría O es admin)
-    const puedeEditar = esEstadoRevision && (esMiAuditoria || this.esAdmin);
-    
-    console.log('[AUDITOR] estaEnModoEdicion:', {
-      estado,
-      esEstadoRevision,
-      esMiAuditoria,
-      puedeEditar,
-      nombreAuditorAsignado: this.nombreAuditorAsignado,
-      usuarioActual: this.usuarioActual,
-      esAdmin: this.esAdmin
-    });
-    
-    return puedeEditar;
+estaEnModoEdicion(): boolean {
+  console.log('[AUDITOR] === INICIANDO VERIFICACIÓN DE EDICIÓN ===');
+  console.log('[AUDITOR] Variables de estado:', {
+    soloLectura: this.soloLectura,
+    esModoContabilidad: this.esModoContabilidad,
+    esModoGeneral: this.esModoGeneral,
+    estadoDocumento: this.estadoDocumento,
+    documentoEnRevision: this.documentoEnRevision,
+    estaEnRevision: this.estaEnRevision
+  });
+  
+  // Si es solo lectura forzado, no se puede editar
+  if (this.soloLectura === true) {
+    console.log('[AUDITOR] ❌ Modo edición: NO (soloLectura=true)');
+    return false;
   }
+  
+  // Si es modo contabilidad o general, no se puede editar
+  if (this.esModoContabilidad || this.esModoGeneral) {
+    console.log('[AUDITOR] ❌ Modo edición: NO (modo contabilidad/general)');
+    return false;
+  }
+  
+  // Si no hay estado, no se puede editar
+  if (!this.estadoDocumento) {
+    console.log('[AUDITOR] ❌ Modo edición: NO (sin estado)');
+    return false;
+  }
+  
+  const estado = this.estadoDocumento.toUpperCase();
+  
+  // ✅ CORRECCIÓN: Estados donde SÍ se puede editar
+  const estadosEditables = [
+    'RADICADO',
+    'EN_REVISION_AUDITOR',
+    'EN_REVISION_ASESOR_GERENCIA',
+    'EN_REVISION_RENDICION_CUENTAS'
+  ];
+  
+  // Estados donde NO se puede editar (finales)
+  const estadosFinales = [
+    'APROBADO', 'APROBADO_AUDITOR', 'APROBADO_SUPERVISOR', 'APROBADO_ASESOR_GERENCIA',
+    'COMPLETADO', 'COMPLETADO_AUDITOR', 'COMPLETADO_TESORERIA',
+    'RECHAZADO', 'RECHAZADO_AUDITOR', 'RECHAZADO_SUPERVISOR', 'RECHAZADO_TESORERIA',
+    'OBSERVADO', 'OBSERVADO_AUDITOR', 'OBSERVADO_TESORERIA',
+    'PAGADO', 'ANULADO'
+  ];
+  
+  // Si es estado final, no se puede editar
+  if (estadosFinales.some(e => estado.includes(e))) {
+    console.log('[AUDITOR] ❌ Modo edición: NO (estado final:', estado, ')');
+    return false;
+  }
+  
+  // Verificar si está en estado editable
+  const esEstadoEditable = estadosEditables.some(e => estado === e);
+  
+  // Verificar si el usuario actual es el auditor asignado
+  const esMiAuditoria = !this.nombreAuditorAsignado || 
+                        this.nombreAuditorAsignado === this.usuarioActual ||
+                        this.esAdmin;
+  
+  const puedeEditar = esEstadoEditable && esMiAuditoria;
+  
+  console.log('[AUDITOR] Verificación de edición:', {
+    estado,
+    esEstadoEditable,
+    nombreAuditorAsignado: this.nombreAuditorAsignado,
+    usuarioActual: this.usuarioActual,
+    esMiAuditoria,
+    puedeEditar
+  });
+  
+  console.log('[AUDITOR] ✅ Modo edición:', puedeEditar ? 'SI' : 'NO');
+  return puedeEditar;
+}
 
-  // ✅ MÉTODO CORREGIDO: Determina si es solo lectura
-  esModoSoloLectura(): boolean {
-    if (this.esModoContabilidad || this.esModoGeneral) {
-      return true;
-    }
-    
-    if (this.soloLectura === true) {
-      return true;
-    }
-    
-    // Si está en modo edición, NO es solo lectura
-    if (this.estaEnModoEdicion()) {
-      return false;
-    }
-    
+// ✅ MÉTODO CORREGIDO: Determina si es solo lectura
+esModoSoloLectura(): boolean {
+  console.log('[AUDITOR] === VERIFICANDO MODO SOLO LECTURA ===');
+  
+  // Modos especiales siempre son solo lectura
+  if (this.esModoContabilidad || this.esModoGeneral) {
+    console.log('[AUDITOR] ✅ Solo lectura: SI (modo especial)');
     return true;
   }
+  
+  // Si explícitamente es solo lectura
+  if (this.soloLectura === true) {
+    console.log('[AUDITOR] ✅ Solo lectura: SI (soloLectura flag)');
+    return true;
+  }
+  
+  // Si está en modo edición, NO es solo lectura
+  const enModoEdicion = this.estaEnModoEdicion();
+  if (enModoEdicion) {
+    console.log('[AUDITOR] ✅ Solo lectura: NO (está en modo edición)');
+    return false;
+  }
+  
+  // Por defecto, solo lectura
+  console.log('[AUDITOR] ✅ Solo lectura: SI (por defecto)');
+  return true;
+}
+
+// ✅ MÉTODO CORREGIDO: cargarDocumentoParaAuditor
+cargarDocumentoParaAuditor(id: string): void {
+  if (!id) {
+    console.warn('[AUDITOR] No se recibió ID válido');
+    return;
+  }
+
+  console.log('[AUDITOR] Cargando documento con ID:', id);
+  this.isLoading = true;
+  this.documentoId = id;
+
+  this.auditorService.obtenerDocumentoParaVista(id).subscribe({
+    next: (res: any) => {
+      console.log('[AUDITOR] Respuesta completa de vista:', res);
+
+      const data = res?.data || res;
+      const documento = data?.documento || data;
+
+      if (!documento || !documento.id) {
+        console.log('[AUDITOR] Documento no encontrado, intentando como rendiciónId...');
+        this.cargarViaRendicion(id);
+        return;
+      }
+
+      this.documentoData = documento;
+      this.numeroRadicado = documento.numeroRadicado || '';
+      this.nombreContratista = documento.nombreContratista || '';
+      this.estadoDocumento = documento.estado || '';
+      this.primerRadicadoDelAno = !!documento.primerRadicadoDelAno;
+      this.contratistaId = documento.contratistaId || null;
+      this.numeroContrato = documento.numeroContrato || '';
+      
+      // Cargar el auditor asignado
+      this.nombreAuditorAsignado = documento.auditorAsignado || data.auditor?.nombreAuditor || '';
+      
+      // ✅ FORZAR MODO EDICIÓN SEGÚN EL ESTADO
+      if (this.estadoDocumento === 'EN_REVISION_AUDITOR') {
+        // Documento en revisión - debe ser editable
+        this.soloLectura = false;
+        this.documentoEnRevision = true;
+        this.estaEnRevision = true;
+        console.log('[AUDITOR] ✅ Documento EN_REVISION_AUDITOR - Modo edición ACTIVADO');
+      } else if (this.estadoDocumento === 'RADICADO' && !this.nombreAuditorAsignado) {
+        // Documento radicado sin auditor - debe ser editable
+        this.soloLectura = false;
+        this.documentoEnRevision = true;
+        this.estaEnRevision = true;
+        console.log('[AUDITOR] ✅ Documento RADICADO sin auditor - Modo edición ACTIVADO');
+      } else if (this.nombreAuditorAsignado === this.usuarioActual) {
+        // Documento asignado a este auditor - debe ser editable
+        this.soloLectura = false;
+        this.documentoEnRevision = true;
+        this.estaEnRevision = true;
+        console.log('[AUDITOR] ✅ Documento asignado a este auditor - Modo edición ACTIVADO');
+      } else {
+        // Por defecto, solo lectura
+        this.soloLectura = true;
+        this.documentoEnRevision = false;
+        this.estaEnRevision = false;
+        console.log('[AUDITOR] ⚠️ Documento en modo solo lectura');
+      }
+
+      // Cargar la decisión del auditor
+      this.cargarDecisionAuditor(data, documento);
+      this.cargarTodosLosDocumentos();
+
+      // Si ya tiene decisión final, forzar solo lectura
+      if (['APROBADO_AUDITOR', 'COMPLETADO_AUDITOR', 'RECHAZADO_AUDITOR', 'OBSERVADO_AUDITOR']
+        .includes(this.estadoDocumento)) {
+        this.soloLectura = true;
+        this.documentoEnRevision = false;
+        console.log('[AUDITOR] ⚠️ Documento con decisión final - Forzando solo lectura');
+      }
+
+      this.cdr.detectChanges();
+      this.isLoading = false;
+      
+      // Diagnosticar estado final
+      console.log('[AUDITOR] ========== ESTADO FINAL ==========');
+      console.log('[AUDITOR] Estado documento:', this.estadoDocumento);
+      console.log('[AUDITOR] soloLectura:', this.soloLectura);
+      console.log('[AUDITOR] documentoEnRevision:', this.documentoEnRevision);
+      console.log('[AUDITOR] estaEnRevision:', this.estaEnRevision);
+      console.log('[AUDITOR] nombreAuditorAsignado:', this.nombreAuditorAsignado);
+      console.log('[AUDITOR] usuarioActual:', this.usuarioActual);
+      console.log('[AUDITOR] ¿Puede editar?', this.estaEnModoEdicion());
+      console.log('[AUDITOR] ¿Es solo lectura?', this.esModoSoloLectura());
+      console.log('[AUDITOR] ==================================');
+    },
+    error: (err) => {
+      console.error('[AUDITOR] Error cargando documento:', err);
+      if (err.status === 404) {
+        console.log('[AUDITOR] Error 404, intentando como rendiciónId...');
+        this.cargarViaRendicion(id);
+      } else {
+        this.notificationService.error('Error', 'No se pudo cargar el documento');
+        this.isLoading = false;
+      }
+    }
+  });
+}
+
+// ✅ NUEVO MÉTODO: Forzar modo edición para documentos tomados
+forzarModoEdicionSiEsNecesario(): void {
+  // Si el documento está RADICADO y el usuario actual es el auditor asignado
+  if (this.estadoDocumento === 'RADICADO' && 
+      this.nombreAuditorAsignado === this.usuarioActual) {
+    console.log('[AUDITOR] Forzando modo edición para documento RADICADO asignado');
+    this.soloLectura = false;
+    this.documentoEnRevision = true;
+    this.estaEnRevision = true;
+    this.cdr.detectChanges();
+  }
+}
 
   // ✅ NUEVO MÉTODO: Obtiene la razón por la que no se puede editar
   getRazonNoEditable(): string {
@@ -295,76 +430,7 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
 
   // ==================== MÉTODOS PRINCIPALES ====================
 
-  cargarDocumentoParaAuditor(id: string): void {
-    if (!id) {
-      console.warn('[AUDITOR] No se recibió ID válido');
-      return;
-    }
 
-    console.log('[AUDITOR] Cargando documento con ID:', id);
-    this.isLoading = true;
-
-    this.documentoId = id;
-
-    this.auditorService.obtenerDocumentoParaVista(id).subscribe({
-      next: (res: any) => {
-        console.log('[AUDITOR] Respuesta completa de vista:', res);
-
-        const data = res?.data || res;
-        const documento = data?.documento || data;
-
-        console.log('[AUDITOR] Documento extraído:', documento);
-
-        if (!documento || !documento.id) {
-          console.log('[AUDITOR] Documento no encontrado, intentando como rendiciónId...');
-          this.cargarViaRendicion(id);
-          return;
-        }
-
-        this.documentoData = documento;
-        this.numeroRadicado = documento.numeroRadicado || '';
-        this.nombreContratista = documento.nombreContratista || '';
-        this.estadoDocumento = documento.estado || '';
-        this.primerRadicadoDelAno = !!documento.primerRadicadoDelAno;
-        this.contratistaId = documento.contratistaId || null;
-        this.numeroContrato = documento.numeroContrato || '';
-        
-        // ✅ Cargar el auditor asignado
-        this.nombreAuditorAsignado = documento.auditorAsignado || data.auditor?.nombreAuditor || '';
-
-        // ✅ Cargar la decisión del auditor
-        this.cargarDecisionAuditor(data, documento);
-
-        // ✅ FORZAR MODO EDICIÓN si está en EN_REVISION_AUDITOR
-        if (this.estadoDocumento === 'EN_REVISION_AUDITOR') {
-          this.soloLectura = false;
-        }
-
-        this.cargarTodosLosDocumentos();
-
-        if (['APROBADO_AUDITOR', 'COMPLETADO_AUDITOR', 'RECHAZADO_AUDITOR', 'OBSERVADO_AUDITOR']
-          .includes(this.estadoDocumento)) {
-          this.soloLectura = true;
-        }
-
-        this.documentoEnRevision = this.estadoDocumento === 'EN_REVISION_AUDITOR';
-        this.estaEnRevision = this.documentoEnRevision;
-
-        this.cdr.detectChanges();
-        this.isLoading = false;
-      },
-      error: (err) => {
-        console.error('[AUDITOR] Error cargando documento:', err);
-        if (err.status === 404) {
-          console.log('[AUDITOR] Error 404, intentando como rendiciónId...');
-          this.cargarViaRendicion(id);
-        } else {
-          this.notificationService.error('Error', 'No se pudo cargar el documento');
-          this.isLoading = false;
-        }
-      }
-    });
-  }
 
   private cargarDecisionAuditor(data: any, documento: any): void {
     // Reiniciar valores

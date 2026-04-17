@@ -1,5 +1,3 @@
-// src/app/pages/contabilidad/components/contabilidad-form/contabilidad-form.component.ts
-
 import { Component, OnInit, OnDestroy, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
@@ -95,7 +93,7 @@ export class ContabilidadFormComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    // OBTENER ID: prioridad @Input > ruta
+    // ✅ OBTENER ID: prioridad @Input > ruta
     let id: string | null = this.documentoId;
     const idDesdeRuta = this.route.snapshot.paramMap.get('id');
 
@@ -108,6 +106,7 @@ export class ContabilidadFormComponent implements OnInit, OnDestroy {
       console.log('  → Usando ID desde ruta (fallback):', id);
     }
 
+    // ✅ Siempre cargar el documento directamente primero
     if (id) {
       this.cargarDocumento(id);
     } else {
@@ -116,12 +115,14 @@ export class ContabilidadFormComponent implements OnInit, OnDestroy {
       this.isLoading = false;
     }
 
+    // ✅ Forzar solo lectura si viene explícitamente
     if (this.forceReadOnly) {
       this.esSoloLectura = true;
       this.form.disable();
       console.log('[ngOnInit] Forzado solo lectura por @Input forceReadOnly');
     }
 
+    // ✅ Suscripción a query params (solo para modo forzado)
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
       const forzadoPorParams = params['soloLectura'] === 'true' ||
         params['modo'] === 'consulta' ||
@@ -153,9 +154,17 @@ export class ContabilidadFormComponent implements OnInit, OnDestroy {
           console.log('[ContabilidadForm] Respuesta OK para ID:', idFinal);
           
           const data = response?.data || response;
+          
+          // ✅ Guardar el ID original recibido (este es el documentoRadicadoId)
+          const documentoOriginalId = idFinal;
+          
           this.documento = {
             ...(data?.documento || data || {}),
-            documentoId: data?.documentoId || data?.id || idFinal
+            documentoId: data?.documentoId || data?.id || idFinal,
+            // ✅ IMPORTANTE: Guardar documentoRadicadoId para los subcomponentes
+            documentoRadicadoId: documentoOriginalId,
+            // ✅ También guardar el ID de la rendición si existe
+            rendicionId: data?.rendicionId || data?.id
           };
 
           if (!this.documento || !this.documento.documentoId) {
@@ -171,6 +180,7 @@ export class ContabilidadFormComponent implements OnInit, OnDestroy {
           this.estaProcesado = this.estadosFinalesContabilidad.some(e => estadoUpper.includes(e)) ||
             estadoUpper.includes('TESORERIA') || estadoUpper.includes('COMPLETADO') || estadoUpper.includes('PROCESADO');
 
+          // Determinar si el formulario debe estar deshabilitado
           const deshabilitarFormulario = this.esSoloLectura || this.esDocumentoDeOtroRol || this.estaProcesado;
 
           console.log('=================================');
@@ -179,6 +189,7 @@ export class ContabilidadFormComponent implements OnInit, OnDestroy {
           console.log('esDocumentoDeOtroRol:', this.esDocumentoDeOtroRol);
           console.log('estaProcesado:', this.estaProcesado);
           console.log('esSoloLectura:', this.esSoloLectura);
+          console.log('documentoRadicadoId (para subcomponentes):', this.documento.documentoRadicadoId);
           console.log('Formulario deshabilitado:', deshabilitarFormulario);
           console.log('=================================');
 
@@ -197,6 +208,7 @@ export class ContabilidadFormComponent implements OnInit, OnDestroy {
         error: (err) => {
           console.error('[ContabilidadForm] Falló carga con ID:', idFinal, err);
           
+          // ✅ Si hay error 404, intentar cargar como rendiciónId (solo como fallback)
           if (err.status === 404 && this.router.url.includes('/rendicion-cuentas/')) {
             console.log('[ContabilidadForm] Error 404, intentando como rendiciónId...');
             this.cargarViaRendicion(idFinal);
@@ -529,13 +541,6 @@ export class ContabilidadFormComponent implements OnInit, OnDestroy {
       });
   }
 
-  // ============================================================
-  // ✅ MÉTODO ACTUALIZADO PARA PREVISUALIZAR CON TOKEN
-  // ============================================================
-  
-  /**
-   * Previsualizar archivo contable usando el método con token
-   */
   previsualizarArchivo(tipo: string): void {
     const archivo = this.archivosPrevios.find(a => a.tipo === tipo);
 
@@ -544,25 +549,6 @@ export class ContabilidadFormComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (!this.documento?.id) {
-      this.mostrarMensaje('No se puede previsualizar: documento no identificado', 'error');
-      return;
-    }
-
-    // ✅ Usar el nuevo método con token en URL
-    const exito = this.contabilidadService.previsualizarArchivoConToken(this.documento.id, tipo);
-    
-    if (!exito) {
-      // Fallback: intentar con el método original de blob
-      console.log('[PREVIEW] Fallback: usando método blob');
-      this.previsualizarArchivoBlob(tipo);
-    }
-  }
-
-  /**
-   * Método de respaldo usando blob (original)
-   */
-  private previsualizarArchivoBlob(tipo: string): void {
     this.isProcessing = true;
 
     this.contabilidadService.previsualizarArchivoContabilidad(this.documento.id, tipo)

@@ -1,4 +1,5 @@
 // src/app/pages/rendicion-cuentas/rendicion-pending-list/rendicion-pending-list.component.ts
+
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
@@ -8,7 +9,7 @@ import { takeUntil } from 'rxjs/operators';
 
 import { RendicionCuentasService } from '../../../../core/services/rendicion-cuentas.service';
 import { NotificationService } from '../../../../core/services/notification.service';
-import { RendicionCuentasProceso, RendicionCuentasEstado } from '../../../../core/models/rendicion-cuentas.model';
+import { RendicionCuentasProceso } from '../../../../core/models/rendicion-cuentas.model';
 
 @Component({
   selector: 'app-rendicion-pending-list',
@@ -75,15 +76,15 @@ export class RendicionPendingListComponent implements OnInit, OnDestroy {
     this.rendicionService.obtenerDocumentosDisponibles()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (docs: RendicionCuentasProceso[]) => {
-          console.log('Documentos recibidos:', docs); // ← Para debug
-          this.documentos = docs || [];
+        next: (docs) => {
+          console.log('📋 Documentos pendientes recibidos:', docs.length);
+          this.documentos = docs;
           this.filteredDocumentos = [...this.documentos];
           this.updatePagination();
           this.isLoading = false;
         },
         error: (err) => {
-          this.errorMessage = err.message || 'No se pudieron cargar los documentos pendientes';
+          this.errorMessage = err.message || 'No se pudieron cargar los documentos';
           this.notificationService.error('Error', this.errorMessage);
           this.documentos = [];
           this.filteredDocumentos = [];
@@ -94,67 +95,81 @@ export class RendicionPendingListComponent implements OnInit, OnDestroy {
   }
 
   puedeTomarDocumento(doc: RendicionCuentasProceso): boolean {
-    // Usar la propiedad 'disponible' que viene del backend
+    // Un documento se puede tomar si está disponible y no está en revisión por otro
     return doc.disponible === true;
   }
 
   esMiDocumentoEnRevision(doc: RendicionCuentasProceso): boolean {
-    // Verificar que el documento está EN_REVISION y el responsable soy yo
-    return doc.estado === RendicionCuentasEstado.EN_REVISION && 
-           doc.responsableId === this.usuarioId;
+    return doc.estado === 'EN_REVISION' && doc.responsableId === this.usuarioId;
   }
 
-tomarParaRevision(doc: RendicionCuentasProceso): void {
-  if (!doc?.id) {
-    this.notificationService.error('Error', 'Documento sin ID válido');
-    return;
-  }
+  tomarParaRevision(doc: RendicionCuentasProceso): void {
+    if (!doc?.documentoId) {
+      this.notificationService.error('Error', 'Documento sin ID válido');
+      return;
+    }
 
-  console.log('📤 Tomando documento con ID:', doc.id); // Debe ser el ID del documento original
-  
-  this.notificationService.showModal({
-    title: 'Tomar para revisión',
-    message: `¿Tomar el radicado ${doc.numeroRadicado || 'sin radicado'}?`,
-    type: 'confirm',
-    confirmText: 'Sí, tomar',
-    onConfirm: () => this.procederTomarDocumento(doc)
-  });
-}
+    // Si ya es mi documento, solo navegar
+    if (this.esMiDocumentoEnRevision(doc)) {
+      this.router.navigate(['/rendicion-cuentas/procesar', doc.id]);
+
+      return;
+    }
+
+    this.notificationService.showModal({
+      title: 'Tomar para revisión',
+      message: `¿Deseas tomar el radicado ${doc.numeroRadicado} para revisión?`,
+      type: 'confirm',
+      confirmText: 'Sí, tomar',
+      onConfirm: () => this.procederTomarDocumento(doc)
+    });
+  }
 
 private procederTomarDocumento(doc: RendicionCuentasProceso): void {
   this.isProcessing = true;
   
-  this.rendicionService.tomarDocumentoParaRevision(doc.id).subscribe({
-    next: (response) => {
-      this.notificationService.success('Documento tomado');
-      // Después de tomar, navegar al formulario con el ID de rendición que devuelve el backend
-      if (response.rendicionId) {
-        this.router.navigate(['/rendicion-cuentas/procesar', response.rendicionId]);
+  this.rendicionService.tomarDocumento(doc.documentoId).subscribe({
+    next: (response: any) => {
+      this.notificationService.success('Éxito', 'Documento tomado correctamente');
+      
+      const rendicionId = response.rendicionId;
+      console.log('[TomarDocumento] rendicionId recibido:', rendicionId);
+      
+      if (rendicionId) {
+        // ✅ Navegar a la página de procesamiento con el ID correcto
+        this.router.navigate(['/rendicion-cuentas/procesar', rendicionId]);
+      } else {
+        // Si no hay rendicionId, solo recargar la lista
+        this.cargarDocumentosPendientes();
       }
+      
+      this.isProcessing = false;
     },
-    error: (err) => {
-      this.notificationService.error('Error', err.message);
+    error: (err: any) => {
+      this.notificationService.error('Error', err.message || 'No se pudo tomar el documento');
       this.isProcessing = false;
     }
   });
 }
 
   getTextoBoton(doc: RendicionCuentasProceso): string {
-    if (this.esMiDocumentoEnRevision(doc)) return 'Continuar';
-    return this.puedeTomarDocumento(doc) ? 'Tomar para Revisión' : 'No disponible';
+    if (this.esMiDocumentoEnRevision(doc)) return 'Continuar Revisión';
+    if (this.puedeTomarDocumento(doc)) return 'Tomar para Revisión';
+    return 'No disponible';
   }
 
-  // ... resto de métodos sin cambios
+  // ==================== PAGINACIÓN Y FILTROS ====================
+
   onSearch(): void {
     if (!this.searchTerm.trim()) {
       this.filteredDocumentos = [...this.documentos];
     } else {
       const term = this.searchTerm.toLowerCase();
       this.filteredDocumentos = this.documentos.filter(doc =>
-        (doc.numeroRadicado?.toLowerCase()?.includes(term) ?? false) ||
-        (doc.nombreContratista?.toLowerCase()?.includes(term) ?? false) ||
-        (doc.numeroContrato?.toLowerCase()?.includes(term) ?? false) ||
-        (doc.documentoContratista?.toLowerCase()?.includes(term) ?? false)
+        (doc.numeroRadicado?.toLowerCase().includes(term) || false) ||
+        (doc.nombreContratista?.toLowerCase().includes(term) || false) ||
+        (doc.numeroContrato?.toLowerCase().includes(term) || false) ||
+        (doc.documentoContratista?.toLowerCase().includes(term) || false)
       );
     }
     this.currentPage = 1;
@@ -192,14 +207,17 @@ private procederTomarDocumento(doc: RendicionCuentasProceso): void {
     }
   }
 
+  // ==================== MÉTODOS AUXILIARES ====================
+
   formatDate(fecha: Date | string | undefined): string {
     if (!fecha) return 'N/A';
-    return new Date(fecha).toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    return new Date(fecha).toLocaleDateString('es-ES');
   }
 
   formatDateShort(fecha: Date | string | undefined): string {
     if (!fecha) return 'N/A';
-    return new Date(fecha).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
+    const d = new Date(fecha);
+    return `${d.getDate()}/${d.getMonth() + 1}`;
   }
 
   getDiasTranscurridos(fecha: Date | string | undefined): number {
@@ -209,7 +227,7 @@ private procederTomarDocumento(doc: RendicionCuentasProceso): void {
   }
 
   esDocumentoReciente(doc: RendicionCuentasProceso): boolean {
-    const fecha = doc.fechaCompletadoContabilidad || doc.fechaCreacion;
+    const fecha = doc.fechaCreacion;
     if (!fecha) return false;
     return this.getDiasTranscurridos(fecha) < 1;
   }
@@ -218,23 +236,22 @@ private procederTomarDocumento(doc: RendicionCuentasProceso): void {
     let info = '';
     if (doc.numeroRadicado) info += `Radicado: ${doc.numeroRadicado}\n`;
     if (doc.nombreContratista) info += `Contratista: ${doc.nombreContratista}\n`;
-    if (doc.responsableId) info += `Responsable ID: ${doc.responsableId}\n`;
+    if (doc.responsableId) info += `Responsable: ${doc.responsable || doc.responsableId}\n`;
     const dias = this.getDiasTranscurridos(doc.fechaCreacion);
-    info += `Días desde creación: ${dias}\n`;
-    if (doc.observaciones) info += `Observación: ${doc.observaciones.substring(0, 100)}...\n`;
+    info += `Días desde creación: ${dias}`;
     return info;
   }
 
   getEstadoClass(estado: string | undefined): string {
-    return this.rendicionService.getEstadoClass(estado || '');
+    return this.rendicionService.getEstadoClass(estado);
   }
 
   getEstadoTexto(estado: string | undefined): string {
-    return this.rendicionService.getEstadoTexto(estado || '');
+    return this.rendicionService.getEstadoTexto(estado);
   }
 
   getDiasClass(doc: RendicionCuentasProceso): string {
-    const dias = this.getDiasTranscurridos(doc.fechaCompletadoContabilidad || doc.fechaCreacion);
+    const dias = this.getDiasTranscurridos(doc.fechaCreacion);
     if (dias < 1) return 'text-success';
     if (dias <= 3) return 'text-primary';
     if (dias <= 7) return 'text-warning';

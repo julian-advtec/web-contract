@@ -6,7 +6,7 @@
           <h5>Contabilidad (solo lectura)</h5>
         </div>
         <div class="card-body p-0">
-          <app-contabilidad-form [documentoId]="documento?.id" [forceReadOnly]="true">
+          <app-contabilidad-form [documentoId]="documento.documentoRadicadoId  || documento?.id" [forceReadOnly]="true">
           </app-contabilidad-form>
         </div>
       </div>
