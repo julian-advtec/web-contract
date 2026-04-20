@@ -1,3 +1,4 @@
+<!-- rendicion-form.component.html -->
 <div class="rendicion-form-container">
   <div class="container-fluid py-4">
     <div *ngIf="isLoading" class="text-center py-5">
@@ -18,7 +19,7 @@
 
     <ng-container *ngIf="documento && !isLoading">
 
-      <!-- ⭐ COMPONENTE ASESOR GERENCIA - SIEMPRE VISIBLE ⭐ -->
+      <!-- ⭐ COMPONENTE ASESOR GERENCIA - PASA EL DOCUMENTO RADICADO ID ⭐ -->
       <div class="card shadow mb-5 border-info">
         <div class="card-header bg-info text-white">
           <h5 class="mb-0">
@@ -28,8 +29,7 @@
         <div class="card-body p-0">
           <app-asesor-gerencia-form 
             [documentoId]="documento?.documentoId" 
-            [forceReadOnly]="true"
-            [rendicionId]="documento?.id">
+            [forceReadOnly]="true">
           </app-asesor-gerencia-form>
         </div>
       </div>
@@ -51,7 +51,6 @@
               <p class="text-muted small mb-0">
                 <i class="fas fa-info-circle me-1"></i>
                 Descarga todos los archivos del contrato (PDF, DOC, imágenes) en un archivo ZIP.
-                Los archivos .txt de registro son excluidos automáticamente.
               </p>
             </div>
             <button class="btn btn-info btn-lg px-4" (click)="descargarCarpeta()" [disabled]="isDescargando">
@@ -74,7 +73,7 @@
         </div>
       </div>
 
-      <!-- Decisión (vista) - PARA ESTADOS APROBADO O RECHAZADO -->
+      <!-- Decisión (vista) -->
       <div class="card shadow border-primary mb-5" *ngIf="esEstadoAprobadoORechazado()">
         <div class="card-header bg-primary text-white">
           <h4 class="mb-0">
@@ -110,70 +109,11 @@
       <div class="alert alert-info shadow mb-5">
         <i class="fas fa-info-circle me-2 fa-lg"></i>
         <strong>Estado actual:</strong> {{ documento.estado }} |
-        <strong>Modo:</strong> {{ estaProcesado ? 'Procesado' : (esModoLectura ? 'Solo consulta' : 'Edición') }}
+        <strong>Modo:</strong> {{ estaProcesado ? 'Procesado' : 'Solo consulta' }}
       </div>
 
-      <!-- Formulario + botones SOLO en modo edición Y estado EN_REVISION -->
-      <div *ngIf="!esModoLectura && !estaProcesado && esEstadoEnRevision()">
-        <div class="card shadow border-primary">
-          <div class="card-header bg-primary text-white">
-            <h4 class="mb-0">
-              <i class="fas fa-gavel me-2"></i>Tu Decisión
-            </h4>
-          </div>
-
-          <div class="card-body">
-            <form [formGroup]="form" (ngSubmit)="onSubmit()">
-              <div class="row g-4">
-                <div class="col-md-6">
-                  <label class="form-label fw-bold required">
-                    <i class="fas fa-flag-checkered me-1 text-primary"></i>Decisión final
-                  </label>
-                  <select class="form-select form-select-lg" formControlName="estadoFinal">
-                    <option value="">-- Seleccione una opción --</option>
-                    <option value="APROBADO">APROBADO</option>
-                    <option value="OBSERVADO">OBSERVADO - Requiere correcciones</option>
-                    <option value="RECHAZADO">RECHAZADO - No procede</option>
-                  </select>
-                </div>
-
-                <div class="col-md-6">
-                  <label class="form-label fw-bold"
-                    [class.text-danger]="form.get('estadoFinal')?.value === 'OBSERVADO' || form.get('estadoFinal')?.value === 'RECHAZADO'">
-                    <i class="fas fa-comment-dots me-1 text-primary"></i>Observaciones / Justificación
-                    <span class="text-danger ms-1"
-                      *ngIf="form.get('estadoFinal')?.value === 'OBSERVADO' || form.get('estadoFinal')?.value === 'RECHAZADO'">*</span>
-                  </label>
-                  <textarea class="form-control" rows="6" formControlName="observaciones"
-                    placeholder="Detalla motivos, correcciones necesarias o razones de rechazo..."></textarea>
-                </div>
-              </div>
-
-              <div class="d-flex flex-wrap justify-content-end gap-3 mt-5">
-                <button type="button" class="btn btn-outline-danger btn-lg px-4" (click)="liberarDocumento()"
-                  [disabled]="isProcessing || !puedeLiberar">
-                  <i class="fas fa-unlock me-2"></i>Liberar documento
-                </button>
-                <button type="button" class="btn btn-outline-secondary btn-lg px-4" (click)="volverALista()"
-                  [disabled]="isProcessing">
-                  <i class="fas fa-times me-2"></i>Cancelar
-                </button>
-                <button type="submit" class="btn btn-primary btn-lg px-5" [disabled]="isProcessing || !puedeGuardar">
-                  <span *ngIf="!isProcessing">
-                    <i class="fas fa-save me-2"></i>Guardar y Finalizar
-                  </span>
-                  <span *ngIf="isProcessing">
-                    <i class="fas fa-spinner fa-spin me-2"></i>Procesando...
-                  </span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      <!-- Botón volver en modo lectura/procesado -->
-      <div class="text-center mt-5" *ngIf="esModoLectura || estaProcesado">
+      <!-- Botón volver -->
+      <div class="text-center mt-5">
         <button type="button" class="btn btn-outline-primary btn-lg px-5" (click)="volverALista()">
           <i class="fas fa-arrow-left me-2"></i>Volver al listado
         </button>

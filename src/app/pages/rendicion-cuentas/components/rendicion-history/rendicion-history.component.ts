@@ -29,7 +29,7 @@ export class RendicionHistoryComponent implements OnInit, OnDestroy {
   totalPages = 0;
   pages: number[] = [];
 
-   usuarioId = '';
+  usuarioId = '';
   usuarioNombre = '';
   sidebarCollapsed = false;
 
@@ -41,6 +41,7 @@ export class RendicionHistoryComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.cargarUsuarioActual();
     this.cargarHistorial();
   }
 
@@ -49,7 +50,7 @@ export class RendicionHistoryComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-cargarUsuarioActual(): void {
+  cargarUsuarioActual(): void {
     const userStr = localStorage.getItem('user');
     if (userStr) {
       try {
@@ -64,7 +65,6 @@ cargarUsuarioActual(): void {
     }
   }
 
-  // ✅ CORREGIR el método cargarHistorial() usando this.usuarioId
   cargarHistorial(): void {
     this.isLoading = true;
     this.errorMessage = '';
@@ -75,11 +75,10 @@ cargarUsuarioActual(): void {
         next: (data: any[]) => {
           console.log('📋 Historial RAW recibido:', JSON.stringify(data, null, 2));
           
-          // ✅ Normalizar los datos con this.usuarioId
           this.historial = (data || []).map(item => ({
             id: item.id || item.rendicionId || item.documentoId,
             rendicionId: item.rendicionId || item.id,
-            documentoId: item.documento?.id || item.documentoId,
+            documentoId: item.documentoId || item.documento?.id,
             numeroRadicado: item.numeroRadicado || item.documento?.numeroRadicado,
             nombreContratista: item.nombreContratista || item.documento?.nombreContratista,
             numeroContrato: item.numeroContrato || item.documento?.numeroContrato,
@@ -90,11 +89,10 @@ cargarUsuarioActual(): void {
             fechaCreacion: item.fechaCreacion || item.createdAt,
             fechaInicioRevision: item.fechaInicioRevision || item.fechaAsignacion,
             fechaDecision: item.fechaDecision || item.fechaActualizacion,
-            esMio: (item.responsableId || item.responsable?.id) === this.usuarioId, // ✅ AHORA SÍ EXISTE this.usuarioId
+            esMio: (item.responsableId || item.responsable?.id) === this.usuarioId,
             disponible: item.disponible !== false
           }));
           
-          // Ordenar por fecha más reciente
           this.historial.sort((a, b) => 
             new Date(b.fechaCreacion || b.fechaInicioRevision).getTime() - 
             new Date(a.fechaCreacion || a.fechaInicioRevision).getTime()
@@ -205,21 +203,34 @@ cargarUsuarioActual(): void {
     return 'fa-history';
   }
 
-verDetalle(item: any): void {
-  const id = item.rendicionId || item.id;
-  if (id) {
-    // ✅ Cambiar a 'edicion' en lugar de 'consulta' si quieres permitir edición
-    this.router.navigate(['/rendicion-cuentas/procesar', id], { 
-      queryParams: { modo: 'edicion' }  // ← CAMBIAR A 'edicion'
-    });
+  // ✅ CORREGIDO: Usar documentoId en lugar de rendicionId para navegación
+  verDetalle(item: any): void {
+    // Usar documentoId (ID del documento radicado) para la navegación
+    const documentoId = item.documentoId;
+    
+    if (documentoId) {
+      console.log('🔍 Navegando a detalle con documentoId:', documentoId);
+      this.router.navigate(['/rendicion-cuentas/procesar', documentoId], { 
+        queryParams: { modo: 'consulta' }
+      });
+    } else {
+      console.error('❌ No se encontró documentoId para navegar');
+      // Fallback: intentar con rendicionId
+      const rendicionId = item.rendicionId || item.id;
+      if (rendicionId) {
+        console.warn('⚠️ Usando rendicionId como fallback:', rendicionId);
+        this.router.navigate(['/rendicion-cuentas/procesar', rendicionId], { 
+          queryParams: { modo: 'consulta' }
+        });
+      }
+    }
   }
-}
 
   trackById(index: number, item: any): string {
     return item.id || index.toString();
   }
 
-    esReciente(item: any): boolean {
+  esReciente(item: any): boolean {
     const fecha = item.fechaDecision || item.fechaInicioRevision || item.fechaCreacion;
     if (!fecha) return false;
     return this.getDiasTranscurridos(fecha) < 1;
