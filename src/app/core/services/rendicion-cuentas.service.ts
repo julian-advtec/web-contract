@@ -91,20 +91,46 @@ export class RendicionCuentasService {
     });
   }
 
-  obtenerTodosDocumentos(): Observable<any[]> {
-    return this.http.get<any>(`${this.apiUrl}/todos-documentos`).pipe(
-      map(res => {
-        if (Array.isArray(res)) return res;
-        if (res?.ok === true && Array.isArray(res.data)) return res.data;
-        if (res?.data && Array.isArray(res.data)) return res.data;
-        return [];
-      }),
-      catchError(err => {
-        console.error('❌ Error:', err);
-        return of([]);
-      })
-    );
-  }
+obtenerTodosDocumentos(): Observable<any[]> {
+  console.log('[Service] Llamando a API: /todos-documentos');
+  
+  return this.http.get<any>(`${this.apiUrl}/todos-documentos`).pipe(
+    map(res => {
+      console.log('[Service] Respuesta COMPLETA de la API:', res);
+      
+      // ✅ Caso 1: La respuesta tiene { ok: true, data: [...] }
+      if (res && res.ok === true && Array.isArray(res.data)) {
+        console.log('[Service] ✅ Extrayendo data de res.data, longitud:', res.data.length);
+        return res.data;
+      }
+      
+      // ✅ Caso 2: La respuesta es directamente un array
+      if (Array.isArray(res)) {
+        console.log('[Service] ✅ La respuesta es un array directo, longitud:', res.length);
+        return res;
+      }
+      
+      // ✅ Caso 3: La respuesta tiene { data: [...] }
+      if (res && res.data && Array.isArray(res.data)) {
+        console.log('[Service] ✅ Extrayendo data de res.data, longitud:', res.data.length);
+        return res.data;
+      }
+      
+      // ✅ Caso 4: La respuesta tiene { data: { data: [...] } } (anidado)
+      if (res && res.data && res.data.data && Array.isArray(res.data.data)) {
+        console.log('[Service] ✅ Extrayendo data de res.data.data, longitud:', res.data.data.length);
+        return res.data.data;
+      }
+      
+      console.warn('[Service] ⚠️ No se pudo extraer el array de documentos:', res);
+      return [];
+    }),
+    catchError(err => {
+      console.error('[Service] ❌ Error en obtenerTodosDocumentos:', err);
+      return of([]);
+    })
+  );
+}
 
   obtenerHistorial(): Observable<any[]> {
     return this.http.get<any>(`${this.apiUrl}/historial`).pipe(
@@ -121,21 +147,43 @@ export class RendicionCuentasService {
     );
   }
 
-  liberarDocumento(rendicionId: string): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/documentos/${rendicionId}/liberar`, {}).pipe(
-      catchError(err => this.handleError(err, `liberar documento`))
-    );
-  }
+ liberarDocumento(rendicionId: string): Observable<any> {
+  console.log(`[Service] Liberando documento: ${rendicionId}`);
+  return this.http.post<any>(`${this.apiUrl}/documentos/${rendicionId}/liberar`, {}).pipe(
+    catchError(err => this.handleError(err, `liberar documento ${rendicionId}`))
+  );
+}
 
-  private handleListResponse(response: any): RendicionCuentasProceso[] {
-    if (response?.ok === true && Array.isArray(response.data)) {
-      return response.data.map((d: any) => this.mapearProceso(d));
-    }
-    if (Array.isArray(response)) {
-      return response.map((d: any) => this.mapearProceso(d));
-    }
-    return [];
+private handleListResponse(response: any): RendicionCuentasProceso[] {
+  console.log('[handleListResponse] Respuesta recibida:', JSON.stringify(response, null, 2));
+  
+  // ✅ Estructura: response.data.data (anidado)
+  if (response?.data?.data && Array.isArray(response.data.data)) {
+    console.log('[handleListResponse] Estructura response.data.data, longitud:', response.data.data.length);
+    return response.data.data.map((d: any) => this.mapearProceso(d));
   }
+  
+  // ✅ Estructura: response.data (directo)
+  if (response?.data && Array.isArray(response.data)) {
+    console.log('[handleListResponse] Estructura response.data, longitud:', response.data.length);
+    return response.data.map((d: any) => this.mapearProceso(d));
+  }
+  
+  // ✅ Si la respuesta ya es un array directo
+  if (Array.isArray(response)) {
+    console.log('[handleListResponse] Es array directo, longitud:', response.length);
+    return response.map((d: any) => this.mapearProceso(d));
+  }
+  
+  // ✅ Estructura: { ok: true, data: [...] }
+  if (response?.ok === true && Array.isArray(response.data)) {
+    console.log('[handleListResponse] Estructura ok + data, longitud:', response.data.length);
+    return response.data.map((d: any) => this.mapearProceso(d));
+  }
+  
+  console.warn('[handleListResponse] No se pudo extraer array, devolviendo []');
+  return [];
+}
 
   private handleActionResponse(response: any): RendicionCuentasProceso {
     if (response?.ok === true && response.data) {
@@ -240,4 +288,6 @@ obtenerDetalleCompleto(documentoId: string): Observable<any> {
     catchError(err => this.handleError(err, `obtener detalle completo ${documentoId}`))
   );
 }
+
+
 }

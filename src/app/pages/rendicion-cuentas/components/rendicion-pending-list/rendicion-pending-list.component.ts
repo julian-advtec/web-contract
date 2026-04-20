@@ -11,6 +11,21 @@ import { RendicionCuentasService } from '../../../../core/services/rendicion-cue
 import { NotificationService } from '../../../../core/services/notification.service';
 import { RendicionCuentasProceso } from '../../../../core/models/rendicion-cuentas.model';
 
+// ✅ Definir la interfaz aquí
+interface DocumentoPendiente {
+  id: string;
+  documentoId: string;
+  numeroRadicado?: string;        // ← opcional
+  nombreContratista?: string;      // ← opcional
+  numeroContrato?: string;         // ← opcional
+  documentoContratista?: string;   // ← opcional
+  estado?: string;                 // ← opcional
+  fechaCreacion?: Date;            // ← opcional
+  disponible?: boolean;            // ← opcional
+  responsableId?: string;
+  radicador?: string;
+}
+
 @Component({
   selector: 'app-rendicion-pending-list',
   standalone: true,
@@ -69,30 +84,63 @@ export class RendicionPendingListComponent implements OnInit, OnDestroy {
     }
   }
 
-  cargarDocumentosPendientes(): void {
-    this.isLoading = true;
-    this.errorMessage = '';
+cargarDocumentosPendientes(): void {
+  this.isLoading = true;
+  this.errorMessage = '';
 
-    this.rendicionService.obtenerDocumentosDisponibles()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (docs) => {
-          console.log('📋 Documentos pendientes recibidos:', docs.length);
-          this.documentos = docs;
-          this.filteredDocumentos = [...this.documentos];
-          this.updatePagination();
-          this.isLoading = false;
-        },
-        error: (err) => {
-          this.errorMessage = err.message || 'No se pudieron cargar los documentos';
-          this.notificationService.error('Error', this.errorMessage);
-          this.documentos = [];
-          this.filteredDocumentos = [];
-          this.updatePagination();
-          this.isLoading = false;
-        }
-      });
-  }
+  this.rendicionService.obtenerDocumentosDisponibles()
+    .pipe(takeUntil(this.destroy$))
+    .subscribe({
+      next: (docs) => {
+        console.log('📋 Documentos pendientes RAW:', JSON.stringify(docs, null, 2));
+        console.log('📋 Documentos pendientes recibidos:', docs.length);
+        
+        // ✅ Mapear los datos correctamente con todas las propiedades requeridas
+        this.documentos = docs.map(doc => ({
+          id: doc.id || '',
+          documentoId: doc.id || '',
+          rendicionId: '',
+          numeroRadicado: doc.numeroRadicado || '',
+          nombreContratista: doc.nombreContratista || '',
+          numeroContrato: doc.numeroContrato || '',
+          documentoContratista: doc.documentoContratista || '',
+          estado: doc.estado || 'PENDIENTE',
+          fechaCreacion: doc.fechaCreacion ? new Date(doc.fechaCreacion) : new Date(),
+          fechaActualizacion: doc.fechaActualizacion ? new Date(doc.fechaActualizacion) : new Date(),
+          disponible: doc.disponible === true,
+          responsableId: doc.responsableId || '',
+          responsable: undefined,
+          responsableNombre: '',
+          fechaAsignacion: undefined,
+          fechaInicioRevision: undefined,
+          fechaDecision: undefined,
+          observaciones: '',
+          observacionesRendicion: '',
+          contadorAsignado: '',
+          fechaCompletadoContabilidad: undefined,
+          informesPresentados: [],
+          documentosAdjuntos: [],
+          montoRendido: 0,
+          montoAprobado: 0,
+          nombreCompleto: doc.nombreContratista || '',
+          radicado: doc.numeroRadicado || '',
+          fechaRadicacion: doc.fechaRadicacion ? new Date(doc.fechaRadicacion) : undefined
+        }));
+        
+        this.filteredDocumentos = [...this.documentos];
+        this.updatePagination();
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.error('❌ Error:', err);
+        this.errorMessage = err.message || 'No se pudieron cargar los documentos';
+        this.documentos = [];
+        this.filteredDocumentos = [];
+        this.updatePagination();
+        this.isLoading = false;
+      }
+    });
+}
 
   puedeTomarDocumento(doc: RendicionCuentasProceso): boolean {
     // Un documento se puede tomar si está disponible y no está en revisión por otro
@@ -125,21 +173,21 @@ export class RendicionPendingListComponent implements OnInit, OnDestroy {
     });
   }
 
-private procederTomarDocumento(doc: RendicionCuentasProceso): void {
+private procederTomarDocumento(doc: any): void {
   this.isProcessing = true;
   
   this.rendicionService.tomarDocumento(doc.documentoId).subscribe({
     next: (response: any) => {
       this.notificationService.success('Éxito', 'Documento tomado correctamente');
       
-      const rendicionId = response.rendicionId;
-      console.log('[TomarDocumento] rendicionId recibido:', rendicionId);
+      const documentoId = doc.documentoId;
+      console.log('[TomarDocumento] documentoId:', documentoId);
       
-      if (rendicionId) {
-        // ✅ Navegar a la página de procesamiento con el ID correcto
-        this.router.navigate(['/rendicion-cuentas/procesar', rendicionId]);
+      if (documentoId) {
+        this.router.navigate(['/rendicion-cuentas/procesar', documentoId], {
+          queryParams: { modo: 'edicion', tomar: 'true' }
+        });
       } else {
-        // Si no hay rendicionId, solo recargar la lista
         this.cargarDocumentosPendientes();
       }
       

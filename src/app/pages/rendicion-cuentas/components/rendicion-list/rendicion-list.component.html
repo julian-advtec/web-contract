@@ -1,4 +1,14 @@
+<!-- src/app/pages/rendicion-cuentas/components/rendicion-list/rendicion-list.component.html -->
+
 <div class="rendicion-list-container">
+
+  <!-- Cargando -->
+  <div *ngIf="isLoading" class="text-center py-5">
+    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+    <p class="mt-3 text-muted">Cargando documentos...</p>
+  </div>
 
   <!-- Sin datos -->
   <div *ngIf="!isLoading && filteredDocumentos.length === 0" class="text-center py-5">
@@ -72,27 +82,28 @@
         <!-- Acciones -->
         <div class="documento-acciones">
           <div class="acciones-buttons">
-            <ng-container [ngSwitch]="true">
-              <button *ngSwitchCase="esLibre(doc)" 
-                      class="btn btn-sm btn-primary"
-                      (click)="tomarDocumento(doc)" 
-                      [disabled]="isProcessing">
-                <i class="fas fa-hand-paper me-1"></i> Tomar
-              </button>
+            <!-- Documento libre: botón Tomar -->
+            <button *ngIf="esLibre(doc)" 
+                    class="btn btn-sm btn-primary"
+                    (click)="tomarDocumento(doc)" 
+                    [disabled]="isProcessing">
+              <i class="fas fa-hand-paper me-1"></i> Tomar
+            </button>
 
-           <button *ngSwitchCase="esMiDocumentoEnRevision(doc)" 
-        class="btn btn-sm btn-success"
-        (click)="continuarRevision(doc)"
-        [disabled]="isProcessing">
-  <i class="fas fa-edit me-1"></i> Continuar
-</button>
+            <!-- Documento en revisión por mí: botón Continuar -->
+            <button *ngIf="esMiDocumentoEnRevision(doc)" 
+                    class="btn btn-sm btn-success"
+                    (click)="continuarRevision(doc)"
+                    [disabled]="isProcessing">
+              <i class="fas fa-edit me-1"></i> Continuar
+            </button>
 
-              <button *ngSwitchDefault
-                      class="btn btn-sm btn-info"
-                      (click)="verDocumento(doc)">
-                <i class="fas fa-eye me-1"></i> Ver
-              </button>
-            </ng-container>
+            <!-- Documento procesado o de otro usuario: botón Ver Detalle -->
+            <button *ngIf="!esLibre(doc) && !esMiDocumentoEnRevision(doc)" 
+                    class="btn btn-sm btn-info"
+                    (click)="verDetalle(doc)">
+              <i class="fas fa-eye me-1"></i> Ver Detalle
+            </button>
           </div>
         </div>
       </div>

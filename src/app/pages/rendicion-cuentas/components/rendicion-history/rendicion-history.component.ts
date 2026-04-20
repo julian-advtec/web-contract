@@ -1,4 +1,5 @@
 // src/app/pages/rendicion-cuentas/components/rendicion-history/rendicion-history.component.ts
+
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
@@ -203,26 +204,22 @@ export class RendicionHistoryComponent implements OnInit, OnDestroy {
     return 'fa-history';
   }
 
-  // ✅ CORREGIDO: Usar documentoId en lugar de rendicionId para navegación
   verDetalle(item: any): void {
-    // Usar documentoId (ID del documento radicado) para la navegación
     const documentoId = item.documentoId;
     
     if (documentoId) {
-      console.log('🔍 Navegando a detalle con documentoId:', documentoId);
+      const esProcesado = item.estado === 'APROBADO' || 
+                          item.estado === 'RECHAZADO' || 
+                          item.estado === 'COMPLETADO';
+      const modo = esProcesado ? 'consulta' : 'edicion';
+      
+      console.log('🔍 Navegando a detalle:', { documentoId, modo, estado: item.estado });
+      
       this.router.navigate(['/rendicion-cuentas/procesar', documentoId], { 
-        queryParams: { modo: 'consulta' }
+        queryParams: { modo: modo }
       });
     } else {
       console.error('❌ No se encontró documentoId para navegar');
-      // Fallback: intentar con rendicionId
-      const rendicionId = item.rendicionId || item.id;
-      if (rendicionId) {
-        console.warn('⚠️ Usando rendicionId como fallback:', rendicionId);
-        this.router.navigate(['/rendicion-cuentas/procesar', rendicionId], { 
-          queryParams: { modo: 'consulta' }
-        });
-      }
     }
   }
 

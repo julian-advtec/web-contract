@@ -66,6 +66,7 @@ export class RendicionListComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (docs) => {
           console.log('[Lista Completa] Documentos recibidos:', docs?.length || 0);
+          console.log('[Lista Completa] Primer documento:', docs?.[0]);
           this.documentos = docs || [];
           this.filteredDocumentos = [...this.documentos];
           this.updatePagination();
@@ -79,18 +80,24 @@ export class RendicionListComponent implements OnInit, OnDestroy {
       });
   }
 
-  // ✅ Método para tomar documento (usado en el HTML)
+  // ✅ Tomar documento libre
   tomarDocumento(doc: any): void {
     if (this.isProcessing) return;
     this.isProcessing = true;
 
-    this.rendicionService.tomarDocumento(doc.documentoId || doc.id).subscribe({
+    // Usar documentoId (ID del documento radicado)
+    const documentoId = doc.documentoId || doc.id;
+    console.log('[Lista Completa] Tomando documento:', documentoId);
+
+    this.rendicionService.tomarDocumento(documentoId).subscribe({
       next: (response: any) => {
         this.isProcessing = false;
         this.notificationService.success('Documento tomado correctamente');
-        this.cargarDocumentos(); // Recargar la lista
+        this.cargarDocumentos();
 
+        // Después de tomar, navegar con el rendicionId que devuelve el backend
         if (response.rendicionId) {
+          console.log('[Lista Completa] Navegando con rendicionId:', response.rendicionId);
           this.router.navigate(['/rendicion-cuentas/procesar', response.rendicionId]);
         }
       },
@@ -101,10 +108,34 @@ export class RendicionListComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ✅ Método para continuar revisión
+  // ✅ Continuar revisión - IGUAL QUE HISTORIAL (usa documentoId)
   continuarRevision(doc: any): void {
     if (this.isProcessing) return;
-    this.router.navigate(['/rendicion-cuentas/procesar', doc.rendicionId || doc.id]);
+    // Usar documentoId como en historial
+    const documentoId = doc.documentoId || doc.id;
+    console.log('[Lista Completa] Continuar revisión con documentoId:', documentoId);
+    this.router.navigate(['/rendicion-cuentas/procesar', documentoId]);
+  }
+
+  // ✅ Ver detalle - IGUAL QUE HISTORIAL (usa documentoId)
+  verDetalle(item: any): void {
+    // Usar documentoId como en historial
+    const documentoId = item.documentoId || item.id;
+    
+    if (documentoId) {
+      const esProcesado = item.estado === 'APROBADO' || 
+                          item.estado === 'RECHAZADO' || 
+                          item.estado === 'COMPLETADO';
+      const modo = esProcesado ? 'consulta' : 'edicion';
+      
+      console.log('[Lista Completa] Ver detalle:', { documentoId, modo, estado: item.estado });
+      
+      this.router.navigate(['/rendicion-cuentas/procesar', documentoId], { 
+        queryParams: { modo: modo }
+      });
+    } else {
+      console.error('[Lista Completa] No se encontró documentoId para navegar', item);
+    }
   }
 
   onSearch(): void {
@@ -170,30 +201,31 @@ export class RendicionListComponent implements OnInit, OnDestroy {
   }
 
   esLibre(doc: any): boolean {
-    return !doc.responsableId && (doc.estado === 'PENDIENTE' || doc.disponible === true);
+    return (!doc.responsableId || doc.responsableId === '') && 
+           (doc.estado === 'PENDIENTE' || doc.disponible === true);
   }
 
   esMiDocumentoEnRevision(doc: any): boolean {
-    return this.esMiDocumento(doc) && doc.estado?.toUpperCase().includes('EN_REVISION');
+    return this.esMiDocumento(doc) && doc.estado?.toUpperCase() === 'EN_REVISION';
   }
 
   getEstadoBadgeClass(estado: string): string {
     const e = (estado || '').toUpperCase();
-    if (e.includes('APROBADO')) return 'bg-success';
-    if (e.includes('OBSERVADO')) return 'bg-warning text-dark';
-    if (e.includes('RECHAZADO')) return 'bg-danger';
-    if (e.includes('PENDIENTE')) return 'bg-warning';
-    if (e.includes('EN REVISION')) return 'bg-info';
+    if (e === 'APROBADO') return 'bg-success';
+    if (e === 'OBSERVADO') return 'bg-warning text-dark';
+    if (e === 'RECHAZADO') return 'bg-danger';
+    if (e === 'PENDIENTE') return 'bg-warning';
+    if (e === 'EN_REVISION') return 'bg-info';
     return 'bg-secondary';
   }
 
   getEstadoTexto(estado: string): string {
     const e = (estado || '').toUpperCase();
-    if (e.includes('EN REVISION')) return 'En Revisión';
-    if (e.includes('APROBADO')) return 'Aprobado';
-    if (e.includes('RECHAZADO')) return 'Rechazado';
-    if (e.includes('OBSERVADO')) return 'Observado';
-    if (e.includes('PENDIENTE')) return 'Pendiente';
+    if (e === 'EN_REVISION') return 'En Revisión';
+    if (e === 'APROBADO') return 'Aprobado';
+    if (e === 'RECHAZADO') return 'Rechazado';
+    if (e === 'OBSERVADO') return 'Observado';
+    if (e === 'PENDIENTE') return 'Pendiente';
     return estado || '—';
   }
 
@@ -221,11 +253,5 @@ export class RendicionListComponent implements OnInit, OnDestroy {
 
   getFechaRelevante(doc: any): Date | string | undefined {
     return doc.fechaRadicacion || doc.fechaDecision || doc.fechaActualizacion || doc.fechaCreacion;
-  }
-
-  verDocumento(doc: any): void {
-    this.router.navigate(['/rendicion-cuentas/documento', doc.id], {
-      queryParams: { modo: 'consulta' }
-    });
   }
 }

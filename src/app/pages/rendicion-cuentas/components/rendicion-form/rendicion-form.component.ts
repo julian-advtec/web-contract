@@ -34,6 +34,7 @@ export class RendicionFormComponent implements OnInit {
   tipoMensaje: 'success' | 'error' | 'warning' | 'info' = 'info';
   puedeGuardar = false;
   puedeLiberar = false;
+  currentUserId: string = '';
   currentUserRole: string = '';
 
   constructor(
@@ -45,28 +46,49 @@ export class RendicionFormComponent implements OnInit {
     private authService: AuthService
   ) {
     this.form = this.fb.group({
-      observaciones: ['', [Validators.minLength(10)]],
+      observaciones: [''],  // Sin validadores iniciales
       estadoFinal: ['', Validators.required]
+    });
+    
+    // ✅ Agregar validador condicional para observaciones
+    this.form.get('estadoFinal')?.valueChanges.subscribe(value => {
+      const observacionesControl = this.form.get('observaciones');
+      if (value === 'OBSERVADO' || value === 'RECHAZADO') {
+        observacionesControl?.setValidators([Validators.required, Validators.minLength(10)]);
+      } else {
+        observacionesControl?.clearValidators();
+      }
+      observacionesControl?.updateValueAndValidity();
     });
     
     this.form.valueChanges.subscribe(() => this.actualizarEstadoBotones());
   }
 
-ngOnInit(): void {
-  this.cargarUsuarioActual();
-  
-  // Obtener el documentoId de la URL (ID del documento radicado)
-  const documentoId = this.documentoId || this.route.snapshot.paramMap.get('id');
-  
-  if (!documentoId) {
-    this.mostrarMensaje('No se recibió ID del documento', 'error');
-    this.isLoading = false;
-    return;
+  ngOnInit(): void {
+    this.cargarUsuarioActual();
+    
+    const documentoId = this.documentoId || this.route.snapshot.paramMap.get('id');
+    
+    if (!documentoId) {
+      this.mostrarMensaje('No se recibió ID del documento', 'error');
+      this.isLoading = false;
+      return;
+    }
+    
+    this.cargarDocumentoCompleto(documentoId);
   }
-  
-  this.esModoLectura = true;
-  this.cargarDocumentoCompleto(documentoId);
-}
+
+  cargarUsuarioActual(): void {
+    const currentUser = this.authService.getCurrentUser();
+    if (currentUser) {
+      this.currentUserId = currentUser.id;
+      this.currentUserRole = currentUser.role || '';
+      console.log('👤 Usuario ID:', this.currentUserId);
+      console.log('👤 Usuario rol:', this.currentUserRole);
+    }
+  }
+
+ // src/app/pages/rendicion-cuentas/components/rendicion-form/rendicion-form.component.ts
 
 cargarDocumentoCompleto(documentoId: string): void {
   this.isLoading = true;
@@ -76,43 +98,103 @@ cargarDocumentoCompleto(documentoId: string): void {
     next: (data) => {
       console.log('✅ Datos completos cargados:', data);
       
+      const dataPrincipal = data.data || data;
+      
       this.documento = {
-        // Datos del documento radicado
-        id: data.id,
-        documentoId: data.id,
-        numeroRadicado: data.numeroRadicado,
-        nombreContratista: data.nombreContratista,
-        numeroContrato: data.numeroContrato,
-        documentoContratista: data.documentoContratista,
-        fechaRadicacion: data.fechaRadicacion,
-        fechaInicio: data.fechaInicio,
-        fechaFin: data.fechaFin,
-        estado: data.estado,
-        observacion: data.observacion,
-        historialEstados: data.historialEstados,
-        radicador: data.radicador,
-        rutaCarpetaRadicado: data.rutaCarpetaRadicado,
-        
-        // Datos de rendición
-        rendicionId: data.rendicionId,
-        rendicionEstado: data.rendicionEstado,
-        responsableId: data.responsableId,
-        responsable: data.responsable,
-        fechaAsignacion: data.fechaAsignacion,
-        fechaInicioRevisionRendicion: data.fechaInicioRevisionRendicion,
-        fechaDecisionRendicion: data.fechaDecisionRendicion,
-        observacionesRendicion: data.observacionesRendicion,
-        
-        // Datos de tesorería (para el comprobante)
-        tesoreria: data.tesoreria,
-        
-        // Datos de asesor gerencia
-        asesorGerencia: data.asesorGerencia
+        id: dataPrincipal.id,
+        documentoId: dataPrincipal.id,
+        numeroRadicado: dataPrincipal.numeroRadicado,
+        nombreContratista: dataPrincipal.nombreContratista,
+        numeroContrato: dataPrincipal.numeroContrato,
+        documentoContratista: dataPrincipal.documentoContratista,
+        fechaRadicacion: dataPrincipal.fechaRadicacion,
+        fechaInicio: dataPrincipal.fechaInicio,
+        fechaFin: dataPrincipal.fechaFin,
+        estado: dataPrincipal.estado,
+        observacion: dataPrincipal.observacion,
+        historialEstados: dataPrincipal.historialEstados,
+        radicador: dataPrincipal.radicador,
+        rutaCarpetaRadicado: dataPrincipal.rutaCarpetaRadicado,
+        rendicionId: dataPrincipal.rendicionId,
+        rendicionEstado: dataPrincipal.rendicionEstado,
+        responsableId: dataPrincipal.responsableId,
+        responsable: dataPrincipal.responsable,
+        fechaAsignacion: dataPrincipal.fechaAsignacion,
+        fechaInicioRevisionRendicion: dataPrincipal.fechaInicioRevisionRendicion,
+        fechaDecisionRendicion: dataPrincipal.fechaDecisionRendicion,
+        observacionesRendicion: dataPrincipal.observacionesRendicion,
+        tesoreria: dataPrincipal.tesoreria,
+        asesorGerencia: dataPrincipal.asesorGerencia,
+        disponible: dataPrincipal.disponible === true
       };
       
-      this.estaProcesado = this.estadosProcesados.includes(
+      // ✅ Verificar si el documento ya está procesado
+      const yaProcesado = this.estadosProcesados.includes(
         (this.documento.estado || '').toString().toUpperCase()
       );
+      
+      // ✅ DETERMINAR MODO DE EDICIÓN
+      const estaEnRevision = this.documento.rendicionEstado === 'EN_REVISION';
+      const esResponsable = this.documento.responsableId === this.currentUserId;
+      const esAdmin = this.currentUserRole === 'admin';
+      
+      const desdeTomar = this.route.snapshot.queryParamMap.get('tomar') === 'true';
+      const modoEdicionUrl = this.route.snapshot.queryParamMap.get('modo') === 'edicion';
+      
+      console.log('🔍 Debug:', {
+        estaEnRevision,
+        esResponsable,
+        esAdmin,
+        yaProcesado,
+        desdeTomar,
+        modoEdicionUrl,
+        estado: this.documento.estado,
+        rendicionEstado: this.documento.rendicionEstado
+      });
+      
+      // ✅ SI YA ESTÁ PROCESADO -> MODO SOLO LECTURA
+      if (yaProcesado) {
+        this.esModoLectura = true;
+        this.form.disable();
+        console.log('🔒 Documento ya procesado - Modo SOLO LECTURA');
+      } 
+      // ✅ SI NO ESTÁ PROCESADO Y está en revisión y (es responsable o admin)
+      else if ((estaEnRevision && (esResponsable || esAdmin)) || desdeTomar || modoEdicionUrl) {
+        this.esModoLectura = false;
+        console.log('✏️ Modo EDICIÓN activado');
+        
+        // HABILITAR EL FORMULARIO
+        this.form.enable();
+        
+        // ESTABLECER VALOR POR DEFECTO
+        if (!this.form.get('estadoFinal')?.value) {
+          this.form.patchValue({ estadoFinal: 'APROBADO' });
+        }
+        
+        // LIMPIAR VALIDACIONES
+        this.form.get('estadoFinal')?.updateValueAndValidity();
+        this.form.get('observaciones')?.updateValueAndValidity();
+        
+        console.log('Formulario habilitado, estadoFinal:', this.form.get('estadoFinal')?.value);
+      } 
+      // ✅ CUALQUIER OTRO CASO -> MODO SOLO LECTURA
+      else {
+        this.esModoLectura = true;
+        this.form.disable();
+        console.log('🔒 Modo SOLO LECTURA (no cumple condiciones para edición)');
+      }
+      
+      this.estaProcesado = yaProcesado;
+      
+      // Cargar observaciones existentes
+      if (this.documento.observacionesRendicion) {
+        this.form.patchValue({
+          observaciones: this.documento.observacionesRendicion
+        });
+      }
+      
+      // ✅ FORZAR VALIDACIÓN
+      this.form.updateValueAndValidity();
       
       this.actualizarEstadoBotones();
       this.isLoading = false;
@@ -125,103 +207,69 @@ cargarDocumentoCompleto(documentoId: string): void {
   });
 }
 
-  /**
-   * Cargar documento usando documentoId (EXACTAMENTE como Asesor Gerencia)
-   */
-  cargarDocumento(documentoId: string): void {
-    this.isLoading = true;
-    console.log('🔍 Cargando documento con ID:', documentoId);
-    
-    this.rendicionService.obtenerDetalleDocumento(documentoId).subscribe({
-      next: (data) => {
-        console.log('✅ Documento cargado:', data);
-        
-        this.documento = {
-          id: data.id,                              // documentoId (igual que Asesor Gerencia)
-          rendicionId: data.rendicionId,            // rendicionId interno
-          documentoId: data.documentoId || data.id, // documentoId
-          numeroRadicado: data.numeroRadicado,
-          nombreContratista: data.nombreContratista,
-          numeroContrato: data.numeroContrato,
-          estado: data.estado,
-          observaciones: data.observaciones,
-          observacionesRendicion: data.observacionesRendicion,
-          fechaDecision: data.fechaDecision,
-          fechaActualizacion: data.fechaActualizacion,
-          responsableId: data.responsableId,
-          responsable: data.responsable
-        };
-        
-        console.log('✅ documentoId para AsesorGerenciaFormComponent:', this.documento.documentoId);
-        
-        this.estaProcesado = this.estadosProcesados.includes(
-          (this.documento.estado || '').toString().toUpperCase()
-        );
-        
-        if (this.estaProcesado) {
-          this.form.disable();
-        }
-        
-        let estadoFinal = '';
-        const estadoDoc = (this.documento.estado || '').toString().toUpperCase();
-        if (['APROBADO', 'COMPLETADO', 'APROBADO_RENDICION'].includes(estadoDoc)) estadoFinal = 'APROBADO';
-        else if (['OBSERVADO', 'OBSERVADO_RENDICION'].includes(estadoDoc)) estadoFinal = 'OBSERVADO';
-        else if (['RECHAZADO', 'RECHAZADO_RENDICION'].includes(estadoDoc)) estadoFinal = 'RECHAZADO';
-        
-        this.form.patchValue({
-          estadoFinal,
-          observaciones: this.documento.observacionesRendicion || ''
-        });
-        
-        this.actualizarEstadoBotones();
-        this.isLoading = false;
-      },
-      error: (err) => {
-        console.error('❌ Error:', err);
-        this.mostrarMensaje(err.message || 'Error al cargar el documento', 'error');
-        this.isLoading = false;
-      }
-    });
-  }
+// src/app/pages/rendicion-cuentas/components/rendicion-form/rendicion-form.component.ts
 
-  // El resto de métodos igual que antes...
-  cargarUsuarioActual(): void {
-    const currentUser = this.authService.getCurrentUser();
-    this.currentUserRole = currentUser?.role || '';
+descargarCarpeta(): void {
+  // ✅ Usar documentoId (ID del documento radicado)
+  const idParaDescargar = this.documento?.documentoId || this.documento?.id;
+  
+  console.log('📥 Descargando carpeta para documentoId:', idParaDescargar);
+  
+  if (!idParaDescargar) {
+    this.mostrarMensaje('No hay documento válido para descargar', 'error');
+    return;
   }
-
-  descargarCarpeta(): void {
-    if (!this.documento?.documentoId) {
-      this.mostrarMensaje('No hay documento válido para descargar', 'error');
-      return;
+  
+  this.isDescargando = true;
+  this.mostrarMensaje('Preparando descarga...', 'info');
+  
+  this.rendicionService.descargarCarpeta(idParaDescargar).subscribe({
+    next: (blob: Blob) => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${this.documento?.numeroRadicado || 'contrato'}_completo.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      this.isDescargando = false;
+      this.mostrarMensaje('Descarga completada', 'success');
+    },
+    error: (err) => {
+      console.error('❌ Error en descarga:', err);
+      this.mostrarMensaje(err.error?.message || 'Error al descargar', 'error');
+      this.isDescargando = false;
     }
-    
-    this.isDescargando = true;
-    this.mostrarMensaje('Preparando descarga...', 'info');
-    
-    this.rendicionService.descargarCarpeta(this.documento.documentoId).subscribe({
-      next: (blob: Blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${this.documento?.numeroRadicado || 'contrato'}_completo.zip`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        this.isDescargando = false;
-        this.mostrarMensaje('Descarga completada', 'success');
-      },
-      error: (err) => {
-        this.mostrarMensaje(err.error?.message || 'Error al descargar', 'error');
-        this.isDescargando = false;
-      }
-    });
-  }
+  });
+}
 
   onSubmit(): void {
-    if (this.form.invalid || this.esModoLectura || this.estaProcesado || this.isProcessing || !this.documento) return;
+    console.log('🔍 onSubmit llamado');
+    console.log('form.invalid:', this.form.invalid);
+    console.log('form.errors:', this.form.errors);
+    console.log('form.get("estadoFinal")?.errors:', this.form.get('estadoFinal')?.errors);
+    console.log('form.get("observaciones")?.errors:', this.form.get('observaciones')?.errors);
+    console.log('form.value:', this.form.value);
+    console.log('esModoLectura:', this.esModoLectura);
+    console.log('estaProcesado:', this.estaProcesado);
+    console.log('isProcessing:', this.isProcessing);
+    console.log('documento:', this.documento);
+    console.log('estadoFinal value:', this.form.get('estadoFinal')?.value);
+    
+    // ✅ Mostrar qué campos están inválidos
+    Object.keys(this.form.controls).forEach(key => {
+      const control = this.form.get(key);
+      if (control?.invalid) {
+        console.log(`Campo inválido: ${key}, errors:`, control.errors);
+      }
+    });
+    
+    if (this.form.invalid || this.esModoLectura || this.estaProcesado || this.isProcessing || !this.documento) {
+      console.log('❌ Validación fallida');
+      return;
+    }
     
     const estadoFinal = this.form.get('estadoFinal')?.value;
     if (!estadoFinal) {
@@ -242,14 +290,18 @@ cargarDocumentoCompleto(documentoId: string): void {
       observacion: this.form.value.observaciones?.trim() || '' 
     };
     
-    // Usar rendicionId para la decisión
-    this.rendicionService.tomarDecision(this.documento.rendicionId || this.documento.id, payload).subscribe({
-      next: () => {
+    console.log('📤 Enviando decisión:', payload);
+    console.log('📤 rendicionId:', this.documento.rendicionId);
+    
+    this.rendicionService.tomarDecision(this.documento.rendicionId, payload).subscribe({
+      next: (response) => {
+        console.log('✅ Decisión guardada:', response);
         this.mostrarMensaje(`Documento marcado como ${estadoFinal}`, 'success');
         this.isProcessing = false;
         setTimeout(() => this.volverALista(), 1800);
       },
       error: (err) => {
+        console.error('❌ Error al guardar decisión:', err);
         this.mostrarMensaje(err.error?.message || 'Error al procesar', 'error');
         this.isProcessing = false;
       }
@@ -265,12 +317,18 @@ cargarDocumentoCompleto(documentoId: string): void {
       type: 'confirm',
       confirmText: 'Sí, liberar',
       onConfirm: () => {
-        this.rendicionService.liberarDocumento(this.documento.rendicionId || this.documento.id).subscribe({
-          next: () => {
+        console.log('📤 Liberando documento, rendicionId:', this.documento.rendicionId);
+        
+        this.rendicionService.liberarDocumento(this.documento.rendicionId).subscribe({
+          next: (response) => {
+            console.log('✅ Documento liberado:', response);
             this.mostrarMensaje('Documento liberado correctamente', 'success');
             setTimeout(() => this.volverALista(), 1500);
           },
-          error: (err) => this.mostrarMensaje(err.error?.message || 'Error al liberar', 'error')
+          error: (err) => {
+            console.error('❌ Error al liberar:', err);
+            this.mostrarMensaje(err.error?.message || 'Error al liberar', 'error');
+          }
         });
       }
     });
@@ -287,18 +345,26 @@ cargarDocumentoCompleto(documentoId: string): void {
   }
 
   actualizarEstadoBotones(): void {
+    console.log('🔍 actualizarEstadoBotones - esModoLectura:', this.esModoLectura);
+    console.log('🔍 actualizarEstadoBotones - estaProcesado:', this.estaProcesado);
+    console.log('🔍 actualizarEstadoBotones - form.valid:', this.form.valid);
+    console.log('🔍 actualizarEstadoBotones - estadoFinal:', this.form.get('estadoFinal')?.value);
+    
     if (this.esModoLectura || this.estaProcesado || this.isProcessing || !this.documento) {
-      this.puedeGuardar = this.puedeLiberar = false;
+      this.puedeGuardar = false;
+      this.puedeLiberar = false;
       return;
     }
     
     const estadoFinal = this.form.get('estadoFinal')?.value;
     const obs = this.form.value.observaciones?.trim() || '';
     
-    let valido = !!estadoFinal;
+    let valido = !!estadoFinal && estadoFinal !== '';
     if (estadoFinal === 'OBSERVADO' || estadoFinal === 'RECHAZADO') {
       valido = valido && obs.length >= 10;
     }
+    
+    console.log('🔍 valido:', valido);
     
     this.puedeGuardar = valido;
     this.puedeLiberar = true;
