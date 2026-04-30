@@ -118,7 +118,6 @@ export class ModulesService {
       requiredRole: UserRole.JURIDICA,
       isActive: true
     },
-    // ✅ NUEVO MÓDULO DE CONTRATISTAS
     {
       id: 'contratistas',
       title: 'Contratistas',
@@ -134,19 +133,32 @@ export class ModulesService {
   constructor() { }
 
   getModulesForUser(userRole: UserRole): AppModule[] {
-    return this.allModules.filter(module =>
+    console.log('🔍 ModulesService - Rol:', userRole);
+    
+    const modules = this.allModules.filter(module =>
       module.isActive &&
-      this.userHasAccess(userRole, module.requiredRole)
+      this.userHasAccess(userRole, module)
     );
+    
+    console.log('📦 Módulos para rol', userRole, ':', modules.map(m => m.id));
+    return modules;
   }
 
-  private userHasAccess(userRole: UserRole, requiredRole: UserRole): boolean {
+  private userHasAccess(userRole: UserRole, module: AppModule): boolean {
     // ADMIN tiene acceso a todo
     if (userRole === UserRole.ADMIN) {
       return true;
     }
 
-    // Mapeo de jerarquías de roles
+    // Para JURIDICA: acceso a dashboard y contratistas
+    if (userRole === UserRole.JURIDICA) {
+      const allowedModules = ['dashboard', 'contratistas', 'juridica'];
+      const hasAccess = allowedModules.includes(module.id);
+      console.log(`Rol JURIDICA - Módulo ${module.id}: ${hasAccess ? '✅ ACCESO' : '❌ DENEGADO'}`);
+      return hasAccess;
+    }
+
+    // Para otros roles, usar la jerarquía existente
     const roleHierarchy: Record<UserRole, UserRole[]> = {
       [UserRole.ADMIN]: [UserRole.ADMIN, UserRole.RADICADOR, UserRole.SUPERVISOR, UserRole.AUDITOR_CUENTAS,
         UserRole.CONTABILIDAD, UserRole.TESORERIA, UserRole.ASESOR_GERENCIA,
@@ -161,7 +173,7 @@ export class ModulesService {
       [UserRole.JURIDICA]: [UserRole.JURIDICA]
     };
 
-    return roleHierarchy[userRole]?.includes(requiredRole) || false;
+    return roleHierarchy[userRole]?.includes(module.requiredRole) || false;
   }
 
   canAccessRoute(path: string, userRole: UserRole): boolean {

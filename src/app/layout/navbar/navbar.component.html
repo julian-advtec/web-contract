@@ -1,12 +1,11 @@
-<nav class="navbar"
-     [class.collapsed]="sidebarCollapsed"
-     [class.gestion-usuarios]="isUserManagementPage()"
-     [class.radicacion]="isRadicacionPage()">
+<!-- src/app/layout/navbar/navbar.component.html -->
+<nav class="navbar" [class.collapsed]="sidebarCollapsed" [class.gestion-usuarios]="isUserManagementPage()"
+  [class.radicacion]="isRadicacionPage()">
   <div class="navbar-content">
 
     <div class="navbar-brand">
       <h1 *ngIf="isDashboardPage(); else dynamicTitle">
-        SISTEMA DE GESTIÓN DOCUMENTAL
+        SISTEMA DE GESTIÓN CONTRACTUAL
       </h1>
 
       <ng-template #dynamicTitle>
@@ -19,12 +18,29 @@
       </ng-template>
     </div>
 
-    <div class="navbar-user-section">
-      <div class="user-info">
-        <span class="user-name">{{ currentUser?.username || 'Usuario' }}</span>
-        <span class="user-role">{{ getUserRoleName(currentUser?.role) }}</span>
+    <div class="token-timer" [class.warning]="timePercentage < 20 && timePercentage > 10"
+      [class.critical]="timePercentage <= 10">
+      <div class="timer-icon">
+        <i class="fas fa-hourglass-half"></i>
+      </div>
+      <div class="timer-info">
+        <div class="timer-label">Sesión</div>
+        <div class="timer-value">{{ timeRemaining }}</div>
+        <!-- DEBUG: Mostrar valor raw -->
+        <div class="timer-debug" style="font-size: 8px; opacity: 0.6;">{{ timePercentage.toFixed(0) }}%</div>
+      </div>
+      <div class="timer-progress">
+        <div class="progress-bar" [style.width.%]="timePercentage"></div>
       </div>
     </div>
 
+    <div class="user-info">
+      <span class="user-name">{{ currentUser?.username || 'Usuario' }}</span>
+      <span class="user-role">{{ getUserRoleName(currentUser?.role) }}</span>
+    </div>
+
+
   </div>
+
+
 </nav>

@@ -1,4 +1,4 @@
-// core/core.module.ts
+// src/app/core/core.module.ts
 import { NgModule, Optional, SkipSelf } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HTTP_INTERCEPTORS } from '@angular/common/http';
@@ -9,12 +9,12 @@ import { AuthService } from './services/auth.service';
 import { ApiService } from './services/api.service';
 import { StorageService } from './services/storage.service';
 import { UsersService } from './services/users.service';
+import { UserActivityService } from './services/user-activity.service';
+import { NotificationService } from './services/notification.service';
 
 @NgModule({
   declarations: [],
-  imports: [
-    CommonModule
-  ],
+  imports: [CommonModule],
   providers: [
     AuthGuard,
     TwoFactorGuard,
@@ -22,6 +22,8 @@ import { UsersService } from './services/users.service';
     ApiService,
     StorageService,
     UsersService,
+    UserActivityService,
+    NotificationService,
     {
       provide: HTTP_INTERCEPTORS,
       useClass: TokenInterceptor,
@@ -32,9 +34,7 @@ import { UsersService } from './services/users.service';
 export class CoreModule {
   constructor(@Optional() @SkipSelf() parentModule?: CoreModule) {
     if (parentModule) {
-      throw new Error(
-        'CoreModule ya está cargado. Importarlo solo en AppModule.'
-      );
+      throw new Error('CoreModule ya está cargado. Importarlo solo en AppModule.');
     }
   }
 }

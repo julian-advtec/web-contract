@@ -1,4 +1,4 @@
-// notification.service.ts
+// src/app/core/services/notification.service.ts
 import { Injectable, TemplateRef } from '@angular/core';
 import { Subject } from 'rxjs';
 
@@ -24,7 +24,7 @@ export interface ModalOptions {
   onCancel?: () => void;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   showCloseButton?: boolean;
-  customClass?: string; // NUEVA: Para clases CSS personalizadas
+  customClass?: string;
 }
 
 @Injectable({
@@ -37,7 +37,6 @@ export class NotificationService {
     notifications$ = this.notificationSubject.asObservable();
     modal$ = this.modalSubject.asObservable();
 
-    // Métodos para mostrar notificaciones
     success(message: string, title?: string, duration: number = 3000): void {
         this.showNotification('success', message, title, duration);
     }
@@ -63,7 +62,6 @@ export class NotificationService {
         });
     }
 
-    // Métodos para mostrar modales
     showModal(options: ModalOptions): void {
         this.modalSubject.next(options);
     }
@@ -72,7 +70,6 @@ export class NotificationService {
         this.modalSubject.next(null);
     }
 
-    // Métodos rápidos para modales comunes
     confirm(
         title: string,
         message: string,
@@ -104,21 +101,6 @@ export class NotificationService {
         });
     }
 
-    customModal(title: string, content: TemplateRef<any>, size: 'sm' | 'md' | 'lg' | 'xl' = 'lg'): void {
-        if (!content) {
-            console.error('No se proporcionó contenido para el modal');
-            return;
-        }
-
-        this.showModal({
-            type: 'form',
-            title,
-            content,
-            size,
-            showCloseButton: true
-        });
-    }
-
     logoutConfirm(
         onConfirm: () => void,
         onCancel?: () => void,
@@ -134,7 +116,7 @@ export class NotificationService {
             onConfirm,
             onCancel,
             showCloseButton: true,
-            customClass: 'logout-modal' // Nueva propiedad para clases personalizadas
+            customClass: 'logout-modal'
         });
     }
 }

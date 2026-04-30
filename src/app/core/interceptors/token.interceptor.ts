@@ -1,3 +1,4 @@
+// src/app/core/interceptors/token.interceptor.ts
 import { Injectable } from '@angular/core';
 import {
   HttpInterceptor,
@@ -15,10 +16,7 @@ export class TokenInterceptor implements HttpInterceptor {
   constructor(private router: Router) {}
 
   intercept(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
-    // Excluir endpoints públicos
-    if (request.url.includes('/auth/') || 
-        request.url.includes('/health') ||
-        request.url.includes('/public/')) {
+    if (this.isPublicEndpoint(request.url)) {
       return next.handle(request);
     }
     
@@ -36,29 +34,33 @@ export class TokenInterceptor implements HttpInterceptor {
     
     return next.handle(authRequest).pipe(
       catchError((error: HttpErrorResponse) => {
-        console.log(`🔐 Interceptor: Error ${error.status} en ${request.url}`);
-        
-        // IMPORTANTE: Solo cerrar sesión con 401
-        if (error.status === 401) {
-          console.log('🔐 401 Unauthorized - Cerrando sesión');
+        if (error.status === 401 && !request.url.includes('/auth/refresh-token')) {
+          console.log('🔐 401 Unauthorized - Token expirado');
           localStorage.removeItem('token');
           localStorage.removeItem('user');
-          this.router.navigate(['/auth/login']);
-        }
-        
-        // 403 = Forbidden (sin permisos pero autenticado)
-        // NO cerramos sesión, solo pasamos el error
-        if (error.status === 403) {
-          console.log('🚫 403 Forbidden - Sin permisos, manteniendo sesión');
-        }
-        
-        // 404 = Not Found
-        if (error.status === 404) {
-          console.log('🔍 404 Not Found - Recurso no encontrado');
+          this.router.navigate(['/auth/login'], {
+            queryParams: { sessionExpired: 'true' }
+          });
         }
         
         return throwError(() => error);
       })
     );
+  }
+
+  private isPublicEndpoint(url: string): boolean {
+    const publicEndpoints = [
+      '/auth/login',
+      '/auth/login-direct',
+      '/auth/verify-2fa',
+      '/auth/resend-2fa',
+      '/auth/forgot-password',
+      '/auth/reset-password',
+      '/auth/refresh-token',
+      '/auth/health',
+      '/health'
+    ];
+    
+    return publicEndpoints.some(endpoint => url.includes(endpoint));
   }
 }

@@ -1,13 +1,15 @@
-// auth.service.ts - CORREGIR
+// src/app/core/services/auth.service.ts
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, throwError } from 'rxjs';
-import { catchError, tap } from 'rxjs/operators';
+import { BehaviorSubject, Observable, throwError, Subscription } from 'rxjs';
+import { catchError, tap, debounceTime, map } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { User, UserRole } from '../models/user.types';
+import { TokenUtils } from '../utils/token.util';
+import { NotificationService } from './notification.service';
+import { UserActivityService } from './user-activity.service';
 
-// Definir interfaces locales
 interface LoginRequest {
   username: string;
   password: string;
@@ -47,6 +49,8 @@ interface UsersStats {
 export class AuthService {
   private http = inject(HttpClient);
   private router = inject(Router);
+  private notificationService = inject(NotificationService);
+  private userActivityService = inject(UserActivityService);
   private apiUrl = environment.apiUrl;
 
   private currentUserSubject = new BehaviorSubject<User | null>(null);
@@ -58,6 +62,21 @@ export class AuthService {
   private isLoggedInSubject = new BehaviorSubject<boolean>(false);
   public isLoggedIn$ = this.isLoggedInSubject.asObservable();
 
+  private tokenExpirationSubject = new BehaviorSubject<Date | null>(null);
+  public tokenExpiration$ = this.tokenExpirationSubject.asObservable();
+
+  private timeRemainingSubject = new BehaviorSubject<number>(0);
+  public timeRemaining$ = this.timeRemainingSubject.asObservable();
+
+  private activitySubscription: Subscription | null = null;
+  private warningShown = false;
+  private lastRefreshTime = 0;
+  
+  // ✅ CAMBIADO A 15 MINUTOS (900,000 milisegundos)
+  private readonly MIN_REFRESH_INTERVAL = 15 * 60 * 1000; // 15 minutos
+  
+  private timeInterval: any = null;
+
   constructor() {
     this.loadStoredAuth();
   }
@@ -67,15 +86,22 @@ export class AuthService {
       const token = localStorage.getItem('token');
       const userStr = localStorage.getItem('user');
 
-      if (token && userStr) {
-        if (userStr && userStr !== 'undefined' && userStr !== 'null') {
-          const user = JSON.parse(userStr);
-          this.currentUserSubject.next(user);
-          this.isLoggedInSubject.next(true);
-          console.log('🔐 Auth loaded from storage:', user.username);
-        } else {
+      if (token && userStr && token !== 'undefined' && userStr !== 'undefined' && userStr !== 'null') {
+        if (TokenUtils.isTokenExpired(token)) {
+          console.log('🔐 Token almacenado expirado, limpiando');
           this.clearStoredAuth();
+          return;
         }
+
+        const user = JSON.parse(userStr);
+        this.currentUserSubject.next(user);
+        this.isLoggedInSubject.next(true);
+
+        this.startActivityMonitoring();
+        this.updateTimeRemaining();
+        this.startTimeInterval();
+
+        console.log('🔐 Auth loaded from storage:', user.username);
       }
     } catch (error) {
       console.error('Error loading stored auth:', error);
@@ -83,9 +109,183 @@ export class AuthService {
     }
   }
 
-  /**
-   * Login principal
-   */
+  private startActivityMonitoring(): void {
+    if (this.activitySubscription) {
+      this.activitySubscription.unsubscribe();
+    }
+
+    this.userActivityService.startMonitoring();
+
+    this.activitySubscription = this.userActivityService.activity$
+      .pipe(debounceTime(1000))
+      .subscribe(event => {
+        if (event.type === 'user-interaction') {
+          this.onUserActivity();
+        } else if (event.type === 'inactivity-warning') {
+          this.showInactivityWarning();
+        }
+      });
+  }
+
+  private stopActivityMonitoring(): void {
+    if (this.activitySubscription) {
+      this.activitySubscription.unsubscribe();
+      this.activitySubscription = null;
+    }
+    this.userActivityService.stopMonitoring();
+  }
+
+  private startTimeInterval(): void {
+    if (this.timeInterval) {
+      clearInterval(this.timeInterval);
+    }
+    this.timeInterval = setInterval(() => this.updateTimeRemaining(), 1000);
+  }
+
+  private stopTimeInterval(): void {
+    if (this.timeInterval) {
+      clearInterval(this.timeInterval);
+      this.timeInterval = null;
+    }
+  }
+
+  private updateTimeRemaining(): void {
+    const token = this.getToken();
+    if (!token) {
+      this.timeRemainingSubject.next(0);
+      this.tokenExpirationSubject.next(null);
+      return;
+    }
+
+    const timeLeft = TokenUtils.getTimeToExpiration(token);
+    this.timeRemainingSubject.next(Math.max(0, timeLeft));
+    this.tokenExpirationSubject.next(TokenUtils.getTokenExpiration(token));
+
+    const minutes = Math.floor(timeLeft / 60);
+    const seconds = timeLeft % 60;
+    
+
+    if (timeLeft <= 0) {
+      console.log('❌ Token expirado, cerrando sesión');
+      this.logout('Tu sesión ha expirado');
+      return;
+    }
+
+    if (timeLeft <= 300 && timeLeft > 0 && !this.warningShown) {
+      this.warningShown = true;
+      this.showExpirationWarning(timeLeft);
+    }
+  }
+
+  private onUserActivity(): void {
+    const token = this.getToken();
+    if (!token) {
+      console.log('❌ No hay token para renovar');
+      return;
+    }
+
+    const timeLeft = TokenUtils.getTimeToExpiration(token);
+    const now = Date.now();
+    const minutesSinceLastRefresh = Math.floor((now - this.lastRefreshTime) / 60000);
+    const minutesLeft = Math.floor(timeLeft / 60);
+
+  
+
+    // ✅ Solo renovar si han pasado 15 minutos desde el último refresh
+    const shouldRefresh = (now - this.lastRefreshTime) >= this.MIN_REFRESH_INTERVAL;
+    
+    if (shouldRefresh) {
+      const userId = this.getCurrentUser()?.id;
+      if (userId) {
+     
+        this.refreshToken(userId).subscribe({
+          next: () => {
+            this.lastRefreshTime = Date.now();
+            this.warningShown = false;
+            const newToken = this.getToken();
+            if (newToken) {
+              const newTimeLeft = TokenUtils.getTimeToExpiration(newToken);
+
+            }
+          },
+          error: (error) => {
+            console.error('❌ Error renovando token:', error);
+            if (error.status === 401) {
+              this.logout('Tu sesión ha expirado');
+            }
+          }
+        });
+      }
+    } else {
+      const minutesToWait = Math.ceil((this.MIN_REFRESH_INTERVAL - (now - this.lastRefreshTime)) / 60000);
+     
+    }
+  }
+
+  private showInactivityWarning(): void {
+    this.notificationService.warning(
+      'Has estado inactivo por 15 minutos. Interactúa con la página para mantener tu sesión activa.',
+      '⚠️ Sesión por expirar por inactividad',
+      10000
+    );
+  }
+
+  private showExpirationWarning(secondsLeft: number): void {
+    const minutes = Math.floor(secondsLeft / 60);
+    this.notificationService.warning(
+      `Tu sesión expirará en ${minutes} minutos. Interactúa con la página para renovarla automáticamente.`,
+      '⚠️ Sesión próxima a expirar',
+      10000
+    );
+  }
+
+  refreshToken(userId: string): Observable<{ token: string }> {
+   
+    
+    return this.http.post<any>(`${this.apiUrl}/auth/refresh-token`, { userId }).pipe(
+      map(response => {
+       
+        
+        let token = null;
+        if (response.token) {
+          token = response.token;
+        } else if (response.data && response.data.token) {
+          token = response.data.token;
+        } else if (response.access_token) {
+          token = response.access_token;
+        }
+        
+        if (!token) {
+          throw new Error('No se recibió token en la respuesta');
+        }
+        
+        return { token };
+      }),
+      tap(({ token }) => {
+       
+        
+        localStorage.setItem('token', token);
+        
+        const newTimeLeft = TokenUtils.getTimeToExpiration(token);
+    
+        
+        this.timeRemainingSubject.next(newTimeLeft);
+        this.tokenExpirationSubject.next(TokenUtils.getTokenExpiration(token));
+        this.warningShown = false;
+        
+        this.notificationService.success(
+          `Sesión renovada por actividad. Próxima renovación en 15 minutos.`,
+          '🔄 Sesión actualizada',
+          3000
+        );
+      }),
+      catchError(error => {
+        console.error('❌ Error en refresh token:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
   login(username: string, password: string): Observable<LoginResponse> {
     const loginRequest: LoginRequest = { username, password };
 
@@ -94,13 +294,12 @@ export class AuthService {
         console.log('🔐 AuthService - Login response:', response);
 
         if (response.requiresTwoFactor && response.userId) {
-          // Guardar userId para 2FA
           this.setPendingUserId(response.userId);
           console.log('🔐 2FA required for user:', response.userId);
           this.router.navigate(['/two-factor']);
-        } else if (response.token && response.user) {
-          // Login directo exitoso
-          this.completeLogin(response.token, response.user);
+        } else if ((response.token || response.access_token) && response.user) {
+          const token = response.token || response.access_token || '';
+          this.completeLogin(token, response.user);
           this.router.navigate(['/dashboard']);
         }
       }),
@@ -111,17 +310,15 @@ export class AuthService {
     );
   }
 
-  /**
-   * Verificar código 2FA
-   */
   verify2FA(userId: string, code: string): Observable<TwoFactorResponse> {
     const request: TwoFactorRequest = { userId, code };
 
     return this.http.post<TwoFactorResponse>(`${this.apiUrl}/auth/verify-2fa`, request).pipe(
       tap(response => {
         console.log('🔐 AuthService - 2FA verification successful:', response);
-        if (response.token && response.user) {
-          this.completeLogin(response.token, response.user);
+        if ((response.token || response.access_token) && response.user) {
+          const token = response.token || response.access_token || '';
+          this.completeLogin(token, response.user);
           this.clearPendingAuth();
           this.router.navigate(['/dashboard']);
         }
@@ -133,9 +330,6 @@ export class AuthService {
     );
   }
 
-  /**
-   * Reenviar código 2FA
-   */
   resend2FACode(userId: string): Observable<any> {
     return this.http.post(`${this.apiUrl}/auth/resend-2fa`, { userId }).pipe(
       catchError(error => {
@@ -145,17 +339,15 @@ export class AuthService {
     );
   }
 
-  /**
-   * Login directo (sin 2FA)
-   */
   loginDirect(username: string, password: string): Observable<LoginResponse> {
     return this.http.post<LoginResponse>(`${this.apiUrl}/auth/login-direct`, {
       username,
       password
     }).pipe(
       tap(response => {
-        if (response.token && response.user) {
-          this.completeLogin(response.token, response.user);
+        if ((response.token || response.access_token) && response.user) {
+          const token = response.token || response.access_token || '';
+          this.completeLogin(token, response.user);
           this.router.navigate(['/dashboard']);
         }
       }),
@@ -166,37 +358,33 @@ export class AuthService {
     );
   }
 
-  /**
-   * Completar login
-   */
   public completeLogin(token: string, user: User): void {
     try {
       console.log('🔐 Completando login...');
 
-      // Guardar en localStorage
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
 
-      // Actualizar subjects
       this.currentUserSubject.next(user);
       this.isLoggedInSubject.next(true);
 
-      console.log('🔐 ✅ Login completado para:', user.username);
+      this.startActivityMonitoring();
+      this.updateTimeRemaining();
+      this.startTimeInterval();
 
-      // Forzar actualización de todos los suscriptores
-      this.currentUserSubject.complete();
-      this.currentUserSubject = new BehaviorSubject<User | null>(user);
-      this.isLoggedInSubject.complete();
-      this.isLoggedInSubject = new BehaviorSubject<boolean>(true);
+      this.warningShown = false;
+      this.lastRefreshTime = Date.now();
+
+      const timeLeft = TokenUtils.getTimeToExpiration(token);
+      console.log(`🔐 ✅ Login completado para: ${user.username}`);
+      console.log(`🔐 Token expira en: ${Math.floor(timeLeft / 60)} minutos y ${timeLeft % 60} segundos`);
+      console.log(`🔐 Modo: Renovación cada 15 minutos SOLO con interacción del usuario`);
 
     } catch (error) {
       console.error('🔐 ❌ Error completando login:', error);
     }
   }
 
-  /**
-   * Guardar token (público)
-   */
   public setToken(token: string): void {
     try {
       localStorage.setItem('token', token);
@@ -206,9 +394,6 @@ export class AuthService {
     }
   }
 
-  /**
-   * Guardar usuario (público)
-   */
   public setUser(user: User): void {
     try {
       localStorage.setItem('user', JSON.stringify(user));
@@ -220,9 +405,6 @@ export class AuthService {
     }
   }
 
-  /**
-   * Limpiar datos almacenados
-   */
   private clearStoredAuth(): void {
     try {
       localStorage.removeItem('token');
@@ -235,19 +417,27 @@ export class AuthService {
     }
   }
 
-  /**
-   * Logout
-   */
-  logout(): void {
+  logout(message?: string): void {
     console.log('🔐 Logging out user...');
+
+    this.stopActivityMonitoring();
+    this.stopTimeInterval();
+
     this.clearStoredAuth();
     this.clearPendingAuth();
+
+    this.tokenExpirationSubject.next(null);
+    this.timeRemainingSubject.next(0);
+    this.warningShown = false;
+    this.lastRefreshTime = 0;
+
+    if (message) {
+      this.notificationService.info(message, 'Sesión cerrada', 3000);
+    }
+
     this.router.navigate(['/auth/login']);
   }
 
-  /**
-   * Obtener token
-   */
   getToken(): string | null {
     try {
       return localStorage.getItem('token');
@@ -256,59 +446,45 @@ export class AuthService {
     }
   }
 
-  /**
-   * Obtener usuario actual
-   */
   getCurrentUser(): User | null {
     return this.currentUserSubject.value;
   }
 
-  /**
-   * Verificar si está autenticado
-   */
   isAuthenticated(): boolean {
     const token = this.getToken();
     const user = this.getCurrentUser();
-    const isAuth = !!token && !!user;
-    console.log('🔐 Authentication check:', isAuth);
-    return isAuth;
+
+    if (!token || !user) return false;
+
+    if (TokenUtils.isTokenExpired(token)) {
+      console.log('🔐 Token expirado en verificación');
+      this.logout('Tu sesión ha expirado');
+      return false;
+    }
+
+    return true;
   }
 
-  /**
-   * Obtener userId pendiente (para 2FA)
-   */
   getPendingUserId(): string | null {
     return this.pendingUserId.value;
   }
 
-  /**
-   * Establecer userId pendiente
-   */
   setPendingUserId(userId: string): void {
     this.pendingUserId.next(userId);
     console.log('🔐 Pending user ID set:', userId);
   }
 
-  /**
-   * Limpiar estado pendiente (2FA)
-   */
   clearPendingAuth(): void {
     this.pendingUserId.next(null);
     console.log('🔐 Pending auth cleared');
   }
 
-  /**
-   * Verificar si hay autenticación pendiente (2FA)
-   */
   hasPendingAuth(): boolean {
     const hasPending = !!this.pendingUserId.value;
     console.log('🔐 Pending auth check:', hasPending);
     return hasPending;
   }
 
-  /**
-   * Forgot password
-   */
   forgotPassword(email: string): Observable<any> {
     return this.http.post(`${this.apiUrl}/auth/forgot-password`, { email }).pipe(
       catchError(error => {
@@ -318,9 +494,6 @@ export class AuthService {
     );
   }
 
-  /**
-   * Reset password
-   */
   resetPassword(token: string, newPassword: string): Observable<any> {
     return this.http.post(`${this.apiUrl}/auth/reset-password`, {
       token,
@@ -333,9 +506,6 @@ export class AuthService {
     );
   }
 
-  /**
-   * Validate reset token
-   */
   validateResetToken(token: string): Observable<any> {
     return this.http.post(`${this.apiUrl}/auth/validate-reset-token`, { token }).pipe(
       catchError(error => {
@@ -345,46 +515,104 @@ export class AuthService {
     );
   }
 
-  /**
-   * Verificar si el usuario tiene un rol específico
-   */
   hasRole(role: UserRole): boolean {
     const user = this.getCurrentUser();
     return user?.role === role;
   }
 
-  /**
-   * Verificar si el usuario tiene alguno de los roles
-   */
   hasAnyRole(roles: UserRole[]): boolean {
     const user = this.getCurrentUser();
     return user ? roles.includes(user.role) : false;
   }
 
+  getFormattedTimeRemaining(): string {
+    const seconds = this.timeRemainingSubject.value;
+    if (seconds <= 0) return '00:00';
+
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  getTimePercentage(): number {
+    const seconds = this.timeRemainingSubject.value;
+    if (seconds <= 0) return 0;
+    const maxSeconds = 1800;
+    return Math.min(100, Math.max(0, (seconds / maxSeconds) * 100));
+  }
+
+  isJuridica(): boolean {
+    const user = this.getCurrentUser();
+    return user?.role === UserRole.JURIDICA;
+  }
+
+  isAdmin(): boolean {
+    const user = this.getCurrentUser();
+    return user?.role === UserRole.ADMIN;
+  }
+
+  getFullName(): string {
+    const user = this.getCurrentUser();
+    return user?.fullName || user?.username || 'Usuario';
+  }
+
+  getRoleName(): string {
+    const user = this.getCurrentUser();
+    if (!user) return 'Usuario';
+
+    const roleNames: Record<string, string> = {
+      'admin': 'Administrador',
+      'contratista': 'Contratista',
+      'juridica': 'Jurídica',
+      'radicador': 'Radicador',
+      'supervisor': 'Supervisor',
+      'auditor_cuentas': 'Auditor de Cuentas',
+      'contabilidad': 'Contabilidad',
+      'tesoreria': 'Tesorería',
+      'asesor_gerencia': 'Asesor de Gerencia',
+      'rendicion_cuentas': 'Rendición de Cuentas'
+    };
+
+    return roleNames[user.role] || user.role;
+  }
+
   public forceAuthState(token: string, user: User): void {
     console.log('🔐 Forzando estado de autenticación...');
 
-    // Guardar en localStorage
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
-
-    // Backup storage
     localStorage.setItem('auth_force_token', token);
     localStorage.setItem('auth_force_user', JSON.stringify(user));
-
-    // Session storage como respaldo
     sessionStorage.setItem('auth_token', token);
     sessionStorage.setItem('auth_user', JSON.stringify(user));
 
-    // Actualizar subjects
     this.currentUserSubject.next(user);
     this.isLoggedInSubject.next(true);
 
+    this.startActivityMonitoring();
+    this.startTimeInterval();
+
     console.log('🔐 Estado de autenticación forzado exitosamente');
+  }
+
+  public updateUser(user: User): void {
+    try {
+      localStorage.setItem('user', JSON.stringify(user));
+      this.currentUserSubject.next(user);
+      console.log('🔐 Usuario actualizado:', user.username);
+    } catch (error) {
+      console.error('Error updating user:', error);
+    }
+  }
+
+  getUsersStats(): Observable<UsersStats> {
+    return this.http.get<UsersStats>(`${this.apiUrl}/users/stats`).pipe(
+      catchError(error => {
+        console.error('Error obteniendo estadísticas:', error);
+        return throwError(() => error);
+      })
+    );
   }
 }
 
-
-
-// Export types from here for backward compatibility
 export { User, UserRole };

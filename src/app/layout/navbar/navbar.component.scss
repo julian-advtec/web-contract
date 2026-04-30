@@ -1,23 +1,17 @@
 // src/app/layout/navbar/navbar.component.scss
-// ======================================================
-// VARIABLES
-// ======================================================
 $sidebar-width-normal: 280px;
 $sidebar-width-collapsed: 70px;
 $navbar-height: 80px;
 $transition-duration: 0.3s;
 
-// Colores
 $navbar-bg: #a7f3d0;
 $text-color: #1f2937;
 $border-color: #e5e7eb;
-$hover-color: #e9ecef;
 $primary-green: #10b981;
 $danger-red: #ef4444;
+$warning-orange: #ff9800;
+$success-green: #4caf50;
 
-// ======================================================
-// NAVBAR PRINCIPAL
-// ======================================================
 .navbar {
   position: fixed;
   top: 0;
@@ -34,13 +28,11 @@ $danger-red: #ef4444;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 
-  // Sidebar colapsado
   &.collapsed {
     left: $sidebar-width-collapsed;
     width: calc(100vw - #{$sidebar-width-collapsed});
   }
 
-  // Contenido interno
   .navbar-content {
     display: flex;
     justify-content: space-between;
@@ -52,31 +44,6 @@ $danger-red: #ef4444;
     z-index: 2;
   }
 
-  // Botón toggle
-  .sidebar-toggle {
-    background: $primary-green;
-    border: none;
-    color: white;
-    font-size: 1.2rem;
-    cursor: pointer;
-    padding: 0.75rem;
-    border-radius: 8px;
-    transition: all $transition-duration ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 45px;
-    height: 45px;
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
-
-    &:hover {
-      background: darken($primary-green, 10%);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-    }
-  }
-
-  // Marca
   .navbar-brand {
     flex: 1;
     display: flex;
@@ -114,58 +81,206 @@ $danger-red: #ef4444;
     }
   }
 
-  // Usuario
   .navbar-user-section {
     display: flex;
     align-items: center;
     gap: 1.5rem;
+  }
 
-    .user-info {
-      display: flex;
-      flex-direction: column;
-      text-align: right;
+  .user-info {
+    display: flex;
+    flex-direction: column;
+    text-align: right;
 
-      .user-name {
-        font-weight: 600;
-        font-size: 1rem;
-        color: $text-color;
-      }
-
-      .user-role {
-        font-size: 0.875rem;
-        color: #6b7280;
-        opacity: 0.8;
-      }
+    .user-name {
+      font-weight: 600;
+      font-size: 1rem;
+      color: $text-color;
     }
 
-    .logout-btn {
-      background: rgba($danger-red, 0.1);
-      border: 1px solid rgba($danger-red, 0.2);
-      color: $danger-red;
-      font-size: 1.2rem;
-      cursor: pointer;
-      padding: 0.6rem;
-      border-radius: 8px;
-      transition: all $transition-duration ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 45px;
-      height: 45px;
+    .user-role {
+      font-size: 0.875rem;
+      color: #6b7280;
+      opacity: 0.8;
+    }
+  }
 
-      &:hover {
-        background: rgba($danger-red, 0.2);
-        transform: translateY(-2px);
-      }
+  .logout-btn {
+    background: rgba($danger-red, 0.1);
+    border: 1px solid rgba($danger-red, 0.2);
+    color: $danger-red;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0.6rem;
+    border-radius: 8px;
+    transition: all $transition-duration ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 45px;
+    height: 45px;
+
+    &:hover {
+      background: rgba($danger-red, 0.2);
+      transform: translateY(-2px);
     }
   }
 }
 
-// ======================================================
-// FONDOS ESPECÍFICOS POR MÓDULO
-// ======================================================
+.token-timer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  position: relative;
+  overflow: hidden;
+  min-width: 130px; /* Aumentado para asegurar espacio */
+  transition: all 0.3s ease;
 
-// Gestión de Usuarios
+  .timer-icon {
+    font-size: 1.2rem;
+    color: #4caf50;
+    transition: all 0.3s ease;
+  }
+
+  .timer-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 60px; /* Espacio asegurado para el número */
+
+    .timer-label {
+      font-size: 0.7rem;
+      opacity: 0.8;
+    }
+
+    .timer-value {
+      font-size: 1.2rem;
+      font-weight: bold;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 1px;
+    }
+  }
+
+  .timer-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.3);
+
+    .progress-bar {
+      height: 100%;
+      background: #4caf50;
+      transition: width 1s linear;
+    }
+  }
+
+  // Estado de advertencia (10-20%)
+  &.warning {
+    background: rgba(255, 152, 0, 0.2);
+    
+    .timer-icon {
+      color: #ff9800;
+    }
+    
+    .timer-value {
+      color: #ff9800;
+      font-weight: bold;
+    }
+    
+    .progress-bar {
+      background: #ff9800;
+    }
+  }
+
+  // Estado crítico (<10%)
+  &.critical {
+    background: rgba(244, 67, 54, 0.2);
+    animation: blink-bg 1s ease-in-out infinite;
+    
+    .timer-icon {
+      color: #f44336;
+      animation: shake 0.5s ease-in-out infinite;
+    }
+    
+    .timer-value {
+      color: #f44336;
+      font-weight: bold;
+      font-size: 1.3rem;
+    }
+    
+    .progress-bar {
+      background: #f44336;
+    }
+  }
+}
+
+// Animaciones
+@keyframes blink-bg {
+  0%, 100% { background: rgba(244, 67, 54, 0.2); }
+  50% { background: rgba(244, 67, 54, 0.5); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(10deg); }
+  75% { transform: rotate(-10deg); }
+}
+
+// Responsive
+@media (max-width: 770px) {
+  .token-timer {
+    min-width: 90px;
+    padding: 0.3rem 0.6rem;
+    
+    .timer-label {
+      display: none; /* Ocultar label en móvil para ahorrar espacio */
+    }
+    
+    .timer-value {
+      font-size: 1rem;
+    }
+    
+    .timer-icon {
+      font-size: 1rem;
+    }
+  }
+}
+
+@keyframes pulse-bg {
+  0%, 100% { background: rgba($warning-orange, 0.2); }
+  50% { background: rgba($warning-orange, 0.35); }
+}
+
+@keyframes pulse-icon {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.1); }
+}
+
+@keyframes blink-bg {
+  0%, 100% { background: rgba($danger-red, 0.2); }
+  50% { background: rgba($danger-red, 0.5); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(10deg); }
+  75% { transform: rotate(-10deg); }
+}
+
+@keyframes pulse-width {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes pulse-critical {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
 .navbar.gestion-usuarios {
   position: relative;
   
@@ -188,7 +303,6 @@ $danger-red: #ef4444;
   }
 }
 
-// Radicación
 .navbar.radicacion {
   position: relative;
   
@@ -211,155 +325,51 @@ $danger-red: #ef4444;
   }
 }
 
-// Supervisor (agregar fondo si tienes imagen)
-.navbar.supervisor {
-  position: relative;
-  
-  &::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 27%;
-    max-width: 480px;
-    min-width: 260px;
-    height: 100%;
-    background-image: url('/assets/images/SPV1.jpg'); // Ajusta la ruta si tienes imagen
-    background-size: cover;
-    background-position: center right;
-    background-repeat: no-repeat;
-    opacity: 1;
-    z-index: 1;
-    pointer-events: none;
-  }
+@media (max-width: 1200px) {
+  .navbar .navbar-brand h1 { font-size: 1.4rem; }
+  .navbar .navbar-brand .dynamic-title .page-title { font-size: 1.4rem; }
+  .navbar .navbar-brand .dynamic-title .page-subtitle { font-size: 0.9rem; }
+  .navbar .navbar-content { padding: 0 1.5rem; }
 }
 
-// ======================================================
-// RESPONSIVE
-// ======================================================
-@mixin mobile {
-  @media (max-width: 770px) {
-    @content;
-  }
+@media (max-width: 900px) {
+  .navbar .navbar-brand h1 { font-size: 1.3rem; }
+  .navbar .navbar-brand .dynamic-title .page-title { font-size: 1.3rem; }
+  .navbar .navbar-brand .dynamic-title .page-subtitle { font-size: 0.85rem; }
+  .navbar .navbar-content { padding: 0 1.25rem; }
+  .navbar .logout-btn { width: 40px; height: 40px; padding: 0.6rem; }
+  .token-timer { min-width: 90px; padding: 0.4rem 0.8rem; }
+  .token-timer .timer-label { font-size: 0.65rem; }
+  .token-timer .timer-value { font-size: 1rem; }
 }
 
-@mixin tablet {
-  @media (max-width: 1200px) {
-    @content;
-  }
-}
-
-@mixin small-tablet {
-  @media (max-width: 900px) {
-    @content;
-  }
-}
-
-// Tablet
-@include tablet {
-  .navbar {
-    .navbar-brand {
-      h1 { font-size: 1.4rem; }
-      
-      .dynamic-title {
-        .page-title { font-size: 1.4rem; }
-        .page-subtitle { font-size: 0.9rem; }
-      }
-    }
-    
-    .navbar-content { padding: 0 1.5rem; }
-  }
-}
-
-// Small tablet
-@include small-tablet {
-  .navbar {
-    .navbar-brand {
-      h1 { font-size: 1.3rem; }
-      
-      .dynamic-title {
-        .page-title { font-size: 1.3rem; }
-        .page-subtitle { font-size: 0.85rem; }
-      }
-    }
-    
-    .navbar-content { padding: 0 1.25rem; }
-    
-    .sidebar-toggle,
-    .logout-btn {
-      width: 40px;
-      height: 40px;
-      padding: 0.6rem;
-    }
-  }
-}
-
-// Mobile
-@include mobile {
+@media (max-width: 770px) {
   .navbar {
     left: $sidebar-width-collapsed !important;
     width: calc(100vw - #{$sidebar-width-collapsed}) !important;
-    
-    .navbar-content { padding: 0 1rem; }
-    
-    .navbar-brand {
-      h1 { font-size: 1.1rem; }
-      
-      .dynamic-title {
-        .page-title {
-          font-size: 1.1rem;
-          max-width: 180px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        
-        .page-subtitle { display: none; }
-      }
-    }
-    
-    .user-role { display: none; }
-    
-    .user-name {
-      font-size: 0.9rem;
-    }
-    
-    .sidebar-toggle,
-    .logout-btn {
-      width: 38px;
-      height: 38px;
-      padding: 0.5rem;
-    }
   }
-  
+  .navbar .navbar-content { padding: 0 1rem; }
+  .navbar .navbar-brand h1 { font-size: 1.1rem; }
+  .navbar .navbar-brand .dynamic-title .page-title { font-size: 1.1rem; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .navbar .navbar-brand .dynamic-title .page-subtitle { display: none; }
+  .navbar .user-role { display: none; }
+  .navbar .user-name { font-size: 0.9rem; }
+  .navbar .logout-btn { width: 38px; height: 38px; padding: 0.5rem; }
+  .token-timer { min-width: 70px; padding: 0.3rem 0.6rem; }
+  .token-timer .timer-label { display: none; }
+  .token-timer .timer-value { font-size: 0.9rem; }
+  .token-timer .timer-icon { font-size: 1rem; }
   .navbar.gestion-usuarios::after,
-  .navbar.radicacion::after,
-  .navbar.supervisor::after {
-    display: none;
-  }
+  .navbar.radicacion::after { display: none; }
 }
 
-// Extra Small
 @media (max-width: 480px) {
-  .navbar {
-    .navbar-brand {
-      h1 { font-size: 1rem; }
-      
-      .dynamic-title .page-title {
-        font-size: 1rem;
-        max-width: 150px;
-      }
-    }
-    
-    .navbar-content { padding: 0 0.75rem; }
-    
-    .sidebar-toggle,
-    .logout-btn {
-      width: 36px;
-      height: 36px;
-      padding: 0.4rem;
-    }
-    
-    .user-name { font-size: 0.85rem; }
-  }
+  .navbar .navbar-brand h1 { font-size: 1rem; }
+  .navbar .navbar-brand .dynamic-title .page-title { font-size: 1rem; max-width: 150px; }
+  .navbar .navbar-content { padding: 0 0.75rem; }
+  .navbar .logout-btn { width: 36px; height: 36px; padding: 0.4rem; }
+  .navbar .user-name { font-size: 0.85rem; }
+  .token-timer { min-width: 55px; padding: 0.2rem 0.4rem; gap: 0.4rem; }
+  .token-timer .timer-value { font-size: 0.8rem; }
+  .token-timer .timer-icon { font-size: 0.8rem; }
 }
