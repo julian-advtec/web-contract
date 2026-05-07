@@ -313,17 +313,7 @@ export class JuridicaService {
   }
 
 
-  // ==================== UTILIDADES ====================
 
-  obtenerSupervisores(): Observable<any[]> {
-    return of([
-      { id: '1', nombre: 'Carlos Rodríguez' },
-      { id: '2', nombre: 'María González' },
-      { id: '3', nombre: 'Juan Pérez' },
-      { id: '4', nombre: 'Ana Martínez' },
-      { id: '5', nombre: 'Luis Sánchez' }
-    ]);
-  }
 
   verificarPermisosUsuario(): Observable<any> {
     const headers = this.getAuthHeaders();
@@ -385,4 +375,39 @@ export class JuridicaService {
       responseType: 'blob'
     });
   }
+
+  obtenerSupervisores(): Observable<any[]> {
+  // Usar environment.apiUrl directamente, no this.apiUrl
+  const url = `${environment.apiUrl}/users/supervisores/simple`;
+  console.log('📡 Cargando supervisores desde:', url);
+  
+  return this.http.get<any>(url, { headers: this.getAuthHeaders() }).pipe(
+    map(response => {
+      console.log('📥 Respuesta de supervisores:', response);
+      
+      // Si la respuesta es un array directamente
+      if (Array.isArray(response)) {
+        return response;
+      }
+      
+      // Si la respuesta tiene estructura { success: true, data: [...] }
+      if (response && response.success === true && Array.isArray(response.data)) {
+        return response.data;
+      }
+      
+      // Si la respuesta tiene estructura { data: [...] }
+      if (response && response.data && Array.isArray(response.data)) {
+        return response.data;
+      }
+      
+      console.warn('⚠️ Estructura de respuesta no reconocida:', response);
+      return [];
+    }),
+    catchError((error) => {
+      console.error('❌ Error cargando supervisores:', error);
+      // Retornar array vacío en caso de error para no romper el formulario
+      return of([]);
+    })
+  );
+}
 }

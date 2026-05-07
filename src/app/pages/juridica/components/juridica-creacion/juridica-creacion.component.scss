@@ -275,3 +275,45 @@ $color-gray-light: #e9ecef;
   to { opacity: 1; transform: translateY(0); }
 }
 .card, .sub-card { animation: fadeIn 0.3s ease-out; }
+
+.form-control-inline:disabled,
+.form-control:disabled,
+select:disabled,
+textarea:disabled {
+  background-color: #e9ecef !important;
+  cursor: not-allowed !important;
+  opacity: 0.7;
+}
+
+// Estilo para el mensaje de bloqueo
+.alert-success hr {
+  margin: 8px 0;
+  border-color: rgba(0,0,0,0.1);
+}
+
+.form-control-inline:disabled,
+.form-control:disabled,
+select:disabled,
+textarea:disabled,
+input:disabled {
+  background-color: #e9ecef !important;
+  cursor: not-allowed !important;
+  opacity: 0.8;
+}
+
+// Estilo específico para el campo de vigencia (readonly)
+input[readonly][disabled] {
+  background-color: #e9ecef !important;
+  cursor: default !important;
+}
+
+// Texto de ayuda
+.text-muted small {
+  font-size: 0.75rem;
+}
+
+// Alertas mejoradas
+.alert-info hr, .alert-success hr {
+  margin: 8px 0;
+  border-color: rgba(0,0,0,0.1);
+}

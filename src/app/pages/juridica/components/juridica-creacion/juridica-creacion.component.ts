@@ -132,6 +132,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     this.initializeForm();
     this.cargarSupervisores();
     this.checkEditMode();
+    this.forceCurrentYearVigencia();
   }
 
   ngOnDestroy(): void {
@@ -190,6 +191,51 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   private generarVigencias(): void {
     for (let i = 0; i < 5; i++) {
       this.vigencias.push(this.anioActual + i);
+    }
+  }
+
+  private forceCurrentYearVigencia(): void {
+    const vigenciaControl = this.contratoForm.get('vigencia');
+    const currentYear = this.anioActual.toString();
+    
+    vigenciaControl?.setValue(currentYear);
+    
+    vigenciaControl?.valueChanges.subscribe(value => {
+      if (value !== currentYear && !this.isViewMode) {
+        vigenciaControl.setValue(currentYear, { emitEvent: false });
+        this.errorMessage = 'La vigencia debe ser el año actual';
+        setTimeout(() => this.dismissError(), 3000);
+      }
+    });
+  }
+
+  private bloquearCamposGenerales(bloquear: boolean): void {
+    const camposGenerales = [
+      'vigencia',
+      'numeroContrato',
+      'tipoContrato',
+      'supervisor',
+      'objeto'
+    ];
+    
+    camposGenerales.forEach(campo => {
+      const control = this.contratoForm.get(campo);
+      if (control) {
+        if (bloquear) {
+          control.disable();
+        } else if (!this.isEditMode) {
+          control.enable();
+        }
+      }
+    });
+    
+    const proveedorGroup = this.contratoForm.get('proveedor');
+    if (proveedorGroup) {
+      if (bloquear) {
+        proveedorGroup.disable();
+      } else if (!this.isEditMode) {
+        proveedorGroup.enable();
+      }
     }
   }
 
@@ -418,10 +464,6 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
         if (contrato) {
           this.cargarDatosEnFormulario(contrato);
 
-          // ✅ NO llamar a cargarDocumentosContrato aquí
-          // Los documentos ya están en datosContrato.documentos
-          // this.cargarDocumentosContrato(id);  // <-- ELIMINAR ESTA LÍNEA
-
           this.pasoActual = 1;
 
           setTimeout(() => {
@@ -435,6 +477,8 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
 
           if (this.isViewMode) {
             this.contratoForm.disable();
+          } else if (this.isEditMode) {
+            this.bloquearCamposGenerales(true);
           }
         } else {
           this.errorMessage = 'Contrato no encontrado';
@@ -469,6 +513,15 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
         if (contratista && contratista.id) {
           this.contratistaEncontrado = contratista;
           this.contratistaSeleccionadoId = contratista.id;
+          
+          this.bloquearCamposGenerales(true);
+          
+          const vigenciaActual = this.contratoForm.get('vigencia')?.value;
+          if (vigenciaActual !== this.anioActual.toString()) {
+            this.contratoForm.patchValue({ vigencia: this.anioActual.toString() });
+            this.errorMessage = '⚠️ La vigencia ha sido ajustada al año actual automáticamente';
+            setTimeout(() => this.dismissError(), 3000);
+          }
 
           if (contratista.documentos && Array.isArray(contratista.documentos) && contratista.documentos.length > 0) {
             this.contratistaDocumentos = contratista.documentos;
@@ -500,13 +553,14 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
             console.log('✅ Datos del proveedor auto-llenados');
           }
 
-          this.successMessage = `Contratista "${contratista.razonSocial}" cargado correctamente`;
+          this.successMessage = `Contratista "${contratista.razonSocial}" cargado correctamente. Los campos de datos generales han sido bloqueados.`;
           setTimeout(() => this.dismissSuccess(), 3000);
         } else {
           console.warn('⚠️ No se encontró contratista con el número:', numeroContrato);
           this.contratistaEncontrado = null;
           this.contratistaSeleccionadoId = null;
           this.contratistaDocumentos = [];
+          this.bloquearCamposGenerales(false);
         }
       },
       error: (error: any) => {
@@ -515,6 +569,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
         this.contratistaDocumentos = [];
         this.contratistaSeleccionadoId = null;
         this.buscandoContratista = false;
+        this.bloquearCamposGenerales(false);
       }
     });
   }
@@ -653,11 +708,6 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (!contrato) {
-      console.error('❌ Contrato es undefined o null');
-      return;
-    }
-
     console.log('📋 DATOS COMPLETOS DEL CONTRATO:', JSON.stringify(contrato, null, 2));
 
     let datosContrato = contrato;
@@ -666,11 +716,9 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       console.log('📦 Contrato extraído de data:', datosContrato);
     }
 
-    // ✅ Usar los documentos que vienen en datosContrato
     this.documentosContrato = datosContrato.documentos || [];
     console.log(`📄 Documentos del contrato cargados desde datos: ${this.documentosContrato.length}`);
 
-    // ✅ Identificar cada tipo de documento y guardar su información
     this.minutaFileId = null;
     this.actaInicioFileId = null;
     this.cdpFileId = null;
@@ -720,22 +768,6 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       }
     });
 
-    console.log('📋 Documentos identificados:', {
-      minuta: this.minutaFileName,
-      actaInicio: this.actaInicioFileName,
-      cdp: this.cdpFileName,
-      rp: this.rpFileName,
-      polizaCumplimiento: this.polizaCumplimientoFileName
-    });
-
-    console.log('📋 DATOS COMPLETOS DEL CONTRATO:', JSON.stringify(contrato, null, 2));
-
-    
-    if (contrato.data && !contrato.id) {
-      datosContrato = contrato.data;
-      console.log('📦 Contrato extraído de data:', datosContrato);
-    }
-
     const fechaInicio = datosContrato.fechaInicio
       ? new Date(datosContrato.fechaInicio).toISOString().split('T')[0]
       : '';
@@ -748,8 +780,6 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     const fechaDesembolso = datosContrato.fechaDesembolsoAnticipo
       ? new Date(datosContrato.fechaDesembolsoAnticipo).toISOString().split('T')[0]
       : '';
-
-    this.documentosContrato = datosContrato.documentos || [];
 
     const proveedorData = datosContrato.proveedor || {
       tipoIdentificacion: 'NIT',
@@ -804,6 +834,12 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       polizaRCVigenciaHasta: datosContrato.polizaRCVigenciaHasta || ''
     };
 
+    // Verificar vigencia
+    if (patchData.vigencia !== this.anioActual.toString()) {
+      patchData.vigencia = this.anioActual.toString();
+      console.warn(`⚠️ Vigencia ajustada de ${datosContrato.vigencia} a ${this.anioActual}`);
+    }
+
     this.contratoForm.patchValue(patchData);
     this.valorTotal = datosContrato.valorTotal || 0;
 
@@ -815,10 +851,6 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
 
     if (datosContrato.requierePolizas) {
       this.onRequierePolizasChange(true);
-    }
-
-    if (datosContrato.objeto) {
-      this.contratoForm.patchValue({ objeto: datosContrato.objeto });
     }
 
     this.calcularValores();
@@ -844,7 +876,11 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
 
   private validarPasoActual(): boolean {
     if (this.isViewMode) return true;
-
+    
+    if (this.contratistaEncontrado && !this.isEditMode) {
+      return true;
+    }
+    
     this.submitted = true;
     let isValid = true;
 
@@ -946,7 +982,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     };
 
     const contratoDto = {
-      vigencia: formValue.vigencia,
+      vigencia: this.anioActual.toString(),
       numeroContrato: formValue.numeroContrato,
       tipoContrato: formValue.tipoContrato,
       proveedor: formValue.proveedor,
@@ -989,7 +1025,6 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     const formData = new FormData();
     formData.append('contrato', JSON.stringify(contratoDto));
 
-    // Adjuntar archivos (solo si hay archivos nuevos)
     if (this.minutaFile) {
       formData.append('minutaFile', this.minutaFile);
     }
@@ -1111,7 +1146,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       this.cdpFileError = null;
       this.cdpFile = file;
       this.cdpFileName = file.name;
-      this.cdpFileId = null; // Limpiar ID de documento existente
+      this.cdpFileId = null;
     } else if (tipo === 'rp') {
       this.rpFileError = null;
       this.rpFile = file;
@@ -1142,5 +1177,4 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       this.actaInicioFileId = null;
     }
   }
-
 }
