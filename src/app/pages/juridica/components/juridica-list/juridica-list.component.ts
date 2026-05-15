@@ -168,9 +168,28 @@ export class JuridicaListComponent implements OnInit {
   }
 
   formatearFecha(fecha: Date | string): string {
-    if (!fecha) return 'N/A';
-    return new Date(fecha).toLocaleDateString('es-CO');
+  if (!fecha) return 'N/A';
+  
+  // Método seguro: parsear la fecha manualmente para evitar problemas de zona horaria
+  if (typeof fecha === 'string' && fecha.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    // Fecha en formato YYYY-MM-DD (sin hora)
+    const [year, month, day] = fecha.split('-').map(Number);
+    // Crear fecha en UTC para evitar desplazamiento horario
+    const utcDate = new Date(Date.UTC(year, month - 1, day));
+    return utcDate.toLocaleDateString('es-CO', { timeZone: 'UTC' });
   }
+  
+  // Para otros formatos o fechas con hora
+  const date = new Date(fecha);
+  if (isNaN(date.getTime())) return 'N/A';
+  
+  // Normalizar a UTC para la visualización
+  const utcYear = date.getUTCFullYear();
+  const utcMonth = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const utcDay = String(date.getUTCDate()).padStart(2, '0');
+  
+  return `${utcDay}/${utcMonth}/${utcYear}`;
+}
 
   verDetalle(contrato: Contrato): void {
     this.router.navigate(['/juridica/ver', contrato.id]);

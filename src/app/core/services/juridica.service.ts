@@ -1,5 +1,3 @@
-// src/app/core/services/juridica.service.ts
-
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Observable, throwError, of } from 'rxjs';
@@ -32,7 +30,6 @@ export class JuridicaService {
     return new HttpHeaders({
       'Authorization': `Bearer ${token}`,
       'Accept': 'application/json'
-      // ⚠️ NO incluir 'Content-Type' para FormData
     });
   }
 
@@ -77,17 +74,7 @@ export class JuridicaService {
         console.warn('⚠️ Estructura de respuesta no reconocida:', response);
         return [];
       }),
-      catchError((error: HttpErrorResponse) => {
-        console.error('❌ Error en petición de contratos:', error);
-        if (error.status === 401) {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('token');
-          this.router.navigate(['/auth/login']);
-          return throwError(() => new Error('Tu sesión ha expirado. Por favor inicia sesión nuevamente.'));
-        }
-        const errorMsg = error.error?.message || error.message || 'Error al cargar los contratos';
-        return throwError(() => new Error(errorMsg));
-      })
+      catchError(this.handleError.bind(this))
     );
   }
 
@@ -103,23 +90,70 @@ export class JuridicaService {
     );
   }
 
-  crearContratoConArchivos(formData: FormData): Observable<Contrato> {
+  // ✅ NUEVO MÉTODO: Subir documento individual
+  subirDocumentoContrato(formData: FormData): Observable<any> {
     const headers = new HttpHeaders({
       'Authorization': `Bearer ${this.getToken()}`
     });
+    // No incluir Content-Type para FormData
 
-    return this.http.post<any>(`${this.apiUrl}/contratos`, formData, { headers }).pipe(
+    return this.http.post<any>(`${this.apiUrl}/documentos/upload`, formData, { headers }).pipe(
       map(response => {
-        console.log('📥 Respuesta creación contrato con archivos:', response);
-        if (response?.success === true && response.data) return response.data;
-        if (response?.data) return response.data;
+        console.log('📥 Respuesta subida de documento:', response);
+        
+        // Manejar diferentes estructuras de respuesta
+        if (response && response.success === true && response.data) {
+          return response.data;
+        }
+        if (response && response.data) {
+          return response.data;
+        }
+        if (response && response.fileId) {
+          return response;
+        }
+        if (response && response.id) {
+          return { fileId: response.id, ...response };
+        }
         return response;
       }),
       catchError(this.handleError.bind(this))
     );
   }
 
-  // ✅ MÉTODO CORREGIDO PARA RADICACIÓN
+  // ✅ MÉTODO: Subir múltiples documentos (alternativa)
+  subirMultiplesDocumentos(formData: FormData): Observable<any> {
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${this.getToken()}`
+    });
+
+    return this.http.post<any>(`${this.apiUrl}/documentos/upload-multiple`, formData, { headers }).pipe(
+      map(response => {
+        if (response && response.success === true && response.data) return response.data;
+        if (response && response.data) return response.data;
+        return response;
+      }),
+      catchError(this.handleError.bind(this))
+    );
+  }
+
+crearContratoConArchivos(formData: FormData): Observable<Contrato> {
+  const headers = new HttpHeaders({
+    'Authorization': `Bearer ${this.getToken()}`
+  });
+  // No incluir Content-Type para FormData
+
+  return this.http.post<any>(`${this.apiUrl}/contratos`, formData, { headers }).pipe(
+    map(response => {
+      console.log('📥 Respuesta creación contrato con archivos:', response);
+      if (response?.success === true && response.data) return response.data;
+      if (response?.data) return response.data;
+      if (response?.id) return response;
+      return response;
+    }),
+    catchError(this.handleError.bind(this))
+  );
+}
+
   obtenerContratoYContratistaPorNumero(numeroContrato: string): Observable<any> {
     const headers = this.getAuthHeaders();
     const url = `${this.apiUrl}/contrato-con-contratista/${encodeURIComponent(numeroContrato)}`;
@@ -130,7 +164,6 @@ export class JuridicaService {
       map(response => {
         console.log('📥 Respuesta completa de contrato + contratista:', response);
 
-        // Manejo de diferentes estructuras de respuesta
         if (response?.data?.data?.data) return response.data.data.data;
         if (response?.data?.data) return response.data.data;
         if (response?.data) return response.data;
@@ -145,7 +178,6 @@ export class JuridicaService {
     );
   }
 
-  // ✅ ACTUALIZAR CONTRATO CON ARCHIVOS (FormData)
   actualizarContratoConArchivos(id: string, formData: FormData): Observable<Contrato> {
     const headers = new HttpHeaders({
       'Authorization': `Bearer ${this.getToken()}`
@@ -167,7 +199,6 @@ export class JuridicaService {
     );
   }
 
-  // ✅ CREAR CONTRATO SIN ARCHIVOS (JSON)
   crearContrato(createContratoDto: CreateContratoDto): Observable<Contrato> {
     const headers = this.getAuthHeaders();
     return this.http.post<any>(`${this.apiUrl}/contratos`, createContratoDto, { headers }).pipe(
@@ -189,7 +220,6 @@ export class JuridicaService {
     );
   }
 
-  // ✅ ACTUALIZAR CONTRATO SIN ARCHIVOS (JSON)
   actualizarContrato(id: string, updateContratoDto: UpdateContratoDto): Observable<Contrato> {
     const headers = this.getAuthHeaders();
     return this.http.put<any>(`${this.apiUrl}/contratos/${id}`, updateContratoDto, { headers }).pipe(
@@ -312,8 +342,55 @@ export class JuridicaService {
     );
   }
 
+  previsualizarDocumento(documentoId: string): Observable<Blob> {
+    const headers = this.getAuthHeaders();
+    return this.http.get(`${this.apiUrl}/documentos/${documentoId}/previsualizar`, {
+      headers,
+      responseType: 'blob'
+    });
+  }
 
+  descargarDocumentoContrato(documentoId: string): Observable<Blob> {
+    const headers = this.getAuthHeaders();
+    return this.http.get(`${this.apiUrl}/documentos/${documentoId}/descargar`, {
+      headers,
+      responseType: 'blob'
+    });
+  }
 
+  // ==================== SUPERVISORES ====================
+
+  obtenerSupervisores(): Observable<any[]> {
+    const url = `${environment.apiUrl}/users/supervisores/simple`;
+    console.log('📡 Cargando supervisores desde:', url);
+    
+    return this.http.get<any>(url, { headers: this.getAuthHeaders() }).pipe(
+      map(response => {
+        console.log('📥 Respuesta de supervisores:', response);
+        
+        if (Array.isArray(response)) {
+          return response;
+        }
+        
+        if (response && response.success === true && Array.isArray(response.data)) {
+          return response.data;
+        }
+        
+        if (response && response.data && Array.isArray(response.data)) {
+          return response.data;
+        }
+        
+        console.warn('⚠️ Estructura de respuesta no reconocida:', response);
+        return [];
+      }),
+      catchError((error) => {
+        console.error('❌ Error cargando supervisores:', error);
+        return of([]);
+      })
+    );
+  }
+
+  // ==================== UTILIDADES ====================
 
   verificarPermisosUsuario(): Observable<any> {
     const headers = this.getAuthHeaders();
@@ -357,57 +434,4 @@ export class JuridicaService {
     const errorMsg = error.error?.message || error.message || 'Error en la petición';
     return throwError(() => new Error(errorMsg));
   }
-
-  // En juridica.service.ts
-
-  previsualizarDocumento(documentoId: string): Observable<Blob> {
-    const headers = this.getAuthHeaders();
-    return this.http.get(`${this.apiUrl}/contratos/documentos/${documentoId}/previsualizar`, {
-      headers,
-      responseType: 'blob'
-    });
-  }
-
-  descargarDocumentoContrato(documentoId: string): Observable<Blob> {
-    const headers = this.getAuthHeaders();
-    return this.http.get(`${this.apiUrl}/contratos/documentos/${documentoId}/descargar`, {
-      headers,
-      responseType: 'blob'
-    });
-  }
-
-  obtenerSupervisores(): Observable<any[]> {
-  // Usar environment.apiUrl directamente, no this.apiUrl
-  const url = `${environment.apiUrl}/users/supervisores/simple`;
-  console.log('📡 Cargando supervisores desde:', url);
-  
-  return this.http.get<any>(url, { headers: this.getAuthHeaders() }).pipe(
-    map(response => {
-      console.log('📥 Respuesta de supervisores:', response);
-      
-      // Si la respuesta es un array directamente
-      if (Array.isArray(response)) {
-        return response;
-      }
-      
-      // Si la respuesta tiene estructura { success: true, data: [...] }
-      if (response && response.success === true && Array.isArray(response.data)) {
-        return response.data;
-      }
-      
-      // Si la respuesta tiene estructura { data: [...] }
-      if (response && response.data && Array.isArray(response.data)) {
-        return response.data;
-      }
-      
-      console.warn('⚠️ Estructura de respuesta no reconocida:', response);
-      return [];
-    }),
-    catchError((error) => {
-      console.error('❌ Error cargando supervisores:', error);
-      // Retornar array vacío en caso de error para no romper el formulario
-      return of([]);
-    })
-  );
-}
 }
