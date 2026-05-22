@@ -323,16 +323,16 @@ export class AuditorFormComponent implements OnInit, OnDestroy {
         this.actaSupervisionPath = documento.actaSupervisionPath || '';
 
         this.tieneActaSupervision = !!documento.actaSupervisionPath;
-this.actaSupervisionNombre = documento.actaSupervisionNombre || '';
-this.actaSupervisionPath = documento.actaSupervisionPath || '';
+        this.actaSupervisionNombre = documento.actaSupervisionNombre || '';
+        this.actaSupervisionPath = documento.actaSupervisionPath || '';
 
-// Log para verificar
-console.log('[AUDITOR] 📄 Datos del Acta de Supervisión:', {
-  tieneActa: this.tieneActaSupervision,
-  nombre: this.actaSupervisionNombre,
-  path: this.actaSupervisionPath,
-  documentoCompleto: documento
-});
+        // Log para verificar
+        console.log('[AUDITOR] 📄 Datos del Acta de Supervisión:', {
+          tieneActa: this.tieneActaSupervision,
+          nombre: this.actaSupervisionNombre,
+          path: this.actaSupervisionPath,
+          documentoCompleto: documento
+        });
 
         // Log para verificar que los datos del acta llegaron
         console.log('[AUDITOR] 📄 Datos del Acta de Supervisión:', {

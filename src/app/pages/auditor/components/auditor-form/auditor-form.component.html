@@ -16,44 +16,44 @@
       </div>
     </div>
 
-    
-<div class="card mb-4 border-info">
-  <div class="card-header bg-info text-white">
-    <h5 class="mb-0">
-      <i class="fas fa-file-alt me-2"></i>
-      Acta de Supervisión
-      <span class="badge bg-light text-dark ms-2" *ngIf="tieneActaSupervision">
-        <i class="fas fa-check-circle text-success me-1"></i>Subida
-      </span>
-      <span class="badge bg-secondary ms-2" *ngIf="!tieneActaSupervision">
-        <i class="fas fa-clock me-1"></i>Pendiente
-      </span>
-    </h5>
-  </div>
-  <div class="card-body">
-    <!-- ✅ CASO: Tiene acta -->
-    <div *ngIf="tieneActaSupervision" class="text-center">
-      <i class="fas fa-file-pdf fa-3x text-danger mb-3 d-block"></i>
-      <p><strong>Acta de Supervisión</strong></p>
-      <p class="text-muted small">{{ actaSupervisionNombre || 'Acta de supervisión' }}</p>
-      <div class="d-flex justify-content-center gap-2">
-        <button class="btn btn-outline-primary" (click)="verActaSupervision()">
-          <i class="fas fa-eye me-1"></i> Ver
-        </button>
-        <button class="btn btn-outline-success" (click)="descargarActaSupervision()">
-          <i class="fas fa-download me-1"></i> Descargar
-        </button>
+
+    <div class="card mb-4 border-info">
+      <div class="card-header bg-info text-white">
+        <h5 class="mb-0">
+          <i class="fas fa-file-alt me-2"></i>
+          Acta de Supervisión
+          <span class="badge bg-light text-dark ms-2" *ngIf="tieneActaSupervision">
+            <i class="fas fa-check-circle text-success me-1"></i>Subida
+          </span>
+          <span class="badge bg-secondary ms-2" *ngIf="!tieneActaSupervision">
+            <i class="fas fa-clock me-1"></i>Pendiente
+          </span>
+        </h5>
+      </div>
+      <div class="card-body">
+        <!-- ✅ CASO: Tiene acta -->
+        <div *ngIf="tieneActaSupervision" class="text-center">
+          <i class="fas fa-file-pdf fa-3x text-danger mb-3 d-block"></i>
+          <p><strong>Acta de Supervisión</strong></p>
+          <p class="text-muted small">{{ actaSupervisionNombre || 'Acta de supervisión' }}</p>
+          <div class="d-flex justify-content-center gap-2">
+            <button class="btn btn-outline-primary" (click)="verActaSupervision()">
+              <i class="fas fa-eye me-1"></i> Ver
+            </button>
+            <button class="btn btn-outline-success" (click)="descargarActaSupervision()">
+              <i class="fas fa-download me-1"></i> Descargar
+            </button>
+          </div>
+        </div>
+
+        <!-- ✅ CASO: No tiene acta -->
+        <div *ngIf="!tieneActaSupervision" class="text-center text-muted">
+          <i class="fas fa-clock fa-3x mb-3 d-block"></i>
+          <p>El acta de supervisión aún no ha sido subida</p>
+          <small>El auxiliar auditor debe subir este documento</small>
+        </div>
       </div>
     </div>
-    
-    <!-- ✅ CASO: No tiene acta -->
-    <div *ngIf="!tieneActaSupervision" class="text-center text-muted">
-      <i class="fas fa-clock fa-3x mb-3 d-block"></i>
-      <p>El acta de supervisión aún no ha sido subida</p>
-      <small>El auxiliar auditor debe subir este documento</small>
-    </div>
-  </div>
-</div>
 
 
   </section>
