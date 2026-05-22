@@ -71,7 +71,7 @@ export class AsesorGerenciaComponent implements OnInit {
     this.availableModules = [
       {
         id: 'dashboard',
-        title: 'Dashboard',
+        title: 'Inicio',
         description: 'Panel principal del sistema',
         path: '/dashboard',
         route: '/dashboard',

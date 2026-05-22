@@ -1,0 +1,49 @@
+// src/app/pages/auxiliar-auditor/auxiliar-auditor.component.scss
+@import '../../shared/layout-styles.scss';
+
+$color-verde: #10B981;
+$color-verde-light: rgba(16, 185, 129, 0.1);
+$color-verde-medium: rgba(16, 185, 129, 0.2);
+$color-verde-dark: #0D9D6B;
+
+html, body {
+  overflow: -moz-scrollbars-none;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  
+  &::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+  }
+}
+
+.main-with-margin {
+  background: #f8f9fa !important;
+  padding: 20px;
+  overflow-y: auto !important;
+}
+
+.container-fluid {
+  padding: 0 20px !important;
+}
+
+.alert {
+  border-radius: 10px;
+  border: none;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1.5rem;
+  
+  &.alert-success {
+    background: rgba(16, 185, 129, 0.1);
+    color: $color-verde-dark;
+    border-left: 4px solid $color-verde;
+  }
+  
+  &.alert-danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc3545;
+    border-left: 4px solid #dc3545;
+  }
+}

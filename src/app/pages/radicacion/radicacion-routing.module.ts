@@ -14,40 +14,35 @@ const routes: Routes = [
         pathMatch: 'full'
       },
       {
-        path: 'mis-radicaciones',
-        loadComponent: () => import('./components/mis-radicaciones/mis-radicaciones.component')
-          .then(m => m.MisRadicacionesComponent)
-      },
-      {
         path: 'nuevo',
         loadComponent: () => import('./components/radicacion-form/radicacion-form.component')
           .then(m => m.RadicacionFormComponent)
       },
       {
         path: 'lista',
-        loadComponent: () => import('./components/radicacion-list/radicacion-list.component')
-          .then(m => m.RadicacionListComponent)
+        loadComponent: () => import('./components/contratos-list/contratos-list.component')
+          .then(m => m.ContratosListComponent)
+      },
+      {
+        path: 'mis-radicaciones',
+        loadComponent: () => import('./components/mis-radicaciones/mis-radicaciones.component')
+          .then(m => m.MisRadicacionesComponent)
       },
       {
         path: 'rechazados',
         loadComponent: () => import('./components/lista-rechazados/lista-rechazados.component')
           .then(m => m.ListaRechazadosComponent)
       },
-
-      // RUTA CORREGIDA - apunta al componente correcto
       {
         path: 'mis-estadisticas',
         loadComponent: () => import('./components/estadisticas-radicacion/estadisticas-radicacion.component')
           .then(m => m.EstadisticasRadicadorComponent)
       },
-
       {
-        path: 'lista-general',
-        loadComponent: () => import('./components/radicacion-completa-list/radicacion-completa-list.component')
-          .then(m => m.RadicacionCompletaListComponent), // ← Asegúrate que el nombre de clase coincida
-        data: { title: 'Todos los Radicados' }
+        path: 'ver/:id',
+        loadComponent: () => import('./components/radicacion-form/radicacion-form.component')
+          .then(m => m.RadicacionFormComponent)
       }
-
     ]
   }
 ];

@@ -1,3 +1,4 @@
+// src/app/core/services/supervisor/supervisor-core.service.ts
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
@@ -70,6 +71,8 @@ export class SupervisorCoreService {
                     numeroContrato: doc.numeroContrato || '',
                     nombreContratista: doc.nombreContratista || 'Sin contratista',
                     documentoContratista: doc.documentoContratista || '',
+                    emailContratista: doc.emailContratista || '',
+                    telefonoContratista: doc.telefonoContratista || '',
                     fechaInicio: doc.fechaInicio ? new Date(doc.fechaInicio) : new Date(),
                     fechaFin: doc.fechaFin ? new Date(doc.fechaFin) : new Date(),
                     estado: doc.estado || 'RADICADO',
@@ -95,21 +98,31 @@ export class SupervisorCoreService {
                     ultimoUsuario: doc.ultimoUsuario || '',
                     fechaActualizacion: doc.fechaActualizacion ? new Date(doc.fechaActualizacion) : new Date(),
                     usuarioAsignadoNombre: doc.usuarioAsignadoNombre || doc.asignacion?.usuarioAsignado,
-                    supervisorAsignado: doc.supervisorAsignado || doc.asignacion?.supervisorActual || undefined,
-                    fechaAsignacion: doc.fechaAsignacion ? new Date(doc.fechaAsignacion) : undefined,
-                    supervisorEstado: doc.supervisorEstado || doc.asignacion?.estado || undefined,
-                    requierePazSalvo: doc.requierePazSalvo || false,
-                    pazSalvo: doc.pazSalvo || undefined,
-                    fechaPazSalvo: doc.fechaPazSalvo ? new Date(doc.fechaPazSalvo) : undefined,
+                    primerRadicadoDelAno: doc.primerRadicadoDelAno || false,
                     esUltimoRadicado: doc.esUltimoRadicado || false,
                     tipoContrato: doc.tipoContrato || 'SERVICIOS',
                     valorContrato: doc.valorContrato || 0,
-                    disponible: doc.disponible || true,
-                    asignacion: doc.asignacion || {
+                    supervisorAsignado: doc.supervisorAsignado || doc.asignacion?.supervisorActual || undefined,
+                    fechaAprobacionSupervisor: doc.fechaAprobacionSupervisor || doc.fechaAsignacion ? new Date(doc.fechaAsignacion) : undefined,
+                    observacionSupervisor: doc.observacionSupervisor || undefined,
+                    requierePazSalvo: doc.requierePazSalvo || false,
+                    auditorAsignado: doc.auditorAsignado || undefined,
+                    fechaAsignacionAuditor: doc.fechaAsignacionAuditor ? new Date(doc.fechaAsignacionAuditor) : undefined,
+                    estadoAuditor: doc.estadoAuditor || undefined,
+                    historialEstados: doc.historialEstados || [],
+                    asignacion: {
+                        estado: doc.asignacion?.estado || doc.supervisorEstado || 'PENDIENTE',
+                        supervisorActual: doc.asignacion?.supervisorActual || doc.supervisorAsignado,
                         enRevision: doc.asignacion?.enRevision || false,
-                        puedoTomar: doc.asignacion?.puedoTomar || true,
-                        usuarioAsignado: doc.usuarioAsignadoNombre,
-                        supervisorActual: doc.asignacion?.supervisorActual
+                        auditorActual: doc.asignacion?.auditorActual || doc.auditorAsignado,
+                        puedoTomar: doc.asignacion?.puedoTomar !== undefined ? doc.asignacion.puedoTomar : true
+                    },
+                    puedeTomar: doc.asignacion?.puedoTomar !== undefined ? doc.asignacion.puedoTomar : true,
+                    enRevision: doc.asignacion?.enRevision || false,
+                    esPrimerRadicado: doc.primerRadicadoDelAno || false,
+                    estadoBadge: {
+                        texto: this.getEstadoTexto(doc.estado || doc.asignacion?.estado || 'RADICADO'),
+                        clase: this.getEstadoClase(doc.estado || doc.asignacion?.estado || 'RADICADO')
                     }
                 };
 
@@ -119,5 +132,37 @@ export class SupervisorCoreService {
                 return null;
             }
         }).filter((doc): doc is Documento => doc !== null);
+    }
+
+    private getEstadoTexto(estado: string): string {
+        const estados: Record<string, string> = {
+            'RADICADO': 'Radicado',
+            'EN_REVISION_SUPERVISOR': 'En Revisión Supervisor',
+            'APROBADO_SUPERVISOR': 'Aprobado por Supervisor',
+            'OBSERVADO_SUPERVISOR': 'Observado por Supervisor',
+            'RECHAZADO_SUPERVISOR': 'Rechazado por Supervisor',
+            'EN_REVISION_AUDITOR': 'En Revisión Auditor',
+            'APROBADO_AUDITOR': 'Aprobado por Auditor',
+            'OBSERVADO_AUDITOR': 'Observado por Auditor',
+            'RECHAZADO_AUDITOR': 'Rechazado por Auditor',
+            'FINALIZADO': 'Finalizado'
+        };
+        return estados[estado] || estado;
+    }
+
+    private getEstadoClase(estado: string): string {
+        const clases: Record<string, string> = {
+            'RADICADO': 'badge-info',
+            'EN_REVISION_SUPERVISOR': 'badge-warning',
+            'APROBADO_SUPERVISOR': 'badge-success',
+            'OBSERVADO_SUPERVISOR': 'badge-warning',
+            'RECHAZADO_SUPERVISOR': 'badge-danger',
+            'EN_REVISION_AUDITOR': 'badge-warning',
+            'APROBADO_AUDITOR': 'badge-success',
+            'OBSERVADO_AUDITOR': 'badge-warning',
+            'RECHAZADO_AUDITOR': 'badge-danger',
+            'FINALIZADO': 'badge-success'
+        };
+        return clases[estado] || 'badge-secondary';
     }
 }

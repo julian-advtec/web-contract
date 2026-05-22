@@ -1,0 +1,129 @@
+<!-- src/app/modules/radicacion/components/contratos-list/contratos-list.component.html -->
+<div class="contratos-list-container">
+  <div *ngIf="mensaje" class="alert-message" [class.success]="tipoMensaje === 'success'"
+    [class.error]="tipoMensaje === 'error'" [class.warning]="tipoMensaje === 'warning'">
+    <i class="fas" [class.fa-check-circle]="tipoMensaje === 'success'"
+      [class.fa-exclamation-circle]="tipoMensaje === 'error'"
+      [class.fa-exclamation-triangle]="tipoMensaje === 'warning'"></i>
+    {{ mensaje }}
+  </div>
+
+  <div class="list-header">
+    
+
+  <div class="filtros-section">
+   
+    <div class="filtros-grid">
+      
+      <div class="filtro-group">
+        <label><i class="fas fa-hashtag"></i> N° Contrato</label>
+        <input type="text" class="form-control" [(ngModel)]="filtros.numeroContrato" 
+               placeholder="Buscar por número" (input)="aplicarFiltros()">
+      </div>
+      <div class="filtro-group">
+        <label><i class="fas fa-user-tie"></i> Proveedor</label>
+        <input type="text" class="form-control" [(ngModel)]="filtros.proveedorNombre" 
+               placeholder="Buscar por nombre" (input)="aplicarFiltros()">
+      </div>
+      <div class="filtro-group">
+        <label><i class="fas fa-id-card"></i> Documento</label>
+        <input type="text" class="form-control" [(ngModel)]="filtros.proveedorDocumento" 
+               placeholder="Buscar por documento" (input)="aplicarFiltros()">
+      </div>
+      
+    </div>
+    <div class="filtros-actions">
+      <button class="btn-clear" (click)="limpiarFiltros()">
+        <i class="fas fa-eraser"></i> Limpiar filtros
+      </button>
+      <span class="result-count">
+        <i class="fas fa-list"></i> {{ contratosFiltrados.length }} contratos encontrados
+      </span>
+    </div>
+  </div>
+
+  <div *ngIf="isLoading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Cargando contratos...</p>
+  </div>
+
+  <div *ngIf="!isLoading" class="contratos-list">
+    <div *ngIf="contratosFiltrados.length === 0" class="empty-state">
+      <i class="fas fa-search fa-3x"></i>
+      <p>No se encontraron contratos</p>
+      <button class="btn-primary" (click)="limpiarFiltros()">
+        <i class="fas fa-eraser"></i> Limpiar filtros
+      </button>
+    </div>
+
+    <div *ngFor="let contrato of contratosFiltrados" class="contrato-card" (click)="seleccionarContrato(contrato)">
+      <div class="contrato-header">
+        <div class="contrato-numero">
+          <i class="fas fa-file-signature"></i>
+          <strong>{{ contrato.numeroContrato }}</strong>
+          <span class="badge" [class]="getEstadoBadgeClass(contrato.estado)">
+            {{ contrato.estado }}
+          </span>
+        </div>
+        <div class="contrato-vigencia">
+          <i class="fas fa-calendar-alt"></i> {{ contrato.vigencia }}
+        </div>
+      </div>
+
+      <div class="contrato-body">
+        <div class="contrato-info">
+          <div class="info-row">
+            <i class="fas fa-user-tie"></i>
+            <span class="info-label">Proveedor:</span>
+            <span class="info-value">{{ contrato.proveedor.nombreRazonSocial }}</span>
+          </div>
+          <div class="info-row">
+            <i class="fas fa-id-card"></i>
+            <span class="info-label">Documento:</span>
+            <span class="info-value">{{ contrato.proveedor.numeroIdentificacion }}</span>
+          </div>
+          <div class="info-row">
+            <i class="fas fa-envelope"></i>
+            <span class="info-label">Email:</span>
+            <span class="info-value">{{ contrato.proveedor.email || 'No especificado' }}</span>
+          </div>
+          <div class="info-row">
+            <i class="fas fa-phone"></i>
+            <span class="info-label">Teléfono:</span>
+            <span class="info-value">{{ contrato.proveedor.telefono || 'No especificado' }}</span>
+          </div>
+        </div>
+
+        <div class="contrato-dates">
+          <div class="date-item">
+            <i class="fas fa-play-circle"></i>
+            <span>Inicio:</span>
+            <strong>{{ formatearFecha(contrato.fechaInicio) }}</strong>
+          </div>
+          <div class="date-item">
+            <i class="fas fa-stop-circle"></i>
+            <span>Fin:</span>
+            <strong>{{ formatearFecha(contrato.fechaTerminacion) }}</strong>
+          </div>
+        </div>
+
+        <div class="contrato-objeto">
+          <i class="fas fa-align-left"></i>
+          <p>{{ contrato.objeto | slice:0:150 }}{{ contrato.objeto.length > 150 ? '...' : '' }}</p>
+        </div>
+
+        <div class="contrato-valor">
+          <i class="fas fa-coins"></i>
+          <span>Valor:</span>
+          <strong>{{ formatearValor(contrato.valor) }}</strong>
+        </div>
+      </div>
+
+      <div class="contrato-footer">
+        <button class="btn-select">
+          <i class="fas fa-check-circle"></i> Seleccionar este contrato
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

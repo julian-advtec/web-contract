@@ -1,5 +1,4 @@
-// src/app/pages/contratistas/components/contratista-creacion/contratista-creacion.component.ts
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
@@ -11,13 +10,17 @@ interface DocumentoInfo {
   tipo: string;
   archivo: File | null;
   nombre: string;
+  nombreArchivo?: string;
   tamano: number;
+  tamanoBytes?: number;
   label: string;
   value: string;
   id?: string;
   esExistente?: boolean;
   subidoPor?: string;
   fechaSubida?: Date | string;
+  // ✅ NUEVO: flag para marcar como eliminado
+  marcadoEliminar?: boolean;
 }
 
 @Component({
@@ -28,6 +31,8 @@ interface DocumentoInfo {
   styleUrls: ['./contratista-creacion.component.scss']
 })
 export class ContratistaCreacionComponent implements OnInit, OnDestroy {
+  @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
+
   contratistaForm!: FormGroup;
   isEditMode = false;
   contratistaId: string | null = null;
@@ -42,6 +47,9 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
 
   documentosPorTipo: Map<string, DocumentoInfo> = new Map();
   documentoError = '';
+  isDragging = false;
+  uploading = false;
+  uploadProgress = 0;
 
   tiposDocumentoDisponibles = [
     { value: 'CEDULA', label: 'Cédula de Ciudadanía' },
@@ -66,13 +74,16 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     { value: 'TARJETA_PROFESIONAL', label: 'Tarjeta Profesional' }
   ];
 
-  // ✅ Documentos requeridos: TODOS excepto LIBRETA_MILITAR
   tiposDocumentoRequeridos = this.tiposDocumentoDisponibles.filter(
     doc => doc.value !== 'LIBRETA_MILITAR'
   );
 
   get tiposPendientes() {
-    return this.tiposDocumentoDisponibles.filter(doc => !this.documentosPorTipo.has(doc.value));
+    return this.tiposDocumentoDisponibles.filter(doc => {
+      const documento = this.documentosPorTipo.get(doc.value);
+      // ✅ No mostrar si existe y NO está marcado para eliminar
+      return !documento || documento.marcadoEliminar === true;
+    });
   }
 
   get documentosSubidosList() {
@@ -83,11 +94,14 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
         value: key,
         label: tipoInfo?.label || key,
         nombre: value.nombre,
+        nombreArchivo: value.nombreArchivo,
         tamano: value.tamano,
+        tamanoBytes: value.tamanoBytes,
         esExistente: value.esExistente || false,
         id: value.id,
         subidoPor: value.subidoPor || 'Sistema',
-        fechaSubida: value.fechaSubida
+        fechaSubida: value.fechaSubida,
+        marcadoEliminar: value.marcadoEliminar || false  // ✅ Mostrar estado
       });
     });
     return list;
@@ -97,23 +111,24 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     return this.documentosPorTipo.size;
   }
 
-  get documentoLibretaSubido(): boolean {
-    return this.documentosPorTipo.has('LIBRETA_MILITAR');
-  }
-
   get totalDocumentosRequeridos(): number {
     return this.tiposDocumentoRequeridos.length;
   }
 
   get documentosCompletadosRequeridos(): number {
-    return this.tiposDocumentoRequeridos.filter(doc =>
-      this.documentosPorTipo.has(doc.value)
-    ).length;
+    // ✅ Contar solo documentos que existen y NO están marcados para eliminar
+    return this.tiposDocumentoRequeridos.filter(doc => {
+      const documento = this.documentosPorTipo.get(doc.value);
+      return documento && documento.marcadoEliminar !== true;
+    }).length;
   }
 
   get documentosFaltantesList(): string[] {
     return this.tiposDocumentoRequeridos
-      .filter(doc => !this.documentosPorTipo.has(doc.value))
+      .filter(doc => {
+        const documento = this.documentosPorTipo.get(doc.value);
+        return !documento || documento.marcadoEliminar === true;
+      })
       .map(doc => doc.label);
   }
 
@@ -127,7 +142,8 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
   }
 
   tipoSeleccionado = '';
-  isDragging = false;
+  // ✅ Lista de IDs de documentos a eliminar (para enviar al backend al guardar)
+  documentosAEliminar: string[] = [];
 
   private subscriptions: Subscription[] = [];
 
@@ -158,12 +174,12 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
       razonSocial: ['', [Validators.required, Validators.maxLength(200)]],
       representanteLegal: ['', Validators.maxLength(200)],
       documentoRepresentante: ['', Validators.maxLength(20)],
-      telefono: ['', [Validators.maxLength(15)]],
+      telefono: ['', Validators.maxLength(15)],
       email: ['', [Validators.email]],
       direccion: [''],
       departamento: ['', Validators.maxLength(50)],
       ciudad: ['', Validators.maxLength(50)],
-      tipoContratista: [''],  // ✅ NO es requerido
+      tipoContratista: [''],
       estado: ['ACTIVO', Validators.required],
       numeroContrato: ['', Validators.maxLength(50)],
       cargo: ['', Validators.maxLength(100)],
@@ -187,6 +203,7 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
       next: (data: any) => {
         if (data) {
           this.documentosPorTipo.clear();
+          this.documentosAEliminar = [];
 
           this.contratistaForm.patchValue({
             tipoDocumento: data.tipoDocumento || 'CC',
@@ -201,7 +218,7 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
             ciudad: data.ciudad,
             tipoContratista: data.tipoContratista,
             estado: data.estado || 'ACTIVO',
-            numeroContrato: data.numeroContrato,
+            numeroContrato: '',
             cargo: data.cargo,
             objetivoContrato: data.objetivoContrato
           });
@@ -214,13 +231,16 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
                   tipo: doc.tipo,
                   archivo: null,
                   nombre: doc.nombreArchivo,
+                  nombreArchivo: doc.nombreArchivo,
                   tamano: doc.tamanoBytes || 0,
+                  tamanoBytes: doc.tamanoBytes,
                   label: tipoInfo.label,
                   value: doc.tipo,
                   id: doc.id,
                   esExistente: true,
                   subidoPor: doc.subidoPor || 'Sistema',
-                  fechaSubida: doc.fechaSubida
+                  fechaSubida: doc.fechaSubida,
+                  marcadoEliminar: false  // ✅ Inicialmente no marcado para eliminar
                 });
               }
             });
@@ -261,13 +281,12 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
       return;
     }
 
-    console.log(`📥 Descargando documento: ${doc.label}`);
     this.contratistaService.descargarDocumento(this.contratistaId, doc.id).subscribe({
       next: (blob: Blob) => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = doc.nombre;
+        a.download = doc.nombre || doc.nombreArchivo || `${doc.label}.pdf`;
         a.click();
         window.URL.revokeObjectURL(url);
       },
@@ -277,6 +296,49 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
         setTimeout(() => this.documentoError = '', 3000);
       }
     });
+  }
+
+  // ✅ NUEVO: Marcar documento para eliminar (NO eliminar inmediatamente)
+  confirmarEliminarDocumento(doc: any): void {
+    const confirmMsg = `¿Marcar el documento "${doc.label}" para eliminar?\n\nSe eliminará cuando guarde los cambios.`;
+    if (confirm(confirmMsg)) {
+      this.marcarDocumentoParaEliminar(doc.value);
+    }
+  }
+
+  // ✅ Marcar documento como eliminado (solo visualmente)
+  marcarDocumentoParaEliminar(tipo: string): void {
+    const documento = this.documentosPorTipo.get(tipo);
+    if (documento) {
+      if (documento.esExistente && documento.id) {
+        // ✅ Guardar ID para eliminar en el backend al guardar
+        this.documentosAEliminar.push(documento.id);
+      }
+      // ✅ Marcar como eliminado (no se mostrará más)
+      documento.marcadoEliminar = true;
+      this.documentosPorTipo.set(tipo, documento);
+      
+      this.successMessage = `✅ Documento "${documento.label}" marcado para eliminar. Se eliminará al guardar.`;
+      setTimeout(() => this.successMessage = '', 3000);
+    }
+  }
+
+  // ✅ Restaurar un documento marcado para eliminar
+  restaurarDocumento(tipo: string): void {
+    const documento = this.documentosPorTipo.get(tipo);
+    if (documento && documento.marcadoEliminar) {
+      documento.marcadoEliminar = false;
+      // ✅ Quitar de la lista de eliminación
+      if (documento.id) {
+        const index = this.documentosAEliminar.indexOf(documento.id);
+        if (index > -1) {
+          this.documentosAEliminar.splice(index, 1);
+        }
+      }
+      this.documentosPorTipo.set(tipo, documento);
+      this.successMessage = `✅ Documento "${documento.label}" restaurado`;
+      setTimeout(() => this.successMessage = '', 2000);
+    }
   }
 
   onDragOver(event: DragEvent): void {
@@ -307,79 +369,103 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     if (file) {
       this.procesarArchivo(file);
     }
+    if (this.fileInput) {
+      this.fileInput.nativeElement.value = '';
+    }
+  }
+
+  agregarDocumentoManual(): void {
+    if (!this.tipoSeleccionado) {
+      this.documentoError = '⚠️ Por favor seleccione primero el tipo de documento';
+      setTimeout(() => this.documentoError = '', 3000);
+      return;
+    }
+    this.fileInput?.nativeElement.click();
   }
 
   private procesarArchivo(file: File): void {
     if (!this.tipoSeleccionado) {
-      this.documentoError = 'Por favor seleccione primero el tipo de documento';
+      this.documentoError = '⚠️ Por favor seleccione primero el tipo de documento';
       setTimeout(() => this.documentoError = '', 3000);
       return;
     }
 
-    if (this.documentosPorTipo.has(this.tipoSeleccionado)) {
-      this.documentoError = `Ya se ha subido un documento tipo ${this.getTipoDocumentoLabel(this.tipoSeleccionado)}`;
-      setTimeout(() => this.documentoError = '', 3000);
+    const documentoExistente = this.documentosPorTipo.get(this.tipoSeleccionado);
+    // ✅ Si existe y NO está marcado para eliminar, no permitir reemplazar
+    if (documentoExistente && !documentoExistente.marcadoEliminar) {
+      this.documentoError = `❌ Ya existe un documento tipo "${this.getTipoDocumentoLabel(this.tipoSeleccionado)}". Elimínelo primero si desea reemplazarlo.`;
+      setTimeout(() => this.documentoError = '', 4000);
       return;
     }
 
     if (file.type !== 'application/pdf') {
-      this.documentoError = 'Solo se permiten archivos PDF';
+      this.documentoError = '❌ Solo se permiten archivos PDF';
       setTimeout(() => this.documentoError = '', 3000);
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      this.documentoError = 'El archivo no puede exceder 5MB';
+      this.documentoError = '❌ El archivo no puede exceder 5MB';
       setTimeout(() => this.documentoError = '', 3000);
       return;
     }
 
     const tipoInfo = this.tiposDocumentoDisponibles.find(d => d.value === this.tipoSeleccionado);
 
-    this.documentosPorTipo.set(this.tipoSeleccionado, {
-      tipo: this.tipoSeleccionado,
-      archivo: file,
-      nombre: file.name,
-      tamano: file.size,
-      label: tipoInfo?.label || this.tipoSeleccionado,
-      value: this.tipoSeleccionado,
-      esExistente: false
-    });
+    // ✅ En modo edición, subir inmediatamente (pero no afecta a los marcados)
+    if (this.isEditMode && this.contratistaId) {
+      this.uploading = true;
+      this.uploadProgress = 0;
+      
+      const interval = setInterval(() => {
+        if (this.uploadProgress < 90) {
+          this.uploadProgress += 10;
+        }
+      }, 200);
 
-    this.tipoSeleccionado = '';
-
-    const fileInput = document.getElementById('fileInput') as HTMLInputElement;
-    if (fileInput) fileInput.value = '';
-
-    this.documentoError = '';
-  }
-
-  agregarDocumentoManual(): void {
-    if (!this.tipoSeleccionado) {
-      this.documentoError = 'Por favor seleccione primero el tipo de documento';
-      setTimeout(() => this.documentoError = '', 3000);
-      return;
-    }
-    const fileInput = document.getElementById('fileInput') as HTMLInputElement;
-    fileInput?.click();
-  }
-
-  eliminarDocumentoPorTipo(tipo: string): void {
-    const documento = this.documentosPorTipo.get(tipo);
-    if (documento?.esExistente && this.contratistaId && documento.id) {
-      if (confirm(`¿Eliminar permanentemente el documento "${documento.nombre}"?`)) {
-        this.contratistaService.eliminarDocumento(this.contratistaId, documento.id).subscribe({
-          next: () => {
-            this.documentosPorTipo.delete(tipo);
-          },
-          error: (error) => {
-            console.error('❌ Error eliminando documento:', error);
-            this.documentoError = 'Error al eliminar el documento';
-          }
-        });
-      }
+    this.contratistaService.subirDocumento(this.contratistaId, this.tipoSeleccionado as any, file).subscribe({
+        next: (doc: any) => {
+          clearInterval(interval);
+          this.uploadProgress = 100;
+          this.documentosPorTipo.set(this.tipoSeleccionado, {
+            tipo: this.tipoSeleccionado,
+            archivo: null,
+            nombre: doc.nombreArchivo,
+            nombreArchivo: doc.nombreArchivo,
+            tamano: doc.tamanoBytes,
+            tamanoBytes: doc.tamanoBytes,
+            label: tipoInfo?.label || this.tipoSeleccionado,
+            value: this.tipoSeleccionado,
+            id: doc.id,
+            esExistente: true,
+            subidoPor: 'Usuario',
+            fechaSubida: new Date(),
+            marcadoEliminar: false
+          });
+          this.tipoSeleccionado = '';
+          setTimeout(() => this.uploading = false, 500);
+        },
+        error: (error: any) => {
+          clearInterval(interval);
+          this.uploading = false;
+          this.documentoError = error.error?.message || 'Error al subir el documento';
+          setTimeout(() => this.documentoError = '', 4000);
+        }
+      });
     } else {
-      this.documentosPorTipo.delete(tipo);
+      // ✅ Modo creación: almacenar temporalmente
+      this.documentosPorTipo.set(this.tipoSeleccionado, {
+        tipo: this.tipoSeleccionado,
+        archivo: file,
+        nombre: file.name,
+        tamano: file.size,
+        label: tipoInfo?.label || this.tipoSeleccionado,
+        value: this.tipoSeleccionado,
+        esExistente: false,
+        marcadoEliminar: false
+      });
+      this.tipoSeleccionado = '';
+      this.documentoError = '';
     }
   }
 
@@ -399,8 +485,7 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     const control = this.contratistaForm.get(fieldName);
     if (!control) return 500;
     const currentValue = control.value || '';
-    const maxLength = 500;
-    return maxLength - currentValue.length;
+    return 500 - currentValue.length;
   }
 
   siguientePaso(): void {
@@ -431,17 +516,10 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
         razonSocialControl.markAsTouched();
         isValid = false;
       }
-    } else if (this.pasoActual === 2) {
-      const estadoControl = this.contratistaForm.get('estado');
-      
-      if (estadoControl?.invalid) {
-        estadoControl.markAsTouched();
-        isValid = false;
-      }
     }
 
     if (!isValid) {
-      this.errorMessage = 'Por favor complete los campos requeridos en este paso';
+      this.errorMessage = '⚠️ Por favor complete los campos requeridos en este paso';
       setTimeout(() => this.errorMessage = '', 3000);
     }
 
@@ -452,18 +530,22 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     this.submitted = true;
 
     if (this.contratistaForm.invalid) {
-      // Mostrar qué campos están inválidos
-      const invalidFields = Object.keys(this.contratistaForm.controls)
-        .filter(key => this.contratistaForm.get(key)?.invalid);
-      console.log('Campos inválidos:', invalidFields);
-      this.errorMessage = 'Por favor complete todos los campos requeridos';
+      this.errorMessage = '⚠️ Por favor complete todos los campos requeridos';
       return;
     }
 
-    // Validar SOLO documentos requeridos (libreta militar es opcional)
+    if (this.isEditMode) {
+      const numeroContrato = this.contratistaForm.get('numeroContrato')?.value;
+      if (!numeroContrato || numeroContrato.trim() === '') {
+        this.errorMessage = '⚠️ Debe ingresar un número de contrato para crear una nueva versión';
+        this.pasoActual = 2;
+        return;
+      }
+    }
+
     if (!this.todosDocumentosRequeridosCompletados) {
       const faltantes = this.documentosFaltantesList;
-      this.errorMessage = `Debe subir todos los documentos obligatorios. Faltan: ${faltantes.join(', ')}`;
+      this.errorMessage = `⚠️ Debe subir todos los documentos obligatorios.\n📌 Faltan: ${faltantes.join(', ')}`;
       this.pasoActual = 3;
       return;
     }
@@ -481,9 +563,15 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
       }
     });
 
+    // ✅ Agregar documentos a eliminar (IDs)
+    if (this.documentosAEliminar.length > 0) {
+      formData.append('documentos_eliminar', JSON.stringify(this.documentosAEliminar));
+    }
+
+    // ✅ Agregar documentos nuevos
     let documentosNuevos = 0;
-    this.documentosPorTipo.forEach((doc, tipo) => {
-      if (doc.archivo) {
+    this.documentosPorTipo.forEach((doc) => {
+      if (doc.archivo && !doc.esExistente && !doc.marcadoEliminar) {
         formData.append(`tipo_documento_${documentosNuevos}`, doc.tipo);
         formData.append('documentos', doc.archivo);
         documentosNuevos++;
@@ -499,7 +587,7 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
 
     const sub = request.subscribe({
       next: () => {
-        this.successMessage = this.isEditMode ? 'Contratista actualizado exitosamente' : 'Contratista creado exitosamente';
+        this.successMessage = this.isEditMode ? '✅ Contratista actualizado exitosamente' : '✅ Contratista creado exitosamente';
         this.isSubmitting = false;
         setTimeout(() => this.router.navigate(['/contratistas/list']), 1500);
       },
@@ -513,7 +601,7 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
   }
 
   cancelar(): void {
-    if (confirm('¿Cancelar? Los datos no guardados se perderán.')) {
+    if (confirm('¿Cancelar la operación?\nLos datos no guardados se perderán.')) {
       this.router.navigate(['/contratistas/list']);
     }
   }
@@ -524,17 +612,6 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
 
   dismissSuccess(): void {
     this.successMessage = '';
-  }
-
-  formatearFecha(fecha: Date | string | undefined): string {
-    if (!fecha) return 'N/A';
-    return new Date(fecha).toLocaleDateString('es-CO', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
   }
 
   

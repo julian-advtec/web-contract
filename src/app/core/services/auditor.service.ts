@@ -114,7 +114,7 @@ export class AuditorService {
   // MÉTODOS PARA OBTENER DATOS DEL CONTRATO Y CONTRATISTA
   // ────────────────────────────────────────────────────────────────
 
- 
+
   /**
    * Obtiene los documentos del contrato (RP, CDP, etc.)
    */
@@ -130,8 +130,8 @@ export class AuditorService {
   obtenerDocumentoContratoPorTipo(numeroContrato: string, tipo: 'RP' | 'CDP'): Observable<any> {
     return this.obtenerDocumentosContrato(numeroContrato).pipe(
       map(documentos => {
-        return documentos.find((d: any) => 
-          d.tipoDocumento === tipo || 
+        return documentos.find((d: any) =>
+          d.tipoDocumento === tipo ||
           d.tipoDocumento?.toUpperCase() === tipo ||
           d.nombreArchivo?.toLowerCase().includes(tipo.toLowerCase())
         );
@@ -149,9 +149,10 @@ export class AuditorService {
     }).pipe(
       map((response: ApiResponse) => {
         const docs = Array.isArray(response) ? response : ((response as any)?.data || []);
+        // ✅ CORRECCIÓN: Filtrar documentos CON_ACTA
         return docs.filter((doc: any) => {
           const estado = doc.estado?.toUpperCase() || '';
-          return estado === 'RADICADO';
+          return estado === 'CON_ACTA';  // ← Cambiar de 'RADICADO' a 'CON_ACTA'
         });
       }),
       catchError(err => {
@@ -304,7 +305,7 @@ export class AuditorService {
         }
 
         const resp = response as any;
-        
+
         // CASO 2: Si la respuesta tiene propiedad 'data' que es array
         if (resp && typeof resp === 'object') {
           if (resp.data && Array.isArray(resp.data)) {
@@ -403,24 +404,39 @@ export class AuditorService {
     return this.tomarParaRevision(id);
   }
 
-  obtenerDocumentoParaVista(id: string, esDesdeContabilidad: boolean = false): Observable<any> {
-    const params: any = {};
-    if (esDesdeContabilidad) {
-      params.vistaDesde = 'contabilidad';
-      params.soloLectura = 'true';
-    }
-
-    return this.http.get<ApiResponse>(`${this.apiUrl}/documentos/${id}/vista`, {
-      headers: this.getAuthHeaders(),
-      params
-    }).pipe(
-      map((response: ApiResponse) => (response as any)?.data || response),
-      catchError(err => {
-        console.error('[AuditorService] Error en /vista:', err);
-        return of(null);
-      })
-    );
+obtenerDocumentoParaVista(id: string, esDesdeContabilidad: boolean = false): Observable<any> {
+  const params: any = {};
+  if (esDesdeContabilidad) {
+    params.vistaDesde = 'contabilidad';
+    params.soloLectura = 'true';
   }
+
+  return this.http.get<ApiResponse>(`${this.apiUrl}/documentos/${id}/vista`, {
+    headers: this.getAuthHeaders(),
+    params
+  }).pipe(
+    map((response: ApiResponse) => {
+      const data = (response as any)?.data || response;
+      
+      // ✅ Asegurar que los campos del acta estén presentes
+      if (data && data.documento) {
+        // Log para debug
+        console.log('[AuditorService] Documento recibido:', {
+          id: data.documento.id,
+          tieneActa: !!data.documento.actaSupervisionPath,
+          actaPath: data.documento.actaSupervisionPath,
+          actaNombre: data.documento.actaSupervisionNombre
+        });
+      }
+      
+      return data;
+    }),
+    catchError(err => {
+      console.error('[AuditorService] Error en /vista:', err);
+      return of(null);
+    })
+  );
+}
 
   verificarArchivosExistentes(documentoId: string): Observable<any> {
     return this.http.get<ApiResponse>(`${this.apiUrl}/documentos/${documentoId}/vista`, {
@@ -578,59 +594,78 @@ export class AuditorService {
 
 
 
-obtenerContratoPorNumero(numeroContrato: string): Observable<any> {
-  console.log('[AuditorService] Buscando contrato:', numeroContrato);
-  return this.http.get(`${this.juridicaUrl}/contratos/numero/${numeroContrato}`, {
-    headers: this.getAuthHeaders()
-  }).pipe(
-    map((response: any) => {
-      console.log('[AuditorService] Respuesta contrato:', response);
-      return response?.data || response;
-    }),
-    catchError(err => {
-      console.error('[AuditorService] Error obteniendo contrato:', err);
-      return of(null);
-    })
-  );
-}
+  obtenerContratoPorNumero(numeroContrato: string): Observable<any> {
+    console.log('[AuditorService] Buscando contrato:', numeroContrato);
+    return this.http.get(`${this.juridicaUrl}/contratos/numero/${numeroContrato}`, {
+      headers: this.getAuthHeaders()
+    }).pipe(
+      map((response: any) => {
+        console.log('[AuditorService] Respuesta contrato:', response);
+        return response?.data || response;
+      }),
+      catchError(err => {
+        console.error('[AuditorService] Error obteniendo contrato:', err);
+        return of(null);
+      })
+    );
+  }
 
 
 
-obtenerContratistaPorNumeroContrato(numeroContrato: string): Observable<any> {
-  console.log('[AuditorService] Buscando contratista por contrato:', numeroContrato);
-  
-  return this.http.get(`${environment.apiUrl}/contratistas/buscar-por-contrato/${numeroContrato}`, {
-    headers: this.getAuthHeaders()
-  }).pipe(
-    map((response: any) => {
-      console.log('[AuditorService] Respuesta COMPLETA:', response);
-      
-      // ✅ La estructura correcta es response.data.data.data
-      let contratista = response?.data?.data?.data || 
-                        response?.data?.data || 
-                        response?.data || 
-                        response;
-      
-      // Si es un array, tomar el primero
-      if (Array.isArray(contratista) && contratista.length > 0) {
-        contratista = contratista[0];
-      }
-      
-      console.log('[AuditorService] Contratista extraído:', contratista?.razonSocial);
-      console.log('[AuditorService] Documentos encontrados:', contratista?.documentos?.length || 0);
-      
-      if (contratista?.documentos && contratista.documentos.length > 0) {
-        console.log('[AuditorService] Tipos de documentos:', contratista.documentos.map((d: any) => d.tipo).join(', '));
-      }
-      
-      return contratista;
-    }),
-    catchError(err => {
-      console.error('[AuditorService] Error:', err);
-      return of(null);
-    })
-  );
-}
+  obtenerContratistaPorNumeroContrato(numeroContrato: string): Observable<any> {
+    console.log('[AuditorService] Buscando contratista por contrato:', numeroContrato);
 
+    return this.http.get(`${environment.apiUrl}/contratistas/buscar-por-contrato/${numeroContrato}`, {
+      headers: this.getAuthHeaders()
+    }).pipe(
+      map((response: any) => {
+        console.log('[AuditorService] Respuesta COMPLETA:', response);
+
+        // ✅ La estructura correcta es response.data.data.data
+        let contratista = response?.data?.data?.data ||
+          response?.data?.data ||
+          response?.data ||
+          response;
+
+        // Si es un array, tomar el primero
+        if (Array.isArray(contratista) && contratista.length > 0) {
+          contratista = contratista[0];
+        }
+
+        console.log('[AuditorService] Contratista extraído:', contratista?.razonSocial);
+        console.log('[AuditorService] Documentos encontrados:', contratista?.documentos?.length || 0);
+
+        if (contratista?.documentos && contratista.documentos.length > 0) {
+          console.log('[AuditorService] Tipos de documentos:', contratista.documentos.map((d: any) => d.tipo).join(', '));
+        }
+
+        return contratista;
+      }),
+      catchError(err => {
+        console.error('[AuditorService] Error:', err);
+        return of(null);
+      })
+    );
+  }
+
+  verActaSupervision(documentoId: string, tieneActa: boolean): void {
+    if (!documentoId || !tieneActa) {
+      console.warn('[AuditorService] Acta no disponible');
+      return;
+    }
+
+    const url = `${environment.apiUrl}/auxiliar-auditor/documentos/${documentoId}/acta`;
+    window.open(url, '_blank');
+  }
+
+  descargarActaSupervision(documentoId: string, tieneActa: boolean): void {
+    if (!documentoId || !tieneActa) {
+      console.warn('[AuditorService] Acta no disponible para descarga');
+      return;
+    }
+
+    const url = `${environment.apiUrl}/auxiliar-auditor/documentos/${documentoId}/acta?download=true`;
+    window.open(url, '_blank');
+  }
 
 }

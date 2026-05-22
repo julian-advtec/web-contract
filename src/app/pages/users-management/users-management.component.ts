@@ -1,4 +1,4 @@
-// users-management.component.ts
+// src/app/pages/users-management/users-management.component.ts
 import { Component, inject, OnInit, HostListener, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -239,7 +239,7 @@ export class UsersManagementComponent implements OnInit, OnDestroy {
   }
 
   // =============================
-  // ROLES Y COLORES
+  // ROLES Y COLORES - CORREGIDO CON AUXILIAR_AUDITOR
   // =============================
   getUserRoleDisplayName(role: UserRole | undefined | null): string {
     if (!role) return 'Sin rol';
@@ -249,14 +249,15 @@ export class UsersManagementComponent implements OnInit, OnDestroy {
       [UserRole.RADICADOR]: 'Radicador',
       [UserRole.SUPERVISOR]: 'Supervisor',
       [UserRole.AUDITOR_CUENTAS]: 'Auditor de Cuentas',
+      [UserRole.AUXILIAR_AUDITOR]: 'Auxiliar de Auditor',  // 👈 AGREGADO
       [UserRole.CONTABILIDAD]: 'Contabilidad',
       [UserRole.TESORERIA]: 'Tesorería',
       [UserRole.ASESOR_GERENCIA]: 'Asesor de Gerencia',
       [UserRole.RENDICION_CUENTAS]: 'Rendición de Cuentas',
-      [UserRole.JURIDICA]: 'Jurídica' // 👈 AGREGAR
+      [UserRole.JURIDICA]: 'Jurídica'
     };
 
-    return roleNames[role] || role;
+    return roleNames[role] || String(role);
   }
 
   getRoleColor(role: UserRole): string {
@@ -267,23 +268,23 @@ export class UsersManagementComponent implements OnInit, OnDestroy {
         return 'bg-warning';
       case UserRole.RADICADOR:
         return 'bg-info';
+      case UserRole.AUXILIAR_AUDITOR:
+        return 'bg-success';
       default:
         return 'bg-primary';
     }
   }
 
   // =============================
-  // NAVEGACIÓN AL FORMULARIO - CORREGIDO
+  // NAVEGACIÓN AL FORMULARIO
   // =============================
   createNewUser(): void {
     console.log('Navegando a nuevo usuario...');
-    // Ruta absoluta
     this.router.navigate(['/gestion-usuarios/nuevo']);
   }
 
   editUser(user: User): void {
     console.log('Navegando a editar usuario:', user.id);
-    // Ruta absoluta
     this.router.navigate(['/gestion-usuarios/editar', user.id]);
   }
 

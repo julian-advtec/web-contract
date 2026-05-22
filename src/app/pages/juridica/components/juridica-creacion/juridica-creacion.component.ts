@@ -15,6 +15,7 @@ import { Subscription, Observable } from 'rxjs';
 })
 export class JuridicaCreacionComponent implements OnInit, OnDestroy {
 
+  // ViewChilds para inputs de archivos
   @ViewChild('fileInputMinuta') fileInputMinuta!: ElementRef<HTMLInputElement>;
   @ViewChild('fileInputActaInicio') fileInputActaInicio!: ElementRef<HTMLInputElement>;
   @ViewChild('fileInputCDP') fileInputCDP!: ElementRef<HTMLInputElement>;
@@ -38,20 +39,30 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   supervisores: any[] = [];
   valorTotal = 0;
 
+  // Propiedades para búsqueda de contratista
   contratistaEncontrado: any = null;
   contratistaDocumentos: any[] = [];
   buscandoContratista = false;
   contratistaSeleccionadoId: string | null = null;
   cargandoDocumentosContratista = false;
 
-  // Objeto centralizado para archivos (SOLO GUARDA LOS FILES, SIN SUBIR)
+  // Configuración de reintentos
+  private readonly MAX_RETRIES = 3;
+  private readonly RETRY_DELAY = 2000;
+
+  // Objeto centralizado para archivos con estados mejorados
   archivos: {
     [key: string]: {
       file: File | null;
+      fileId: string | null;
       fileName: string;
       error: string | null;
       mostrarUpload: boolean;
       requerido: boolean;
+      uploading: boolean;
+      uploadProgress: number;
+      retryCount: number;
+      success: boolean;
     }
   } = {};
 
@@ -108,15 +119,16 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     this.subscriptions.forEach(sub => sub.unsubscribe());
   }
 
+  // Inicializar estructura de archivos con estados mejorados
   private inicializarArchivos(): void {
     this.archivos = {
-      CDP: { file: null, fileName: '', error: null, mostrarUpload: false, requerido: false },
-      RP: { file: null, fileName: '', error: null, mostrarUpload: false, requerido: false },
-      POLIZA_CUMPLIMIENTO: { file: null, fileName: '', error: null, mostrarUpload: false, requerido: true },
-      POLIZA_CALIDAD: { file: null, fileName: '', error: null, mostrarUpload: false, requerido: false },
-      POLIZA_RC: { file: null, fileName: '', error: null, mostrarUpload: false, requerido: false },
-      MINUTA: { file: null, fileName: '', error: null, mostrarUpload: false, requerido: true },
-      ACTA_INICIO: { file: null, fileName: '', error: null, mostrarUpload: false, requerido: true }
+      CDP: { file: null, fileId: null, fileName: '', error: null, mostrarUpload: false, requerido: false, uploading: false, uploadProgress: 0, retryCount: 0, success: false },
+      RP: { file: null, fileId: null, fileName: '', error: null, mostrarUpload: false, requerido: false, uploading: false, uploadProgress: 0, retryCount: 0, success: false },
+      POLIZA_CUMPLIMIENTO: { file: null, fileId: null, fileName: '', error: null, mostrarUpload: false, requerido: true, uploading: false, uploadProgress: 0, retryCount: 0, success: false },
+      POLIZA_CALIDAD: { file: null, fileId: null, fileName: '', error: null, mostrarUpload: false, requerido: false, uploading: false, uploadProgress: 0, retryCount: 0, success: false },
+      POLIZA_RC: { file: null, fileId: null, fileName: '', error: null, mostrarUpload: false, requerido: false, uploading: false, uploadProgress: 0, retryCount: 0, success: false },
+      MINUTA: { file: null, fileId: null, fileName: '', error: null, mostrarUpload: false, requerido: true, uploading: false, uploadProgress: 0, retryCount: 0, success: false },
+      ACTA_INICIO: { file: null, fileId: null, fileName: '', error: null, mostrarUpload: false, requerido: true, uploading: false, uploadProgress: 0, retryCount: 0, success: false }
     };
   }
 
@@ -141,6 +153,21 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
 
   get valorTotalNumerico(): number {
     return this.valorNumerico + this.adicionesNumerico;
+  }
+
+  get polizaCumplimientoValorNumerico(): number {
+    const valor = this.contratoForm.get('polizaCumplimientoValor')?.value;
+    return typeof valor === 'string' ? parseInt(valor.replace(/\./g, '')) || 0 : valor || 0;
+  }
+
+  get polizaCalidadValorNumerico(): number {
+    const valor = this.contratoForm.get('polizaCalidadValor')?.value;
+    return typeof valor === 'string' ? parseInt(valor.replace(/\./g, '')) || 0 : valor || 0;
+  }
+
+  get polizaRCValorNumerico(): number {
+    const valor = this.contratoForm.get('polizaRCValor')?.value;
+    return typeof valor === 'string' ? parseInt(valor.replace(/\./g, '')) || 0 : valor || 0;
   }
 
   formatearNumeroConPuntos(numero: number): string {
@@ -193,6 +220,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     });
   }
 
+  // Método unificado para disparar input de archivo
   triggerFileInput(tipo: string): void {
     switch (tipo) {
       case 'MINUTA':
@@ -219,10 +247,20 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Método para manejar selección de archivos (SOLO GUARDA, NO SUBE)
+  // Método mejorado para manejar selección de archivos
   onFileSelected(event: any, tipo: string): void {
     const file: File = event.target.files[0];
     if (!file) return;
+
+    // Resetear estado del archivo
+    this.archivos[tipo] = {
+      ...this.archivos[tipo],
+      error: null,
+      success: false,
+      uploading: false,
+      uploadProgress: 0,
+      retryCount: 0
+    };
 
     // Validaciones
     if (file.type !== 'application/pdf') {
@@ -235,19 +273,92 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Guardar archivo localmente
+    // Actualizar archivo
     this.archivos[tipo].file = file;
     this.archivos[tipo].fileName = file.name;
-    this.archivos[tipo].error = null;
+    this.archivos[tipo].fileId = null;
     this.archivos[tipo].mostrarUpload = false;
-
-    this.successMessage = `Archivo ${file.name} seleccionado correctamente`;
-    setTimeout(() => this.dismissSuccess(), 2000);
+    
+    // Subir automáticamente (usando el método que ya existe en tu servicio)
+    this.subirArchivoIndividual(tipo);
   }
 
+  // Método para subir archivo individual con reintentos
+  subirArchivoIndividual(tipo: string, isRetry: boolean = false): void {
+    const archivo = this.archivos[tipo];
+    
+    if (!archivo.file) {
+      archivo.error = 'No hay archivo seleccionado';
+      return;
+    }
+
+    if (!isRetry) {
+      archivo.uploading = true;
+      archivo.uploadProgress = 0;
+      archivo.error = null;
+      
+      // Simular progreso para mejor UX
+      this.simulateProgress(tipo);
+    }
+
+    const formData = new FormData();
+    formData.append('file', archivo.file);
+    formData.append('tipoDocumento', tipo);
+    
+    // Usar el método existente en tu servicio para subir documentos
+    // Asumiendo que tienes un método para subir documentos asociados al contrato
+    this.juridicaService.subirDocumentoContrato(formData).subscribe({
+      next: (response: any) => {
+        archivo.uploading = false;
+        archivo.uploadProgress = 100;
+        archivo.success = true;
+        archivo.fileId = response.fileId || response.id || response.documentoId;
+        archivo.error = null;
+        archivo.retryCount = 0;
+        
+        this.successMessage = `Documento ${archivo.fileName} subido correctamente`;
+        setTimeout(() => this.dismissSuccess(), 2000);
+      },
+      error: (error: any) => {
+        console.error(`Error subiendo archivo ${tipo}:`, error);
+        
+        if (archivo.retryCount < this.MAX_RETRIES) {
+          archivo.retryCount++;
+          archivo.error = `Error en subida (intento ${archivo.retryCount}/${this.MAX_RETRIES}). Reintentando...`;
+          
+          // Reintentar después del delay
+          setTimeout(() => {
+            this.subirArchivoIndividual(tipo, true);
+          }, this.RETRY_DELAY);
+        } else {
+          archivo.uploading = false;
+          archivo.error = `No se pudo subir el archivo después de ${this.MAX_RETRIES} intentos. ${error.message || 'Error de conexión'}`;
+          archivo.success = false;
+        }
+      }
+    });
+  }
+
+  // Simular progreso de subida
+  private simulateProgress(tipo: string): void {
+    const interval = setInterval(() => {
+      const archivo = this.archivos[tipo];
+      if (!archivo.uploading) {
+        clearInterval(interval);
+        return;
+      }
+      
+      if (archivo.uploadProgress < 90) {
+        archivo.uploadProgress += 10;
+      }
+    }, 200);
+  }
+
+  // Método para validar archivos requeridos antes de guardar
   private validarArchivosRequeridos(): boolean {
     const archivosRequeridos = ['MINUTA', 'ACTA_INICIO'];
     
+    // Si requiere pólizas, validar póliza de cumplimiento
     if (this.contratoForm.get('requierePolizas')?.value) {
       archivosRequeridos.push('POLIZA_CUMPLIMIENTO');
     }
@@ -256,7 +367,8 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     
     for (const tipo of archivosRequeridos) {
       const archivo = this.archivos[tipo];
-      if (!archivo.file && !archivo.fileName) {
+      // Verificar si tiene file (nuevo) o fileId (existente)
+      if (!archivo.file && !archivo.fileId) {
         archivo.error = 'Este documento es requerido';
         archivo.mostrarUpload = true;
         isValid = false;
@@ -266,33 +378,69 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     return isValid;
   }
 
+  // Método para obtener documentos subidos
+  private obtenerDocumentosSubidos(): any[] {
+    const documentos = [];
+    
+    for (const [tipo, data] of Object.entries(this.archivos)) {
+      if (data.fileId) {
+        documentos.push({
+          tipoDocumento: tipo,
+          documentoId: data.fileId,
+          nombreArchivo: data.fileName
+        });
+      }
+    }
+    
+    return documentos;
+  }
+
+  // Método unificado para ver documento
   verDocumento(tipo: string): void {
-    const archivo = this.archivos[tipo];
-    if (archivo.file) {
-      const url = URL.createObjectURL(archivo.file);
-      window.open(url, '_blank');
-      URL.revokeObjectURL(url);
+    const fileId = this.archivos[tipo]?.fileId;
+    if (fileId) {
+      this.juridicaService.previsualizarDocumento(fileId).subscribe({
+        next: (blob: Blob) => {
+          const url = window.URL.createObjectURL(blob);
+          window.open(url, '_blank');
+          window.URL.revokeObjectURL(url);
+        },
+        error: (error: any) => {
+          console.error('Error al visualizar documento:', error);
+          this.errorMessage = 'Error al visualizar el documento';
+        }
+      });
     } else {
-      this.errorMessage = `No hay archivo seleccionado para ${tipo}`;
+      this.errorMessage = `No hay documento de tipo ${tipo} asociado`;
       setTimeout(() => this.dismissError(), 3000);
     }
   }
 
+  // Método unificado para descargar documento
   descargarDocumento(tipo: string): void {
-    const archivo = this.archivos[tipo];
-    if (archivo.file) {
-      const url = URL.createObjectURL(archivo.file);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = archivo.fileName;
-      a.click();
-      URL.revokeObjectURL(url);
+    const fileId = this.archivos[tipo]?.fileId;
+    if (fileId) {
+      this.juridicaService.descargarDocumentoContrato(fileId).subscribe({
+        next: (blob: Blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `documento_${tipo}.pdf`;
+          a.click();
+          window.URL.revokeObjectURL(url);
+        },
+        error: (error: any) => {
+          console.error('Error al descargar documento:', error);
+          this.errorMessage = 'Error al descargar el documento';
+        }
+      });
     } else {
-      this.errorMessage = `No hay archivo seleccionado para ${tipo}`;
+      this.errorMessage = `No hay documento de tipo ${tipo} asociado`;
       setTimeout(() => this.dismissError(), 3000);
     }
   }
 
+  // Alternar visibilidad del upload
   toggleUpload(tipo: string): void {
     this.archivos[tipo].mostrarUpload = !this.archivos[tipo].mostrarUpload;
   }
@@ -494,6 +642,14 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     return resultado.trim() + ' pesos colombianos';
   }
 
+  getRemainingChars(fieldName: string): number {
+    const control = this.contratoForm.get(fieldName);
+    if (!control) return 0;
+    const currentValue = control.value || '';
+    const maxLength = 500;
+    return maxLength - currentValue.length;
+  }
+
   formatearValor(campo: string): void {
     let valor = this.contratoForm.get(campo)?.value;
     if (valor) {
@@ -505,6 +661,10 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
         if (!isNaN(numero)) {
           this.contratoForm.get(campo)?.setValue(numero, { emitEvent: false });
         }
+      }
+    } else {
+      if (campo === 'valor' || campo === 'adiciones') {
+        this.contratoForm.get(campo)?.setValue(0, { emitEvent: false });
       }
     }
   }
@@ -621,12 +781,18 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
           this.contratistaSeleccionadoId = contratista.id;
           this.bloquearCamposGenerales(true);
 
-          this.contratistaDocumentos = contratista.documentos || [];
+          if (contratista.documentos && Array.isArray(contratista.documentos) && contratista.documentos.length > 0) {
+            this.contratistaDocumentos = contratista.documentos;
+          } else {
+            this.contratistaDocumentos = [];
+          }
 
           if (contratista.objetivoContrato && !this.isViewMode) {
             const objetoActual = this.contratoForm.get('objeto')?.value;
             if (!objetoActual || objetoActual.trim() === '') {
-              this.contratoForm.patchValue({ objeto: contratista.objetivoContrato });
+              this.contratoForm.patchValue({
+                objeto: contratista.objetivoContrato
+              });
             }
           }
 
@@ -645,6 +811,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
           this.successMessage = `Contratista "${contratista.razonSocial}" cargado correctamente.`;
           setTimeout(() => this.dismissSuccess(), 3000);
         } else {
+          console.warn('No se encontró contratista con el número:', numeroContrato);
           this.contratistaEncontrado = null;
           this.contratistaSeleccionadoId = null;
           this.contratistaDocumentos = [];
@@ -717,22 +884,36 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
 
     const documentosContrato = datosContrato.documentos || [];
 
+    // Resetear archivos
     Object.keys(this.archivos).forEach(key => {
-      this.archivos[key].file = null;
+      this.archivos[key].fileId = null;
       this.archivos[key].fileName = '';
+      this.archivos[key].file = null;
+      this.archivos[key].success = !!this.archivos[key].fileId;
     });
 
+    // Cargar documentos existentes
     documentosContrato.forEach((doc: any) => {
       const tipo = doc.tipoDocumento;
       if (this.archivos[tipo]) {
+        this.archivos[tipo].fileId = doc.id || doc.documentoId;
         this.archivos[tipo].fileName = doc.nombreArchivo;
+        this.archivos[tipo].success = true;
       }
     });
 
-    const fechaInicio = datosContrato.fechaInicio ? new Date(datosContrato.fechaInicio).toISOString().split('T')[0] : '';
-    const fechaTerminacion = datosContrato.fechaTerminacion ? new Date(datosContrato.fechaTerminacion).toISOString().split('T')[0] : '';
-    const fechaFirma = datosContrato.fechaFirma ? new Date(datosContrato.fechaFirma).toISOString().split('T')[0] : '';
-    const fechaDesembolso = datosContrato.fechaDesembolsoAnticipo ? new Date(datosContrato.fechaDesembolsoAnticipo).toISOString().split('T')[0] : '';
+    const fechaInicio = datosContrato.fechaInicio
+      ? new Date(datosContrato.fechaInicio).toISOString().split('T')[0]
+      : '';
+    const fechaTerminacion = datosContrato.fechaTerminacion
+      ? new Date(datosContrato.fechaTerminacion).toISOString().split('T')[0]
+      : '';
+    const fechaFirma = datosContrato.fechaFirma
+      ? new Date(datosContrato.fechaFirma).toISOString().split('T')[0]
+      : '';
+    const fechaDesembolso = datosContrato.fechaDesembolsoAnticipo
+      ? new Date(datosContrato.fechaDesembolsoAnticipo).toISOString().split('T')[0]
+      : '';
 
     const proveedorData = datosContrato.proveedor || {
       tipoIdentificacion: 'NIT',
@@ -742,7 +923,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       email: ''
     };
 
-    this.contratoForm.patchValue({
+    const patchData: any = {
       vigencia: datosContrato.vigencia || this.anioActual.toString(),
       numeroContrato: datosContrato.numeroContrato || '',
       tipoContrato: datosContrato.tipoContrato || '',
@@ -785,8 +966,9 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       polizaRCValor: datosContrato.polizaRCValor || '',
       polizaRCVigenciaDesde: datosContrato.polizaRCVigenciaDesde || '',
       polizaRCVigenciaHasta: datosContrato.polizaRCVigenciaHasta || ''
-    });
+    };
 
+    this.contratoForm.patchValue(patchData);
     this.valorTotal = datosContrato.valorTotal || 0;
 
     if (datosContrato.seDesembolsaAnticipo) {
@@ -897,100 +1079,123 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   }
 
   guardarContrato(): void {
-    if (this.isViewMode) {
-      this.router.navigate(['/juridica/list']);
-      return;
-    }
+  if (this.isViewMode) {
+    this.router.navigate(['/juridica/list']);
+    return;
+  }
 
-    this.submitted = true;
-    
-    if (!this.validarArchivosRequeridos()) {
-      this.errorMessage = 'Por favor complete todos los documentos requeridos';
-      this.pasoActual = 3;
-      return;
-    }
-    
-    if (this.contratoForm.invalid) {
-      this.errorMessage = 'Por favor complete todos los campos requeridos';
-      this.markStepFieldsAsTouched();
-      return;
-    }
-
-    this.isSubmitting = true;
-    this.errorMessage = '';
-
-    const formValue = this.contratoForm.getRawValue();
-    const valorTotal = this.valorNumerico + this.adicionesNumerico;
-
-    const toDateOrUndefined = (value: any): Date | undefined => {
-      if (!value || value === '' || value === 'null' || value === 'undefined') return undefined;
-      return new Date(value);
-    };
-
-    const toNumberOrUndefined = (value: any): number | undefined => {
-      if (!value || value === '' || value === 'null' || value === 'undefined') return undefined;
-      const num = Number(value);
-      return isNaN(num) ? undefined : num;
-    };
-
-    const toStringOrUndefined = (value: any): string | undefined => {
-      if (!value || value === '' || value === 'null' || value === 'undefined') return undefined;
-      return String(value);
-    };
-
-    const contratoData = {
-      vigencia: this.anioActual.toString(),
-      numeroContrato: formValue.numeroContrato,
-      tipoContrato: formValue.tipoContrato,
-      objeto: formValue.objeto,
-      valor: this.valorNumerico,
-      plazoDias: Number(formValue.plazoDias) || 0,
-      fechaInicio: toDateOrUndefined(formValue.fechaInicio),
-      fechaTerminacion: toDateOrUndefined(formValue.fechaTerminacion),
-      fechaFirma: toDateOrUndefined(formValue.fechaFirma),
-      valorTotal: valorTotal,
-      adiciones: this.adicionesNumerico,
-      supervisor: formValue.supervisor,
-      cdp: toStringOrUndefined(formValue.cdp),
-      rp: toStringOrUndefined(formValue.rp),
-      creadoPor: this.obtenerUsuarioActual(),
-      ultimoUsuario: this.obtenerUsuarioActual(),
-      seDesembolsaAnticipo: !!formValue.seDesembolsaAnticipo,
-      porcentajeAnticipo: toNumberOrUndefined(formValue.porcentajeAnticipo),
-      valorAnticipo: toNumberOrUndefined(formValue.valorAnticipo),
-      fechaDesembolsoAnticipo: toDateOrUndefined(formValue.fechaDesembolsoAnticipo),
-      requierePolizas: !!formValue.requierePolizas,
-      polizaCumplimientoNumero: toStringOrUndefined(formValue.polizaCumplimientoNumero),
-      polizaCumplimientoAseguradora: toStringOrUndefined(formValue.polizaCumplimientoAseguradora),
-      polizaCumplimientoValor: toNumberOrUndefined(formValue.polizaCumplimientoValor),
-      polizaCumplimientoVigenciaDesde: toDateOrUndefined(formValue.polizaCumplimientoVigenciaDesde),
-      polizaCumplimientoVigenciaHasta: toDateOrUndefined(formValue.polizaCumplimientoVigenciaHasta),
-      requierePolizaCalidad: !!formValue.requierePolizaCalidad,
-      polizaCalidadNumero: toStringOrUndefined(formValue.polizaCalidadNumero),
-      polizaCalidadAseguradora: toStringOrUndefined(formValue.polizaCalidadAseguradora),
-      polizaCalidadValor: toNumberOrUndefined(formValue.polizaCalidadValor),
-      polizaCalidadVigenciaDesde: toDateOrUndefined(formValue.polizaCalidadVigenciaDesde),
-      polizaCalidadVigenciaHasta: toDateOrUndefined(formValue.polizaCalidadVigenciaHasta),
-      requierePolizaRC: !!formValue.requierePolizaRC,
-      polizaRCNumero: toStringOrUndefined(formValue.polizaRCNumero),
-      polizaRCAseguradora: toStringOrUndefined(formValue.polizaRCAseguradora),
-      polizaRCValor: toNumberOrUndefined(formValue.polizaRCValor),
-      polizaRCVigenciaDesde: toDateOrUndefined(formValue.polizaRCVigenciaDesde),
-      polizaRCVigenciaHasta: toDateOrUndefined(formValue.polizaRCVigenciaHasta),
-      proveedor: {
-        tipoIdentificacion: formValue.proveedor?.tipoIdentificacion || 'NIT',
-        numeroIdentificacion: formValue.proveedor?.numeroIdentificacion || '',
-        nombreRazonSocial: formValue.proveedor?.nombreRazonSocial || '',
-        telefono: toStringOrUndefined(formValue.proveedor?.telefono),
-        email: toStringOrUndefined(formValue.proveedor?.email)
+  this.submitted = true;
+  
+  // Validar archivos requeridos ANTES de guardar
+  if (!this.validarArchivosRequeridos()) {
+    this.errorMessage = 'Por favor complete todos los documentos requeridos';
+    this.pasoActual = 3;
+    setTimeout(() => {
+      const requeridos = document.querySelectorAll('.document-card .alert-danger');
+      if (requeridos.length) {
+        requeridos[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
-    };
+    }, 100);
+    return;
+  }
+  
+  if (this.contratoForm.invalid) {
+    this.errorMessage = 'Por favor complete todos los campos requeridos';
+    this.markStepFieldsAsTouched();
+    return;
+  }
 
-    // Crear FormData con todos los archivos seleccionados
+  this.isSubmitting = true;
+  this.errorMessage = '';
+
+  const formValue = this.contratoForm.getRawValue();
+  const valorTotal = this.valorNumerico + this.adicionesNumerico;
+
+  // Función para convertir fechas: null o string vacío se convierten a undefined
+  const toDateOrUndefined = (value: any): Date | undefined => {
+    if (!value || value === '' || value === 'null' || value === 'undefined') {
+      return undefined;
+    }
+    return new Date(value);
+  };
+
+  // Función para convertir número: null o string vacío se convierten a undefined
+  const toNumberOrUndefined = (value: any): number | undefined => {
+    if (!value || value === '' || value === 'null' || value === 'undefined') {
+      return undefined;
+    }
+    const num = Number(value);
+    return isNaN(num) ? undefined : num;
+  };
+
+  // Función para convertir string: null se convierte a undefined
+  const toStringOrUndefined = (value: any): string | undefined => {
+    if (!value || value === '' || value === 'null' || value === 'undefined') {
+      return undefined;
+    }
+    return String(value);
+  };
+
+  // Preparar el DTO para el contrato
+  const contratoData: any = {
+    vigencia: this.anioActual.toString(),
+    numeroContrato: formValue.numeroContrato,
+    tipoContrato: formValue.tipoContrato,
+    objeto: formValue.objeto,
+    valor: this.valorNumerico,
+    plazoDias: Number(formValue.plazoDias) || 0,
+    fechaInicio: toDateOrUndefined(formValue.fechaInicio),
+    fechaTerminacion: toDateOrUndefined(formValue.fechaTerminacion),
+    fechaFirma: toDateOrUndefined(formValue.fechaFirma),
+    valorTotal: valorTotal,
+    adiciones: this.adicionesNumerico,
+    supervisor: formValue.supervisor,
+    cdp: toStringOrUndefined(formValue.cdp),
+    rp: toStringOrUndefined(formValue.rp),
+    creadoPor: this.obtenerUsuarioActual(),
+    ultimoUsuario: this.obtenerUsuarioActual(),
+    seDesembolsaAnticipo: !!formValue.seDesembolsaAnticipo,
+    porcentajeAnticipo: toNumberOrUndefined(formValue.porcentajeAnticipo),
+    valorAnticipo: toNumberOrUndefined(formValue.valorAnticipo),
+    fechaDesembolsoAnticipo: toDateOrUndefined(formValue.fechaDesembolsoAnticipo),
+    requierePolizas: !!formValue.requierePolizas,
+    polizaCumplimientoNumero: toStringOrUndefined(formValue.polizaCumplimientoNumero),
+    polizaCumplimientoAseguradora: toStringOrUndefined(formValue.polizaCumplimientoAseguradora),
+    polizaCumplimientoValor: toNumberOrUndefined(formValue.polizaCumplimientoValor),
+    polizaCumplimientoVigenciaDesde: toDateOrUndefined(formValue.polizaCumplimientoVigenciaDesde),
+    polizaCumplimientoVigenciaHasta: toDateOrUndefined(formValue.polizaCumplimientoVigenciaHasta),
+    requierePolizaCalidad: !!formValue.requierePolizaCalidad,
+    polizaCalidadNumero: toStringOrUndefined(formValue.polizaCalidadNumero),
+    polizaCalidadAseguradora: toStringOrUndefined(formValue.polizaCalidadAseguradora),
+    polizaCalidadValor: toNumberOrUndefined(formValue.polizaCalidadValor),
+    polizaCalidadVigenciaDesde: toDateOrUndefined(formValue.polizaCalidadVigenciaDesde),
+    polizaCalidadVigenciaHasta: toDateOrUndefined(formValue.polizaCalidadVigenciaHasta),
+    requierePolizaRC: !!formValue.requierePolizaRC,
+    polizaRCNumero: toStringOrUndefined(formValue.polizaRCNumero),
+    polizaRCAseguradora: toStringOrUndefined(formValue.polizaRCAseguradora),
+    polizaRCValor: toNumberOrUndefined(formValue.polizaRCValor),
+    polizaRCVigenciaDesde: toDateOrUndefined(formValue.polizaRCVigenciaDesde),
+    polizaRCVigenciaHasta: toDateOrUndefined(formValue.polizaRCVigenciaHasta),
+    proveedor: {
+      tipoIdentificacion: formValue.proveedor?.tipoIdentificacion || 'NIT',
+      numeroIdentificacion: formValue.proveedor?.numeroIdentificacion || '',
+      nombreRazonSocial: formValue.proveedor?.nombreRazonSocial || '',
+      telefono: toStringOrUndefined(formValue.proveedor?.telefono),
+      email: toStringOrUndefined(formValue.proveedor?.email)
+    }
+  };
+
+  let request: Observable<any>;
+
+  if (this.isEditMode && this.contratoId) {
+    // Actualizar contrato (solo JSON, sin archivos nuevos)
+    request = this.juridicaService.actualizarContrato(this.contratoId, contratoData);
+  } else {
+    // Crear contrato CON archivos (usando FormData)
     const formData = new FormData();
     formData.append('contrato', JSON.stringify(contratoData));
 
-    // Agregar archivos al FormData (NUNCA se suben solos, siempre van con el contrato)
+    // Agregar archivos pendientes
     if (this.archivos['MINUTA'].file) {
       formData.append('minutaFile', this.archivos['MINUTA'].file);
     }
@@ -1013,20 +1218,22 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       formData.append('polizaRCFile', this.archivos['POLIZA_RC'].file);
     }
 
-    // Enviar todo junto al backend
-    this.juridicaService.crearContratoConArchivos(formData).subscribe({
-      next: (resultado: any) => {
-        this.successMessage = 'Contrato creado exitosamente';
-        this.isSubmitting = false;
-        setTimeout(() => this.router.navigate(['/juridica/list']), 1800);
-      },
-      error: (error: any) => {
-        console.error('Error al guardar contrato:', error);
-        this.errorMessage = error.message || 'Error al guardar el contrato';
-        this.isSubmitting = false;
-      }
-    });
+    request = this.juridicaService.crearContratoConArchivos(formData);
   }
+
+  request.subscribe({
+    next: (resultado: any) => {
+      this.successMessage = this.isEditMode ? 'Contrato actualizado exitosamente' : 'Contrato creado exitosamente';
+      this.isSubmitting = false;
+      setTimeout(() => this.router.navigate(['/juridica/list']), 1800);
+    },
+    error: (error: any) => {
+      console.error('Error al guardar contrato:', error);
+      this.errorMessage = error.message || 'Error al guardar el contrato';
+      this.isSubmitting = false;
+    }
+  });
+}
 
   private obtenerUsuarioActual(): string {
     const userStr = localStorage.getItem('user');

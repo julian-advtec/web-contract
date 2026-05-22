@@ -1,0 +1,199 @@
+// src/app/pages/auxiliar-auditor/components/documentos-disponibles/documentos-disponibles.component.scss
+.documentos-disponibles-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+
+  .page-header {
+    margin-bottom: 24px;
+    
+    h2 {
+      font-size: 1.75rem;
+      color: #2c3e50;
+      margin-bottom: 8px;
+    }
+    
+    p {
+      margin: 0;
+      font-size: 0.9rem;
+    }
+  }
+
+  .search-container {
+    .input-group {
+      border: 2px solid rgba(16, 185, 129, 0.3);
+      border-radius: 12px;
+      overflow: hidden;
+      
+      .input-group-text {
+        border: none;
+      }
+      
+      .form-control {
+        border: none;
+        
+        &:focus {
+          box-shadow: none;
+        }
+      }
+    }
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    
+    .empty-state-icon {
+      font-size: 64px;
+      color: #10B981;
+      margin-bottom: 20px;
+    }
+    
+    h4 {
+      color: #2c3e50;
+      margin-bottom: 10px;
+    }
+  }
+
+  .documentos-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 20px;
+  }
+
+  .documento-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    overflow: hidden;
+    
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    
+    .card-header {
+      background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+      color: white;
+      padding: 16px 20px;
+      
+      .radicado-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        
+        i {
+          font-size: 1.1rem;
+        }
+        
+        strong {
+          font-size: 1rem;
+        }
+        
+        .badge {
+          background: rgba(255, 255, 255, 0.2);
+          color: white;
+        }
+      }
+    }
+    
+    .card-body {
+      padding: 20px;
+      
+      .info-row {
+        display: flex;
+        margin-bottom: 12px;
+        
+        .info-label {
+          width: 120px;
+          color: #6c757d;
+          font-size: 0.85rem;
+          
+          i {
+            width: 20px;
+            margin-right: 8px;
+            color: #10B981;
+          }
+        }
+        
+        .info-value {
+          flex: 1;
+          color: #2c3e50;
+          font-weight: 500;
+          font-size: 0.85rem;
+          word-break: break-word;
+        }
+      }
+    }
+    
+    .card-footer {
+      padding: 16px 20px;
+      background: #f8f9fa;
+      border-top: 1px solid #e9ecef;
+      
+      .btn-subir-acta {
+        width: 100%;
+        background: #10B981;
+        border: none;
+        color: white;
+        padding: 10px;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        
+        &:hover {
+          background: #059669;
+          transform: translateY(-2px);
+        }
+      }
+    }
+  }
+
+  .pagination-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    
+    .pagination-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      
+      .page-numbers {
+        display: flex;
+        gap: 4px;
+        
+        .btn {
+          width: 36px;
+          height: 36px;
+          padding: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .documentos-disponibles-container {
+    padding: 12px;
+    
+    .documentos-list {
+      grid-template-columns: 1fr;
+    }
+    
+    .pagination-container {
+      flex-direction: column;
+    }
+  }
+}

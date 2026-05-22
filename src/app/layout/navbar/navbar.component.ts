@@ -48,7 +48,6 @@ export class NavbarComponent implements OnInit, OnDestroy {
     // SUSCRIPCIÓN PRINCIPAL AL SUBJECT
     this.subscriptions.add(
       this.authService.timeRemaining$.subscribe(seconds => {
-       
         this.ngZone.run(() => {
           if (seconds > 0) {
             this.updateTimeDisplay(seconds);
@@ -74,7 +73,6 @@ export class NavbarComponent implements OnInit, OnDestroy {
           const currentDisplay = this.timeRemaining;
           const newDisplay = this.formatTime(timeLeft);
           if (currentDisplay !== newDisplay) {
-            
             this.ngZone.run(() => {
               this.updateTimeDisplay(timeLeft);
               this.cdr.detectChanges();
@@ -94,8 +92,6 @@ export class NavbarComponent implements OnInit, OnDestroy {
   private updateTimeDisplay(seconds: number): void {
     const newTimeRemaining = this.formatTime(seconds);
     const newPercentage = (seconds / 1800) * 100;
-
-  
 
     if (this.timeRemaining !== newTimeRemaining) {
       this.timeRemaining = newTimeRemaining;
@@ -177,10 +173,10 @@ export class NavbarComponent implements OnInit, OnDestroy {
     const cleanUrl = this.currentUrl || this.router.url.split('?')[0];
     return cleanUrl === '/juridica' ||
       cleanUrl === '/juridica/list' ||
-      cleanUrl === '/juridica/nuevo' ||
+      cleanUrl === '/juridica/crear' ||  // Cambiado de /nuevo a /crear
       cleanUrl.startsWith('/juridica/editar/') ||
       cleanUrl.startsWith('/juridica/ver/') ||
-      cleanUrl === '/juridica/estadisticas' ||
+      cleanUrl === '/juridica/stats' ||    // Cambiado de /estadisticas a /stats
       cleanUrl === '/juridica/dashboard';
   }
 
@@ -217,32 +213,41 @@ export class NavbarComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // ============ SECCIÓN JURÍDICA CORREGIDA ============
     if (this.isJuridicaPage()) {
+      console.log('📍 Detectada página jurídica:', cleanUrl);
+      
       if (cleanUrl === '/juridica' || cleanUrl === '/juridica/list') {
-        this.currentPageTitle = 'Lista de Contratos';
-        this.currentPageSubtitle = 'Gestión de contratos';
-      } else if (cleanUrl === '/juridica/nuevo') {
+        this.currentPageTitle = '📋 Lista de Contratos';
+        this.currentPageSubtitle = 'Gestión y visualización de todos los contratos registrados';
+      } 
+      else if (cleanUrl === '/juridica/crear') {
         this.currentPageTitle = 'Nuevo Contrato';
-        this.currentPageSubtitle = 'Creación de contrato';
-      } else if (cleanUrl === '/juridica/estadisticas') {
+        this.currentPageSubtitle = 'Complete el formulario para registrar un nuevo contrato';
+      } 
+      else if (cleanUrl === '/juridica/stats') {
         this.currentPageTitle = 'Estadísticas';
-        this.currentPageSubtitle = 'Estadísticas de contratos';
-      } else if (cleanUrl === '/juridica/dashboard') {
-        this.currentPageTitle = 'Dashboard Jurídica';
-        this.currentPageSubtitle = 'Panel de control de contratos';
-      } else if (cleanUrl.startsWith('/juridica/editar/')) {
+        this.currentPageSubtitle = 'Análisis y estadísticas de los contratos';
+      } 
+       
+      else if (cleanUrl.startsWith('/juridica/editar/')) {
         this.currentPageTitle = 'Editar Contrato';
-        this.currentPageSubtitle = 'Modificación de contrato';
-      } else if (cleanUrl.startsWith('/juridica/ver/')) {
+        this.currentPageSubtitle = 'Modificación de información del contrato';
+      } 
+      else if (cleanUrl.startsWith('/juridica/ver/')) {
         this.currentPageTitle = 'Detalle de Contrato';
-        this.currentPageSubtitle = 'Información del contrato';
-      } else {
+        this.currentPageSubtitle = 'Visualización completa del contrato';
+      } 
+      else {
         this.currentPageTitle = 'Jurídica';
-        this.currentPageSubtitle = 'Gestión de contratos';
+        this.currentPageSubtitle = 'Gestión de contratos y documentación legal';
       }
+      
+      console.log(`📌 Título actualizado: ${this.currentPageTitle} - ${this.currentPageSubtitle}`);
       return;
     }
 
+    // ============ TITLE MAP PARA OTRAS RUTAS ============
     const titleMap: Record<string, { title: string, subtitle?: string }> = {
       '/gestion-usuarios': { title: 'Gestión de Usuarios', subtitle: 'Administración de usuarios' },
       '/gestion-usuarios/nuevo': { title: 'Nuevo Usuario', subtitle: 'Administración de usuarios' },
@@ -329,20 +334,23 @@ export class NavbarComponent implements OnInit, OnDestroy {
       .join(' ');
   }
 
-  getUserRoleName(role: UserRole | undefined | null): string {
-    if (!role) return 'Usuario';
+getUserRoleName(role: UserRole | undefined | null): string {
+  if (!role) return 'Usuario';
 
-    const roleNames: Record<UserRole, string> = {
-      [UserRole.ADMIN]: 'Administrador',
-      [UserRole.RADICADOR]: 'Radicador',
-      [UserRole.SUPERVISOR]: 'Supervisor',
-      [UserRole.AUDITOR_CUENTAS]: 'Auditor de Cuentas',
-      [UserRole.CONTABILIDAD]: 'Contabilidad',
-      [UserRole.TESORERIA]: 'Tesorería',
-      [UserRole.ASESOR_GERENCIA]: 'Asesor de Gerencia',
-      [UserRole.RENDICION_CUENTAS]: 'Rendición de Cuentas',
-      [UserRole.JURIDICA]: 'Jurídica'
-    };
-    return roleNames[role] || role;
-  }
+  const roleNames: Record<UserRole, string> = {
+    [UserRole.ADMIN]: 'Administrador',
+    [UserRole.RADICADOR]: 'Radicador',
+    [UserRole.SUPERVISOR]: 'Supervisor',
+    [UserRole.AUDITOR_CUENTAS]: 'Auditor de Cuentas',
+    [UserRole.AUXILIAR_AUDITOR]: 'Auxiliar de Auditor',  // 👈 AGREGAR ESTA LÍNEA
+    [UserRole.CONTABILIDAD]: 'Contabilidad',
+    [UserRole.TESORERIA]: 'Tesorería',
+    [UserRole.ASESOR_GERENCIA]: 'Asesor de Gerencia',
+    [UserRole.RENDICION_CUENTAS]: 'Rendición de Cuentas',
+    [UserRole.JURIDICA]: 'Jurídica'
+  };
+  return roleNames[role] || role;
+}
+
+
 }

@@ -1,4 +1,4 @@
-// app.routes.ts - VERSIÓN ACTUALIZADA CON CONTRATISTAS
+// app.routes.ts - VERSIÓN ACTUALIZADA CON AUXILIAR_AUDITOR
 import { Routes } from '@angular/router';
 import { AuthGuard } from './core/guards/auth-guard';
 import { RoleGuard } from './core/guards/role.guard';
@@ -13,7 +13,7 @@ export const routes: Routes = [
     path: 'dashboard',
     loadComponent: () => import('./pages/dashboard/dashboard.component').then(m => m.DashboardComponent),
     canActivate: [AuthGuard],
-    data: { title: 'Dashboard' }
+    data: { title: 'Inicio' }
   },
   {
     path: 'gestion-usuarios',
@@ -38,6 +38,12 @@ export const routes: Routes = [
     loadChildren: () => import('./pages/auditor/auditor-routing.module').then(m => m.AuditorRoutingModule),
     canActivate: [AuthGuard, RoleGuard],
     data: { roles: [UserRole.AUDITOR_CUENTAS, UserRole.ADMIN], title: 'Auditoría' }
+  },
+  {
+    path: 'auxiliar-auditor',  // 👈 NUEVA RUTA
+    loadChildren: () => import('./pages/auxiliar-auditor/auxiliar-auditor.module').then(m => m.AuxiliarAuditorModule),
+    canActivate: [AuthGuard, RoleGuard],
+    data: { roles: [UserRole.AUXILIAR_AUDITOR, UserRole.ADMIN], title: 'Auxiliar Auditor' }
   },
   {
     path: 'contabilidad',
@@ -72,7 +78,6 @@ export const routes: Routes = [
       title: 'Gestión Jurídica' 
     }
   },
-  // ✅ NUEVO MÓDULO DE CONTRATISTAS
   {
     path: 'contratistas',
     loadChildren: () => import('./pages/contratistas/contratistas.module').then(m => m.ContratistasModule),

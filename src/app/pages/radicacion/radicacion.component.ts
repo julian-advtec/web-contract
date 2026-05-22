@@ -1,17 +1,18 @@
 // src/app/pages/radicacion/radicacion.component.ts
+// Simplificar para que el routing maneje las vistas
+
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule, RouterOutlet } from '@angular/router';
 
-// Importar componentes de layout
 import { SidebarComponent } from '../../layout/sidebar/sidebar.component';
 import { NavbarComponent } from '../../layout/navbar/navbar.component';
 
-// Importar tipos y servicios
-import { User, UserRole, getUserRoleName, stringToUserRole } from '../../core/models/user.types';
 import { AuthService } from '../../core/services/auth.service';
 import { RadicacionService } from '../../core/services/radicacion.service';
 import { ModulesService, AppModule } from '../../core/services/modules.service';
+
+import { User, UserRole, getUserRoleName, stringToUserRole } from '../../core/models/user.types';
 
 @Component({
   selector: 'app-radicacion',
@@ -32,8 +33,6 @@ export class RadicacionComponent implements OnInit {
   availableModules: AppModule[] = [];
   puedeRadicar = false;
   puedeVer = false;
-
-  // Propiedades para mensajes
   errorMessage = '';
   successMessage = '';
 
@@ -109,15 +108,7 @@ export class RadicacionComponent implements OnInit {
           const permisos = response.data;
           this.puedeRadicar = permisos.puedeRadicar;
           this.puedeVer = permisos.puedeVer;
-
           this.loadAvailableModules();
-
-          if (!this.puedeVer) {
-            this.errorMessage = 'No tienes permisos para acceder a la radicación';
-            setTimeout(() => {
-              this.router.navigate(['/dashboard']);
-            }, 3000);
-          }
         } else {
           if (this.currentUser) {
             this.puedeRadicar = this.userCanRadicar(this.currentUser.role);
@@ -137,17 +128,15 @@ export class RadicacionComponent implements OnInit {
     });
   }
 
-  // ✅ CORREGIDO: Nombres de iconos correctos para FontAwesome
   loadAvailableModules(): void {
     if (!this.currentUser) {
       this.availableModules = [];
       return;
     }
 
-    // ✅ IDs CORREGIDOS para que coincidan con getModuleIcon()
     this.availableModules = [
       {
-        id: 'dashboard',  // Este ID existe en getModuleIcon()
+        id: 'dashboard',
         title: 'Dashboard',
         description: 'Panel principal del sistema',
         path: '/dashboard',
@@ -157,47 +146,37 @@ export class RadicacionComponent implements OnInit {
         isActive: true
       },
       {
-        id: 'nueva-radicacion',  // Este ID existe en getModuleIcon() (está en tu código)
-        title: 'Nuevo Radicado',
-        description: 'Crear nuevo radicado',
-        path: '/radicacion/nuevo',
-        route: '/radicacion/nuevo',
-        icon: 'nueva-radicacion',
-        requiredRole: UserRole.RADICADOR,
-        isActive: true
-      },
-      {
-        id: 'lista-radicacion',  // ✅ CORREGIDO: este ID existe en getModuleIcon()
-        title: 'Lista General',
-        description: 'Ver todos los documentos radicados',
+        id: 'lista-contratos',
+        title: 'Lista de Contratos',
+        description: 'Seleccionar contrato para radicar',
         path: '/radicacion/lista',
         route: '/radicacion/lista',
-        icon: 'lista-radicacion',
+        icon: 'file-contract',
         requiredRole: UserRole.RADICADOR,
         isActive: true
       },
       {
-        id: 'mis-radicaciones',  // ✅ CORREGIDO: este ID existe en getModuleIcon()
+        id: 'mis-radicaciones',
         title: 'Mis Radicaciones',
         description: 'Ver mis documentos radicados',
         path: '/radicacion/mis-radicaciones',
         route: '/radicacion/mis-radicaciones',
-        icon: 'mis-radicaciones',
+        icon: 'folder-open',
         requiredRole: UserRole.RADICADOR,
         isActive: true
       },
       {
-        id: 'rechazados',  // ✅ CORREGIDO: este ID existe en getModuleIcon()
+        id: 'rechazados',
         title: 'Documentos Rechazados',
         description: 'Ver documentos con estado rechazado',
         path: '/radicacion/rechazados',
         route: '/radicacion/rechazados',
-        icon: 'rechazados',
+        icon: 'times-circle',
         requiredRole: UserRole.RADICADOR,
         isActive: true
       },
       {
-        id: 'mis-estadisticas',  // Agregar este ID en getModuleIcon() después
+        id: 'mis-estadisticas',
         title: 'Mis Estadísticas',
         description: 'Ver mis estadísticas de radicación',
         path: '/radicacion/mis-estadisticas',
@@ -207,12 +186,6 @@ export class RadicacionComponent implements OnInit {
         isActive: true
       }
     ];
-
-    console.log('📋 Módulos disponibles (IDs corregidos):', this.availableModules.map(m => ({
-      id: m.id,
-      title: m.title,
-      path: m.path
-    })));
   }
 
   getUserRoleName(): string {

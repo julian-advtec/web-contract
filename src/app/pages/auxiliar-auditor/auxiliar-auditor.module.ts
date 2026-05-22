@@ -1,23 +1,20 @@
-// src/app/pages/radicacion/radicacion.module.ts
+// src/app/pages/auxiliar-auditor/auxiliar-auditor.module.ts
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 import { RouterModule } from '@angular/router';
 
-import { RadicacionRoutingModule } from './radicacion-routing.module';
-import { RadicacionComponent } from './radicacion.component';
-
+import { AuxiliarAuditorRoutingModule } from './auxiliar-auditor-routing.module';
+import { AuxiliarAuditorComponent } from './auxiliar-auditor.component';
 import { SidebarComponent } from '../../layout/sidebar/sidebar.component';
 import { NavbarComponent } from '../../layout/navbar/navbar.component';
 
-import { RadicacionService } from '../../core/services/radicacion.service';
-import { AuthService } from '../../core/services/auth.service';
-import { ModulesService } from '../../core/services/modules.service';
+import { AuxiliarAuditorService } from '../../core/services/auxiliar-auditor.service';
 
 @NgModule({
   declarations: [
-    RadicacionComponent
+    AuxiliarAuditorComponent
   ],
   imports: [
     CommonModule,
@@ -25,18 +22,16 @@ import { ModulesService } from '../../core/services/modules.service';
     ReactiveFormsModule,
     HttpClientModule,
     RouterModule,
-    RadicacionRoutingModule,
+    AuxiliarAuditorRoutingModule,
     
     SidebarComponent,
     NavbarComponent
   ],
   providers: [
-    RadicacionService,
-    AuthService,
-    ModulesService
+    AuxiliarAuditorService
   ],
   exports: [
-    RadicacionComponent
+    AuxiliarAuditorComponent
   ]
 })
-export class RadicacionModule { }
+export class AuxiliarAuditorModule { }

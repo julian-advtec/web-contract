@@ -41,13 +41,25 @@ export class UserFormComponent implements OnInit, OnDestroy {
   private notificationService = inject(NotificationService);
   private signatureService = inject(SignatureService);
   private destroy$ = new Subject<void>();
-signatureUrl: SafeResourceUrl | null = null;
-isPdf = false;
+
+  signatureUrl: SafeResourceUrl | null = null;
+  isPdf = false;
+
   // Layout properties
   currentUser: User | null = null;
   sidebarCollapsed = false;
   availableModules: AppModule[] = [];
+
+  // ✅ CORREGIDO: Crear el método que el template espera
+getUserRoleDisplayName(role: UserRole | null | undefined): string {
+  if (!role) return 'Usuario';
+  return this.getRoleName(role);
+}
+
+  // También mantener getUserRoleName para compatibilidad
   getUserRoleName = this.getUserRoleDisplayName.bind(this);
+
+
 
   // Form properties
   userForm: FormGroup;
@@ -78,7 +90,7 @@ isPdf = false;
   isUploadingSignature = false;
   canHaveSignature = false;
   hasSignatureChanges = false; // 👈 NUEVO: detectar cambios en firma
-  
+
 
   // Modal properties
   signatureToView: Signature | null = null;
@@ -87,11 +99,11 @@ isPdf = false;
 
   private readonly PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
 
-constructor(
-  private sanitizer: DomSanitizer,
-  private cdr: ChangeDetectorRef // 👈 Inyectar aquí
-) {
-    
+  constructor(
+    private sanitizer: DomSanitizer,
+    private cdr: ChangeDetectorRef // 👈 Inyectar aquí
+  ) {
+
     this.userForm = this.fb.group({
       username: ['', [
         Validators.required,
@@ -128,25 +140,25 @@ constructor(
       console.log('🔑 Token en localStorage al iniciar:', token);
       console.log('🔑 Token presente?', !!token);
     }, 1000);
-    
-  }
-  
 
-ngOnInit() {
-  this.initializeComponent();
-  this.initializeForm();
-  this.setupPasswordValidation();
-  this.setupRealTimeValidation();
-  this.checkSignaturePermission();
-  
-  // Inicializar modal
-  setTimeout(() => {
-    const modalElement = document.getElementById('signatureModal');
-    if (modalElement) {
-      this.signatureModal = new bootstrap.Modal(modalElement);
-    }
-  }, 500); // Pequeño delay para asegurar que el DOM esté listo
-}
+  }
+
+
+  ngOnInit() {
+    this.initializeComponent();
+    this.initializeForm();
+    this.setupPasswordValidation();
+    this.setupRealTimeValidation();
+    this.checkSignaturePermission();
+
+    // Inicializar modal
+    setTimeout(() => {
+      const modalElement = document.getElementById('signatureModal');
+      if (modalElement) {
+        this.signatureModal = new bootstrap.Modal(modalElement);
+      }
+    }, 500); // Pequeño delay para asegurar que el DOM esté listo
+  }
 
 
 
@@ -546,22 +558,20 @@ ngOnInit() {
   // =============================
   // ROLE METHODS
   // =============================
-  getUserRoleDisplayName(role: UserRole | undefined | null): string {
-    if (!role) return 'Sin rol';
-
+  private getRoleName(role: UserRole): string {
     const roleNames: Record<UserRole, string> = {
       [UserRole.ADMIN]: 'Administrador',
       [UserRole.RADICADOR]: 'Radicador',
       [UserRole.SUPERVISOR]: 'Supervisor',
       [UserRole.AUDITOR_CUENTAS]: 'Auditor de Cuentas',
+      [UserRole.AUXILIAR_AUDITOR]: 'Auxiliar de Auditor',  // 👈 AGREGAR ESTA LÍNEA
       [UserRole.CONTABILIDAD]: 'Contabilidad',
       [UserRole.TESORERIA]: 'Tesorería',
       [UserRole.ASESOR_GERENCIA]: 'Asesor de Gerencia',
       [UserRole.RENDICION_CUENTAS]: 'Rendición de Cuentas',
-      [UserRole.JURIDICA]: 'Jurídica' // 👈 AGREGAR
+      [UserRole.JURIDICA]: 'Jurídica'
     };
-
-    return roleNames[role] || role;
+    return roleNames[role] || String(role);
   }
 
   // =============================
@@ -981,64 +991,64 @@ ngOnInit() {
     return this.userForm.valid && !this.isLoading;
   }
 
-// user-form.component.ts
+  // user-form.component.ts
 
-// user-form.component.ts
-viewSignature(): void {
-  if (!this.currentSignature) return;
-  
-  this.signatureToView = this.currentSignature;
-  this.isPdf = this.currentSignature.type === 'pdf';
-  
-  console.log('🔍 Iniciando carga de firma...');
-  
-  this.signatureService.getSignatureBlob().subscribe({
-    next: (blob) => {
-      console.log('✅ Firma cargada, tamaño:', blob.size);
-      console.log('✅ Tipo MIME:', blob.type);
-      
-      // Limpiar URL anterior si existe
-      if (this.signatureUrl) {
-        URL.revokeObjectURL(this.signatureUrl as string);
-      }
-      
-      // Crear nueva URL del blob
-      const url = URL.createObjectURL(blob);
-      console.log('🔗 URL creada:', url);
-      
-      this.signatureUrl = this.sanitizer.bypassSecurityTrustResourceUrl(url);
-      
-      // Forzar detección de cambios
-      this.cdr.detectChanges();
-      
-      // Mostrar modal
-      setTimeout(() => {
-        const modalElement = document.getElementById('signatureModal');
-        if (modalElement) {
-          if (!this.signatureModal) {
-            this.signatureModal = new bootstrap.Modal(modalElement);
-          }
-          this.signatureModal.show();
-          console.log('✅ Modal mostrado');
-        } else {
-          console.error('❌ Elemento modal no encontrado en el DOM');
+  // user-form.component.ts
+  viewSignature(): void {
+    if (!this.currentSignature) return;
+
+    this.signatureToView = this.currentSignature;
+    this.isPdf = this.currentSignature.type === 'pdf';
+
+    console.log('🔍 Iniciando carga de firma...');
+
+    this.signatureService.getSignatureBlob().subscribe({
+      next: (blob) => {
+        console.log('✅ Firma cargada, tamaño:', blob.size);
+        console.log('✅ Tipo MIME:', blob.type);
+
+        // Limpiar URL anterior si existe
+        if (this.signatureUrl) {
+          URL.revokeObjectURL(this.signatureUrl as string);
         }
-      }, 100);
-    },
-    error: (error) => {
-      console.error('❌ Error al cargar la firma:', error);
-      this.notificationService.error('Error al cargar la firma');
-    }
-  });
-}
 
-// Asegúrate de tener el método closeModal
-closeModal(): void {
-  if (this.signatureModal) {
-    this.signatureModal.hide();
+        // Crear nueva URL del blob
+        const url = URL.createObjectURL(blob);
+        console.log('🔗 URL creada:', url);
+
+        this.signatureUrl = this.sanitizer.bypassSecurityTrustResourceUrl(url);
+
+        // Forzar detección de cambios
+        this.cdr.detectChanges();
+
+        // Mostrar modal
+        setTimeout(() => {
+          const modalElement = document.getElementById('signatureModal');
+          if (modalElement) {
+            if (!this.signatureModal) {
+              this.signatureModal = new bootstrap.Modal(modalElement);
+            }
+            this.signatureModal.show();
+            console.log('✅ Modal mostrado');
+          } else {
+            console.error('❌ Elemento modal no encontrado en el DOM');
+          }
+        }, 100);
+      },
+      error: (error) => {
+        console.error('❌ Error al cargar la firma:', error);
+        this.notificationService.error('Error al cargar la firma');
+      }
+    });
   }
-  this.signatureUrl = null;
-}
+
+  // Asegúrate de tener el método closeModal
+  closeModal(): void {
+    if (this.signatureModal) {
+      this.signatureModal.hide();
+    }
+    this.signatureUrl = null;
+  }
 
   // Elimina closeModal() si no lo usas
 }

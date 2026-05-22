@@ -11,39 +11,56 @@
     </a>
   </div>
 
-  <!-- Alertas -->
-  <div *ngIf="errorMessage" class="alert alert-danger alert-dismissible fade show mb-4">
-    <i class="fas fa-exclamation-triangle me-2"></i>
-    {{ errorMessage }}
-    <button type="button" class="btn-close" (click)="dismissError()"></button>
+  <!-- Alertas Mejoradas -->
+  <div *ngIf="errorMessage" class="alert-message error" [class.show]="errorMessage">
+    <div class="alert-content">
+      <i class="fas fa-exclamation-triangle"></i>
+      <span>{{ errorMessage }}</span>
+      <button class="alert-close" (click)="dismissError()">×</button>
+    </div>
+    <div class="alert-progress" *ngIf="errorMessage"></div>
   </div>
 
-  <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show mb-4">
-    <i class="fas fa-check-circle me-2"></i>
-    {{ successMessage }}
-    <button type="button" class="btn-close" (click)="dismissSuccess()"></button>
+  <div *ngIf="successMessage" class="alert-message success" [class.show]="successMessage">
+    <div class="alert-content">
+      <i class="fas fa-check-circle"></i>
+      <span>{{ successMessage }}</span>
+      <button class="alert-close" (click)="dismissSuccess()">×</button>
+    </div>
+    <div class="alert-progress" *ngIf="successMessage"></div>
   </div>
 
-  <!-- Loading -->
-  <div *ngIf="isLoading" class="text-center py-5">
-    <div class="spinner-border text-primary"></div>
-    <p class="mt-2">Cargando datos del contrato...</p>
+  <!-- Loading Mejorado -->
+  <div *ngIf="isLoading" class="loading-overlay">
+    <div class="spinner-container">
+      <div class="spinner-border text-primary"></div>
+      <p class="mt-3">Cargando datos del contrato...</p>
+    </div>
   </div>
 
-  <!-- Progress Steps -->
+  <!-- Progress Steps Mejorados -->
   <div *ngIf="!isLoading" class="progress-steps mb-4">
     <div class="step" [class.active]="pasoActual === 1" [class.completed]="pasoActual > 1">
-      <div class="step-number">1</div>
+      <div class="step-number">
+        <span *ngIf="pasoActual > 1"><i class="fas fa-check"></i></span>
+        <span *ngIf="pasoActual <= 1">1</span>
+      </div>
       <div class="step-label">Generales y Valores</div>
     </div>
-    <div class="step-connector"></div>
+    <div class="step-connector" [class.completed]="pasoActual > 2"></div>
     <div class="step" [class.active]="pasoActual === 2" [class.completed]="pasoActual > 2">
-      <div class="step-number">2</div>
-      <div class="step-label">Presupuesto, Anticipo y Polizas</div>
+      <div class="step-number">
+        <span *ngIf="pasoActual > 2"><i class="fas fa-check"></i></span>
+        <span *ngIf="pasoActual <= 2">2</span>
+      </div>
+      <div class="step-label">Presupuesto y Pólizas</div>
     </div>
-    <div class="step-connector"></div>
+    <div class="step-connector" [class.completed]="pasoActual > 3"></div>
     <div class="step" [class.active]="pasoActual === 3" [class.completed]="pasoActual > 3">
-      <div class="step-number">3</div>
+      <div class="step-number">
+        <span *ngIf="pasoActual > 3"><i class="fas fa-check"></i></span>
+        <span *ngIf="pasoActual <= 3">3</span>
+      </div>
       <div class="step-label">Documentos</div>
     </div>
   </div>
@@ -52,301 +69,324 @@
   <form *ngIf="!isLoading" [formGroup]="contratoForm" (ngSubmit)="guardarContrato()">
 
     <!-- ==================== PASO 1 ==================== -->
-    <div class="card mb-4" *ngIf="pasoActual === 1">
-      <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">1. Datos Generales y Valores del Contrato</h5>
+    <div class="card fade-in" *ngIf="pasoActual === 1">
+      <div class="card-header">
+        <i class="fas fa-info-circle me-2"></i>
+        1. Datos Generales y Valores del Contrato
+        <span class="badge step-badge">Paso 1 de 3</span>
       </div>
 
       <div class="card-body">
-        <div class="section-title mb-4">
-          <i class="fas fa-info-circle me-2"></i>
+        <!-- Sección DATOS GENERALES -->
+        <div class="section-title">
+          <i class="fas fa-building me-2"></i>
           DATOS GENERALES
-          <small class="text-muted ms-2">(La vigencia se asigna automáticamente al año actual)</small>
+          <span class="badge bg-secondary ms-2">Vigencia automática</span>
         </div>
 
-        <div class="row">
-          <div class="col-md-3 mb-3">
-            <div class="form-group-inline">
-              <label class="form-label-inline required-field">Vigencia</label>
-              <input type="text" class="form-control-inline" [value]="anioActual" [readonly]="true" [disabled]="true">
-              <input type="hidden" formControlName="vigencia">
-            </div>
-          </div>
-
-          <div class="col-md-3 mb-3">
-            <div class="form-group-inline">
-              <label class="form-label-inline required-field">Número de Contrato</label>
-              <input type="text" class="form-control-inline" formControlName="numeroContrato"
-                [ngClass]="{'is-invalid': submitted && f['numeroContrato'].errors}" placeholder="Ej: 001-2026"
-                maxlength="50" [readonly]="isEditMode || isViewMode" [disabled]="isEditMode || isViewMode"
-                (blur)="!isEditMode && buscarContratistaPorContrato()">
-              <div *ngIf="submitted && f['numeroContrato'].errors" class="invalid-feedback">
-                El número de contrato es requerido
+        <div class="row g-3">
+          <div class="col-md-3">
+            <div class="form-field">
+              <label class="field-label required">
+                <i class="fas fa-calendar-alt me-1"></i> Vigencia
+              </label>
+              <div class="field-value-auto">
+                <input type="text" class="form-control campo-bloqueado" [value]="anioActual" [readonly]="true" [disabled]="true">
+                <span class="auto-badge"><i class="fas fa-robot"></i> Auto</span>
               </div>
             </div>
           </div>
 
-          <div class="col-md-3 mb-3">
-            <div class="form-group-inline">
-              <label class="form-label-inline required-field">Tipo de Contrato</label>
-              <select class="form-control-inline" formControlName="tipoContrato"
-                [ngClass]="{'is-invalid': submitted && f['tipoContrato'].errors}" [disabled]="isViewMode">
+          <div class="col-md-3">
+            <div class="form-field">
+              <label class="field-label required">
+                <i class="fas fa-hashtag me-1"></i> Número de Contrato
+                <span *ngIf="isEditMode || isViewMode" class="badge-locked ms-1">
+                  <i class="fas fa-lock"></i> Bloqueado
+                </span>
+              </label>
+              <input type="text" class="form-control" 
+                [class.campo-bloqueado]="isEditMode || isViewMode"
+                formControlName="numeroContrato"
+                [class.is-invalid]="submitted && f['numeroContrato'].errors" 
+                placeholder="Ej: CTG-2025-001"
+                [readonly]="isEditMode || isViewMode" 
+                [disabled]="isEditMode || isViewMode"
+                (blur)="!isEditMode && buscarContratistaPorContrato()">
+              <div *ngIf="submitted && f['numeroContrato'].errors" class="invalid-feedback">
+                <i class="fas fa-exclamation-circle me-1"></i> El número de contrato es requerido
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-3">
+            <div class="form-field">
+              <label class="field-label required">
+                <i class="fas fa-tag me-1"></i> Tipo de Contrato
+              </label>
+              <select class="form-select" formControlName="tipoContrato"
+                [class.is-invalid]="submitted && f['tipoContrato'].errors" 
+                [disabled]="isViewMode">
                 <option value="">Seleccione tipo</option>
                 <option *ngFor="let tipo of tiposContrato" [value]="tipo.value">
                   {{ tipo.label }}
                 </option>
               </select>
-              <div *ngIf="submitted && f['tipoContrato'].errors" class="invalid-feedback">
-                El tipo de contrato es requerido
-              </div>
             </div>
           </div>
 
-          <div class="col-md-3 mb-3">
-            <div class="form-group-inline">
-              <label class="form-label-inline required-field">Supervisor</label>
-              <select class="form-control-inline" formControlName="supervisor"
-                [ngClass]="{'is-invalid': submitted && f['supervisor'].errors}" [disabled]="isViewMode">
+          <div class="col-md-3">
+            <div class="form-field">
+              <label class="field-label required">
+                <i class="fas fa-user-check me-1"></i> Supervisor
+              </label>
+              <select class="form-select" formControlName="supervisor"
+                [class.is-invalid]="submitted && f['supervisor'].errors" 
+                [disabled]="isViewMode">
                 <option value="">Seleccione supervisor</option>
                 <option *ngFor="let sup of supervisores" [value]="sup.id">
                   {{ sup.nombre }}
                 </option>
               </select>
-              <div *ngIf="submitted && f['supervisor'].errors" class="invalid-feedback">
-                El supervisor es requerido
+            </div>
+          </div>
+        </div>
+
+        <!-- Info Alert Mejorada -->
+        <div class="alert-info-card mb-4">
+          <div class="alert-icon">
+            <i class="fas fa-info-circle"></i>
+          </div>
+          <div class="alert-text">
+            <strong>Información:</strong> Los datos del contratista se cargarán automáticamente al ingresar el número de contrato.
+          </div>
+        </div>
+
+        
+
+        <!-- Grupo de Datos del Contratista - BLOQUEADOS -->
+        <div class="grupo-campos-bloqueados" formGroupName="proveedor">
+          <div class="grupo-header">
+            <i class="fas fa-user-tie me-2"></i>
+            DATOS DEL CONTRATISTA (Carga Automática)
+          </div>
+          <div class="row g-3">
+            <div class="col-md-2">
+              <div class="form-field">
+                <label class="field-label">Tipo ID</label>
+                <select class="form-select campo-bloqueado" formControlName="tipoIdentificacion" [disabled]="true">
+                  <option *ngFor="let tipo of tiposIdentificacion" [value]="tipo.value">{{ tipo.label }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="form-field">
+                <label class="field-label">Número</label>
+                <input type="text" class="form-control campo-bloqueado" formControlName="numeroIdentificacion" [readonly]="true" [disabled]="true">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-field">
+                <label class="field-label">Razón Social</label>
+                <input type="text" class="form-control campo-bloqueado" formControlName="nombreRazonSocial" [readonly]="true" [disabled]="true">
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="form-field">
+                <label class="field-label">Teléfono</label>
+                <input type="text" class="form-control campo-bloqueado" formControlName="telefono" [readonly]="true" [disabled]="true">
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="form-field">
+                <label class="field-label">Email</label>
+                <input type="email" class="form-control campo-bloqueado" formControlName="email" [readonly]="true" [disabled]="true">
               </div>
             </div>
           </div>
         </div>
 
-        <div class="alert alert-info mb-4">
-          <i class="fas fa-info-circle me-2"></i>
-          <strong>Información:</strong> Los datos del contratista se cargarán automáticamente al ingresar el número de contrato.
-        </div>
-
-        <div *ngIf="contratistaEncontrado" class="alert alert-success mb-4">
-          <i class="fas fa-check-circle me-2"></i>
-          Contratista encontrado: <strong>{{ contratistaEncontrado.razonSocial }}</strong> ({{ contratistaEncontrado.documentoIdentidad }})
-          <hr class="my-2">
-          <small><i class="fas fa-lock me-1"></i> Los datos del contratista han sido cargados automáticamente y no se pueden editar</small>
-        </div>
-
-        <div class="row" formGroupName="proveedor">
-          <div class="col-md-2 mb-3">
-            <div class="form-group-inline">
-              <label class="form-label-inline required-field">Tipo ID</label>
-              <select class="form-control-inline" formControlName="tipoIdentificacion" [disabled]="true">
-                <option *ngFor="let tipo of tiposIdentificacion" [value]="tipo.value">{{ tipo.label }}</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="col-md-2 mb-3">
-            <div class="form-group-inline">
-              <label class="form-label-inline required-field">Número</label>
-              <input type="text" class="form-control-inline" formControlName="numeroIdentificacion" [readonly]="true" [disabled]="true">
-            </div>
-          </div>
-
-          <div class="col-md-4 mb-3">
-            <div class="form-group-inline">
-              <label class="form-label-inline required-field">Razón Social</label>
-              <input type="text" class="form-control-inline" formControlName="nombreRazonSocial" [readonly]="true" [disabled]="true">
-            </div>
-          </div>
-
-          <div class="col-md-2 mb-3">
-            <div class="form-group-inline">
-              <label class="form-label-inline">Teléfono</label>
-              <input type="text" class="form-control-inline" formControlName="telefono" [readonly]="true" [disabled]="true">
-            </div>
-          </div>
-
-          <div class="col-md-2 mb-3">
-            <div class="form-group-inline">
-              <label class="form-label-inline">Email</label>
-              <input type="email" class="form-control-inline" formControlName="email" [readonly]="true" [disabled]="true">
-            </div>
-          </div>
-        </div>
-
-        <div class="mt-4">
-          <div class="form-group-vertical">
-            <label class="form-label required-field">Objeto del Contrato</label>
-            <textarea class="form-control" formControlName="objeto" rows="4" [readonly]="true" [disabled]="true"></textarea>
-          </div>
+        <!-- Objeto del Contrato -->
+        <div class="form-field mb-4">
+          <label class="field-label required">
+            <i class="fas fa-file-alt me-1"></i> Objeto del Contrato
+            <span class="badge-locked ms-1"><i class="fas fa-sync-alt"></i> Carga automática</span>
+          </label>
+          <textarea class="form-control campo-bloqueado" formControlName="objeto" rows="3" [readonly]="true" [disabled]="true"></textarea>
+          <small class="text-muted"><i class="fas fa-info-circle me-1"></i> Este objeto se carga desde el objetivo del contratista</small>
         </div>
 
         <hr class="my-4">
 
-        <div class="section-title mb-4">
+        <!-- Sección VALORES -->
+        <div class="section-title">
           <i class="fas fa-chart-line me-2"></i>
           VALORES Y PLAZOS DE EJECUCIÓN
         </div>
 
-        <div class="row">
-          <div class="col-md-4 mb-3">
-            <div class="form-group-inline">
-              <label class="form-label-inline required-field">Valor del Contrato</label>
-              <div class="input-group-inline">
-                <span class="input-group-text-inline">$</span>
-                <input type="text" class="form-control-inline text-end" formControlName="valor"
-                  [ngClass]="{'is-invalid': submitted && f['valor'].errors}" placeholder="0"
+        <div class="row g-3">
+          <div class="col-md-4">
+            <div class="form-field">
+              <label class="field-label required">
+                <i class="fas fa-dollar-sign me-1"></i> Valor del Contrato
+              </label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="text" class="form-control text-end" formControlName="valor"
+                  [class.is-invalid]="submitted && f['valor'].errors" 
+                  placeholder="0"
                   (input)="formatearValor('valor')" (blur)="formatearValor('valor')">
               </div>
-              <div *ngIf="submitted && f['valor'].errors" class="invalid-feedback d-block">
-                El valor es requerido y debe ser mayor a 0
-              </div>
-              <small class="text-muted" *ngIf="valorNumerico > 0">{{ convertirAPalabras(valorNumerico) }}</small>
+              <small class="text-success" *ngIf="valorNumerico > 0">
+                <i class="fas fa-language me-1"></i> {{ convertirAPalabras(valorNumerico) }}
+              </small>
             </div>
           </div>
 
-          <div class="col-md-4 mb-3">
-            <div class="form-group-inline">
-              <label class="form-label-inline required-field">Plazo (días)</label>
-              <input type="number" class="form-control-inline" formControlName="plazoDias"
-                [ngClass]="{'is-invalid': submitted && f['plazoDias'].errors}" placeholder="Días de ejecución" min="1" max="9999">
-              <div *ngIf="submitted && f['plazoDias'].errors" class="invalid-feedback">
-                El plazo es requerido y debe ser mayor a 0
-              </div>
+          <div class="col-md-4">
+            <div class="form-field">
+              <label class="field-label required">
+                <i class="fas fa-clock me-1"></i> Plazo (días)
+              </label>
+              <input type="number" class="form-control" formControlName="plazoDias"
+                [class.is-invalid]="submitted && f['plazoDias'].errors" 
+                placeholder="Días de ejecución" min="1">
             </div>
           </div>
 
-          <div class="col-md-4 mb-3">
-            <div class="form-group-inline">
-              <label class="form-label-inline required-field">Fecha de Inicio</label>
-              <input type="date" class="form-control-inline" formControlName="fechaInicio"
-                [ngClass]="{'is-invalid': submitted && f['fechaInicio'].errors}">
-              <div *ngIf="submitted && f['fechaInicio'].errors" class="invalid-feedback">
-                La fecha de inicio es requerida
-              </div>
+          <div class="col-md-4">
+            <div class="form-field">
+              <label class="field-label required">
+                <i class="fas fa-calendar-day me-1"></i> Fecha de Inicio
+              </label>
+              <input type="date" class="form-control" formControlName="fechaInicio"
+                [class.is-invalid]="submitted && f['fechaInicio'].errors">
             </div>
           </div>
 
-          <div class="col-md-4 mb-3">
-            <div class="form-group-inline">
-              <label class="form-label-inline required-field">Fecha de Terminación</label>
-              <input type="date" class="form-control-inline" formControlName="fechaTerminacion" [readonly]="true">
+          <div class="col-md-4">
+            <div class="form-field">
+              <label class="field-label required">
+                <i class="fas fa-calendar-week me-1"></i> Fecha de Terminación
+              </label>
+              <div class="field-value-auto">
+                <input type="date" class="form-control campo-bloqueado" formControlName="fechaTerminacion" [readonly]="true">
+                <span class="auto-badge"><i class="fas fa-calculator"></i> Auto</span>
+              </div>
               <small class="text-muted">Calculada automáticamente</small>
             </div>
           </div>
 
-          <div class="col-md-4 mb-3">
-            <div class="form-group-inline">
-              <label class="form-label-inline required-field">Fecha de Firma</label>
-              <input type="date" class="form-control-inline" formControlName="fechaFirma"
-                [ngClass]="{'is-invalid': submitted && f['fechaFirma'].errors}">
-              <div *ngIf="submitted && f['fechaFirma'].errors" class="invalid-feedback">
-                La fecha de firma es requerida
-              </div>
+          <div class="col-md-4">
+            <div class="form-field">
+              <label class="field-label required">
+                <i class="fas fa-signature me-1"></i> Fecha de Firma
+              </label>
+              <input type="date" class="form-control" formControlName="fechaFirma"
+                [class.is-invalid]="submitted && f['fechaFirma'].errors">
             </div>
           </div>
         </div>
       </div>
 
-      <div class="card-footer text-end">
-        <button type="button" class="btn btn-primary px-4" (click)="siguientePaso()">
+      <div class="card-footer">
+        <button type="button" class="btn btn-primary" (click)="siguientePaso()">
           Siguiente <i class="fas fa-arrow-right ms-2"></i>
         </button>
       </div>
     </div>
 
     <!-- ==================== PASO 2 ==================== -->
-    <div class="card mb-4" *ngIf="pasoActual === 2">
-      <div class="card-header bg-info text-white">
-        <h5 class="mb-0">2. Información Presupuestal, Anticipo y Pólizas</h5>
+    <div class="card fade-in" *ngIf="pasoActual === 2">
+      <div class="card-header bg-info">
+        <i class="fas fa-chart-pie me-2"></i>
+        2. Información Presupuestal, Anticipo y Pólizas
+        <span class="badge step-badge">Paso 2 de 3</span>
       </div>
 
       <div class="card-body">
-        <!-- CDP -->
-        <div class="section-title mb-4">
+        <!-- Certificados Presupuestales -->
+        <div class="section-title">
           <i class="fas fa-file-invoice-dollar me-2"></i>
           CERTIFICADOS PRESUPUESTALES
         </div>
 
-        <div class="row g-4 mb-4">
+        <div class="row g-4">
           <div class="col-md-6">
-            <div class="form-group-inline mb-3">
-              <label class="form-label-inline">Número CDP</label>
-              <input type="text" class="form-control-inline" formControlName="cdp" placeholder="Ej: CDP-2025-000123" maxlength="50">
+            <div class="form-field mb-3">
+              <label class="field-label">Número CDP</label>
+              <input type="text" class="form-control" formControlName="cdp" placeholder="Ej: CDP-2025-000123">
             </div>
             
             <div class="document-card">
               <div class="document-card-header">
-                <i class="fas fa-file-invoice-dollar me-2"></i>
+                <i class="fas fa-file-pdf text-danger"></i>
                 <span>CDP - Certificado de Disponibilidad Presupuestal</span>
               </div>
               <div class="document-card-body">
-                <div *ngIf="archivos['CDP'].fileName" class="document-preview mb-3">
-                  <div class="document-info">
-                    <i class="fas fa-file-pdf text-danger me-2" style="font-size: 2rem;"></i>
-                    <span class="document-name">{{ archivos['CDP'].fileName }}</span>
-                    <div class="document-actions mt-2">
-                      <button type="button" class="btn-doc btn-view" (click)="verDocumento('CDP')">
-                        <i class="fas fa-eye"></i> Ver
-                      </button>
-                      <button type="button" class="btn-doc btn-download" (click)="descargarDocumento('CDP')">
-                        <i class="fas fa-download"></i> Descargar
-                      </button>
-                      <button type="button" class="btn-doc btn-edit" (click)="toggleUpload('CDP')">
-                        <i class="fas fa-edit"></i> Editar
-                      </button>
-                    </div>
+                <div *ngIf="archivos['CDP'].fileName" class="file-preview">
+                  <i class="fas fa-file-pdf text-danger fa-2x"></i>
+                  <span class="file-name">{{ archivos['CDP'].fileName }}</span>
+                  <div class="file-actions">
+                    <button type="button" class="btn-icon btn-view" (click)="verDocumento('CDP')" title="Ver">
+                      <i class="fas fa-eye"></i>
+                    </button>
+                    <button type="button" class="btn-icon btn-download" (click)="descargarDocumento('CDP')" title="Descargar">
+                      <i class="fas fa-download"></i>
+                    </button>
+                    <button type="button" class="btn-icon btn-edit" (click)="toggleUpload('CDP')" title="Cambiar">
+                      <i class="fas fa-edit"></i>
+                    </button>
                   </div>
                 </div>
                 
-                <div *ngIf="!archivos['CDP'].fileName || archivos['CDP'].mostrarUpload" class="upload-container" [class.invalid]="submitted && archivos['CDP'].error">
-                  <input type="file" class="file-input" #fileInputCDP (change)="onFileSelected($event, 'CDP')" accept=".pdf">
-                  <label class="upload-label" (click)="triggerFileInput('CDP')">
+                <div *ngIf="!archivos['CDP'].fileName || archivos['CDP'].mostrarUpload" class="upload-area">
+                  <input type="file" #fileInputCDP (change)="onFileSelected($event, 'CDP')" accept=".pdf">
+                  <label class="upload-btn" (click)="triggerFileInput('CDP')">
                     <i class="fas fa-cloud-upload-alt me-2"></i>
                     {{ archivos['CDP'].fileName ? 'Cambiar archivo' : 'Seleccionar archivo PDF' }}
                   </label>
-                  <small class="text-muted d-block mt-1">Máximo 5 MB - Solo PDF</small>
-                  <div *ngIf="submitted && archivos['CDP'].error" class="text-danger mt-1 small">{{ archivos['CDP'].error }}</div>
+                  <small class="text-muted">Máximo 5 MB - Solo PDF</small>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- RP -->
           <div class="col-md-6">
-            <div class="form-group-inline mb-3">
-              <label class="form-label-inline">Número RP</label>
-              <input type="text" class="form-control-inline" formControlName="rp" placeholder="Ej: RP-2025-000456" maxlength="50">
+            <div class="form-field mb-3">
+              <label class="field-label">Número RP</label>
+              <input type="text" class="form-control" formControlName="rp" placeholder="Ej: RP-2025-000456">
             </div>
             
             <div class="document-card">
               <div class="document-card-header">
-                <i class="fas fa-file-invoice-dollar me-2"></i>
+                <i class="fas fa-file-pdf text-danger"></i>
                 <span>RP - Registro Presupuestal</span>
               </div>
               <div class="document-card-body">
-                <div *ngIf="archivos['RP'].fileName" class="document-preview mb-3">
-                  <div class="document-info">
-                    <i class="fas fa-file-pdf text-danger me-2" style="font-size: 2rem;"></i>
-                    <span class="document-name">{{ archivos['RP'].fileName }}</span>
-                    <div class="document-actions mt-2">
-                      <button type="button" class="btn-doc btn-view" (click)="verDocumento('RP')">
-                        <i class="fas fa-eye"></i> Ver
-                      </button>
-                      <button type="button" class="btn-doc btn-download" (click)="descargarDocumento('RP')">
-                        <i class="fas fa-download"></i> Descargar
-                      </button>
-                      <button type="button" class="btn-doc btn-edit" (click)="toggleUpload('RP')">
-                        <i class="fas fa-edit"></i> Editar
-                      </button>
-                    </div>
+                <div *ngIf="archivos['RP'].fileName" class="file-preview">
+                  <i class="fas fa-file-pdf text-danger fa-2x"></i>
+                  <span class="file-name">{{ archivos['RP'].fileName }}</span>
+                  <div class="file-actions">
+                    <button type="button" class="btn-icon btn-view" (click)="verDocumento('RP')" title="Ver">
+                      <i class="fas fa-eye"></i>
+                    </button>
+                    <button type="button" class="btn-icon btn-download" (click)="descargarDocumento('RP')" title="Descargar">
+                      <i class="fas fa-download"></i>
+                    </button>
+                    <button type="button" class="btn-icon btn-edit" (click)="toggleUpload('RP')" title="Cambiar">
+                      <i class="fas fa-edit"></i>
+                    </button>
                   </div>
                 </div>
                 
-                <div *ngIf="!archivos['RP'].fileName || archivos['RP'].mostrarUpload" class="upload-container" [class.invalid]="submitted && archivos['RP'].error">
-                  <input type="file" class="file-input" #fileInputRP (change)="onFileSelected($event, 'RP')" accept=".pdf">
-                  <label class="upload-label" (click)="triggerFileInput('RP')">
+                <div *ngIf="!archivos['RP'].fileName || archivos['RP'].mostrarUpload" class="upload-area">
+                  <input type="file" #fileInputRP (change)="onFileSelected($event, 'RP')" accept=".pdf">
+                  <label class="upload-btn" (click)="triggerFileInput('RP')">
                     <i class="fas fa-cloud-upload-alt me-2"></i>
                     {{ archivos['RP'].fileName ? 'Cambiar archivo' : 'Seleccionar archivo PDF' }}
                   </label>
-                  <small class="text-muted d-block mt-1">Máximo 5 MB - Solo PDF</small>
-                  <div *ngIf="submitted && archivos['RP'].error" class="text-danger mt-1 small">{{ archivos['RP'].error }}</div>
+                  <small class="text-muted">Máximo 5 MB - Solo PDF</small>
                 </div>
               </div>
             </div>
@@ -356,55 +396,58 @@
         <hr class="my-4">
 
         <!-- Anticipo -->
-        <div class="section-title mb-4">
+        <div class="section-title">
           <i class="fas fa-money-bill-wave me-2"></i>
           ANTICIPO
         </div>
 
-        <div class="form-check mb-4">
-          <input class="form-check-input" type="checkbox" formControlName="seDesembolsaAnticipo" id="anticipoCheck">
-          <label class="form-check-label fw-bold" for="anticipoCheck">¿Se desembolsa anticipo?</label>
+        <div class="checkbox-card mb-4">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" role="switch" 
+              formControlName="seDesembolsaAnticipo" id="anticipoCheck">
+            <label class="form-check-label fw-bold" for="anticipoCheck">
+              <i class="fas fa-hand-holding-usd me-2"></i>
+              ¿Se desembolsa anticipo?
+            </label>
+          </div>
         </div>
 
-        <div *ngIf="contratoForm.get('seDesembolsaAnticipo')?.value" class="anticipo-fields mb-4">
-          <div class="row">
-            <div class="col-md-4 mb-3">
-              <div class="form-group-inline">
-                <label class="form-label-inline required-field">% Anticipo</label>
-                <div class="input-group-inline">
-                  <input type="number" class="form-control-inline" formControlName="porcentajeAnticipo" placeholder="0" min="1" max="100">
-                  <span class="input-group-text-inline">%</span>
+        <div *ngIf="contratoForm.get('seDesembolsaAnticipo')?.value" class="anticipo-fields mb-4 p-3 bg-light rounded">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <div class="form-field">
+                <label class="field-label required">% Anticipo</label>
+                <div class="input-group">
+                  <input type="number" class="form-control" formControlName="porcentajeAnticipo" min="1" max="100">
+                  <span class="input-group-text">%</span>
                 </div>
               </div>
             </div>
-
-            <div class="col-md-4 mb-3">
-              <div class="form-group-inline">
-                <label class="form-label-inline">Valor Anticipo</label>
-                <div class="input-group-inline">
-                  <span class="input-group-text-inline">$</span>
-                  <input type="text" class="form-control-inline text-end" formControlName="valorAnticipo" [readonly]="true">
+            <div class="col-md-4">
+              <div class="form-field">
+                <label class="field-label">Valor Anticipo</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input type="text" class="form-control campo-bloqueado text-end" formControlName="valorAnticipo" [readonly]="true">
                 </div>
-                <small class="text-muted" *ngIf="valorAnticipoNumerico > 0">{{ convertirAPalabras(valorAnticipoNumerico) }}</small>
               </div>
             </div>
-
-            <div class="col-md-4 mb-3">
-              <div class="form-group-inline">
-                <label class="form-label-inline required-field">Fecha Desembolso</label>
-                <input type="date" class="form-control-inline" formControlName="fechaDesembolsoAnticipo">
+            <div class="col-md-4">
+              <div class="form-field">
+                <label class="field-label required">Fecha Desembolso</label>
+                <input type="date" class="form-control" formControlName="fechaDesembolsoAnticipo">
               </div>
             </div>
           </div>
         </div>
 
         <div class="row">
-          <div class="col-md-6 mb-3">
-            <div class="form-group-inline">
-              <label class="form-label-inline">Adiciones (Valor)</label>
-              <div class="input-group-inline">
-                <span class="input-group-text-inline">$</span>
-                <input type="text" class="form-control-inline text-end" formControlName="adiciones" placeholder="0"
+          <div class="col-md-6">
+            <div class="form-field">
+              <label class="field-label">Adiciones (Valor)</label>
+              <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="text" class="form-control text-end" formControlName="adiciones" placeholder="0"
                   (input)="formatearValor('adiciones')" (blur)="formatearValor('adiciones')">
               </div>
               <small class="text-muted">Inicialmente 0, se puede modificar después</small>
@@ -412,36 +455,28 @@
           </div>
         </div>
 
-        <!-- Resumen Financiero -->
-        <div class="resumen-financiero mt-4 p-4 rounded">
-          <h6 class="text-white mb-3"><i class="fas fa-chart-line me-2"></i>Resumen Financiero</h6>
-          <div class="row">
-            <div class="col-md-6">
-              <div class="d-flex justify-content-between mb-2">
-                <span class="text-white-50">Valor Inicial:</span>
-                <span class="text-white fw-bold">{{ valorInicialFormateado }}</span>
-              </div>
-              <div class="d-flex justify-content-between mb-2">
-                <span class="text-white-50">Adiciones:</span>
-                <span class="text-white fw-bold">{{ adicionesFormateado }}</span>
-              </div>
-              <hr class="bg-white">
-              <div class="d-flex justify-content-between">
-                <span class="text-white fw-bold">Valor Total:</span>
-                <span class="text-white fw-bold fs-5">{{ valorTotalFormateado }}</span>
-              </div>
-              <div class="mt-2"><small class="text-white-50">{{ convertirAPalabras(valorTotalNumerico) }}</small></div>
+        <!-- Resumen Financiero Mejorado -->
+        <div class="resumen-financiero mt-4">
+          <div class="resumen-header">
+            <i class="fas fa-chart-line me-2"></i>
+            <h6 class="mb-0">Resumen Financiero</h6>
+          </div>
+          <div class="resumen-body">
+            <div class="resumen-item">
+              <span>Valor Inicial:</span>
+              <strong>$ {{ valorInicialFormateado }}</strong>
             </div>
-            <div class="col-md-6" *ngIf="contratoForm.get('seDesembolsaAnticipo')?.value">
-              <div class="d-flex justify-content-between mb-2">
-                <span class="text-white-50">Anticipo:</span>
-                <span class="text-white">{{ contratoForm.get('porcentajeAnticipo')?.value }}%</span>
-              </div>
-              <div class="d-flex justify-content-between">
-                <span class="text-white-50">Valor Anticipo:</span>
-                <span class="text-white">{{ valorAnticipoFormateado }}</span>
-              </div>
-              <div class="mt-2"><small class="text-white-50">{{ convertirAPalabras(valorAnticipoNumerico) }}</small></div>
+            <div class="resumen-item">
+              <span>Adiciones:</span>
+              <strong>$ {{ adicionesFormateado }}</strong>
+            </div>
+            <div class="resumen-divider"></div>
+            <div class="resumen-item total">
+              <span>Valor Total:</span>
+              <strong>$ {{ valorTotalFormateado }}</strong>
+            </div>
+            <div class="resumen-texto">
+              <small>{{ convertirAPalabras(valorTotalNumerico) }}</small>
             </div>
           </div>
         </div>
@@ -449,239 +484,69 @@
         <hr class="my-4">
 
         <!-- Pólizas -->
-        <div class="section-title mb-4">
+        <div class="section-title">
           <i class="fas fa-shield-alt me-2"></i>
           PÓLIZAS Y GARANTÍAS
         </div>
 
-        <div class="form-check mb-4">
-          <input class="form-check-input" type="checkbox" formControlName="requierePolizas" id="polizasCheck">
-          <label class="form-check-label fw-bold" for="polizasCheck">¿El contrato requiere pólizas?</label>
+        <div class="checkbox-card mb-4">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" role="switch" 
+              formControlName="requierePolizas" id="polizasCheck">
+            <label class="form-check-label fw-bold" for="polizasCheck">
+              <i class="fas fa-shield-virus me-2"></i>
+              ¿El contrato requiere pólizas?
+            </label>
+          </div>
         </div>
 
-        <div *ngIf="contratoForm.get('requierePolizas')?.value" class="polizas-fields">
+        <div *ngIf="contratoForm.get('requierePolizas')?.value" class="polizas-container">
           <!-- Póliza de Cumplimiento -->
           <div class="document-card mb-4">
             <div class="document-card-header">
-              <i class="fas fa-shield-alt me-2"></i>
+              <i class="fas fa-shield-alt"></i>
               <span>Póliza de Cumplimiento</span>
-              <span class="badge bg-danger ms-2">* Requerido</span>
+              <span class="badge bg-danger">Requerido</span>
             </div>
             <div class="document-card-body">
-              <div class="row">
-                <div class="col-md-6 mb-3">
-                  <div class="form-group-inline">
-                    <label class="form-label-inline required-field">Número de Póliza</label>
-                    <input type="text" class="form-control-inline" formControlName="polizaCumplimientoNumero" placeholder="Número de póliza" maxlength="50">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <input type="text" class="form-control" formControlName="polizaCumplimientoNumero" 
+                    placeholder="Número de póliza">
+                </div>
+                <div class="col-md-6">
+                  <select class="form-select" formControlName="polizaCumplimientoAseguradora">
+                    <option value="">Seleccione aseguradora</option>
+                    <option *ngFor="let aseguradora of aseguradoras" [value]="aseguradora">{{ aseguradora }}</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="text" class="form-control text-end" formControlName="polizaCumplimientoValor"
+                      placeholder="Valor asegurado">
                   </div>
                 </div>
-
-                <div class="col-md-6 mb-3">
-                  <div class="form-group-inline">
-                    <label class="form-label-inline required-field">Aseguradora</label>
-                    <select class="form-control-inline" formControlName="polizaCumplimientoAseguradora">
-                      <option value="">Seleccione aseguradora</option>
-                      <option *ngFor="let aseguradora of aseguradoras" [value]="aseguradora">{{ aseguradora }}</option>
-                    </select>
-                  </div>
+                <div class="col-md-4">
+                  <input type="date" class="form-control" formControlName="polizaCumplimientoVigenciaDesde"
+                    placeholder="Vigencia desde">
                 </div>
-
-                <div class="col-md-4 mb-3">
-                  <div class="form-group-inline">
-                    <label class="form-label-inline required-field">Valor Asegurado</label>
-                    <div class="input-group-inline">
-                      <span class="input-group-text-inline">$</span>
-                      <input type="text" class="form-control-inline text-end" formControlName="polizaCumplimientoValor"
-                        placeholder="0" (input)="formatearValor('polizaCumplimientoValor')" (blur)="formatearValor('polizaCumplimientoValor')">
-                    </div>
-                  </div>
-                </div>
-
-                <div class="col-md-4 mb-3">
-                  <div class="form-group-inline">
-                    <label class="form-label-inline required-field">Vigencia Desde</label>
-                    <input type="date" class="form-control-inline" formControlName="polizaCumplimientoVigenciaDesde">
-                  </div>
-                </div>
-
-                <div class="col-md-4 mb-3">
-                  <div class="form-group-inline">
-                    <label class="form-label-inline required-field">Vigencia Hasta</label>
-                    <input type="date" class="form-control-inline" formControlName="polizaCumplimientoVigenciaHasta">
-                  </div>
+                <div class="col-md-4">
+                  <input type="date" class="form-control" formControlName="polizaCumplimientoVigenciaHasta"
+                    placeholder="Vigencia hasta">
                 </div>
               </div>
-
-              <div *ngIf="archivos['POLIZA_CUMPLIMIENTO'].fileName" class="document-preview mb-3">
-                <div class="document-info">
-                  <i class="fas fa-file-pdf text-danger me-2" style="font-size: 2rem;"></i>
-                  <span class="document-name">{{ archivos['POLIZA_CUMPLIMIENTO'].fileName }}</span>
-                  <div class="document-actions mt-2">
-                    <button type="button" class="btn-doc btn-view" (click)="verDocumento('POLIZA_CUMPLIMIENTO')">
-                      <i class="fas fa-eye"></i> Ver
-                    </button>
-                    <button type="button" class="btn-doc btn-download" (click)="descargarDocumento('POLIZA_CUMPLIMIENTO')">
-                      <i class="fas fa-download"></i> Descargar
-                    </button>
-                    <button type="button" class="btn-doc btn-edit" (click)="toggleUpload('POLIZA_CUMPLIMIENTO')">
-                      <i class="fas fa-edit"></i> Editar
-                    </button>
-                  </div>
+              <div class="mt-3">
+                <div *ngIf="archivos['POLIZA_CUMPLIMIENTO'].fileName" class="file-preview small">
+                  <i class="fas fa-file-pdf text-danger"></i>
+                  <span>{{ archivos['POLIZA_CUMPLIMIENTO'].fileName }}</span>
                 </div>
-              </div>
-              
-              <div *ngIf="!archivos['POLIZA_CUMPLIMIENTO'].fileName || archivos['POLIZA_CUMPLIMIENTO'].mostrarUpload" class="upload-container" [class.invalid]="submitted && archivos['POLIZA_CUMPLIMIENTO'].error">
-                <input type="file" class="file-input" #fileInputPolizaCumplimiento (change)="onFileSelected($event, 'POLIZA_CUMPLIMIENTO')" accept=".pdf">
-                <label class="upload-label" (click)="triggerFileInput('POLIZA_CUMPLIMIENTO')">
-                  <i class="fas fa-cloud-upload-alt me-2"></i>
-                  {{ archivos['POLIZA_CUMPLIMIENTO'].fileName ? 'Cambiar archivo' : 'Seleccionar archivo PDF' }}
-                </label>
-                <small class="text-muted d-block mt-1">Máximo 5 MB - Solo PDF</small>
-                <div *ngIf="submitted && archivos['POLIZA_CUMPLIMIENTO'].error" class="text-danger mt-1 small">{{ archivos['POLIZA_CUMPLIMIENTO'].error }}</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Póliza de Calidad -->
-          <div class="sub-card mb-4">
-            <div class="sub-card-header">
-              <i class="fas fa-check-circle me-2"></i>
-              Póliza de Calidad <span class="badge bg-secondary ms-2">Opcional</span>
-            </div>
-            <div class="sub-card-body">
-              <div class="form-check mb-3">
-                <input class="form-check-input" type="checkbox" formControlName="requierePolizaCalidad" id="polizaCalidadCheck">
-                <label class="form-check-label" for="polizaCalidadCheck">Requiere póliza de calidad</label>
-              </div>
-
-              <div *ngIf="contratoForm.get('requierePolizaCalidad')?.value">
-                <div class="row">
-                  <div class="col-md-6 mb-3">
-                    <div class="form-group-inline">
-                      <label class="form-label-inline">Número de Póliza</label>
-                      <input type="text" class="form-control-inline" formControlName="polizaCalidadNumero" placeholder="Número de póliza" maxlength="50">
-                    </div>
-                  </div>
-
-                  <div class="col-md-6 mb-3">
-                    <div class="form-group-inline">
-                      <label class="form-label-inline">Aseguradora</label>
-                      <select class="form-control-inline" formControlName="polizaCalidadAseguradora">
-                        <option value="">Seleccione aseguradora</option>
-                        <option *ngFor="let aseguradora of aseguradoras" [value]="aseguradora">{{ aseguradora }}</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div class="col-md-4 mb-3">
-                    <div class="form-group-inline">
-                      <label class="form-label-inline">Valor Asegurado</label>
-                      <div class="input-group-inline">
-                        <span class="input-group-text-inline">$</span>
-                        <input type="text" class="form-control-inline text-end" formControlName="polizaCalidadValor"
-                          placeholder="0" (input)="formatearValor('polizaCalidadValor')" (blur)="formatearValor('polizaCalidadValor')">
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="col-md-4 mb-3">
-                    <div class="form-group-inline">
-                      <label class="form-label-inline">Vigencia Desde</label>
-                      <input type="date" class="form-control-inline" formControlName="polizaCalidadVigenciaDesde">
-                    </div>
-                  </div>
-
-                  <div class="col-md-4 mb-3">
-                    <div class="form-group-inline">
-                      <label class="form-label-inline">Vigencia Hasta</label>
-                      <input type="date" class="form-control-inline" formControlName="polizaCalidadVigenciaHasta">
-                    </div>
-                  </div>
-                </div>
-
-                <div class="upload-container mt-2">
-                  <input type="file" class="file-input" #fileInputPolizaCalidad (change)="onFileSelected($event, 'POLIZA_CALIDAD')" accept=".pdf">
-                  <label class="upload-label" (click)="triggerFileInput('POLIZA_CALIDAD')">
-                    <i class="fas fa-cloud-upload-alt me-2"></i>
-                    {{ archivos['POLIZA_CALIDAD'].fileName ? 'Cambiar archivo' : 'Seleccionar archivo PDF' }}
+                <div class="upload-area small">
+                  <input type="file" #fileInputPolizaCumplimiento (change)="onFileSelected($event, 'POLIZA_CUMPLIMIENTO')" accept=".pdf">
+                  <label class="upload-btn-sm" (click)="triggerFileInput('POLIZA_CUMPLIMIENTO')">
+                    <i class="fas fa-cloud-upload-alt me-1"></i>
+                    {{ archivos['POLIZA_CUMPLIMIENTO'].fileName ? 'Cambiar PDF' : 'Subir PDF' }}
                   </label>
-                  <small class="text-muted d-block mt-1">Máximo 5 MB - Solo PDF</small>
-                  <div *ngIf="archivos['POLIZA_CALIDAD'].fileName" class="file-name mt-2 text-success">
-                    <i class="fas fa-file-pdf me-2"></i>{{ archivos['POLIZA_CALIDAD'].fileName }}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Póliza de Responsabilidad Civil -->
-          <div class="sub-card mb-4">
-            <div class="sub-card-header">
-              <i class="fas fa-gavel me-2"></i>
-              Póliza de Responsabilidad Civil Extracontractual
-              <span class="badge bg-secondary ms-2">Opcional</span>
-            </div>
-            <div class="sub-card-body">
-              <div class="form-check mb-3">
-                <input class="form-check-input" type="checkbox" formControlName="requierePolizaRC" id="polizaRCCheck">
-                <label class="form-check-label" for="polizaRCCheck">Requiere póliza de responsabilidad civil</label>
-              </div>
-
-              <div *ngIf="contratoForm.get('requierePolizaRC')?.value">
-                <div class="row">
-                  <div class="col-md-6 mb-3">
-                    <div class="form-group-inline">
-                      <label class="form-label-inline">Número de Póliza</label>
-                      <input type="text" class="form-control-inline" formControlName="polizaRCNumero" placeholder="Número de póliza" maxlength="50">
-                    </div>
-                  </div>
-
-                  <div class="col-md-6 mb-3">
-                    <div class="form-group-inline">
-                      <label class="form-label-inline">Aseguradora</label>
-                      <select class="form-control-inline" formControlName="polizaRCAseguradora">
-                        <option value="">Seleccione aseguradora</option>
-                        <option *ngFor="let aseguradora of aseguradoras" [value]="aseguradora">{{ aseguradora }}</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div class="col-md-4 mb-3">
-                    <div class="form-group-inline">
-                      <label class="form-label-inline">Valor Asegurado</label>
-                      <div class="input-group-inline">
-                        <span class="input-group-text-inline">$</span>
-                        <input type="text" class="form-control-inline text-end" formControlName="polizaRCValor"
-                          placeholder="0" (input)="formatearValor('polizaRCValor')" (blur)="formatearValor('polizaRCValor')">
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="col-md-4 mb-3">
-                    <div class="form-group-inline">
-                      <label class="form-label-inline">Vigencia Desde</label>
-                      <input type="date" class="form-control-inline" formControlName="polizaRCVigenciaDesde">
-                    </div>
-                  </div>
-
-                  <div class="col-md-4 mb-3">
-                    <div class="form-group-inline">
-                      <label class="form-label-inline">Vigencia Hasta</label>
-                      <input type="date" class="form-control-inline" formControlName="polizaRCVigenciaHasta">
-                    </div>
-                  </div>
-                </div>
-
-                <div class="upload-container mt-2">
-                  <input type="file" class="file-input" #fileInputPolizaRC (change)="onFileSelected($event, 'POLIZA_RC')" accept=".pdf">
-                  <label class="upload-label" (click)="triggerFileInput('POLIZA_RC')">
-                    <i class="fas fa-cloud-upload-alt me-2"></i>
-                    {{ archivos['POLIZA_RC'].fileName ? 'Cambiar archivo' : 'Seleccionar archivo PDF' }}
-                  </label>
-                  <small class="text-muted d-block mt-1">Máximo 5 MB - Solo PDF</small>
-                  <div *ngIf="archivos['POLIZA_RC'].fileName" class="file-name mt-2 text-success">
-                    <i class="fas fa-file-pdf me-2"></i>{{ archivos['POLIZA_RC'].fileName }}
-                  </div>
                 </div>
               </div>
             </div>
@@ -690,14 +555,14 @@
       </div>
 
       <div class="card-footer d-flex justify-content-between">
-        <button type="button" class="btn btn-outline-secondary px-4" (click)="pasoAnterior()">
+        <button type="button" class="btn btn-outline-secondary" (click)="pasoAnterior()">
           <i class="fas fa-arrow-left me-2"></i> Anterior
         </button>
         <div>
-          <button type="button" class="btn btn-outline-danger me-2 px-4" (click)="cancelar()">
+          <button type="button" class="btn btn-outline-danger me-2" (click)="cancelar()">
             <i class="fas fa-times me-2"></i> Cancelar
           </button>
-          <button type="button" class="btn btn-primary px-4" (click)="siguientePaso()">
+          <button type="button" class="btn btn-primary" (click)="siguientePaso()">
             Siguiente <i class="fas fa-arrow-right ms-2"></i>
           </button>
         </div>
@@ -705,58 +570,61 @@
     </div>
 
     <!-- ==================== PASO 3 ==================== -->
-    <div class="card mb-4" *ngIf="pasoActual === 3">
-      <div class="card-header bg-success text-white">
-        <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>3. Documentos del Contrato y Contratista</h5>
+    <div class="card fade-in" *ngIf="pasoActual === 3">
+      <div class="card-header bg-success">
+        <i class="fas fa-file-alt me-2"></i>
+        3. Documentos del Contrato y Contratista
+        <span class="badge step-badge">Paso 3 de 3</span>
       </div>
 
       <div class="card-body">
-        <div class="alert alert-info mb-4">
-          <i class="fas fa-info-circle me-2"></i>
-          Esta sección muestra los documentos asociados al contrato y al contratista.
+        <div class="alert-info-card mb-4">
+          <div class="alert-icon">
+            <i class="fas fa-info-circle"></i>
+          </div>
+          <div class="alert-text">
+            Esta sección muestra los documentos asociados al contrato y al contratista.
+          </div>
         </div>
 
-        <div class="section-title mb-4">
+        <div class="section-title">
           <i class="fas fa-file-contract me-2"></i>
           DOCUMENTOS PRINCIPALES DEL CONTRATO
         </div>
 
-        <div class="row g-4 mb-4">
+        <div class="row g-4">
           <!-- MINUTA -->
           <div class="col-md-6">
             <div class="document-card">
               <div class="document-card-header">
-                <i class="fas fa-gavel me-2"></i>
+                <i class="fas fa-gavel"></i>
                 <span>Minuta de Contrato</span>
-                <span class="badge bg-danger ms-2">* Requerido</span>
+                <span class="badge bg-danger">Requerido</span>
               </div>
               <div class="document-card-body">
-                <div *ngIf="archivos['MINUTA'].fileName" class="document-preview mb-3">
-                  <div class="document-info">
-                    <i class="fas fa-file-pdf text-danger me-2" style="font-size: 2rem;"></i>
-                    <span class="document-name">{{ archivos['MINUTA'].fileName }}</span>
-                    <div class="document-actions mt-2">
-                      <button type="button" class="btn-doc btn-view" (click)="verDocumento('MINUTA')">
-                        <i class="fas fa-eye"></i> Ver
-                      </button>
-                      <button type="button" class="btn-doc btn-download" (click)="descargarDocumento('MINUTA')">
-                        <i class="fas fa-download"></i> Descargar
-                      </button>
-                      <button type="button" class="btn-doc btn-edit" (click)="toggleUpload('MINUTA')">
-                        <i class="fas fa-edit"></i> Editar
-                      </button>
-                    </div>
+                <div *ngIf="archivos['MINUTA'].fileName" class="file-preview">
+                  <i class="fas fa-file-pdf text-danger fa-2x"></i>
+                  <span class="file-name">{{ archivos['MINUTA'].fileName }}</span>
+                  <div class="file-actions">
+                    <button type="button" class="btn-icon btn-view" (click)="verDocumento('MINUTA')" title="Ver">
+                      <i class="fas fa-eye"></i>
+                    </button>
+                    <button type="button" class="btn-icon btn-download" (click)="descargarDocumento('MINUTA')" title="Descargar">
+                      <i class="fas fa-download"></i>
+                    </button>
+                    <button type="button" class="btn-icon btn-edit" (click)="toggleUpload('MINUTA')" title="Cambiar">
+                      <i class="fas fa-edit"></i>
+                    </button>
                   </div>
                 </div>
                 
-                <div *ngIf="!archivos['MINUTA'].fileName || archivos['MINUTA'].mostrarUpload" class="upload-container" [class.invalid]="submitted && archivos['MINUTA'].error">
-                  <input type="file" class="file-input" #fileInputMinuta (change)="onFileSelected($event, 'MINUTA')" accept=".pdf">
-                  <label class="upload-label" (click)="triggerFileInput('MINUTA')">
+                <div *ngIf="!archivos['MINUTA'].fileName || archivos['MINUTA'].mostrarUpload" class="upload-area">
+                  <input type="file" #fileInputMinuta (change)="onFileSelected($event, 'MINUTA')" accept=".pdf">
+                  <label class="upload-btn" (click)="triggerFileInput('MINUTA')">
                     <i class="fas fa-cloud-upload-alt me-2"></i>
                     {{ archivos['MINUTA'].fileName ? 'Cambiar archivo' : 'Seleccionar archivo PDF' }}
                   </label>
-                  <small class="text-muted d-block mt-1">Máximo 5 MB - Solo PDF</small>
-                  <div *ngIf="submitted && archivos['MINUTA'].error" class="text-danger mt-1 small">{{ archivos['MINUTA'].error }}</div>
+                  <small class="text-muted">Máximo 5 MB - Solo PDF</small>
                 </div>
               </div>
             </div>
@@ -766,37 +634,34 @@
           <div class="col-md-6">
             <div class="document-card">
               <div class="document-card-header">
-                <i class="fas fa-clipboard-list me-2"></i>
+                <i class="fas fa-clipboard-list"></i>
                 <span>Acta de Inicio</span>
-                <span class="badge bg-danger ms-2">* Requerido</span>
+                <span class="badge bg-danger">Requerido</span>
               </div>
               <div class="document-card-body">
-                <div *ngIf="archivos['ACTA_INICIO'].fileName" class="document-preview mb-3">
-                  <div class="document-info">
-                    <i class="fas fa-file-pdf text-danger me-2" style="font-size: 2rem;"></i>
-                    <span class="document-name">{{ archivos['ACTA_INICIO'].fileName }}</span>
-                    <div class="document-actions mt-2">
-                      <button type="button" class="btn-doc btn-view" (click)="verDocumento('ACTA_INICIO')">
-                        <i class="fas fa-eye"></i> Ver
-                      </button>
-                      <button type="button" class="btn-doc btn-download" (click)="descargarDocumento('ACTA_INICIO')">
-                        <i class="fas fa-download"></i> Descargar
-                      </button>
-                      <button type="button" class="btn-doc btn-edit" (click)="toggleUpload('ACTA_INICIO')">
-                        <i class="fas fa-edit"></i> Editar
-                      </button>
-                    </div>
+                <div *ngIf="archivos['ACTA_INICIO'].fileName" class="file-preview">
+                  <i class="fas fa-file-pdf text-danger fa-2x"></i>
+                  <span class="file-name">{{ archivos['ACTA_INICIO'].fileName }}</span>
+                  <div class="file-actions">
+                    <button type="button" class="btn-icon btn-view" (click)="verDocumento('ACTA_INICIO')" title="Ver">
+                      <i class="fas fa-eye"></i>
+                    </button>
+                    <button type="button" class="btn-icon btn-download" (click)="descargarDocumento('ACTA_INICIO')" title="Descargar">
+                      <i class="fas fa-download"></i>
+                    </button>
+                    <button type="button" class="btn-icon btn-edit" (click)="toggleUpload('ACTA_INICIO')" title="Cambiar">
+                      <i class="fas fa-edit"></i>
+                    </button>
                   </div>
                 </div>
                 
-                <div *ngIf="!archivos['ACTA_INICIO'].fileName" class="upload-container" [class.invalid]="submitted && archivos['ACTA_INICIO'].error">
-                  <input type="file" class="file-input" #fileInputActaInicio (change)="onFileSelected($event, 'ACTA_INICIO')" accept=".pdf">
-                  <label class="upload-label" (click)="triggerFileInput('ACTA_INICIO')">
+                <div *ngIf="!archivos['ACTA_INICIO'].fileName" class="upload-area">
+                  <input type="file" #fileInputActaInicio (change)="onFileSelected($event, 'ACTA_INICIO')" accept=".pdf">
+                  <label class="upload-btn" (click)="triggerFileInput('ACTA_INICIO')">
                     <i class="fas fa-cloud-upload-alt me-2"></i>
                     Seleccionar archivo PDF
                   </label>
-                  <small class="text-muted d-block mt-1">Máximo 5 MB - Solo PDF</small>
-                  <div *ngIf="submitted && archivos['ACTA_INICIO'].error" class="text-danger mt-1 small">{{ archivos['ACTA_INICIO'].error }}</div>
+                  <small class="text-muted">Máximo 5 MB - Solo PDF</small>
                 </div>
               </div>
             </div>
@@ -805,47 +670,53 @@
 
         <hr class="my-4">
 
-        <div class="section-title mb-4">
+        <div class="section-title">
           <i class="fas fa-user me-2"></i>
           DOCUMENTOS DEL CONTRATISTA
         </div>
 
-        <div *ngIf="cargandoDocumentosContratista" class="text-center py-3">
+        <div *ngIf="cargandoDocumentosContratista" class="text-center py-5">
           <div class="spinner-border text-primary" role="status"></div>
           <p class="mt-2 text-muted">Cargando documentos del contratista...</p>
         </div>
 
         <div *ngIf="!cargandoDocumentosContratista && contratistaDocumentos.length > 0" class="mb-4">
-          <div class="alert alert-secondary mb-3">
-            <i class="fas fa-info-circle me-2"></i>
-            Documentos subidos por el contratista: <strong>{{ contratistaEncontrado?.razonSocial || 'Contratista' }}</strong>
+          <div class="documentos-header mb-3">
+            <i class="fas fa-building me-2"></i>
+            Documentos subidos por: <strong>{{ contratistaEncontrado?.razonSocial || 'Contratista' }}</strong>
           </div>
+          
           <div class="table-responsive">
-            <table class="table table-sm">
+            <table class="table table-hover">
               <thead>
                 <tr>
-                  <th>Nombre</th>
-                  <th>Tipo</th>
-                  <th>Tamaño</th>
-                  <th>Fecha Subida</th>
-                  <th>Subido Por</th>
-                  <th>Acciones</th>
+                  <th><i class="fas fa-file me-1"></i> Nombre</th>
+                  <th><i class="fas fa-tag me-1"></i> Tipo</th>
+                  <th><i class="fas fa-weight-hanging me-1"></i> Tamaño</th>
+                  <th><i class="fas fa-calendar me-1"></i> Fecha Subida</th>
+                  <th><i class="fas fa-user me-1"></i> Subido Por</th>
+                  <th><i class="fas fa-cog me-1"></i> Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 <tr *ngFor="let doc of contratistaDocumentos">
-                  <td>{{ doc.nombreArchivo }}</td>
-                  <td><span class="badge bg-info">{{ doc.tipo }}</span></td>
+                  <td>
+                    <i class="fas fa-file-pdf text-danger me-2"></i>
+                    {{ doc.nombreArchivo }}
+                  </td>
+                  <td><span class="badge-doc">{{ doc.tipo }}</span></td>
                   <td>{{ (doc.tamanoBytes / 1024).toFixed(1) }} KB</td>
                   <td>{{ doc.fechaSubida | date:'dd/MM/yyyy HH:mm' }}</td>
-                  <td>{{ doc.subidoPor || 'Sistema' }}</td>
+                  <td><i class="fas fa-user-check me-1"></i> {{ doc.subidoPor || 'Sistema' }}</td>
                   <td>
-                    <button type="button" class="btn-action btn-view" (click)="verDocumentoContratista(doc)">
-                      <i class="fas fa-eye"></i> Ver
-                    </button>
-                    <button type="button" class="btn-action btn-download ms-1" (click)="descargarDocumentoContratista(doc)">
-                      <i class="fas fa-download"></i> Descargar
-                    </button>
+                    <div class="btn-group btn-group-sm">
+                      <button type="button" class="btn-action btn-view" (click)="verDocumentoContratista(doc)" title="Ver">
+                        <i class="fas fa-eye"></i>
+                      </button>
+                      <button type="button" class="btn-action btn-download" (click)="descargarDocumentoContratista(doc)" title="Descargar">
+                        <i class="fas fa-download"></i>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -853,28 +724,34 @@
           </div>
         </div>
 
-        <div *ngIf="!cargandoDocumentosContratista && contratistaDocumentos.length === 0 && contratistaEncontrado" class="text-center py-3">
-          <div class="alert alert-warning">
-            El contratista <strong>{{ contratistaEncontrado.razonSocial }}</strong> no tiene documentos subidos en el sistema.
+        <div *ngIf="!cargandoDocumentosContratista && contratistaDocumentos.length === 0 && contratistaEncontrado" class="text-center py-4">
+          <div class="alert-warning-card">
+            <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+            <p>El contratista <strong>{{ contratistaEncontrado.razonSocial }}</strong> no tiene documentos subidos en el sistema.</p>
           </div>
         </div>
 
-        <div *ngIf="!contratistaEncontrado" class="alert alert-warning">
-          No hay un contratista asociado a este número de contrato. Por favor ingrese el número de contrato en el paso 1 para cargar los datos del contratista.
+        <div *ngIf="!contratistaEncontrado" class="alert-warning-card">
+          <i class="fas fa-info-circle me-2"></i>
+          No hay un contratista asociado a este número de contrato. Por favor ingrese el número de contrato en el paso 1.
         </div>
       </div>
 
       <div class="card-footer d-flex justify-content-between">
-        <button type="button" class="btn btn-outline-secondary px-4" (click)="pasoAnterior()">
+        <button type="button" class="btn btn-outline-secondary" (click)="pasoAnterior()">
           <i class="fas fa-arrow-left me-2"></i> Anterior
         </button>
         <div>
-          <button type="button" class="btn btn-outline-danger me-2 px-4" (click)="cancelar()">
+          <button type="button" class="btn btn-outline-danger me-2" (click)="cancelar()">
             <i class="fas fa-times me-2"></i> Cancelar
           </button>
-          <button type="submit" class="btn btn-success px-4" [disabled]="isSubmitting">
-            <span *ngIf="!isSubmitting"><i class="fas fa-save me-2"></i> {{ isEditMode ? 'Actualizar' : 'Guardar' }} Contrato</span>
-            <span *ngIf="isSubmitting"><i class="fas fa-spinner fa-spin me-2"></i> Guardando...</span>
+          <button type="submit" class="btn btn-success" [disabled]="isSubmitting">
+            <span *ngIf="!isSubmitting">
+              <i class="fas fa-save me-2"></i> {{ isEditMode ? 'Actualizar' : 'Guardar' }} Contrato
+            </span>
+            <span *ngIf="isSubmitting">
+              <i class="fas fa-spinner fa-spin me-2"></i> Guardando...
+            </span>
           </button>
         </div>
       </div>

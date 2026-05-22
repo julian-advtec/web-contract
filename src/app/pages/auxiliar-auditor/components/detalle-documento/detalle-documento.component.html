@@ -1,0 +1,136 @@
+<!-- src/app/pages/auxiliar-auditor/components/detalle-documento/detalle-documento.component.html -->
+<div class="detalle-documento-container">
+  <!-- Botón volver -->
+  <div class="mb-3">
+    <button class="btn btn-outline-secondary" (click)="volver()">
+      <i class="fas fa-arrow-left me-2"></i> Volver a la lista
+    </button>
+  </div>
+
+  <!-- Alertas -->
+  <div *ngIf="showError" class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-triangle me-2"></i>{{ errorMessage }}
+    <button type="button" class="btn-close" (click)="dismissError()"></button>
+  </div>
+
+  <div *ngIf="showSuccess" class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="fas fa-check-circle me-2"></i>{{ successMessage }}
+    <button type="button" class="btn-close" (click)="dismissSuccess()"></button>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="isLoading" class="text-center py-5">
+    <div class="spinner-border text-primary mb-3" role="status">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+    <h5 class="text-muted">Cargando información del documento...</h5>
+  </div>
+
+  <!-- Contenido -->
+  <div *ngIf="!isLoading && documento">
+    <!-- Información del Documento -->
+    <div class="card mb-4">
+      <div class="card-header bg-primary text-white">
+        <h4 class="mb-0">
+          <i class="fas fa-file-alt me-2"></i>
+          Información del Radicado
+        </h4>
+      </div>
+      <div class="card-body">
+        <div class="info-grid">
+          <div class="info-item">
+            <label>Número Radicado:</label>
+            <span class="value">{{ documento.documento?.numeroRadicado || 'N/A' }}</span>
+          </div>
+          <div class="info-item">
+            <label>Número Contrato:</label>
+            <span class="value">{{ documento.documento?.numeroContrato || 'N/A' }}</span>
+          </div>
+          <div class="info-item">
+            <label>Contratista:</label>
+            <span class="value">{{ documento.documento?.nombreContratista || 'N/A' }}</span>
+          </div>
+          <div class="info-item">
+            <label>Documento:</label>
+            <span class="value">{{ documento.documento?.documentoContratista || 'N/A' }}</span>
+          </div>
+          <div class="info-item">
+            <label>Email:</label>
+            <span class="value">{{ documento.documento?.emailContratista || 'No especificado' }}</span>
+          </div>
+          <div class="info-item">
+            <label>Teléfono:</label>
+            <span class="value">{{ documento.documento?.telefonoContratista || 'No especificado' }}</span>
+          </div>
+          <div class="info-item">
+            <label>Fecha Inicio:</label>
+            <span class="value">{{ formatDate(documento.documento?.fechaInicio) }}</span>
+          </div>
+          <div class="info-item">
+            <label>Fecha Fin:</label>
+            <span class="value">{{ formatDate(documento.documento?.fechaFin) }}</span>
+          </div>
+          <div class="info-item full-width" *ngIf="documento.documento?.observacion">
+            <label>Observación:</label>
+            <span class="value">{{ documento.documento?.observacion }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    
+
+    <!-- Subir Acta de Supervisión -->
+    <div class="card">
+      <div class="card-header bg-warning text-dark">
+        <h4 class="mb-0">
+          <i class="fas fa-upload me-2"></i>
+          Subir Acta de Supervisión
+        </h4>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>
+          El acta de supervisión es obligatoria para que el documento pase a auditoría.
+          Formatos permitidos: PDF, Word (DOC, DOCX). Tamaño máximo: 10MB.
+        </div>
+
+        <!-- Área de subida de archivo -->
+        <div class="file-upload-area" [class.has-file]="actaFile">
+          <input type="file" 
+                 id="actaSupervision" 
+                 class="file-input" 
+                 (change)="onFileSelected($event)"
+                 accept=".pdf,.doc,.docx">
+          
+          <label for="actaSupervision" class="file-label">
+            <i class="fas" [class.fa-cloud-upload-alt]="!actaFile" [class.fa-file-pdf]="actaFile"></i>
+            <span *ngIf="!actaFile">Seleccionar acta de supervisión</span>
+            <span *ngIf="actaFile" class="file-name">
+              <i class="fas fa-check-circle text-success me-1"></i>
+              {{ actaFileName }}
+            </span>
+          </label>
+          
+          <button *ngIf="actaFile" type="button" class="btn-remove" (click)="removeFile()">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <!-- Botón de subida -->
+        <div class="mt-4 text-center">
+          <button class="btn-subir-acta" 
+                  (click)="subirActa()" 
+                  [disabled]="!actaFile || subiendoActa">
+            <span *ngIf="!subiendoActa">
+              <i class="fas fa-upload me-2"></i> Subir Acta de Supervisión
+            </span>
+            <span *ngIf="subiendoActa">
+              <i class="fas fa-spinner fa-spin me-2"></i> Subiendo...
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

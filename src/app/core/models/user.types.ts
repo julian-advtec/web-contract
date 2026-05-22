@@ -1,3 +1,4 @@
+// src/app/core/models/user.types.ts
 import { Signature } from '../services/signature.service';
 
 // ENUM de roles
@@ -6,11 +7,12 @@ export enum UserRole {
   RADICADOR = 'radicador',
   SUPERVISOR = 'supervisor',
   AUDITOR_CUENTAS = 'auditor_cuentas',
+  AUXILIAR_AUDITOR = 'auxiliar_auditor',  // 👈 NUEVO ROL AGREGADO
   CONTABILIDAD = 'contabilidad',
   TESORERIA = 'tesoreria',
   ASESOR_GERENCIA = 'asesor_gerencia',
   RENDICION_CUENTAS = 'rendicion_cuentas',
-  JURIDICA = 'juridica' // 👈 NUEVO ROL AGREGADO
+  JURIDICA = 'juridica'
 }
 
 // Función para obtener el valor string del enum
@@ -32,13 +34,14 @@ export function getUserRoleName(role: UserRole | string): string {
     'radicador': 'Radicador',
     'supervisor': 'Supervisor',
     'auditor_cuentas': 'Auditor de Cuentas',
+    'auxiliar_auditor': 'Auxiliar de Auditor',  // 👈 NUEVO
     'contabilidad': 'Contabilidad',
     'tesoreria': 'Tesorería',
     'tesorería': 'Tesorería',
     'asesor_gerencia': 'Asesor de Gerencia',
     'rendicion_cuentas': 'Rendición de Cuentas',
     'rendición_cuentas': 'Rendición de Cuentas',
-    'juridica': 'Jurídica' // 👈 NUEVO
+    'juridica': 'Jurídica'
   };
   
   return roleNames[roleStr.toLowerCase()] || 'Usuario';
@@ -69,6 +72,9 @@ export function stringToUserRole(roleStr: string): UserRole {
     case 'auditor_cuentas':
     case 'auditor_cuenta':
       return UserRole.AUDITOR_CUENTAS;
+    case 'auxiliar_auditor':  // 👈 NUEVO
+    case 'auxiliar auditor':
+      return UserRole.AUXILIAR_AUDITOR;
     case 'contabilidad':
       return UserRole.CONTABILIDAD;
     case 'tesoreria':
@@ -79,7 +85,7 @@ export function stringToUserRole(roleStr: string): UserRole {
     case 'rendicion_cuentas':
     case 'rendición_cuentas':
       return UserRole.RENDICION_CUENTAS;
-    case 'juridica': // 👈 NUEVO
+    case 'juridica':
       return UserRole.JURIDICA;
     default:
       const validValues = Object.values(UserRole) as string[];
@@ -90,7 +96,7 @@ export function stringToUserRole(roleStr: string): UserRole {
   }
 }
 
-// 👇 INTERFAZ User ACTUALIZADA CON SIGNATURE
+// INTERFAZ User ACTUALIZADA CON SIGNATURE
 export interface User {
   id: string;
   username: string;

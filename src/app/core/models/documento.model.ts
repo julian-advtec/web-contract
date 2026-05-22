@@ -1,3 +1,4 @@
+// src/app/core/models/documento.model.ts
 export type SupervisorEstado = 'PENDIENTE' | 'APROBADO' | 'OBSERVADO' | 'RECHAZADO';
 
 export interface Supervisor {
@@ -16,6 +17,8 @@ export interface Documento {
   numeroContrato: string;
   nombreContratista: string;
   documentoContratista: string;
+  emailContratista: string;
+  telefonoContratista: string;
   fechaInicio: Date;
   fechaFin: Date;
   estado: string;
@@ -62,12 +65,9 @@ export interface Documento {
   };
   [key: string]: any;
 
-  // ────────────────────────────────────────────────────────────────
-  // PROPIEDADES AGREGADAS SOLO PARA EL MÓDULO DE AUDITOR
-  // ────────────────────────────────────────────────────────────────
   puedeTomar?: boolean;
   enRevision?: boolean;
-  esPrimerRadicado?: boolean;           // ← mapeado desde primerRadicadoDelAno
+  esPrimerRadicado?: boolean;
   estadoBadge?: {
     texto: string;
     clase: string;
@@ -79,6 +79,8 @@ export interface CreateDocumentoDto {
   numeroContrato: string;
   nombreContratista: string;
   documentoContratista: string;
+  emailContratista: string;
+  telefonoContratista: string;
   fechaInicio: Date | string;
   fechaFin: Date | string;
   descripcionCuentaCobro: string;

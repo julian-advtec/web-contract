@@ -20,7 +20,7 @@ export class ModulesService {
   private allModules: AppModule[] = [
     {
       id: 'dashboard',
-      title: 'Dashboard',
+      title: 'Inicio',
       description: 'Panel principal del sistema',
       path: '/dashboard',
       route: '/dashboard',
@@ -66,6 +66,16 @@ export class ModulesService {
       route: '/auditoria',
       icon: 'auditoria',
       requiredRole: UserRole.AUDITOR_CUENTAS,
+      isActive: true
+    },
+    {
+      id: 'auxiliar-auditor',  // 👈 NUEVO MÓDULO
+      title: 'Auxiliar Auditor',
+      description: 'Subir actas de supervisión',
+      path: '/auxiliar-auditor',
+      route: '/auxiliar-auditor',
+      icon: 'auxiliar-auditor',
+      requiredRole: UserRole.AUXILIAR_AUDITOR,
       isActive: true
     },
     {
@@ -150,6 +160,12 @@ export class ModulesService {
       return true;
     }
 
+    // AUXILIAR_AUDITOR: acceso a dashboard y su módulo específico
+    if (userRole === UserRole.AUXILIAR_AUDITOR) {
+      const allowedModules = ['dashboard', 'auxiliar-auditor'];
+      return allowedModules.includes(module.id);
+    }
+
     // Para JURIDICA: acceso a dashboard y contratistas
     if (userRole === UserRole.JURIDICA) {
       const allowedModules = ['dashboard', 'contratistas', 'juridica'];
@@ -158,14 +174,21 @@ export class ModulesService {
       return hasAccess;
     }
 
+    // Para RADICADOR: acceso a dashboard, radicacion y contratistas
+    if (userRole === UserRole.RADICADOR) {
+      const allowedModules = ['dashboard', 'radicacion', 'contratistas'];
+      return allowedModules.includes(module.id);
+    }
+
     // Para otros roles, usar la jerarquía existente
     const roleHierarchy: Record<UserRole, UserRole[]> = {
       [UserRole.ADMIN]: [UserRole.ADMIN, UserRole.RADICADOR, UserRole.SUPERVISOR, UserRole.AUDITOR_CUENTAS,
         UserRole.CONTABILIDAD, UserRole.TESORERIA, UserRole.ASESOR_GERENCIA,
-        UserRole.RENDICION_CUENTAS, UserRole.JURIDICA],
+        UserRole.RENDICION_CUENTAS, UserRole.JURIDICA, UserRole.AUXILIAR_AUDITOR],
       [UserRole.RADICADOR]: [UserRole.RADICADOR],
       [UserRole.SUPERVISOR]: [UserRole.SUPERVISOR],
       [UserRole.AUDITOR_CUENTAS]: [UserRole.AUDITOR_CUENTAS],
+      [UserRole.AUXILIAR_AUDITOR]: [UserRole.AUXILIAR_AUDITOR],
       [UserRole.CONTABILIDAD]: [UserRole.CONTABILIDAD],
       [UserRole.TESORERIA]: [UserRole.TESORERIA],
       [UserRole.ASESOR_GERENCIA]: [UserRole.ASESOR_GERENCIA],

@@ -1,0 +1,323 @@
+// src/app/modules/radicacion/components/contratos-list/contratos-list.component.scss
+.contratos-list-container {
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+
+  .alert-message {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    animation: slideIn 0.3s ease;
+
+    &.success {
+      background-color: #d4edda;
+      color: #155724;
+      border-left: 4px solid #28a745;
+    }
+
+    &.error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border-left: 4px solid #dc3545;
+    }
+
+    &.warning {
+      background-color: #fff3cd;
+      color: #856404;
+      border-left: 4px solid #ffc107;
+    }
+  }
+
+  .list-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e9ecef;
+
+    .header-content {
+      .header-icon {
+        font-size: 2rem;
+        color: #0d6efd;
+        margin-bottom: 0.5rem;
+      }
+
+      h2 {
+        margin: 0;
+        color: #2c3e50;
+        font-size: 1.75rem;
+      }
+
+      .header-subtitle {
+        color: #6c757d;
+        margin: 0.25rem 0 0 0;
+      }
+    }
+  }
+
+  .filtros-section {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+
+    h4 {
+      margin: 0 0 1rem 0;
+      color: #495057;
+      font-size: 1.1rem;
+
+      i {
+        margin-right: 0.5rem;
+        color: #0d6efd;
+      }
+    }
+
+    .filtros-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1rem;
+
+      .filtro-group {
+        label {
+          display: block;
+          margin-bottom: 0.5rem;
+          font-weight: 500;
+          color: #495057;
+          font-size: 0.9rem;
+
+          i {
+            margin-right: 0.5rem;
+          }
+        }
+
+        .form-control {
+          width: 100%;
+          padding: 0.6rem;
+          border: 1px solid #ced4da;
+          border-radius: 6px;
+          font-size: 0.9rem;
+
+          &:focus {
+            outline: none;
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 2px rgba(13,110,253,0.25);
+          }
+        }
+      }
+    }
+
+    .filtros-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #dee2e6;
+
+      .btn-clear {
+        background: white;
+        border: 1px solid #dc3545;
+        color: #dc3545;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+
+        &:hover {
+          background: #dc3545;
+          color: white;
+        }
+      }
+
+      .result-count {
+        color: #6c757d;
+        font-size: 0.9rem;
+      }
+    }
+  }
+
+  .loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem;
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #e9ecef;
+      border-top-color: #0d6efd;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+  }
+
+  .contratos-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+    gap: 1.5rem;
+
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 4rem;
+      background: #f8f9fa;
+      border-radius: 12px;
+    }
+
+    .contrato-card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+      cursor: pointer;
+      overflow: hidden;
+
+      &:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+
+        .btn-select {
+          background: #0d6efd;
+          color: white;
+        }
+      }
+
+      .contrato-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem 1.25rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        .badge {
+          padding: 0.25rem 0.5rem;
+          border-radius: 4px;
+          font-size: 0.75rem;
+          
+          &.badge-success { background: #28a745; }
+          &.badge-warning { background: #ffc107; color: #856404; }
+          &.badge-danger { background: #dc3545; }
+          &.badge-info { background: #17a2b8; }
+          &.badge-primary { background: #007bff; }
+          &.badge-secondary { background: #6c757d; }
+          &.badge-dark { background: #343a40; }
+        }
+      }
+
+      .contrato-body {
+        padding: 1.25rem;
+
+        .contrato-info {
+          margin-bottom: 1rem;
+
+          .info-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+
+            i {
+              width: 20px;
+              color: #6c757d;
+            }
+
+            .info-label {
+              color: #6c757d;
+              min-width: 70px;
+            }
+
+            .info-value {
+              color: #2c3e50;
+              font-weight: 500;
+            }
+          }
+        }
+
+        .contrato-dates {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 0.75rem;
+          margin-bottom: 1rem;
+          padding: 0.75rem;
+          background: #f8f9fa;
+          border-radius: 8px;
+
+          .date-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.8rem;
+          }
+        }
+
+        .contrato-objeto {
+          margin-bottom: 1rem;
+          padding: 0.75rem;
+          background: #f8f9fa;
+          border-radius: 8px;
+          font-size: 0.85rem;
+        }
+
+        .contrato-valor {
+          display: flex;
+          justify-content: flex-end;
+          gap: 0.5rem;
+          padding-top: 0.75rem;
+          border-top: 1px solid #e9ecef;
+          
+          strong {
+            color: #28a745;
+          }
+        }
+      }
+
+      .contrato-footer {
+        padding: 1rem;
+        background: #f8f9fa;
+        border-top: 1px solid #e9ecef;
+
+        .btn-select {
+          width: 100%;
+          background: white;
+          border: 1px solid #0d6efd;
+          color: #0d6efd;
+          padding: 0.6rem;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+      }
+    }
+  }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  .contratos-list-container {
+    padding: 1rem;
+
+    .contratos-list {
+      grid-template-columns: 1fr;
+    }
+  }
+}

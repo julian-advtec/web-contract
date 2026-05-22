@@ -1,0 +1,146 @@
+<!-- src/app/pages/auxiliar-auditor/components/documentos-disponibles/documentos-disponibles.component.html -->
+<div class="documentos-disponibles-container">
+  <div class="page-header">
+    <h2>
+      <i class="fas fa-file-alt me-2 text-primary"></i>
+      Documentos Pendientes de Acta de Supervisión
+    </h2>
+    <p class="text-muted">
+      <i class="fas fa-info-circle me-1"></i>
+      Seleccione un documento para subir el acta de supervisión correspondiente
+    </p>
+  </div>
+
+  <!-- Alertas -->
+  <div *ngIf="showError" class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-triangle me-2"></i>{{ errorMessage }}
+    <button type="button" class="btn-close" (click)="dismissError()"></button>
+  </div>
+
+  <div *ngIf="showSuccess" class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="fas fa-check-circle me-2"></i>{{ successMessage }}
+    <button type="button" class="btn-close" (click)="dismissSuccess()"></button>
+  </div>
+
+  <!-- Barra de búsqueda -->
+  <div class="search-container mb-4">
+    <div class="input-group">
+      <span class="input-group-text bg-white">
+        <i class="fas fa-search text-primary"></i>
+      </span>
+      <input type="text" 
+             class="form-control" 
+             placeholder="Buscar por radicado, contratista, contrato o documento..." 
+             [(ngModel)]="searchTerm"
+             (input)="onSearch()">
+      <button class="btn btn-outline-secondary" *ngIf="searchTerm" (click)="searchTerm = ''; onSearch()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="isLoading" class="text-center py-5">
+    <div class="spinner-border text-primary mb-3" role="status">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+    <h5 class="text-muted">Cargando documentos...</h5>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!isLoading && filteredDocumentos.length === 0" class="empty-state">
+    <div class="empty-state-icon">
+      <i class="fas fa-check-circle"></i>
+    </div>
+    <h4>Todos los documentos tienen acta de supervisión</h4>
+    <p class="text-muted">No hay documentos pendientes en este momento</p>
+  </div>
+
+  <!-- Lista de documentos -->
+  <div *ngIf="!isLoading && filteredDocumentos.length > 0" class="documentos-list">
+    <div *ngFor="let doc of paginatedDocumentos" class="documento-card" (click)="verDetalle(doc)">
+      <div class="card-header">
+        <div class="radicado-info">
+          <i class="fas fa-hashtag"></i>
+          <strong>{{ doc.numeroRadicado }}</strong>
+          <span class="badge bg-warning text-dark ms-2">
+            <i class="fas fa-clock me-1"></i>Pendiente Acta
+          </span>
+        </div>
+      </div>
+      
+      <div class="card-body">
+        <div class="info-row">
+          <div class="info-label">
+            <i class="fas fa-user-tie"></i> Contratista:
+          </div>
+          <div class="info-value">{{ doc.nombreContratista }}</div>
+        </div>
+        
+        <div class="info-row">
+          <div class="info-label">
+            <i class="fas fa-id-card"></i> Documento:
+          </div>
+          <div class="info-value">{{ doc.documentoContratista }}</div>
+        </div>
+        
+        <div class="info-row">
+          <div class="info-label">
+            <i class="fas fa-file-contract"></i> Contrato:
+          </div>
+          <div class="info-value">{{ doc.numeroContrato }}</div>
+        </div>
+        
+        <div class="info-row">
+          <div class="info-label">
+            <i class="fas fa-calendar-alt"></i> Fecha Radicación:
+          </div>
+          <div class="info-value">{{ formatDate(doc.fechaRadicacion) }}</div>
+        </div>
+        
+        <div class="info-row" *ngIf="doc.observacion">
+          <div class="info-label">
+            <i class="fas fa-sticky-note"></i> Observación:
+          </div>
+          <div class="info-value">{{ doc.observacion }}</div>
+        </div>
+      </div>
+      
+      <div class="card-footer">
+        <button class="btn-subir-acta">
+          <i class="fas fa-upload me-2"></i> Subir Acta de Supervisión
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Paginación -->
+  <div *ngIf="!isLoading && filteredDocumentos.length > 0 && totalPages > 1" class="pagination-container mt-4">
+    <div class="pagination-info">
+      <span class="text-muted">
+        Mostrando {{ paginatedDocumentos.length }} de {{ filteredDocumentos.length }} documentos
+      </span>
+    </div>
+    <div class="pagination-controls">
+      <button class="btn btn-outline-primary btn-sm" 
+              [disabled]="currentPage === 1"
+              (click)="changePage(currentPage - 1)">
+        <i class="fas fa-chevron-left"></i> Anterior
+      </button>
+      <div class="page-numbers">
+        <button *ngFor="let page of pages" 
+                class="btn btn-sm"
+                [class.btn-primary]="page === currentPage"
+                [class.btn-outline-primary]="page !== currentPage"
+                (click)="changePage(page)">
+          {{ page }}
+        </button>
+      </div>
+      <button class="btn btn-outline-primary btn-sm" 
+              [disabled]="currentPage === totalPages"
+              (click)="changePage(currentPage + 1)">
+        Siguiente <i class="fas fa-chevron-right"></i>
+      </button>
+    </div>
+  </div>
+</div>

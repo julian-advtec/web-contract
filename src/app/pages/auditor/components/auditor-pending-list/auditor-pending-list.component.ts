@@ -86,7 +86,7 @@ export class AuditorPendingListComponent implements OnInit, OnDestroy {
   puedeTomarDocumento(doc: any): boolean {
   const estado = (doc.estado || '').toUpperCase();
   // ✅ CAMBIAR: Tomar documentos en estado RADICADO sin auditor asignado
-  return estado === 'RADICADO' && !doc.auditorAsignado && !doc.enAuditoria;
+  return estado === 'CON_ACTA' && !doc.auditorAsignado && !doc.enAuditoria;
 }
 
 esMiDocumentoEnRevision(doc: any): boolean {
