@@ -51,10 +51,10 @@ export class UserFormComponent implements OnInit, OnDestroy {
   availableModules: AppModule[] = [];
 
   // ✅ CORREGIDO: Crear el método que el template espera
-getUserRoleDisplayName(role: UserRole | null | undefined): string {
-  if (!role) return 'Usuario';
-  return this.getRoleName(role);
-}
+  getUserRoleDisplayName(role: UserRole | null | undefined): string {
+    if (!role) return 'Usuario';
+    return this.getRoleName(role);
+  }
 
   // También mantener getUserRoleName para compatibilidad
   getUserRoleName = this.getUserRoleDisplayName.bind(this);
@@ -412,37 +412,6 @@ getUserRoleDisplayName(role: UserRole | null | undefined): string {
     }
   }
 
-  deleteSignature(): void {
-    this.notificationService.confirm(
-      'Eliminar Firma',
-      '¿Estás seguro de eliminar tu firma? Esta acción no se puede deshacer.',
-      () => {
-        this.signatureService.deleteSignature().subscribe({
-          next: () => {
-            this.currentSignature = null;
-            this.selectedFile = null;
-            this.previewUrl = null;
-            this.userForm.patchValue({
-              signatureName: ''
-            });
-            // Limpiar el input file
-            const fileInput = document.getElementById('signatureFile') as HTMLInputElement;
-            if (fileInput) fileInput.value = '';
-
-            // 👇 MARCAR QUE HAY CAMBIOS
-            this.hasSignatureChanges = true;
-            this.userForm.markAsDirty();
-
-            this.notificationService.success('Firma eliminada correctamente');
-          },
-          error: (error) => {
-            console.error('Error deleting signature:', error);
-            this.notificationService.error('Error al eliminar la firma');
-          }
-        });
-      }
-    );
-  }
 
 
 
@@ -583,7 +552,6 @@ getUserRoleDisplayName(role: UserRole | null | undefined): string {
     console.log('Has signature changes:', this.hasSignatureChanges);
     console.log('Selected file:', this.selectedFile);
 
-    // 👇 VERIFICAR SI HAY CAMBIOS PARA HABILITAR EL BOTÓN
     const hasChanges = this.userForm.dirty || this.hasSignatureChanges;
 
     if (!hasChanges && this.isEditMode) {
@@ -592,18 +560,7 @@ getUserRoleDisplayName(role: UserRole | null | undefined): string {
     }
 
     if (this.userForm.valid) {
-      // Si hay un archivo de firma seleccionado, primero subir la firma
-      if (this.selectedFile && this.canHaveSignature) {
-        const signatureName = this.userForm.get('signatureName')?.value;
-        if (!signatureName) {
-          this.notificationService.error('Por favor, ingresa un nombre para la firma');
-          return;
-        }
-        this.uploadSignatureAndSubmit();
-      } else {
-        // Si no hay firma, proceder normalmente
-        this.confirmBeforeSubmit();
-      }
+      this.confirmBeforeSubmit();
     } else {
       console.log('Formulario inválido. Errores:', this.getFormErrors());
       this.markFormGroupTouched(this.userForm);
@@ -683,8 +640,20 @@ getUserRoleDisplayName(role: UserRole | null | undefined): string {
     this.usersService.createUser(formData)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (response) => {
+        next: (response: any) => {
           console.log('Usuario creado exitosamente:', response);
+          // ✅ CORREGIDO: Obtener el ID correctamente
+          const userId = response.data?.id || response.data?.data?.id || response.id;
+
+          // ✅ Si hay firma seleccionada, subirla después de crear el usuario
+          if (userId && this.selectedFile && this.canHaveSignature) {
+            const signatureName = this.userForm.get('signatureName')?.value;
+            if (signatureName) {
+              this.uploadSignatureAfterCreation(userId, signatureName, response);
+              return;
+            }
+          }
+
           this.handleCreateSuccess(response);
         },
         error: (error) => {
@@ -715,6 +684,16 @@ getUserRoleDisplayName(role: UserRole | null | undefined): string {
       .subscribe({
         next: (response) => {
           console.log('Usuario actualizado exitosamente:', response);
+
+          // ✅ Si hay firma seleccionada, subirla después de actualizar el usuario
+          if (this.selectedFile && this.canHaveSignature) {
+            const signatureName = this.userForm.get('signatureName')?.value;
+            if (signatureName) {
+              this.uploadSignatureAfterUpdate(this.userId!, signatureName, response);
+              return;
+            }
+          }
+
           this.handleUpdateSuccess(response);
         },
         error: (error) => {
@@ -993,7 +972,117 @@ getUserRoleDisplayName(role: UserRole | null | undefined): string {
 
   // user-form.component.ts
 
-  // user-form.component.ts
+
+
+  // Asegúrate de tener el método closeModal
+  closeModal(): void {
+    if (this.signatureModal) {
+      this.signatureModal.hide();
+    }
+    this.signatureUrl = null;
+  }
+
+  /**
+  * Sube la firma después de que el usuario ha sido creado exitosamente
+  */
+  private uploadSignatureAfterCreation(userId: string, signatureName: string, originalResponse: any): void {
+    if (!this.selectedFile) {
+      this.handleCreateSuccess(originalResponse);
+      return;
+    }
+
+    this.isUploadingSignature = true;
+    console.log('📤 Subiendo firma para usuario creado:', userId);
+
+    // ✅ PASAR EL userId AL SERVICIO
+    this.signatureService.uploadSignature(this.selectedFile, signatureName, userId).subscribe({
+      next: (signature) => {
+        console.log('✅ Firma subida exitosamente para el usuario:', userId);
+        this.isUploadingSignature = false;
+        this.currentSignature = signature;
+        this.selectedFile = null;
+        this.previewUrl = null;
+        this.hasSignatureChanges = false;
+
+        const fileInput = document.getElementById('signatureFile') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+
+        this.notificationService.success('Firma digital guardada correctamente');
+        this.handleCreateSuccess(originalResponse);
+      },
+      error: (error) => {
+        console.error('❌ Error al subir firma:', error);
+        this.isUploadingSignature = false;
+        this.isLoading = false;
+
+        if (error.status === 403) {
+          this.notificationService.warning(
+            'Firma no subida',
+            'Tu rol no tiene permitido tener firma digital, pero el usuario fue creado correctamente.'
+          );
+        } else {
+          this.notificationService.warning(
+            'Firma no subida',
+            'El usuario fue creado pero no se pudo subir la firma. Puede intentar nuevamente desde edición.'
+          );
+        }
+        this.handleCreateSuccess(originalResponse);
+      }
+    });
+  }
+
+  /**
+   * Sube la firma después de que el usuario ha sido actualizado exitosamente
+   */
+  private uploadSignatureAfterUpdate(userId: string, signatureName: string, originalResponse: any): void {
+    if (!this.selectedFile) {
+      this.handleUpdateSuccess(originalResponse);
+      return;
+    }
+
+    this.isUploadingSignature = true;
+    console.log('📤 Subiendo firma para usuario actualizado:', userId);
+
+    // ✅ PASAR EL userId AL SERVICIO
+    this.signatureService.uploadSignature(this.selectedFile, signatureName, userId).subscribe({
+      next: (signature) => {
+        console.log('✅ Firma subida exitosamente para el usuario:', userId);
+        this.isUploadingSignature = false;
+        this.currentSignature = signature;
+        this.selectedFile = null;
+        this.previewUrl = null;
+        this.hasSignatureChanges = false;
+
+        const fileInput = document.getElementById('signatureFile') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+
+        this.notificationService.success('Firma digital actualizada correctamente');
+        this.handleUpdateSuccess(originalResponse);
+      },
+      error: (error) => {
+        console.error('❌ Error al subir firma:', error);
+        this.isUploadingSignature = false;
+        this.isLoading = false;
+
+        if (error.status === 403) {
+          this.notificationService.warning(
+            'Firma no subida',
+            'Tu rol no tiene permitido tener firma digital, pero el usuario fue actualizado correctamente.'
+          );
+        } else {
+          this.notificationService.warning(
+            'Firma no subida',
+            'El usuario fue actualizado pero no se pudo subir la firma.'
+          );
+        }
+        this.handleUpdateSuccess(originalResponse);
+      }
+    });
+  }
+
+  /**
+   * Ver la firma del usuario actual
+   */
   viewSignature(): void {
     if (!this.currentSignature) return;
 
@@ -1002,26 +1091,21 @@ getUserRoleDisplayName(role: UserRole | null | undefined): string {
 
     console.log('🔍 Iniciando carga de firma...');
 
-    this.signatureService.getSignatureBlob().subscribe({
+    const targetUserId = this.userId || undefined;
+
+    this.signatureService.getSignatureBlob(targetUserId).subscribe({
       next: (blob) => {
         console.log('✅ Firma cargada, tamaño:', blob.size);
         console.log('✅ Tipo MIME:', blob.type);
 
-        // Limpiar URL anterior si existe
         if (this.signatureUrl) {
           URL.revokeObjectURL(this.signatureUrl as string);
         }
 
-        // Crear nueva URL del blob
         const url = URL.createObjectURL(blob);
-        console.log('🔗 URL creada:', url);
-
         this.signatureUrl = this.sanitizer.bypassSecurityTrustResourceUrl(url);
-
-        // Forzar detección de cambios
         this.cdr.detectChanges();
 
-        // Mostrar modal
         setTimeout(() => {
           const modalElement = document.getElementById('signatureModal');
           if (modalElement) {
@@ -1042,13 +1126,37 @@ getUserRoleDisplayName(role: UserRole | null | undefined): string {
     });
   }
 
-  // Asegúrate de tener el método closeModal
-  closeModal(): void {
-    if (this.signatureModal) {
-      this.signatureModal.hide();
-    }
-    this.signatureUrl = null;
-  }
+  deleteSignature(): void {
+    this.notificationService.confirm(
+      'Eliminar Firma',
+      '¿Estás seguro de eliminar esta firma? Esta acción no se puede deshacer.',
+      () => {
+        // ✅ PASAR EL userId DEL USUARIO QUE SE ESTÁ EDITANDO
+        const targetUserId = this.userId;
 
-  // Elimina closeModal() si no lo usas
+        this.signatureService.getSignatureBlob(targetUserId || undefined).subscribe({
+          next: () => {
+            this.currentSignature = null;
+            this.selectedFile = null;
+            this.previewUrl = null;
+            this.userForm.patchValue({
+              signatureName: ''
+            });
+
+            const fileInput = document.getElementById('signatureFile') as HTMLInputElement;
+            if (fileInput) fileInput.value = '';
+
+            this.hasSignatureChanges = true;
+            this.userForm.markAsDirty();
+
+            this.notificationService.success('Firma eliminada correctamente');
+          },
+          error: (error) => {
+            console.error('Error deleting signature:', error);
+            this.notificationService.error('Error al eliminar la firma');
+          }
+        });
+      }
+    );
+  }
 }

@@ -1,11 +1,10 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';          // ← IMPORTAR AQUÍ el map de RxJS
+import { map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
 
-// Definir una interfaz para la respuesta real del backend
 interface SignatureApiResponse {
   ok: boolean;
   path: string;
@@ -33,50 +32,73 @@ export class SignatureService {
     private http: HttpClient,
     private authService: AuthService
   ) {}
+
   /**
-   * Obtener mi firma
+   * Obtener firma de un usuario específico
    */
-getMySignature(): Observable<Signature | null> {
+  getMySignature(userId?: string): Observable<Signature | null> {
+    let params = new HttpParams();
+    if (userId) {
+      params = params.set('userId', userId);
+    }
+    
     return this.http.get<SignatureApiResponse>(`${this.apiUrl}/my-signature`, {
-      headers: this.getAuthHeaders()
+      headers: this.getAuthHeaders(),
+      params
     }).pipe(
       map((response: SignatureApiResponse) => response?.data || null)
     );
   }
 
-  
-
   /**
    * Subir o actualizar firma
    */
-  uploadSignature(file: File, name: string): Observable<Signature> {
+  uploadSignature(file: File, name: string, targetUserId?: string): Observable<Signature> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('name', name);
     
-    const userId = this.authService.getCurrentUser()?.id;
-    console.log('📤 Enviando firma para usuario:', userId);
+    let params = new HttpParams();
+    if (targetUserId) {
+      params = params.set('userId', targetUserId);
+    }
+    
+    const currentUserId = this.authService.getCurrentUser()?.id;
+    console.log(`📤 Enviando firma - Usuario objetivo: ${targetUserId || currentUserId}`);
     
     return this.http.post<Signature>(`${this.apiUrl}/upload`, formData, {
-      headers: this.getAuthHeaders()
+      headers: this.getAuthHeaders(),
+      params
     });
   }
 
   /**
-   * Eliminar firma
+   * Eliminar firma de un usuario específico
    */
-  deleteSignature(): Observable<void> {
+  deleteSignature(userId?: string): Observable<void> {
+    let params = new HttpParams();
+    if (userId) {
+      params = params.set('userId', userId);
+    }
+    
     return this.http.delete<void>(`${this.apiUrl}/delete`, {
-      headers: this.getAuthHeaders()
+      headers: this.getAuthHeaders(),
+      params
     });
   }
 
   /**
    * Verificar si tiene firma
    */
-  hasSignature(): Observable<{ has: boolean }> {
+  hasSignature(userId?: string): Observable<{ has: boolean }> {
+    let params = new HttpParams();
+    if (userId) {
+      params = params.set('userId', userId);
+    }
+    
     return this.http.get<{ has: boolean }>(`${this.apiUrl}/has-signature`, {
-      headers: this.getAuthHeaders()
+      headers: this.getAuthHeaders(),
+      params
     });
   }
 
@@ -84,14 +106,23 @@ getMySignature(): Observable<Signature | null> {
    * Verificar si el rol puede tener firma
    */
   canRoleHaveSignature(role: string): boolean {
-    const allowedRoles = ['admin', 'asesor_gerencia', 'rendicion_cuentas', 'tesoreria'];
-    return allowedRoles.includes(role);
+    const allowedRoles = [
+      'admin', 
+      'supervisor',
+      'asesor_gerencia', 
+      'rendicion_cuentas', 
+      'tesoreria',
+      'auditor_cuentas',
+      'contabilidad',
+      'juridica'
+    ];
+    return allowedRoles.includes(role.toLowerCase());
   }
 
   /**
    * Obtener headers con token
    */
-private getAuthHeaders(): HttpHeaders {
+  private getAuthHeaders(): HttpHeaders {
     const token = this.authService.getToken();
     return new HttpHeaders({
       'Authorization': `Bearer ${token || ''}`
@@ -99,34 +130,31 @@ private getAuthHeaders(): HttpHeaders {
   }
 
   /**
-   * Obtener URL para ver la firma (con token en URL)
+   * Obtener firma como blob para un usuario específico
    */
-  getSignatureViewUrl(): string {
+  getSignatureBlob(userId?: string): Observable<Blob> {
     const token = this.authService.getToken();
-    return `${this.apiUrl}/view?token=${token}`;
+    
+    if (!token) {
+      console.error('❌ No hay token disponible');
+      throw new Error('No hay token disponible');
+    }
+    
+    console.log('🔑 Token encontrado, longitud:', token.length);
+    
+    let params = new HttpParams();
+    if (userId) {
+      params = params.set('userId', userId);
+    }
+    
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${token}`
+    });
+    
+    return this.http.get(`${this.apiUrl}/view`, {
+      headers: headers,
+      params: params,
+      responseType: 'blob'
+    });
   }
-
-// core/services/signature.service.ts
-getSignatureBlob(): Observable<Blob> {
-  // Forzar búsqueda en ambos storages
-  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-  
-  if (!token) {
-    console.error('❌ No hay token disponible en ningún storage');
-    throw new Error('No hay token disponible');
-  }
-  
-  console.log('🔑 Token encontrado, longitud:', token.length);
-  
-  const headers = new HttpHeaders({
-    'Authorization': `Bearer ${token}`
-  });
-  
-  return this.http.get(`${this.apiUrl}/view`, {
-    headers: headers,
-    responseType: 'blob'
-  });
-}
-
-
 }

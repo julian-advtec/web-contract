@@ -1,11 +1,13 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError, of } from 'rxjs';
-import { catchError, map, tap } from 'rxjs/operators';
+import { catchError, map, tap, switchMap } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { Documento, CreateDocumentoDto } from '../models/documento.model';
 import { NotificationService } from './notification.service';
+import { ContratistasService } from './contratistas.service';
+import { Contratista } from '../models/contratista.model';
 
 // Interfaces para las respuestas del backend
 interface ApiResponse<T> {
@@ -37,7 +39,8 @@ export class RadicacionService {
     constructor(
         private http: HttpClient,
         private router: Router,
-        private notificationService: NotificationService
+        private notificationService: NotificationService,
+        private contratistasService: ContratistasService
     ) { }
 
     /**
@@ -79,10 +82,8 @@ export class RadicacionService {
         let errorMessage = 'Error desconocido';
 
         if (error.error instanceof ErrorEvent) {
-            // Error del lado del cliente
             errorMessage = `Error: ${error.error.message}`;
         } else {
-            // Error del lado del servidor
             errorMessage = `Error ${error.status}: ${error.message}`;
         }
 
@@ -111,7 +112,6 @@ export class RadicacionService {
                 console.log('📦 Respuesta COMPLETA del backend:', response);
                 console.log('📊 Estructura completa:', JSON.stringify(response, null, 2));
 
-                // Debug profundo de la estructura
                 if (response && response.data) {
                     console.log('📊 response.data tipo:', typeof response.data);
                     console.log('📊 response.data claves:', Object.keys(response.data));
@@ -123,44 +123,31 @@ export class RadicacionService {
             map(response => {
                 console.log('🔍 Procesando respuesta...');
 
-                // Caso 1: El backend devuelve {ok: true, data: {success: true, data: [...]}}
                 if (response && response.ok === true && response.data) {
                     console.log('✅ Estructura con "ok" encontrada');
 
-                    // Verificar si data tiene una estructura anidada
                     if (response.data.success === true && response.data.data && Array.isArray(response.data.data)) {
                         console.log(`✅ Estructura anidada encontrada: ${response.data.data.length} documentos`);
                         return response.data.data;
-                    }
-                    // Si data es directamente el array
-                    else if (Array.isArray(response.data)) {
+                    } else if (Array.isArray(response.data)) {
                         console.log(`✅ Data es array directamente: ${response.data.length} documentos`);
                         return response.data;
-                    }
-                    // Si data tiene otra estructura
-                    else if (response.data.data && Array.isArray(response.data.data)) {
+                    } else if (response.data.data && Array.isArray(response.data.data)) {
                         console.log(`✅ Data.data es array: ${response.data.data.length} documentos`);
                         return response.data.data;
                     }
-                }
-
-                // Caso 2: El backend devuelve {success: true, data: [...]} directamente
-                else if (response && response.success === true) {
+                } else if (response && response.success === true) {
                     console.log('✅ Estructura con "success" encontrada');
 
                     if (response.data && Array.isArray(response.data)) {
                         console.log(`✅ ${response.data.length} documentos recibidos`);
                         return response.data;
                     }
-                }
-
-                // Caso 3: Es un array directamente
-                else if (Array.isArray(response)) {
+                } else if (Array.isArray(response)) {
                     console.log(`✅ Respuesta es array directamente: ${response.length} documentos`);
                     return response;
                 }
 
-                // Caso 4: No se pudo procesar
                 console.warn('⚠️ No se pudo extraer documentos de la respuesta:', response);
                 return [];
             }),
@@ -172,7 +159,6 @@ export class RadicacionService {
                     error: error.error
                 });
 
-                // Manejo específico de errores
                 if (error.status === 401) {
                     console.log('🔐 Token inválido o expirado (401) - Cerrando sesión');
                     this.notificationService.error('Sesión expirada', 'Por favor inicia sesión nuevamente');
@@ -195,173 +181,154 @@ export class RadicacionService {
                     return of([]);
                 }
 
-                // Para otros errores
                 const errorMsg = error.error?.message || error.message || 'Error desconocido';
                 this.notificationService.error('Error', errorMsg);
                 return of([]);
             })
         );
     }
-/**
- * Crear documento
- */
-crearDocumento(createDocumentoDto: CreateDocumentoDto, archivos: File[]): Observable<Documento> {
-    console.log('📝 ===== INICIANDO CREACIÓN DE DOCUMENTO =====');
-    console.log('📦 DTO recibido:', createDocumentoDto);
-    console.log('📁 Archivos a subir:', archivos.map(f => f.name));
-    console.log('🔍 primerRadicadoDelAno:', createDocumentoDto.primerRadicadoDelAno, 'Tipo:', typeof createDocumentoDto.primerRadicadoDelAno);
 
-    // Validar que haya exactamente 3 archivos
-    if (archivos.length !== 3) {
-        const error = new Error('Debe adjuntar exactamente 3 documentos');
-        this.notificationService.error('Error de validación', error.message);
-        return throwError(() => error);
-    }
+    /**
+     * Crear documento
+     */
+    crearDocumento(createDocumentoDto: CreateDocumentoDto, archivos: File[]): Observable<Documento> {
+        console.log('📝 ===== INICIANDO CREACIÓN DE DOCUMENTO =====');
+        console.log('📦 DTO recibido:', createDocumentoDto);
+        console.log('📁 Archivos a subir:', archivos.map(f => f.name));
+        console.log('🔍 primerRadicadoDelAno:', createDocumentoDto.primerRadicadoDelAno, 'Tipo:', typeof createDocumentoDto.primerRadicadoDelAno);
 
-    // ✅ VALIDACIÓN DEL FORMATO DEL RADICADO - PERMITE 4 A 8 DÍGITOS
-    const radicadoRegex = /^R\d{4}-\d{4,8}$/;
-    if (!radicadoRegex.test(createDocumentoDto.numeroRadicado)) {
-        const error = new Error('Formato de radicado inválido. Debe ser RAAAA-NNNN (ej: R2025-0001) donde NNNN puede ser de 4 a 8 dígitos');
-        this.notificationService.error('Error de validación', error.message);
-        return throwError(() => error);
-    }
-
-    const formData = new FormData();
-
-    // ✅ LIMPIAR EL RADICADO - QUITAR ESPACIOS Y ASEGURAR MAYÚSCULAS
-    let radicadoOriginal = createDocumentoDto.numeroRadicado.trim().toUpperCase();
-    
-    // ✅ EL BACKEND ESPERA EL FORMATO CON "R"
-    // ¡NO QUITAMOS LA R! El backend espera "R2025-0001"
-    let radicadoParaBackend = radicadoOriginal;
-
-    console.log('📤 ENVIANDO RADICACIÓN:');
-    console.log('  📄 Original frontend:', radicadoOriginal);
-    console.log('  📄 Enviando a backend:', radicadoParaBackend); // Ahora con R
-
-    // Fechas como strings limpios
-    const fechaInicioStr = createDocumentoDto.fechaInicio
-        ? String(createDocumentoDto.fechaInicio).trim()
-        : '';
-
-    const fechaFinStr = createDocumentoDto.fechaFin
-        ? String(createDocumentoDto.fechaFin).trim()
-        : '';
-
-    // Agregar todos los campos como strings
-    formData.append('numeroRadicado', radicadoParaBackend); // ✅ CON LA R
-    formData.append('numeroContrato', createDocumentoDto.numeroContrato.trim());
-    formData.append('nombreContratista', createDocumentoDto.nombreContratista.trim());
-    formData.append('documentoContratista', createDocumentoDto.documentoContratista.trim());
-    formData.append('fechaInicio', fechaInicioStr);
-    formData.append('fechaFin', fechaFinStr);
-    formData.append('descripcionCuentaCobro', createDocumentoDto.descripcionCuentaCobro?.trim() || 'Cuenta de Cobro');
-    formData.append('descripcionSeguridadSocial', createDocumentoDto.descripcionSeguridadSocial?.trim() || 'Seguridad Social');
-    formData.append('descripcionInformeActividades', createDocumentoDto.descripcionInformeActividades?.trim() || 'Informe de Actividades');
-
-    // Observación opcional
-    if (createDocumentoDto.observacion?.trim()) {
-        formData.append('observacion', createDocumentoDto.observacion.trim());
-    }
-
-    // Enviar primerRadicadoDelAno EXACTAMENTE como viene del frontend
-    const primerRadicadoValue = createDocumentoDto.primerRadicadoDelAno === true ? 'true' : 'false';
-    formData.append('primerRadicadoDelAno', primerRadicadoValue);
-
-    console.log('🔍 Enviando primerRadicadoDelAno como:', primerRadicadoValue);
-
-    // Agregar los 3 archivos
-    archivos.forEach((archivo, index) => {
-        formData.append('documentos', archivo, archivo.name);
-        console.log(`Archivo ${index + 1} agregado:`, archivo.name, `(${archivo.size} bytes)`);
-    });
-
-    // Debug completo del FormData
-    console.log('🔍 Contenido completo de FormData:');
-    for (let pair of (formData as any).entries()) {
-        if (pair[1] instanceof File) {
-            console.log(`  📁 ${pair[0]}: [File] ${pair[1].name} (${pair[1].size} bytes)`);
-        } else {
-            console.log(`  🔤 ${pair[0]}: "${pair[1]}"`);
+        if (archivos.length !== 3) {
+            const error = new Error('Debe adjuntar exactamente 3 documentos');
+            this.notificationService.error('Error de validación', error.message);
+            return throwError(() => error);
         }
-    }
 
-    const headers = this.getAuthHeaders();
-    const uploadHeaders = headers.delete('Content-Type');
+        const radicadoRegex = /^R\d{4}-\d{4,8}$/;
+        if (!radicadoRegex.test(createDocumentoDto.numeroRadicado)) {
+            const error = new Error('Formato de radicado inválido. Debe ser RAAAA-NNNN (ej: R2025-0001) donde NNNN puede ser de 4 a 8 dígitos');
+            this.notificationService.error('Error de validación', error.message);
+            return throwError(() => error);
+        }
 
-    return this.http.post<any>(this.apiUrl, formData, { headers: uploadHeaders }).pipe(
-        tap(response => {
-            console.log('✅ Respuesta completa del backend:', response);
-        }),
-        map(response => {
-            console.log('🔍 Procesando respuesta...');
+        const formData = new FormData();
 
-            if (response && typeof response === 'object') {
-                if (response.ok === true && response.data) {
-                    this.notificationService.success('Documento radicado exitosamente');
-                    return response.data;
-                }
+        let radicadoOriginal = createDocumentoDto.numeroRadicado.trim().toUpperCase();
+        let radicadoParaBackend = radicadoOriginal;
 
-                if (response.success === true && response.data) {
-                    this.notificationService.success('Documento radicado exitosamente');
-                    return response.data;
-                }
+        console.log('📤 ENVIANDO RADICACIÓN:');
+        console.log('  📄 Original frontend:', radicadoOriginal);
+        console.log('  📄 Enviando a backend:', radicadoParaBackend);
 
-                if (response.id && response.numeroRadicado) {
-                    this.notificationService.success('Documento radicado exitosamente');
-                    return response;
-                }
+        const fechaInicioStr = createDocumentoDto.fechaInicio
+            ? String(createDocumentoDto.fechaInicio).trim()
+            : '';
 
-                if (response.success === false || response.ok === false) {
-                    throw new Error(response.message || 'Error del servidor al crear documento');
-                }
-            }
+        const fechaFinStr = createDocumentoDto.fechaFin
+            ? String(createDocumentoDto.fechaFin).trim()
+            : '';
 
-            console.error('❌ Respuesta inesperada del servidor:', response);
-            throw new Error('Estructura de respuesta inválida del servidor');
-        }),
-        catchError((error: any) => {
-            console.error('❌ Error completo en crearDocumento:', error);
+        formData.append('numeroRadicado', radicadoParaBackend);
+        formData.append('numeroContrato', createDocumentoDto.numeroContrato.trim());
+        formData.append('nombreContratista', createDocumentoDto.nombreContratista.trim());
+        formData.append('documentoContratista', createDocumentoDto.documentoContratista.trim());
+        formData.append('emailContratista', createDocumentoDto.emailContratista?.trim() || '');
+        formData.append('telefonoContratista', createDocumentoDto.telefonoContratista?.trim() || '');
+        formData.append('fechaInicio', fechaInicioStr);
+        formData.append('fechaFin', fechaFinStr);
+        formData.append('descripcionCuentaCobro', createDocumentoDto.descripcionCuentaCobro?.trim() || 'Cuenta de Cobro');
+        formData.append('descripcionSeguridadSocial', createDocumentoDto.descripcionSeguridadSocial?.trim() || 'Seguridad Social');
+        formData.append('descripcionInformeActividades', createDocumentoDto.descripcionInformeActividades?.trim() || 'Informe de Actividades');
 
-            if (error instanceof HttpErrorResponse) {
-                console.error('❌ Detalles HTTP:', {
-                    status: error.status,
-                    statusText: error.statusText,
-                    message: error.message,
-                    errorBody: error.error
-                });
+        if (createDocumentoDto.observacion?.trim()) {
+            formData.append('observacion', createDocumentoDto.observacion.trim());
+        }
 
-                const backendError = error.error?.message || error.error || error.message;
+        const primerRadicadoValue = createDocumentoDto.primerRadicadoDelAno === true ? 'true' : 'false';
+        formData.append('primerRadicadoDelAno', primerRadicadoValue);
 
-                if (error.status === 401) {
-                    this.notificationService.error('Sesión expirada', 'Por favor inicia sesión nuevamente');
-                    localStorage.removeItem('access_token');
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('user');
-                    this.router.navigate(['/auth/login']);
-                    return throwError(() => new Error('Sesión expirada'));
-                }
+        console.log('🔍 Enviando primerRadicadoDelAno como:', primerRadicadoValue);
 
-                if (error.status === 400) {
-                    let errorMsg = 'Datos inválidos. Verifique los campos.';
-                    if (typeof backendError === 'string') {
-                        errorMsg = backendError;
-                    } else if (Array.isArray(backendError)) {
-                        errorMsg = backendError.join(', ');
-                    } else if (backendError?.message) {
-                        errorMsg = backendError.message;
+        archivos.forEach((archivo, index) => {
+            formData.append('documentos', archivo, archivo.name);
+            console.log(`Archivo ${index + 1} agregado:`, archivo.name, `(${archivo.size} bytes)`);
+        });
+
+        const headers = this.getAuthHeaders();
+        const uploadHeaders = headers.delete('Content-Type');
+
+        return this.http.post<any>(this.apiUrl, formData, { headers: uploadHeaders }).pipe(
+            tap(response => {
+                console.log('✅ Respuesta completa del backend:', response);
+            }),
+            map(response => {
+                console.log('🔍 Procesando respuesta...');
+
+                if (response && typeof response === 'object') {
+                    if (response.ok === true && response.data) {
+                        this.notificationService.success('Documento radicado exitosamente');
+                        return response.data;
                     }
-                    this.notificationService.error('Error de validación', errorMsg);
-                    return throwError(() => new Error(errorMsg));
-                }
-            }
 
-            const errorMsg = error.message || 'Error desconocido al crear documento';
-            this.notificationService.error('Error', errorMsg);
-            return throwError(() => new Error(errorMsg));
-        })
-    );
-}
+                    if (response.success === true && response.data) {
+                        this.notificationService.success('Documento radicado exitosamente');
+                        return response.data;
+                    }
+
+                    if (response.id && response.numeroRadicado) {
+                        this.notificationService.success('Documento radicado exitosamente');
+                        return response;
+                    }
+
+                    if (response.success === false || response.ok === false) {
+                        throw new Error(response.message || 'Error del servidor al crear documento');
+                    }
+                }
+
+                console.error('❌ Respuesta inesperada del servidor:', response);
+                throw new Error('Estructura de respuesta inválida del servidor');
+            }),
+            catchError((error: any) => {
+                console.error('❌ Error completo en crearDocumento:', error);
+
+                if (error instanceof HttpErrorResponse) {
+                    console.error('❌ Detalles HTTP:', {
+                        status: error.status,
+                        statusText: error.statusText,
+                        message: error.message,
+                        errorBody: error.error
+                    });
+
+                    const backendError = error.error?.message || error.error || error.message;
+
+                    if (error.status === 401) {
+                        this.notificationService.error('Sesión expirada', 'Por favor inicia sesión nuevamente');
+                        localStorage.removeItem('access_token');
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                        this.router.navigate(['/auth/login']);
+                        return throwError(() => new Error('Sesión expirada'));
+                    }
+
+                    if (error.status === 400) {
+                        let errorMsg = 'Datos inválidos. Verifique los campos.';
+                        if (typeof backendError === 'string') {
+                            errorMsg = backendError;
+                        } else if (Array.isArray(backendError)) {
+                            errorMsg = backendError.join(', ');
+                        } else if (backendError?.message) {
+                            errorMsg = backendError.message;
+                        }
+                        this.notificationService.error('Error de validación', errorMsg);
+                        return throwError(() => new Error(errorMsg));
+                    }
+                }
+
+                const errorMsg = error.message || 'Error desconocido al crear documento';
+                this.notificationService.error('Error', errorMsg);
+                return throwError(() => new Error(errorMsg));
+            })
+        );
+    }
 
     /**
      * ✅ MÉTODO SIMPLIFICADO: Marcar como primer radicado
@@ -416,7 +383,6 @@ crearDocumento(createDocumentoDto: CreateDocumentoDto, archivos: File[]): Observ
             catchError(error => {
                 console.log('⚠️ Error verificando permisos:', error.status);
 
-                // Si es 401, usuario no autenticado
                 if (error.status === 401) {
                     localStorage.removeItem('access_token');
                     localStorage.removeItem('token');
@@ -433,7 +399,6 @@ crearDocumento(createDocumentoDto: CreateDocumentoDto, archivos: File[]): Observ
                     } as PermisosResponse);
                 }
 
-                // Otros errores
                 return of({
                     success: false,
                     data: {
@@ -451,45 +416,56 @@ crearDocumento(createDocumentoDto: CreateDocumentoDto, archivos: File[]): Observ
     /**
      * Obtener documento por ID
      */
-obtenerDocumentoPorId(id: string): Observable<Documento> {
+  obtenerDocumentoPorId(id: string): Observable<Documento> {
     const headers = this.getAuthHeaders();
 
     if (!headers.get('Authorization')) {
         return throwError(() => new Error('No estás autenticado. Por favor inicia sesión.'));
     }
 
-    // ✅ URL CORRECTA: /radicacion/documento/:id
     return this.http.get<any>(`${this.apiUrl}/documento/${id}`, { headers }).pipe(
         map(response => {
-            console.log('[RadicacionService] Respuesta completa:', response);
-            
-            // Extraer correctamente los datos
             let documento = null;
             
-            // Caso 1: { success: true, data: {...} }
             if (response && response.success === true && response.data) {
                 documento = response.data;
-            }
-            // Caso 2: { ok: true, data: {...} }
-            else if (response && response.ok === true && response.data) {
+            } else if (response && response.ok === true && response.data) {
                 if (response.data.success === true && response.data.data) {
                     documento = response.data.data;
                 } else {
                     documento = response.data;
                 }
-            }
-            // Caso 3: Es directamente el documento
-            else if (response && response.id) {
+            } else if (response && response.id) {
                 documento = response;
             }
             
-            console.log('[RadicacionService] Documento extraído:', documento);
-            
+            return documento as Documento;
+        }),
+        switchMap((documento: Documento): Observable<Documento> => {
             if (!documento) {
-                throw new Error('Documento no encontrado en la respuesta');
+                return throwError(() => new Error('Documento no encontrado'));
             }
             
-            return documento as Documento;
+            // ✅ SIEMPRE buscar el contratista para obtener email y teléfono actualizados
+            return this.contratistasService.buscarPorNumeroContrato(documento.numeroContrato).pipe(
+                map((contratistas: Contratista[]) => {
+                    if (contratistas && contratistas.length > 0) {
+                        const contratista = contratistas[0];
+                        // ✅ Sobrescribir email y teléfono con los datos del contratista
+                        documento.emailContratista = contratista.email || '';
+                        documento.telefonoContratista = contratista.telefono || '';
+                        console.log('[RadicacionService] Datos actualizados desde contratista:', {
+                            email: documento.emailContratista,
+                            telefono: documento.telefonoContratista
+                        });
+                    }
+                    return documento;
+                }),
+                catchError(() => {
+                    console.warn('[RadicacionService] No se pudo obtener contratista, usando datos del documento');
+                    return of(documento);
+                })
+            );
         }),
         catchError((error: HttpErrorResponse) => {
             console.error('[RadicacionService] Error obtenerDocumentoPorId:', error);
@@ -504,58 +480,57 @@ obtenerDocumentoPorId(id: string): Observable<Documento> {
     );
 }
 
-/**
- * Descargar documento - CORREGIDO
- * @param id ID del documento
- * @param numeroDocumento Número del documento (1, 2, o 3)
- */
-descargarDocumento(id: string, numeroDocumento: number): Observable<Blob> {
-    const headers = this.getAuthHeaders();
+    /**
+     * Descargar documento - CORREGIDO
+     * @param id ID del documento
+     * @param numeroDocumento Número del documento (1, 2, o 3)
+     */
+    descargarDocumento(id: string, numeroDocumento: number): Observable<Blob> {
+        const headers = this.getAuthHeaders();
 
-    if (!headers.get('Authorization')) {
-        return throwError(() => new Error('No estás autenticado. Por favor inicia sesión.'));
+        if (!headers.get('Authorization')) {
+            return throwError(() => new Error('No estás autenticado. Por favor inicia sesión.'));
+        }
+
+        return this.http.get(`${this.apiUrl}/${id}/descargar/${numeroDocumento}`, {
+            headers,
+            responseType: 'blob'
+        }).pipe(
+            catchError((error: HttpErrorResponse) => {
+                console.error('❌ Error descargando documento:', error);
+
+                if (error.status === 401) {
+                    this.notificationService.error('Sesión expirada', 'Por favor inicia sesión nuevamente');
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    this.router.navigate(['/auth/login']);
+                } else if (error.status === 403) {
+                    this.notificationService.error('Sin permisos', 'No tienes permisos para descargar este archivo');
+                } else if (error.status === 404) {
+                    this.notificationService.error('No encontrado', 'El archivo no existe');
+                }
+
+                return throwError(() => error);
+            })
+        );
     }
 
-    // ✅ URL CORRECTA: /radicacion/:id/descargar/:numeroDocumento
-    return this.http.get(`${this.apiUrl}/${id}/descargar/${numeroDocumento}`, {
-        headers,
-        responseType: 'blob'
-    }).pipe(
-        catchError((error: HttpErrorResponse) => {
-            console.error('❌ Error descargando documento:', error);
+    /**
+     * Obtener URL para previsualizar documento (usando el endpoint público)
+     */
+    getArchivoPreviewUrl(id: string, index: number): string {
+        const token = this.getToken();
+        return `${this.apiUrl}/${id}/archivo/${index}?token=${token}`;
+    }
 
-            if (error.status === 401) {
-                this.notificationService.error('Sesión expirada', 'Por favor inicia sesión nuevamente');
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                this.router.navigate(['/auth/login']);
-            } else if (error.status === 403) {
-                this.notificationService.error('Sin permisos', 'No tienes permisos para descargar este archivo');
-            } else if (error.status === 404) {
-                this.notificationService.error('No encontrado', 'El archivo no existe');
-            }
-
-            return throwError(() => error);
-        })
-    );
-}
-
-/**
- * Obtener URL para previsualizar documento (usando el endpoint público)
- */
-getArchivoPreviewUrl(id: string, index: number): string {
-    const token = this.getToken();
-    return `${this.apiUrl}/${id}/archivo/${index}?token=${token}`;
-}
-
-/**
- * Método para previsualizar archivo en nueva pestaña
- */
-previsualizarArchivo(id: string, index: number): void {
-    const url = this.getArchivoPreviewUrl(id, index);
-    window.open(url, '_blank');
-}
+    /**
+     * Método para previsualizar archivo en nueva pestaña
+     */
+    previsualizarArchivo(id: string, index: number): void {
+        const url = this.getArchivoPreviewUrl(id, index);
+        window.open(url, '_blank');
+    }
 
     /**
      * Validar formato de radicado
@@ -648,8 +623,6 @@ previsualizarArchivo(id: string, index: number): void {
         return `${baseUrl}?${params.toString()}`;
     }
 
- 
-
     /**
      * Descarga directamente el archivo sin pasar por Blob
      */
@@ -730,40 +703,27 @@ previsualizarArchivo(id: string, index: number): void {
 
                 let documentosArray: any[] = [];
 
-                // Caso 1: El backend devuelve {ok: true, data: {success: true, data: [...]}}
                 if (response && response.ok === true && response.data) {
-                    // Verificar si data tiene una estructura anidada
                     if (response.data.success === true && response.data.data && Array.isArray(response.data.data)) {
                         console.log(`✅ Estructura anidada encontrada: ${response.data.data.length} documentos`);
                         documentosArray = response.data.data;
-                    }
-                    // Si data es directamente el array
-                    else if (Array.isArray(response.data)) {
+                    } else if (Array.isArray(response.data)) {
                         console.log(`✅ Data es array directamente: ${response.data.length} documentos`);
                         documentosArray = response.data;
-                    }
-                    // Si data tiene otra estructura
-                    else if (response.data.data && Array.isArray(response.data.data)) {
+                    } else if (response.data.data && Array.isArray(response.data.data)) {
                         console.log(`✅ Data.data es array: ${response.data.data.length} documentos`);
                         documentosArray = response.data.data;
                     }
-                }
-
-                // Caso 2: El backend devuelve {success: true, data: [...]} directamente
-                else if (response && response.success === true) {
+                } else if (response && response.success === true) {
                     if (response.data && Array.isArray(response.data)) {
                         console.log(`✅ ${response.data.length} documentos recibidos`);
                         documentosArray = response.data;
                     }
-                }
-
-                // Caso 3: Es un array directamente
-                else if (Array.isArray(response)) {
+                } else if (Array.isArray(response)) {
                     console.log(`✅ Respuesta es array directamente: ${response.length} documentos`);
                     documentosArray = response;
                 }
 
-                // Obtener el usuario actual para filtrar
                 const userStr = localStorage.getItem('user');
                 let currentUsername = '';
 
@@ -777,9 +737,7 @@ previsualizarArchivo(id: string, index: number): void {
                     }
                 }
 
-                // Filtrar documentos por el usuario que los radicó
                 const documentosFiltrados = documentosArray.filter(doc => {
-                    // Verificar diferentes posibles nombres de campo
                     const radicadorUsername = doc.radicador?.username ||
                         doc.usuarioRadicador ||
                         doc.radicadoPor;
@@ -796,7 +754,6 @@ previsualizarArchivo(id: string, index: number): void {
             catchError((error: HttpErrorResponse) => {
                 console.error('❌ Error obteniendo MIS documentos:', error);
 
-                // Si hay error, intentar crear un endpoint específico
                 console.log('🔄 Intentando con endpoint específico...');
 
                 return this.http.get<any>(`${this.apiUrl}/mis-documentos`, { headers }).pipe(
@@ -907,19 +864,19 @@ previsualizarArchivo(id: string, index: number): void {
     }
 
     descargarArchivo(blob: Blob, nombreArchivo: string): void {
-    try {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = nombreArchivo;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-        console.log(`✅ Archivo descargado: ${nombreArchivo}`);
-    } catch (error) {
-        console.error('❌ Error descargando archivo:', error);
-        this.notificationService.error('Error', 'No se pudo descargar el archivo');
+        try {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = nombreArchivo;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            console.log(`✅ Archivo descargado: ${nombreArchivo}`);
+        } catch (error) {
+            console.error('❌ Error descargando archivo:', error);
+            this.notificationService.error('Error', 'No se pudo descargar el archivo');
+        }
     }
-}
 }

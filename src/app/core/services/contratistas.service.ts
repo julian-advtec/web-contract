@@ -581,4 +581,56 @@ obtenerDocumentos(contratistaId: string): Observable<DocumentoContratista[]> {
       })
     );
   }
+
+  // ===============================
+// BÚSQUEDA EXACTA POR CONTRATO
+// ===============================
+
+/**
+ * Buscar contratista por número de contrato EXACTO
+ * Este método usa el endpoint específico que funciona correctamente
+ */
+buscarContratistaPorNumeroContratoExacto(numeroContrato: string): Observable<Contratista | null> {
+  const headers = this.getAuthHeaders();
+  if (!headers.get('Authorization') || !numeroContrato || numeroContrato.trim().length < 1) {
+    return of(null);
+  }
+
+  console.log('[ContratistasService] Buscando contratista exacto por contrato:', numeroContrato);
+
+  // ✅ Usar el mismo endpoint que funciona en AuditorService
+  return this.http.get<any>(
+    `${this.apiUrl}/buscar-por-contrato/${encodeURIComponent(numeroContrato.trim())}`,
+    { headers }
+  ).pipe(
+    map(response => {
+      console.log('[ContratistasService] Respuesta del endpoint exacto:', response);
+      
+      // Extraer el contratista de la respuesta (misma lógica que en AuditorService)
+      let contratista = response?.data?.data?.data ||
+        response?.data?.data ||
+        response?.data ||
+        response;
+      
+      // Si es un array, tomar el primero
+      if (Array.isArray(contratista) && contratista.length > 0) {
+        contratista = contratista[0];
+      }
+      
+      if (contratista && contratista.id) {
+        console.log('[ContratistasService] Contratista encontrado:', contratista.razonSocial);
+        console.log('[ContratistasService] Email:', contratista.email);
+        console.log('[ContratistasService] Teléfono:', contratista.telefono);
+        return this.mapearContratista(contratista);
+      }
+      
+      console.log('[ContratistasService] No se encontró contratista para:', numeroContrato);
+      return null;
+    }),
+    catchError(error => {
+      console.error('[ContratistasService] Error buscando contratista exacto:', error);
+      return of(null);
+    })
+  );
+}
 }

@@ -408,11 +408,97 @@ export class AsesorGerenciaFormComponent implements OnInit {
   }
 
   getNombreArchivoFirmado(path: string | undefined): string {
-  if (!path) {
-    return 'comprobante_firmado.pdf';
+    if (!path) {
+      return 'comprobante_firmado.pdf';
+    }
+    // Divide por \ o / y toma el último segmento (el nombre del archivo)
+    const partes = path.split(/[\\/]/);
+    return partes[partes.length - 1] || 'comprobante_firmado.pdf';
   }
-  // Divide por \ o / y toma el último segmento (el nombre del archivo)
-  const partes = path.split(/[\\/]/);
-  return partes[partes.length - 1] || 'comprobante_firmado.pdf';
-}
+
+  // Obtener nombre del archivo extra
+  getNombreArchivoExtra(): string {
+    if (!this.documento?.comprobanteExtraPath && !this.documento?.pathComprobanteExtra) {
+      return 'documento_extra_tesoreria.pdf';
+    }
+    const path = this.documento.comprobanteExtraPath || this.documento.pathComprobanteExtra;
+    const partes = path.split(/[\\/]/);
+    return partes[partes.length - 1] || 'documento_extra_tesoreria.pdf';
+  }
+
+  // Ver comprobante extra de tesorería
+  verComprobanteExtra(): void {
+    if (!this.documento?.id) {
+      this.mostrarMensaje('No hay documento para consultar', 'warning');
+      return;
+    }
+
+    const pathExtra = this.documento.comprobanteExtraPath || this.documento.pathComprobanteExtra;
+    if (!pathExtra) {
+      this.mostrarMensaje('No hay documento extra registrado por tesorería', 'warning');
+      return;
+    }
+
+    console.log('[VER EXTRA] Solicitando documento extra de tesorería');
+
+    this.asesorGerenciaService.verArchivo(this.documento.id, 'comprobanteExtra').subscribe({
+      next: (blob: Blob) => {
+        console.log('[VER EXTRA] Documento extra cargado OK - tamaño:', blob.size);
+        if (blob.size === 0) {
+          this.mostrarMensaje('El archivo extra está vacío', 'warning');
+          return;
+        }
+        this.pdfBlob = blob;
+        this.pdfModalTitle = `Documento Extra Tesorería - ${this.documento.numeroRadicado || 'N/A'}`;
+        this.showPdfModal = true;
+      },
+      error: (err) => {
+        console.error('[VER EXTRA] Error:', err);
+        if (err.status === 404) {
+          this.mostrarMensaje('El documento extra no se encuentra en el servidor', 'error');
+        } else {
+          this.mostrarMensaje('Error al cargar el documento extra', 'error');
+        }
+      }
+    });
+  }
+
+ 
+
+  descargarComprobanteExtra(): void {
+    if (!this.documento?.id) {
+      this.mostrarMensaje('No hay documento para consultar', 'warning');
+      return;
+    }
+
+    const pathExtra = this.documento.comprobanteExtraPath || this.documento.pathComprobanteExtra;
+    if (!pathExtra) {
+      this.mostrarMensaje('No hay documento extra registrado por tesorería', 'warning');
+      return;
+    }
+
+    this.isProcessing = true;
+    const nombreArchivo = this.getNombreArchivoExtra();
+
+    // ✅ Usar verArchivo (que funciona) y convertir a descarga
+    this.asesorGerenciaService.verArchivo(this.documento.id, 'comprobanteExtra').subscribe({
+      next: (blob: Blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = nombreArchivo;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        this.isProcessing = false;
+        this.mostrarMensaje('Documento extra descargado correctamente', 'success');
+      },
+      error: (err) => {
+        console.error('[DESCARGAR EXTRA] Error:', err);
+        this.mostrarMensaje('Error al descargar el documento extra', 'error');
+        this.isProcessing = false;
+      }
+    });
+  }
 }

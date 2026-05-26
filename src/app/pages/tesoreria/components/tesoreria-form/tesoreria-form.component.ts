@@ -4,22 +4,18 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 
-// Componentes de flujo
 import { SupervisorFormComponent } from '../../../supervisor/components/supervisor-form/supervisor-form.component';
 import { AuditorFormComponent } from '../../../auditor/components/auditor-form/auditor-form.component';
 import { ContabilidadFormComponent } from '../../../contabilidad/components/contabilidad-form/contabilidad-form.component';
 
-// Servicios
 import { TesoreriaService } from '../../../../core/services/tesoreria.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { SignatureService, Signature } from '../../../../core/services/signature.service';
 
-// Componentes de firma
 import { SignaturePadComponent } from '../../../signature/components/signature-pad/signature-pad.component';
 import { SignaturePositionComponent, SignaturePosition } from '../../../signature/components/signature-position/signature-position.component';
 
-// Modal PDF
 import { PdfViewerModalComponent } from '../pdf-viewer-modal/pdf-viewer-modal.component';
 
 @Component({
@@ -44,6 +40,8 @@ export class TesoreriaFormComponent implements OnInit {
     estadoFinal: ['', Validators.required]
   });
 
+  mostrarOpcionTomar: boolean = false;
+
   @Input() documentoId: string | null = null;
   @Input() forceReadOnly: boolean = false;
 
@@ -54,13 +52,19 @@ export class TesoreriaFormComponent implements OnInit {
   esModoLectura = false;
   estaProcesado = false;
 
+
+
   archivoSeleccionado: File | null = null;
   urlPrevisualizacion: SafeUrl | null = null;
 
-  // Modal PDF
+  // Comprobante extra
+  comprobanteExtraSeleccionado: File | null = null;
+
   showPdfModal = false;
   pdfBlob: Blob | null = null;
   pdfModalTitle = '';
+
+  mostrarContabilidad = false;
 
   private estadosProcesados = [
     'COMPLETADO_TESORERIA',
@@ -74,12 +78,13 @@ export class TesoreriaFormComponent implements OnInit {
   puedeGuardar = false;
   puedeLiberar = false;
 
-  // Propiedades para firma digital
   currentUserRole: string = '';
   userSignature: Signature | null = null;
   mostrarSelectorPosicion = false;
   firmaPosicion: SignaturePosition | null = null;
   tieneFirma = false;
+
+
 
   constructor(
     private fb: FormBuilder,
@@ -100,7 +105,7 @@ export class TesoreriaFormComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargarFirmaUsuario();
-    
+
     const id = this.route.snapshot.paramMap.get('id');
     const modo = this.route.snapshot.queryParamMap.get('modo') || 'edicion';
     const soloLecturaParam = this.route.snapshot.queryParamMap.get('soloLectura') === 'true';
@@ -108,12 +113,11 @@ export class TesoreriaFormComponent implements OnInit {
 
     console.log('[TESORERIA FORM] Inicializando con params:', { id, modo, soloLecturaParam, desdeHistorial });
 
-    // Forzar modo lectura si viene del historial o está procesado
-    this.esModoLectura = soloLecturaParam || 
-                         this.estaProcesado || 
-                         modo === 'consulta' || 
-                         modo === 'lectura' || 
-                         modo === 'vista';
+    this.esModoLectura = soloLecturaParam ||
+      this.estaProcesado ||
+      modo === 'consulta' ||
+      modo === 'lectura' ||
+      modo === 'vista';
 
     if (id) {
       this.cargarDocumento(id);
@@ -122,22 +126,17 @@ export class TesoreriaFormComponent implements OnInit {
       this.isLoading = false;
     }
 
-    // Si viene desde historial y modo lectura → deshabilitar todo
     if (desdeHistorial && this.esModoLectura) {
       this.form.disable();
       this.esModoLectura = true;
       console.log('[TESORERIA FORM] Modo SOLO LECTURA forzado desde historial');
     }
 
-    // Escuchar cambios en estadoFinal
     this.form.get('estadoFinal')?.valueChanges.subscribe(() => {
       this.onEstadoFinalChange();
     });
   }
 
-  /**
-   * Cargar firma del usuario
-   */
   cargarFirmaUsuario(): void {
     const currentUser = this.authService.getCurrentUser();
     if (!currentUser) {
@@ -161,12 +160,11 @@ export class TesoreriaFormComponent implements OnInit {
         console.log('[Firma] Respuesta directa del servicio:', signature);
 
         this.userSignature = signature;
-        
-        // Validación estricta
-        this.tieneFirma = !!signature && 
-                          !!signature.id && 
-                          !!signature.name && 
-                          (signature.type === 'pdf' || signature.type === 'image');
+
+        this.tieneFirma = !!signature &&
+          !!signature.id &&
+          !!signature.name &&
+          (signature.type === 'pdf' || signature.type === 'image');
 
         console.log('[Firma] Cargada correctamente:', {
           id: signature?.id,
@@ -190,9 +188,6 @@ export class TesoreriaFormComponent implements OnInit {
     });
   }
 
-  /**
-   * Cuando cambia el estado final
-   */
   onEstadoFinalChange(): void {
     const estado = this.form.get('estadoFinal')?.value;
     console.log('[Estado] Cambio a:', estado);
@@ -231,48 +226,160 @@ export class TesoreriaFormComponent implements OnInit {
     try {
       const respuesta = await this.tesoreriaService.obtenerDetallePago(id).toPromise();
 
+      // 🔧 IMPORTANTE: La respuesta tiene estructura anidada
+      // El documento está en respuesta.data.documento o respuesta.documento
       this.documento = respuesta?.documento || respuesta?.data?.documento || respuesta || null;
 
       if (!this.documento) {
         throw new Error('Documento no encontrado o no tienes acceso');
       }
 
-      this.estaProcesado = this.estadosProcesados.includes(
-        this.documento.estado?.toUpperCase() || ''
-      );
+      const estadoDoc = this.documento.estado?.toUpperCase() || '';
+      const currentUser = this.authService.getCurrentUser();
+      const userId = currentUser?.id;
 
-      if (this.esModoLectura || this.estaProcesado) {
-        this.form.disable();
+      // 🔧 MÉTODO 1: Intentar obtener usuarioAsignadoId de las ubicaciones directas
+      let usuarioAsignadoId =
+        this.documento.usuarioAsignado?.id ||      // Objeto anidado
+        this.documento.usuarioAsignadoId ||        // Propiedad directa
+        this.documento.tesoreroAsignadoId ||       // Propiedad alternativa
+        this.documento.asignacion?.tesoreroId;     // Dentro de asignación
+
+      // 🔧 MÉTODO 2: Si no se encontró, buscar en el historial de estados
+      if (!usuarioAsignadoId && this.documento.historialEstados && Array.isArray(this.documento.historialEstados)) {
+        // Buscar el último registro con estado EN_REVISION_TESORERIA
+        const estadosTesoreria = [...this.documento.historialEstados]
+          .reverse() // Revertir para empezar desde el más reciente
+          .find((h: any) => h.estado === 'EN_REVISION_TESORERIA');
+
+        if (estadosTesoreria?.usuarioId) {
+          usuarioAsignadoId = estadosTesoreria.usuarioId;
+          console.log('[TESORERIA FORM] usuarioAsignadoId obtenido del historial:', usuarioAsignadoId);
+          console.log('[TESORERIA FORM] Usuario nombre del historial:', estadosTesoreria.usuarioNombre);
+        }
       }
 
-      let estadoFinal = '';
-      const estadoDoc = this.documento.estado?.toUpperCase() || '';
-      if (estadoDoc === 'COMPLETADO_TESORERIA') estadoFinal = 'PAGADO';
-      else if (estadoDoc === 'OBSERVADO_TESORERIA') estadoFinal = 'OBSERVADO';
-      else if (estadoDoc === 'RECHAZADO_TESORERIA') estadoFinal = 'RECHAZADO';
+      // 🔧 MÉTODO 3: Como último recurso, buscar el usuario asignado por nombre
+      if (!usuarioAsignadoId && this.documento.usuarioAsignadoNombre) {
+        // Esto es un fallback, puede no ser 100% preciso
+        console.log('[TESORERIA FORM] Usuario asignado por nombre:', this.documento.usuarioAsignadoNombre);
+        // Si el nombre coincide con el usuario actual, asumimos que es su documento
+        if (this.documento.usuarioAsignadoNombre === currentUser?.fullName) {
+          usuarioAsignadoId = userId;
+          console.log('[TESORERIA FORM] usuarioAsignadoId inferido por nombre:', usuarioAsignadoId);
+        }
+      }
 
-      this.form.patchValue({
-        estadoFinal,
-        observaciones: this.documento.observacionesTesoreria ||
-          this.documento.observaciones ||
-          this.documento.observacion || ''
+      // 🔧 CORREGIDO: Verificar si el usuario actual es el asignado
+      const esMiDocumento = usuarioAsignadoId === userId;
+
+      // ✅ Verificar si el documento está disponible para tomar
+      const estaDisponible = estadoDoc === 'COMPLETADO_CONTABILIDAD';
+
+      // ✅ Verificar si el documento está en revisión por el usuario actual
+      const estaEnRevisionPorMi = estadoDoc === 'EN_REVISION_TESORERIA' && esMiDocumento;
+
+      // ✅ Verificar si el documento está en revisión por otro usuario
+      const estaBloqueadoPorOtro = estadoDoc === 'EN_REVISION_TESORERIA' &&
+        usuarioAsignadoId &&
+        !esMiDocumento;
+
+      // ✅ Verificar si ya fue procesado
+      this.estaProcesado = this.estadosProcesados.includes(estadoDoc);
+
+      console.log('[TESORERIA FORM] Estado COMPLETO:', {
+        estadoDoc,
+        userId,
+        usuarioAsignadoId,
+        esMiDocumento,
+        estaDisponible,
+        estaEnRevisionPorMi,
+        estaBloqueadoPorOtro,
+        estaProcesado: this.estaProcesado,
+        tieneUsuarioAsignado: !!this.documento.usuarioAsignado,
+        usuarioAsignadoCompleto: this.documento.usuarioAsignado,
+        usuarioAsignadoNombre: this.documento.usuarioAsignadoNombre
       });
 
-      this.actualizarEstadoBotones();
+      // ✅ DETERMINAR MODO DE EDICIÓN
+      if (this.forceReadOnly || this.estaProcesado || estaBloqueadoPorOtro) {
+        this.esModoLectura = true;
+        this.form.disable();
+        console.log('[TESORERIA FORM] 🔒 MODO LECTURA');
+
+        if (estaBloqueadoPorOtro) {
+          const nombreAsignado = this.documento.usuarioAsignado?.fullName ||
+            this.documento.usuarioAsignadoNombre ||
+            'otro tesorero';
+          this.mostrarMensaje(`Este documento está siendo procesado por: ${nombreAsignado}`, 'info');
+        }
+        if (this.estaProcesado) {
+          this.mostrarMensaje('Este documento ya fue procesado. Solo lectura.', 'info');
+        }
+      }
+      else if (estaEnRevisionPorMi) {
+        this.esModoLectura = false;
+        this.form.enable();
+        console.log('[TESORERIA FORM] ✏️ MODO EDICIÓN');
+        this.mostrarMensaje('Puedes editar y procesar este documento', 'success');
+      }
+      else if (estaDisponible) {
+        this.esModoLectura = true;
+        this.form.disable();
+        this.mostrarOpcionTomar = true;
+        console.log('[TESORERIA FORM] 📋 Documento disponible para tomar');
+        this.mostrarMensaje('Debes tomar este documento antes de editarlo', 'warning');
+      }
+      else {
+        this.esModoLectura = true;
+        this.form.disable();
+        console.log('[TESORERIA FORM] 🔒 MODO LECTURA por defecto');
+      }
+
+      // Cargar datos del formulario si existen
+      if (this.documento.observacionesTesoreria) {
+        this.form.patchValue({
+          observaciones: this.documento.observacionesTesoreria
+        });
+      }
+
+      this.mostrarContabilidad = true;
+      this.isLoading = false;
 
     } catch (err: any) {
-      console.error('❌ Error cargando documento:', err);
-      const msg = err.error?.message || err.message || 'No se pudo cargar el documento';
-      this.mostrarMensaje(msg, 'error');
-
-      if (msg.toLowerCase().includes('no encontrado') || msg.toLowerCase().includes('acceso')) {
-        setTimeout(() => this.volverALista(), 3000);
-      }
-    } finally {
+      console.error('[TESORERIA FORM] Error cargando:', err);
+      this.mostrarMensaje(err.message || 'Error al cargar el documento', 'error');
+      this.documento = null;
       this.isLoading = false;
     }
   }
 
+  tomarDocumento(): void {
+    if (!this.documento?.id) return;
+
+    this.isProcessing = true;
+
+    this.tesoreriaService.tomarDocumentoParaRevision(this.documento.id).subscribe({
+      next: (response) => {
+        console.log('[TOMAR] Documento tomado:', response);
+        this.mostrarMensaje('Documento tomado exitosamente. Ahora puedes editarlo.', 'success');
+
+        // Recargar el documento para actualizar el estado
+        setTimeout(() => {
+          this.cargarDocumento(this.documento.id);
+        }, 1000);
+      },
+      error: (err) => {
+        console.error('[TOMAR] Error:', err);
+        this.mostrarMensaje(err.error?.message || err.message || 'Error al tomar el documento', 'error');
+        this.isProcessing = false;
+      }
+    });
+  }
+
+  // ============================================================
+  // MÉTODOS PARA SUBIDA DE ARCHIVOS (EDICIÓN)
+  // ============================================================
   onFileSelected(event: any): void {
     if (this.esModoLectura || this.estaProcesado) return;
     const file = event.target.files?.[0];
@@ -341,6 +448,55 @@ export class TesoreriaFormComponent implements OnInit {
     this.actualizarEstadoBotones();
   }
 
+  // Métodos para comprobante extra (edición)
+  onComprobanteExtraSelected(event: any): void {
+    if (this.esModoLectura || this.estaProcesado) return;
+    const file = event.target.files?.[0];
+    if (file) {
+      this.procesarArchivoExtra(file);
+    }
+  }
+
+  onDropExtra(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.esModoLectura || this.estaProcesado) return;
+    const file = event.dataTransfer?.files?.[0];
+    if (file) {
+      this.procesarArchivoExtra(file);
+    }
+  }
+
+  procesarArchivoExtra(file: File): void {
+    console.log('📁 Procesando comprobante extra:', file.name, file.type);
+
+    if (file.size > 15 * 1024 * 1024) {
+      this.mostrarMensaje('Archivo muy grande (máximo 15MB)', 'error');
+      return;
+    }
+
+    const allowed = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+
+    if (!allowed.includes(file.type)) {
+      this.mostrarMensaje('Formato no permitido (PDF, JPG, PNG, DOC, DOCX)', 'error');
+      return;
+    }
+
+    this.comprobanteExtraSeleccionado = file;
+    this.actualizarEstadoBotones();
+  }
+
+  eliminarComprobanteExtra(): void {
+    this.comprobanteExtraSeleccionado = null;
+    this.actualizarEstadoBotones();
+  }
+
   esImagen(file: File | null): boolean {
     return file?.type.startsWith('image/') ?? false;
   }
@@ -353,23 +509,20 @@ export class TesoreriaFormComponent implements OnInit {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
-  /**
-   * Guardar posición seleccionada
-   */
   onPositionSelected(position: SignaturePosition): void {
     this.firmaPosicion = position;
     console.log('[Firma] Posición seleccionada por el usuario:', position);
     this.actualizarEstadoBotones();
   }
 
-  /**
-   * Cerrar selector de posición
-   */
   cerrarSelectorPosicion(): void {
     this.mostrarSelectorPosicion = false;
     this.firmaPosicion = null;
   }
 
+  // ============================================================
+  // ENVÍO DEL FORMULARIO
+  // ============================================================
   onSubmit(): void {
     if (this.form.invalid || this.esModoLectura || this.estaProcesado) {
       this.mostrarMensaje('Formulario inválido o modo no permitido', 'error');
@@ -382,14 +535,12 @@ export class TesoreriaFormComponent implements OnInit {
       return;
     }
 
-    // Validaciones específicas por estado
     if (estadoFinal === 'PAGADO') {
       if (!this.archivoSeleccionado) {
         this.mostrarMensaje('Obligatorio subir comprobante para PAGADO', 'error');
         return;
       }
 
-      // Validación crítica de firma
       if (this.tieneFirma && !this.userSignature?.id) {
         this.mostrarMensaje('Error interno: Firma marcada como existente pero ID inválido', 'error');
         return;
@@ -402,7 +553,7 @@ export class TesoreriaFormComponent implements OnInit {
     }
 
     if ((estadoFinal === 'OBSERVADO' || estadoFinal === 'RECHAZADO') &&
-        (!this.form.value.observaciones?.trim() || this.form.value.observaciones.trim().length < 10)) {
+      (!this.form.value.observaciones?.trim() || this.form.value.observaciones.trim().length < 10)) {
       this.mostrarMensaje('Justificación mínima de 10 caracteres requerida', 'error');
       return;
     }
@@ -410,13 +561,19 @@ export class TesoreriaFormComponent implements OnInit {
     this.isProcessing = true;
 
     const formData = new FormData();
+
     if (this.archivoSeleccionado) {
       formData.append('pagoRealizado', this.archivoSeleccionado);
     }
+
+    if (this.comprobanteExtraSeleccionado) {
+      formData.append('comprobanteExtra', this.comprobanteExtraSeleccionado);
+      console.log('✅ Comprobante extra agregado al FormData');
+    }
+
     formData.append('observaciones', this.form.value.observaciones?.trim() || '');
     formData.append('estadoFinal', estadoFinal);
 
-    // Solo enviamos firma si TODO está correcto
     if (this.userSignature?.id && this.firmaPosicion) {
       console.log('✅ Enviando firma digital:', {
         signatureId: this.userSignature.id,
@@ -494,7 +651,6 @@ export class TesoreriaFormComponent implements OnInit {
 
     if (estadoFinal === 'PAGADO') {
       valido = valido && !!this.archivoSeleccionado;
-      // Si el rol requiere firma y dice que la tiene, debe tener posición
       if (this.tieneFirma) {
         valido = valido && !!this.firmaPosicion && !!this.userSignature?.id;
       }
@@ -508,6 +664,9 @@ export class TesoreriaFormComponent implements OnInit {
     this.puedeLiberar = !!this.documento;
   }
 
+  // ============================================================
+  // MÉTODOS AUXILIARES
+  // ============================================================
   getEstadoPagoBadgeClass(estado: string): string {
     const u = (estado || '').toUpperCase();
     if (u.includes('COMPLETADO') || u.includes('PAGADO')) return 'badge bg-success';
@@ -524,69 +683,9 @@ export class TesoreriaFormComponent implements OnInit {
     return 'PENDIENTE';
   }
 
-  verComprobantePago(): void {
-    if (!this.documento?.id) return;
-
-    this.isProcessing = true;
-    const path = this.documento.pagoRealizadoPath || this.documento.comprobantePagoPath;
-
-    if (!path) {
-      this.notificationService.warning('Sin archivo', 'No hay comprobante de pago registrado');
-      this.isProcessing = false;
-      return;
-    }
-
-    this.tesoreriaService.verArchivoPago(this.documento.id)
-      .subscribe({
-        next: (blob: Blob) => {
-          if (blob.type === 'application/pdf') {
-            this.pdfBlob = blob;
-            this.pdfModalTitle = `Comprobante - ${this.documento.numeroRadicado}`;
-            this.showPdfModal = true;
-          } else {
-            const url = window.URL.createObjectURL(blob);
-            window.open(url, '_blank');
-            setTimeout(() => window.URL.revokeObjectURL(url), 120000);
-          }
-          this.isProcessing = false;
-        },
-        error: (err) => {
-          console.error('Error al ver comprobante:', err);
-          this.notificationService.error('Error', 'No se pudo abrir el comprobante');
-          this.isProcessing = false;
-        }
-      });
-  }
-
-  descargarComprobantePago(): void {
-    if (!this.documento?.id) return;
-
-    this.isProcessing = true;
-    const path = this.documento.pagoRealizadoPath || this.documento.comprobantePagoPath;
-    const nombre = path?.split('/').pop() || 'comprobante_pago.pdf';
-
-    this.tesoreriaService.descargarArchivoPago(this.documento.id)
-      .subscribe({
-        next: (blob: Blob) => {
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = nombre;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          window.URL.revokeObjectURL(url);
-          this.isProcessing = false;
-          this.notificationService.success('Descargado', 'Comprobante descargado');
-        },
-        error: (err) => {
-          console.error('Error al descargar comprobante:', err);
-          this.notificationService.error('Error', 'No se pudo descargar el comprobante');
-          this.isProcessing = false;
-        }
-      });
-  }
-
+  // ============================================================
+  // MÉTODOS PARA VER/DESCARGAR ARCHIVOS (MODO LECTURA)
+  // ============================================================
   verArchivoPago(): void {
     if (!this.documento?.id) {
       this.notificationService.warning('Sin documento', 'No hay ID para consultar');
@@ -617,10 +716,185 @@ export class TesoreriaFormComponent implements OnInit {
       });
   }
 
+
+
+
+
   cerrarModalPdf(): void {
     this.showPdfModal = false;
     this.pdfBlob = null;
   }
 
+  tienePagoRealizado(): boolean {
+    const path = this.documento?.pagoRealizadoPath ||
+      this.documento?.pagoRealizadoPathOriginal ||
+      this.documento?.pathPagoRealizado ||
+      this.documento?.tesoreria?.pagoRealizadoPath ||
+      this.documento?.datosTesoreria?.pagoRealizadoPath ||
+      null;
+    return !!path;
+  }
+
+  tieneComprobanteExtra(): boolean {
+    // Buscar en múltiples ubicaciones posibles
+    const path = this.documento?.comprobanteExtraPath ||
+      this.documento?.pathComprobanteExtra ||
+      this.documento?.comprobanteExtra ||
+      this.documento?.tesoreria?.comprobanteExtraPath ||
+      this.documento?.datosTesoreria?.comprobanteExtraPath ||
+      this.documento?.tesoreria?.comprobanteExtra ||
+      null;
+
+    
+    return !!path;
+  }
+
+  getRutaComprobanteExtra(): string | null {
+    const ruta = this.documento?.comprobanteExtraPath ||
+      this.documento?.pathComprobanteExtra ||
+      this.documento?.comprobanteExtra ||
+      this.documento?.tesoreria?.comprobanteExtraPath ||
+      this.documento?.datosTesoreria?.comprobanteExtraPath ||
+      this.documento?.tesoreria?.comprobanteExtra ||
+      null;
+   
+    return ruta;
+  }
+
+  getNombreArchivoExtra(): string {
+    const path = this.getRutaComprobanteExtra();
+    if (!path) return 'comprobante_extra.pdf';
+    const partes = path.split(/[\\/]/);
+    return partes[partes.length - 1] || 'comprobante_extra.pdf';
+  }
+
+  getPagoRealizadoPath(): string | null {
+    const path = this.documento?.pagoRealizadoPath ||
+      this.documento?.pagoRealizadoPathOriginal ||
+      this.documento?.pathPagoRealizado ||
+      this.documento?.tesoreria?.pagoRealizadoPath ||
+      this.documento?.datosTesoreria?.pagoRealizadoPath ||
+      null;
+    return path;
+  }
+
+  getNombreArchivo(path: string | undefined): string {
+    if (!path) return 'archivo.pdf';
+    const partes = path.split(/[\\/]/);
+    return partes[partes.length - 1] || 'archivo.pdf';
+  }
+
+  // ============================================================
+  // MÉTODOS PARA VER/DESCARGAR COMPROBANTE EXTRA
+  // ============================================================
+
+verComprobanteExtra(): void {
+  if (!this.documento?.id) {
+    this.notificationService.warning('Sin documento', 'No hay ID para consultar');
+    return;
+  }
+
+  const pathExtra = this.getRutaComprobanteExtra();
+  if (!pathExtra) {
+    this.notificationService.warning('Sin archivo', 'No hay comprobante extra registrado');
+    return;
+  }
+
+  console.log('[VER EXTRA] Solicitando comprobante extra para doc:', this.documento.id);
+  console.log('[VER EXTRA] Ruta:', pathExtra);
+  this.isProcessing = true;
+
+  // Obtener el token del localStorage
+  const token = localStorage.getItem('token');
+  const cleanToken = token?.startsWith('Bearer ') ? token.slice(7) : token;
+
+  // Construir URL pública para previsualización
+  const publicUrl = `${this.tesoreriaService['apiUrl']}/documentos/${this.documento.id}/archivo/comprobanteextra?download=false`;
+
+  // Abrir en nueva pestaña con el token en la URL
+  const urlWithToken = `${publicUrl}&token=${encodeURIComponent(cleanToken || '')}`;
   
+  console.log('[VER EXTRA] Abriendo URL:', urlWithToken.substring(0, 150) + '...');
+  
+  const newWindow = window.open(urlWithToken, '_blank');
+  
+  if (!newWindow) {
+    this.notificationService.warning('Bloqueador de popups', 'Por favor permite ventanas emergentes para este sitio');
+  }
+  
+  this.isProcessing = false;
+}
+
+descargarComprobanteExtra(): void {
+  if (!this.documento?.id) {
+    this.notificationService.warning('Sin documento', 'No hay ID para consultar');
+    return;
+  }
+
+  const pathExtra = this.getRutaComprobanteExtra();
+  if (!pathExtra) {
+    this.notificationService.warning('Sin archivo', 'No hay comprobante extra registrado');
+    return;
+  }
+
+  this.isProcessing = true;
+  const nombreArchivo = this.getNombreArchivoExtra();
+
+  this.tesoreriaService.descargarComprobanteExtra(this.documento.id).subscribe({
+    next: (blob: Blob) => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = nombreArchivo;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      this.isProcessing = false;
+      this.notificationService.success('Descargado', 'Comprobante extra descargado');
+    },
+    error: (err) => {
+      console.error('[DESCARGAR EXTRA] Error:', err);
+      this.notificationService.error('Error', 'No se pudo descargar el comprobante extra');
+      this.isProcessing = false;
+    }
+  });
+}
+
+  
+  descargarArchivoPago(): void {
+    if (!this.documento?.id) {
+      this.notificationService.warning('Sin documento', 'No hay ID para consultar');
+      return;
+    }
+
+    const pagoPath = this.getPagoRealizadoPath();
+    if (!pagoPath) {
+      this.notificationService.warning('Sin archivo', 'No hay comprobante de pago registrado');
+      return;
+    }
+
+    this.isProcessing = true;
+    const nombreArchivo = this.getNombreArchivo(this.documento.pagoRealizadoPath || 'comprobante_pago.pdf');
+
+    this.tesoreriaService.descargarArchivoPago(this.documento.id).subscribe({
+      next: (blob: Blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = nombreArchivo;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        this.isProcessing = false;
+        this.notificationService.success('Descargado', 'Comprobante descargado');
+      },
+      error: (err) => {
+        console.error('Error al descargar:', err);
+        this.notificationService.error('Error', 'No se pudo descargar el comprobante');
+        this.isProcessing = false;
+      }
+    });
+  }
 }

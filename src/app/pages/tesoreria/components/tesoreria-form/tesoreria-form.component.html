@@ -6,7 +6,7 @@
           <h5>Contabilidad (solo lectura)</h5>
         </div>
         <div class="card-body p-0">
-          <app-contabilidad-form [documentoId]="documento.documentoRadicadoId  || documento?.id" [forceReadOnly]="true">
+          <app-contabilidad-form [documentoId]="documento?.documentoRadicadoId || documento?.id" [forceReadOnly]="true">
           </app-contabilidad-form>
         </div>
       </div>
@@ -69,14 +69,13 @@
         </div>
       </div>
 
-      <!-- COMPROBANTE PROCESADO -->
-      <div class="card shadow mb-4" *ngIf="(esModoLectura || estaProcesado) && documento?.pagoRealizadoPath">
+      <!-- 1. COMPROBANTE DE PAGO PROCESADO (MODO LECTURA) -->
+      <div class="card shadow mb-4" *ngIf="(esModoLectura || estaProcesado) && tienePagoRealizado()">
         <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
           <h5 class="mb-0">
             <i class="fas fa-file-invoice-dollar me-2"></i>
             Comprobante de Pago Procesado
           </h5>
-          <!-- Indicador de firma -->
           <span class="badge bg-light text-dark" *ngIf="documento?.firmaAplicada">
             <i class="fas fa-signature text-primary me-1"></i>
             Firmado digitalmente
@@ -89,16 +88,57 @@
               <div>
                 <strong>Archivo subido</strong>
                 <div class="small text-muted">
-                  Nombre: {{ documento.pagoRealizadoPath.split('/').pop() || 'comprobante_pago.pdf' }}
+                  Nombre: {{ getNombreArchivo(documento.pagoRealizadoPath) }}
                 </div>
-                <div class="small text-muted">
-                  Fecha: {{ documento.fechaPagoRealizado | date:'dd/MM/yyyy HH:mm' || 'No disponible' }}
+                <div class="small text-muted" *ngIf="documento.fechaPagoRealizado">
+                  Fecha: {{ documento.fechaPagoRealizado | date:'dd/MM/yyyy HH:mm' }}
                 </div>
               </div>
             </div>
-            <div>
+            <div class="d-flex gap-2">
               <button class="btn btn-outline-primary btn-sm" (click)="verArchivoPago()" [disabled]="isProcessing">
                 <i class="fas fa-eye me-1"></i> Ver
+              </button>
+              <button class="btn btn-outline-success btn-sm" (click)="descargarArchivoPago()" [disabled]="isProcessing">
+                <i class="fas fa-download me-1"></i> Descargar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. COMPROBANTE EXTRA DE TESORERIA - Documento adicional (MODO LECTURA) -->
+      <div class="card shadow mb-4 border-info" *ngIf="(esModoLectura || estaProcesado) && tieneComprobanteExtra()">
+        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">
+            <i class="fas fa-paperclip me-2"></i>
+            Documento Extra de Tesorería
+          </h5>
+          <span class="badge bg-light text-dark">
+            <i class="fas fa-file-alt me-1"></i>Adjunto por Tesorería
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between p-3 bg-light rounded border">
+            <div class="d-flex align-items-center">
+              <i class="fas fa-file-alt fa-3x text-info me-3"></i>
+              <div>
+                <strong>{{ getNombreArchivoExtra() }}</strong>
+                <div class="small text-muted">
+                  Documento adicional subido por tesorería
+                  <span *ngIf="documento.fechaComprobanteExtra">
+                    - {{ documento.fechaComprobanteExtra | date:'dd/MM/yyyy HH:mm' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-outline-primary btn-sm" (click)="verComprobanteExtra()" [disabled]="isProcessing">
+                <i class="fas fa-eye me-1"></i> Ver
+              </button>
+              <button class="btn btn-outline-success btn-sm" (click)="descargarComprobanteExtra()"
+                [disabled]="isProcessing">
+                <i class="fas fa-download me-1"></i> Descargar
               </button>
             </div>
           </div>
@@ -112,16 +152,14 @@
         {{ estaProcesado ? 'Este documento ya fue procesado por tesorería.' : 'Solo puedes consultar la información.' }}
       </div>
 
-      <!-- SECCIÓN TESORERÍA - DECISIÓN Y SUBIDA DE ARCHIVO -->
-      <section class="tesoreria-decision mt-5">
+      <!-- SECCIÓN TESORERÍA - DECISIÓN Y SUBIDA DE ARCHIVO (SOLO EDICIÓN) -->
+      <section class="tesoreria-decision mt-5" *ngIf="!esModoLectura && !estaProcesado">
         <div class="card shadow border-primary">
           <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
             <h4 class="mb-0">
               <i class="fas fa-hand-holding-usd me-2"></i>
               Decisión de Tesorería
             </h4>
-
-            <!-- Indicador de firma -->
             <app-signature-pad [currentUserRole]="currentUserRole" [tieneFirma]="tieneFirma">
             </app-signature-pad>
           </div>
@@ -129,73 +167,36 @@
           <div class="card-body">
             <form [formGroup]="form" (ngSubmit)="onSubmit()">
               <div class="row g-4">
-
-                <!-- Decisión final -->
                 <div class="col-12">
                   <label class="form-label required fw-bold">
                     <i class="fas fa-flag-checkered me-1"></i> Decisión final
                   </label>
-                  <select class="form-select form-select-lg" formControlName="estadoFinal"
-                    [disabled]="esModoLectura || estaProcesado">
+                  <select class="form-select form-select-lg" formControlName="estadoFinal">
                     <option value="">-- Seleccione --</option>
                     <option value="PAGADO">PAGADO - Completar proceso</option>
                     <option value="OBSERVADO">OBSERVADO - Requiere correcciones</option>
                     <option value="RECHAZADO">RECHAZADO - No procede el pago</option>
                   </select>
-
-                  <!-- Ayuda contextual -->
-                  <div class="mt-2 small text-muted" *ngIf="form.get('estadoFinal')?.value">
-                    <ng-container [ngSwitch]="form.get('estadoFinal')?.value">
-                      <div *ngSwitchCase="'PAGADO'" class="text-success">
-                        <i class="fas fa-check-circle me-1"></i>
-                        Sube el comprobante de pago realizado.
-                      </div>
-                      <div *ngSwitchCase="'OBSERVADO'" class="text-warning">
-                        <i class="fas fa-exclamation-triangle me-1"></i>
-                        Indica qué debe corregirse o ajustarse.
-                      </div>
-                      <div *ngSwitchCase="'RECHAZADO'" class="text-danger">
-                        <i class="fas fa-times-circle me-1"></i>
-                        Justifica por qué no procede el pago.
-                      </div>
-                    </ng-container>
-                  </div>
                 </div>
 
                 <!-- Subida de comprobante (solo PAGADO) -->
-                <div class="col-12"
-                  *ngIf="!esModoLectura && !estaProcesado && form.get('estadoFinal')?.value === 'PAGADO'">
+                <div class="col-12" *ngIf="form.get('estadoFinal')?.value === 'PAGADO'">
                   <label class="form-label required fw-bold">
                     <i class="fas fa-file-invoice-dollar me-1"></i>
                     Comprobante de pago realizado
                   </label>
-
-                  <!-- Zona de drop/upload -->
                   <div class="file-drop-zone border rounded p-5 text-center position-relative bg-light"
                     [class.has-file]="!!archivoSeleccionado" (dragover)="onDragOver($event)" (drop)="onDrop($event)">
                     <input type="file" class="file-input position-absolute w-100 h-100 opacity-0 cursor-pointer"
                       (change)="onFileSelected($event)" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
-
-                    <!-- Estado sin archivo -->
                     <ng-container *ngIf="!archivoSeleccionado">
                       <i class="fas fa-cloud-upload-alt fa-4x text-primary mb-3"></i>
-                      <p class="fw-bold mb-1">
-                        Arrastra el archivo aquí o haz clic para seleccionar
-                      </p>
-                      <small class="text-muted">
-                        PDF, JPG, PNG, DOC, DOCX • Máximo 15 MB
-                      </small>
+                      <p class="fw-bold mb-1">Arrastra el archivo aquí o haz clic para seleccionar</p>
+                      <small class="text-muted">PDF, JPG, PNG, DOC, DOCX • Máximo 15 MB</small>
                     </ng-container>
-
-                    <!-- Estado con archivo seleccionado -->
                     <ng-container *ngIf="archivoSeleccionado">
                       <i class="fas fa-file-check fa-3x text-success mb-3"></i>
-                      <p class="fw-bold mb-1 text-truncate" style="max-width: 80%;">
-                        {{ archivoSeleccionado.name }}
-                      </p>
-                      <small class="text-muted mb-2 d-block">
-                        {{ formatFileSize(archivoSeleccionado.size) }}
-                      </small>
+                      <p class="fw-bold mb-1 text-truncate">{{ archivoSeleccionado.name }}</p>
                       <button type="button" class="btn btn-sm btn-outline-danger"
                         (click)="eliminarArchivo(); $event.stopPropagation()">
                         <i class="fas fa-trash me-1"></i> Eliminar
@@ -203,16 +204,35 @@
                     </ng-container>
                   </div>
 
-                  <!-- SELECTOR DE POSICIÓN DE FIRMA -->
                   <app-signature-position *ngIf="mostrarSelectorPosicion && archivoSeleccionado && userSignature"
                     [pdfFile]="archivoSeleccionado" [signatureName]="userSignature.name || 'Firma'"
                     (positionChange)="onPositionSelected($event)" (onClose)="cerrarSelectorPosicion()">
                   </app-signature-position>
+                </div>
 
-                  <!-- Vista previa si es imagen -->
-                  <div *ngIf="esImagen(archivoSeleccionado) && urlPrevisualizacion" class="mt-4 text-center">
-                    <img [src]="urlPrevisualizacion" class="img-fluid rounded shadow" alt="Vista previa"
-                      style="max-height: 300px;">
+                <!-- Comprobante extra (opcional - edición) -->
+                <div class="col-12 mt-3" *ngIf="form.get('estadoFinal')?.value === 'PAGADO'">
+                  <label class="form-label fw-bold">
+                    <i class="fas fa-paperclip me-1"></i>
+                    Comprobante extra (opcional)
+                    <small class="text-muted"> - Documento adicional que respalde el pago</small>
+                  </label>
+                  <div class="file-drop-zone border rounded p-4 text-center position-relative bg-light"
+                    (dragover)="onDragOver($event)" (drop)="onDropExtra($event)">
+                    <input type="file" class="file-input position-absolute w-100 h-100 opacity-0 cursor-pointer"
+                      (change)="onComprobanteExtraSelected($event)" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+                    <ng-container *ngIf="!comprobanteExtraSeleccionado">
+                      <i class="fas fa-cloud-upload-alt fa-3x text-secondary mb-2"></i>
+                      <p><small>Arrastra un archivo adicional o haz clic para seleccionar (opcional)</small></p>
+                    </ng-container>
+                    <ng-container *ngIf="comprobanteExtraSeleccionado">
+                      <i class="fas fa-file-check fa-2x text-success mb-2"></i>
+                      <p class="text-truncate"><small>{{ comprobanteExtraSeleccionado.name }}</small></p>
+                      <button type="button" class="btn btn-sm btn-outline-danger"
+                        (click)="eliminarComprobanteExtra(); $event.stopPropagation()">
+                        <i class="fas fa-trash me-1"></i> Eliminar
+                      </button>
+                    </ng-container>
                   </div>
                 </div>
 
@@ -225,70 +245,57 @@
                                  form.get('estadoFinal')?.value === 'RECHAZADO'">*</span>
                   </label>
                   <textarea class="form-control" rows="5" formControlName="observaciones"
-                    [disabled]="esModoLectura || estaProcesado"
                     placeholder="Detalles del pago, motivos de observación o rechazo..."></textarea>
-
-                  <small class="form-text text-muted mt-2 d-block">
-                    <ng-container [ngSwitch]="form.get('estadoFinal')?.value">
-                      <span *ngSwitchCase="'OBSERVADO'">
-                        Explica qué falta o debe corregirse (mínimo 10 caracteres).
-                      </span>
-                      <span *ngSwitchCase="'RECHAZADO'">
-                        Justifica por qué no procede (mínimo 10 caracteres).
-                      </span>
-                      <span *ngSwitchCase="'PAGADO'">
-                        Puedes agregar detalles del pago si lo deseas.
-                      </span>
-                    </ng-container>
-                  </small>
                 </div>
               </div>
 
-              <!-- BOTONES DE ACCIÓN (MODO EDICIÓN) -->
-              <div class="d-flex flex-wrap gap-3 mt-5 justify-content-end" *ngIf="!esModoLectura && !estaProcesado">
+              <div class="d-flex flex-wrap gap-3 mt-5 justify-content-end">
                 <button type="button" class="btn btn-outline-danger" (click)="liberarDocumento()"
                   [disabled]="isProcessing || !puedeLiberar">
-                  <i class="fas fa-unlock me-1"></i>
-                  Liberar documento
+                  <i class="fas fa-unlock me-1"></i> Liberar documento
                 </button>
-
                 <button type="button" class="btn btn-outline-secondary" (click)="volverALista()"
                   [disabled]="isProcessing">
-                  <i class="fas fa-times me-1"></i>
-                  Cancelar
+                  <i class="fas fa-times me-1"></i> Cancelar
                 </button>
-
                 <button type="submit" class="btn btn-primary px-5" [disabled]="isProcessing || !puedeGuardar">
-                  <span *ngIf="!isProcessing">
-                    <i class="fas fa-save me-1"></i>
-                    Guardar y Finalizar
-                  </span>
-                  <span *ngIf="isProcessing">
-                    <i class="fas fa-spinner fa-spin me-1"></i>
-                    Procesando...
-                  </span>
-                </button>
-              </div>
-
-              <!-- BOTÓN VOLVER (MODO LECTURA) -->
-              <div class="text-center mt-5" *ngIf="esModoLectura || estaProcesado">
-                <button type="button" class="btn btn-outline-primary btn-lg px-5" (click)="volverALista()">
-                  <i class="fas fa-arrow-left me-2"></i>
-                  Volver al listado
+                  <span *ngIf="!isProcessing"><i class="fas fa-save me-1"></i> Guardar y Finalizar</span>
+                  <span *ngIf="isProcessing"><i class="fas fa-spinner fa-spin me-1"></i> Procesando...</span>
                 </button>
               </div>
             </form>
           </div>
         </div>
       </section>
+
+
+      <!-- BOTÓN PARA TOMAR DOCUMENTO (solo cuando está disponible) -->
+      <div class="alert alert-warning mb-4" *ngIf="mostrarOpcionTomar && !esModoLectura && !estaProcesado">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+          <div>
+            <i class="fas fa-hand-paper me-2 fa-lg"></i>
+            <strong>Documento disponible</strong> — Este documento está disponible para ser procesado.
+            <div class="small text-muted mt-1">
+              Al tomar el documento, quedará asignado a ti y podrás editarlo.
+            </div>
+          </div>
+          <button class="btn btn-warning btn-lg" (click)="tomarDocumento()" [disabled]="isProcessing">
+            <i class="fas fa-hand-paper me-2"></i>
+            <span *ngIf="!isProcessing">Tomar documento para procesar</span>
+            <span *ngIf="isProcessing"><i class="fas fa-spinner fa-spin me-2"></i>Procesando...</span>
+          </button>
+        </div>
+      </div>
+      <!-- Botón volver en modo lectura -->
+      <div class="text-center mt-5" *ngIf="esModoLectura || estaProcesado">
+        <button type="button" class="btn btn-outline-primary btn-lg px-5" (click)="volverALista()">
+          <i class="fas fa-arrow-left me-2"></i> Volver al listado
+        </button>
+      </div>
     </ng-container>
   </div>
 </div>
 
 <!-- MODAL PARA VER PDF -->
-<app-pdf-viewer-modal 
-  *ngIf="showPdfModal"
-  [blob]="pdfBlob" 
-  [title]="pdfModalTitle"
-  (closed)="cerrarModalPdf()">
+<app-pdf-viewer-modal *ngIf="showPdfModal" [blob]="pdfBlob" [title]="pdfModalTitle" (closed)="cerrarModalPdf()">
 </app-pdf-viewer-modal>

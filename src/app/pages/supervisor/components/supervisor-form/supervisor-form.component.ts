@@ -5,6 +5,7 @@ import { CommonModule } from '@angular/common';
 import { Observable, of, Subject } from 'rxjs';
 import { map, catchError, takeUntil } from 'rxjs/operators';
 import { EventEmitter } from '@angular/core';
+import { DomSanitizer } from '@angular/platform-browser';
 
 import { SupervisorService } from '../../../../core/services/supervisor/supervisor.service';
 import { NotificationService } from '../../../../core/services/notification.service';
@@ -13,6 +14,10 @@ import { SupervisorEstadisticasService } from '../../../../core/services/supervi
 import { AuditorFormComponent } from '../../../auditor/components/auditor-form/auditor-form.component';
 import { RendicionCuentasService } from '../../../../core/services/rendicion-cuentas.service';
 import { SupervisorArchivosService } from '../../../../core/services/supervisor';
+import { SignatureService, Signature } from '../../../../core/services/signature.service';
+import { AuthService } from '../../../../core/services/auth.service';
+import { SignaturePadComponent } from '../../../signature/components/signature-pad/signature-pad.component';
+import { SignaturePositionComponent, SignaturePosition } from '../../../signature/components/signature-position/signature-position.component';
 
 @Component({
   selector: 'app-supervisor-form',
@@ -23,7 +28,8 @@ import { SupervisorArchivosService } from '../../../../core/services/supervisor'
     CommonModule,
     ReactiveFormsModule,
     AuditorFormComponent,
-
+    SignaturePadComponent,
+    SignaturePositionComponent
   ]
 })
 export class SupervisorFormComponent implements OnInit, OnDestroy {
@@ -34,9 +40,8 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
 
   @Output() volver = new EventEmitter<void>();
 
-
-
   radicadoData: any = null;
+  supervisorDoc: any = null;
   isLoading = false;
   isProcessing = false;
   isDownloadingAll = false;
@@ -85,11 +90,32 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     observacionSupervisor: ''
   };
 
+  // ==================== PROPIEDADES PARA FIRMA Y ACTA ====================
+  userSignature: Signature | null = null;
+  tieneFirma = false;
+  mostrarSelectorPosicion = false;
+  firmaPosicion: SignaturePosition | null = null;
+  currentUserRole: string = '';
+
+  tieneActaOriginal: boolean = false;
+  actaOriginalNombre: string = '';
+  actaOriginalSubidaPor: string = '';
+  actaOriginalFecha: Date | null = null;
+  actaOriginalFile: File | null = null;
+
+  tieneActaFirmada: boolean = false;
+  actaFirmadaNombre: string = '';
+  fechaFirma: Date | null = null;
+
+  esModoContabilidad = false;
+  esModoSupervisor = false;
+  // =============================================================================
+
   private mapearEstadoParaDropdown(estadoBackend: string): string {
-    // Mapeo de estados del backend a valores del dropdown
     const estadoMap: { [key: string]: string } = {
       'APROBADO_SUPERVISOR': 'APROBADO',
       'APROBADO': 'APROBADO',
+      'APROBADO_AUDITOR': '',
       'OBSERVADO_SUPERVISOR': 'OBSERVADO',
       'OBSERVADO': 'OBSERVADO',
       'RECHAZADO_SUPERVISOR': 'RECHAZADO',
@@ -99,7 +125,6 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
       'RADICADO': '',
       'PENDIENTE': ''
     };
-
     return estadoMap[estadoBackend] || '';
   }
 
@@ -108,12 +133,11 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
 
-  // Estados que fuerzan SOLO LECTURA
   private readonly estadosSoloLecturaForzado = [
     'APROBADO', 'APROBADO_SUPERVISOR', 'APROBADO_AUDITOR',
     'RECHAZADO', 'RECHAZADO_SUPERVISOR', 'RECHAZADO_AUDITOR',
     'GLOSADO', 'PROCESADO', 'COMPLETADO', 'COMPLETADO_AUDITOR',
-    'PAGADO', 'FINALIZADO'
+    'PAGADO', 'FINALIZADO', 'FIRMADO_SUPERVISOR'
   ];
 
   constructor(
@@ -126,15 +150,61 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     private notificationService: NotificationService,
     private cdr: ChangeDetectorRef,
     private estadisticasService: SupervisorEstadisticasService,
-    private rendicionService?: RendicionCuentasService
+    private sanitizer: DomSanitizer,
+    private rendicionService?: RendicionCuentasService,
+    private signatureService?: SignatureService,
+    private authService?: AuthService
   ) { }
 
   ngOnInit(): void {
     console.log('🚀 SupervisorForm: Inicializando componente...');
 
     this.initializeForm();
+    
+    // ✅ Llamar a la función async sin await en ngOnInit
+    this.cargarFirmaYInicializar();
+  }
 
-    // ✅ Obtener ID con manejo de null
+  // ✅ Nuevo método async separado
+  private async cargarFirmaYInicializar(): Promise<void> {
+    // Esperar a que cargue la firma
+    await this.cargarFirmaUsuario();
+    
+    const url = this.router.url;
+    const esRutaSupervisor = url.includes('/supervisor/');
+    const esRutaAuditor = url.includes('/auditor/');
+    const esRutaContabilidad = url.includes('/contabilidad/');
+
+    // Inicializar las propiedades según el modo
+    if (this.modo === 'supervisor') {
+      this.esModoSupervisor = true;
+      this.esModoAuditor = false;
+      this.esModoContabilidad = false;
+    } else if (this.modo === 'auditoria') {
+      this.esModoSupervisor = false;
+      this.esModoAuditor = true;
+      this.esModoContabilidad = false;
+    } else if (this.modo === 'contabilidad') {
+      this.esModoSupervisor = false;
+      this.esModoAuditor = false;
+      this.esModoContabilidad = true;
+    } else {
+      this.esModoSupervisor = esRutaSupervisor;
+      this.esModoAuditor = esRutaAuditor;
+      this.esModoContabilidad = esRutaContabilidad;
+    }
+
+    console.log('🔍 Detectando contexto:', {
+      url,
+      modo: this.modo,
+      esModoSupervisor: this.esModoSupervisor,
+      esModoAuditor: this.esModoAuditor,
+      esModoContabilidad: this.esModoContabilidad,
+      soloLecturaInput: this.soloLectura,
+      tieneFirma: this.tieneFirma,
+      userSignature: this.userSignature
+    });
+
     let idParaCargar: string | null = this.documentoId;
     if (!idParaCargar) {
       idParaCargar = this.route.snapshot.paramMap.get('id');
@@ -147,74 +217,25 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Verificar si es rendiciónId
-    if (this.router.url.includes('/rendicion-cuentas/')) {
-      this.cargarViaRendicion(idParaCargar);
-    } else {
-      this.cargarDocumentoCompleto(idParaCargar);
-    }
-
-    // ✅ Asignar documentoId correctamente
     this.documentoId = idParaCargar;
 
-    // Verificar si es rendiciónId
     if (this.router.url.includes('/rendicion-cuentas/')) {
       this.cargarViaRendicion(idParaCargar);
     } else {
       this.cargarDocumentoCompleto(idParaCargar);
     }
 
-    this.initializeForm();
-
-    const url = this.router.url;
-    const esRutaSupervisor = url.includes('/supervisor/');
-    const esRutaAuditor = url.includes('/auditor/') && !esRutaSupervisor;
-    this.esModoAuditor = esRutaAuditor;
-
-    console.log('🔍 Detectando contexto:', {
-      url,
-      esRutaSupervisor,
-      esRutaAuditor,
-      esModoAuditor: this.esModoAuditor,
-      inputDocumentoId: this.documentoId || 'NO RECIBIDO AÚN',
-      modoInput: this.modo,
-      soloLecturaInput: this.soloLectura
-    });
-
-    // OBTENER EL ID REAL DE LA RUTA
     const idFromRoute = this.route.snapshot.paramMap.get('id');
-
     if (idFromRoute) {
       this.documentoId = idFromRoute;
       console.log('✅ ID REAL asignado a documentoId:', this.documentoId);
-    } else if (!this.documentoId) {
-      console.error('[SupervisorForm] No se encontró ID en la ruta');
-      this.notificationService.error('Error crítico', 'No se pudo identificar el documento');
-      this.isLoading = false;
-      return;
     }
 
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
       console.log('📌 QueryParams recibidos en formulario:', params);
-
       this.desdeHistorial = params['desdeHistorial'] === 'true';
-
-      // Guardar parámetros de URL temporalmente
-      const urlModoEdicion = params['modo'] === 'edicion' || params['soloLectura'] === 'false';
-      const urlSoloLectura = params['modo'] === 'consulta' || params['soloLectura'] === 'true';
-
-      // NO aplicar todavía - esperar a tener el estado del documento
-      if (urlModoEdicion) {
-        console.log('📌 URL indica EDICIÓN (se aplicará si el documento lo permite)');
-      }
-      if (urlSoloLectura) {
-        console.log('📌 URL indica SOLO LECTURA (se aplicará si el documento lo permite)');
-      }
-
       this.determinarModoDesdeParams(params, this.router.url);
     });
-
-    this.cargarDocumentoCompleto(this.documentoId);
 
     this.revisionForm.get('estadoRevision')?.valueChanges
       .pipe(takeUntil(this.destroy$))
@@ -229,8 +250,173 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
 
     setTimeout(() => {
       console.log('[SupervisorForm DEBUG] Después de 1s → documentoId:', this.documentoId);
+      console.log('[SupervisorForm DEBUG] tieneFirma:', this.tieneFirma);
+      console.log('[SupervisorForm DEBUG] firmaPosicion:', this.firmaPosicion);
     }, 1000);
   }
+
+  // ==================== MÉTODOS PARA FIRMA ====================
+cargarFirmaUsuario(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (!this.authService || !this.signatureService) {
+      this.tieneFirma = false;
+      console.warn('[Firma] Servicios no disponibles');
+      resolve(false);
+      return;
+    }
+
+    const currentUser = this.authService.getCurrentUser();
+    if (!currentUser) {
+      this.tieneFirma = false;
+      console.warn('[Firma] No hay usuario logueado');
+      resolve(false);
+      return;
+    }
+    
+    this.currentUserRole = currentUser.role;
+    console.log('[Firma] Rol del usuario:', this.currentUserRole);
+
+    console.log('[Firma] Cargando firma para usuario:', currentUser.fullName);
+    
+    // ✅ Pasar el ID del usuario actual
+    this.signatureService.getMySignature(currentUser.id).subscribe({
+      next: (signature) => {
+        this.userSignature = signature;
+        this.tieneFirma = !!signature && !!signature.id;
+        console.log('[Firma] Resultado carga:', { 
+          tieneFirma: this.tieneFirma, 
+          signatureId: this.userSignature?.id,
+          signatureName: this.userSignature?.name
+        });
+        
+        // ✅ Si no tiene firma, NO crear automáticamente
+        // Mostrar mensaje sugerente
+        if (!this.tieneFirma) {
+          console.warn('[Firma] Usuario sin firma. Debe registrarla en su perfil.');
+          this.notificationService?.warning(
+            'Firma no encontrada',
+            'No tienes una firma digital registrada. Debes registrarla en tu perfil de usuario.'
+          );
+        }
+        
+        resolve(this.tieneFirma);
+      },
+      error: (err) => {
+        console.error('[Firma] Error al cargar firma:', err);
+        this.tieneFirma = false;
+        this.userSignature = null;
+        
+        this.notificationService?.error(
+          'Error al cargar firma',
+          'No se pudo cargar tu firma digital. Verifica que esté registrada.'
+        );
+        
+        resolve(false);
+      }
+    });
+  });
+}
+
+  verActa(): void {
+    if (!this.documentoId || !this.supervisorService) return;
+
+    const esModoConsulta = this.soloLectura || this.esModoAuditor;
+
+    if (esModoConsulta) {
+      if (this.tieneActaFirmada) {
+        this.verActaFirmada();
+      } else {
+        console.warn('⚠️ No hay acta firmada para este documento, mostrando original');
+        this.verActaOriginal();
+        this.notificationService.warning(
+          'Sin acta firmada',
+          'Este documento no tiene acta firmada. Se muestra la versión original.'
+        );
+      }
+    } else {
+      this.verActaOriginal();
+    }
+  }
+
+verActaCorrecta(): void {
+    if (!this.documentoId) return;
+
+    const esModoConsulta = this.soloLectura || this.esModoAuditor || this.esModoContabilidad;
+    
+    // ✅ Usar el endpoint inteligente
+    if (this.supervisorService) {
+        this.supervisorService.verActa(this.documentoId, esModoConsulta);
+    }
+}
+
+// ✅ Simplificar verActaOriginal
+verActaOriginal(): void {
+    if (this.documentoId && this.supervisorService) {
+        // Modo edición = soloLectura false
+        this.supervisorService.verActa(this.documentoId, false);
+    }
+}
+
+// ✅ Simplificar verActaFirmada
+verActaFirmada(): void {
+    if (this.documentoId && this.supervisorService) {
+        // Modo lectura = soloLectura true
+        this.supervisorService.verActa(this.documentoId, true);
+    }
+}
+
+// ✅ Eliminar o simplificar verActaInteligente
+verActaInteligente(): void {
+    this.verActaCorrecta();
+}
+
+  async abrirSelectorPosicion() {
+    if (!this.documentoId || !this.supervisorService) return;
+    if (!this.tieneFirma) {
+      this.notificationService.warning('Sin firma', 'Debes cargar una firma digital en tu perfil antes de firmar.');
+      return;
+    }
+
+    this.isProcessing = true;
+    try {
+      const blob = await this.supervisorService.descargarActaOriginal(this.documentoId).toPromise();
+      if (blob) {
+        const fileName = this.actaOriginalNombre || 'acta_supervision.pdf';
+        const file = new File([blob], fileName, { type: blob.type || 'application/pdf' });
+        this.actaOriginalFile = file;
+        this.mostrarSelectorPosicion = true;
+      } else {
+        this.notificationService.error('Error', 'No se pudo cargar el acta para seleccionar posición');
+      }
+    } catch (error) {
+      console.error('Error al cargar acta:', error);
+      this.notificationService.error('Error', 'No se pudo cargar el acta');
+    } finally {
+      this.isProcessing = false;
+    }
+  }
+
+  onPositionSelected(position: SignaturePosition): void {
+    this.firmaPosicion = position;
+    console.log('[Firma] Posición seleccionada:', position);
+    console.log('[Firma] firmaPosicion actualizada:', this.firmaPosicion);
+    this.mostrarSelectorPosicion = false;
+    
+    this.cdr.detectChanges();
+    
+    this.notificationService.success('Posición guardada', 'La posición de la firma ha sido guardada. Al guardar la revisión se aplicará la firma.');
+    
+    const estadoActual = this.revisionForm.get('estadoRevision')?.value;
+    if (estadoActual === 'APROBADO') {
+      console.log('[Firma] Estado APROBADO ya seleccionado, verificando si puede guardar:', this.puedeGuardar());
+    }
+  }
+
+  cerrarSelectorPosicion(): void {
+    this.mostrarSelectorPosicion = false;
+    this.actaOriginalFile = null;
+  }
+  // ==================== FIN MÉTODOS FIRMA ====================
 
   private cargarViaRendicion(id: string): void {
     this.rendicionService?.obtenerDetalleRendicion(id).subscribe({
@@ -243,7 +429,6 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
       error: () => this.cargarDocumentoCompleto(id)
     });
   }
-
 
   private initializeForm(): void {
     this.revisionForm = this.fb.group({
@@ -274,22 +459,11 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     const url = this.router.url;
     const esRutaSupervisor = url.includes('/supervisor/');
 
-    console.log('📥 Iniciando carga completa del documento con ID:', id, {
-      modoEdicion: this.modoEdicion,
-      soloLectura: this.soloLectura,
-      desdeHistorial: this.desdeHistorial,
-      esModoAuditor: this.esModoAuditor,
-      esRutaSupervisor,
-      modoInput: this.modo
-    });
-
     let servicioObservable: Observable<any>;
 
     if (this.esModoAuditor && !esRutaSupervisor) {
-      console.log('→ Usando servicio AUDITOR para vista');
       servicioObservable = this.auditorService.obtenerDocumentoParaVista(id);
     } else {
-      console.log('→ Usando servicio SUPERVISOR normal');
       servicioObservable = this.supervisorService.obtenerDocumentoPorId(id);
     }
 
@@ -319,19 +493,51 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
 
           this.radicadoData = documentoData;
 
-          console.log('🔍 Datos del documento recibidos:', {
+          this.tieneActaOriginal = !!documentoData.tieneActaOriginal || !!documentoData.actaSupervisionPath;
+          this.actaOriginalNombre = documentoData.actaOriginalNombre || documentoData.actaSupervisionNombre;
+          this.actaOriginalSubidaPor = documentoData.actaOriginalSubidaPor || documentoData.actaSupervisionSubidaPor;
+          this.actaOriginalFecha = documentoData.actaOriginalFecha || documentoData.actaSupervisionFecha;
+
+          if (documentoData.supervisor) {
+            this.supervisorDoc = documentoData.supervisor;
+            this.tieneActaFirmada = !!this.supervisorDoc?.actaFirmadaPath;
+            this.actaFirmadaNombre = this.supervisorDoc?.actaFirmadaNombre;
+            this.fechaFirma = this.supervisorDoc?.fechaFirma;
+          }
+
+          if (!this.tieneActaFirmada && documentoData.actaFirmadaPath) {
+            this.tieneActaFirmada = true;
+            this.actaFirmadaNombre = documentoData.actaFirmadaNombre;
+            this.fechaFirma = documentoData.fechaFirma;
+          }
+
+          if (!this.tieneActaFirmada && documentoData.historialEstados) {
+            const firmaEnHistorial = documentoData.historialEstados.some((h: any) =>
+              h.observacion?.includes('Acta firmada') ||
+              h.estado === 'FIRMADO_SUPERVISOR' ||
+              (h.observacion?.includes('firmada') && h.observacion?.includes('Acta'))
+            );
+            if (firmaEnHistorial) {
+              this.tieneActaFirmada = true;
+            }
+          }
+
+          console.log('📄 Datos del documento recibidos:', {
             estado: documentoData.estado,
-            supervisorAsignado: documentoData.supervisorAsignado,
-            asignacion: documentoData.asignacion
+            tieneActaOriginal: this.tieneActaOriginal,
+            actaOriginalNombre: this.actaOriginalNombre,
+            tieneActaFirmada: this.tieneActaFirmada,
+            actaFirmadaNombre: this.actaFirmadaNombre
           });
 
           if (this.esModoAuditor) {
             this.cargarDatosAuditorEspecificos(documentoData);
           }
 
-          // Determinar modo basado en el ESTADO DEL DOCUMENTO (prioridad sobre URL)
-          this.determinarModoPorEstadoDocumento(documentoData);
+          const estadoReal = documentoData.estado || documentoData.estadoDocumento || '';
+          console.log('🔍 Estado REAL del documento:', estadoReal);
 
+          this.determinarModoPorEstadoDocumento(documentoData, estadoReal);
           this.poblarFormulario(documentoData);
           this.cargarDocumentosExistentes(documentoData);
           this.cargarArchivosSupervisorDesdeBackend(id, documentoData);
@@ -347,38 +553,48 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
 
           this.mostrarNotificacionModo();
         },
-        error: (err) => {
+        error: (err: any) => {
           console.error('[SupervisorForm] Falló carga completa con ID:', id, err);
           this.isLoading = false;
         }
       });
   }
 
-  /**
-   * ✅ Determinar modo basado en el ESTADO del documento (prioridad sobre URL)
-   */
-  private determinarModoPorEstadoDocumento(documentoData: any): void {
-    const estadoDocumento = (documentoData.estado || '').toUpperCase().trim();
+  private determinarModoPorEstadoDocumento(documentoData: any, estadoReal: string): void {
+    const estadoDocumento = estadoReal.toUpperCase().trim();
 
     console.log('🔍 [determinarModoPorEstadoDocumento] Estado del documento:', estadoDocumento);
+    console.log('🔍 [determinarModoPorEstadoDocumento] Modo input:', this.modo);
+    console.log('🔍 [determinarModoPorEstadoDocumento] tieneActaOriginal:', this.tieneActaOriginal);
+    console.log('🔍 [determinarModoPorEstadoDocumento] tieneActaFirmada:', this.tieneActaFirmada);
 
-    // Verificar si el estado fuerza solo lectura
-    const esEstadoFinal = this.estadosSoloLecturaForzado.some(e => estadoDocumento.includes(e));
+    const rolesSoloLectura = ['auditoria', 'contabilidad', 'tesoreria', 'asesor-gerencia', 'juridica'];
+    if (rolesSoloLectura.includes(this.modo)) {
+      this.soloLectura = true;
+      this.modoEdicion = false;
+      console.log('🔒 FORZADO SOLO LECTURA - Rol de solo lectura:', this.modo);
+      return;
+    }
 
-    if (esEstadoFinal) {
-      // FORZAR solo lectura independientemente de la URL
+    const estadosFinales = [
+      'APROBADO_SUPERVISOR', 'APROBADO_AUDITOR', 'APROBADO_RENDICION_CUENTAS',
+      'APROBADO_CONTABILIDAD', 'APROBADO_TESORERIA', 'COMPLETADO', 'COMPLETADO_AUDITOR',
+      'COMPLETADO_CONTABILIDAD', 'COMPLETADO_TESORERIA', 'COMPLETADO_ASESOR_GERENCIA',
+      'RECHAZADO_SUPERVISOR', 'RECHAZADO_AUDITOR', 'OBSERVADO_SUPERVISOR', 'OBSERVADO_AUDITOR',
+      'PAGADO', 'FINALIZADO', 'FIRMADO_SUPERVISOR'
+    ];
+
+    if (estadosFinales.includes(estadoDocumento)) {
       this.soloLectura = true;
       this.modoEdicion = false;
       console.log('🔒 FORZADO SOLO LECTURA - Estado final del documento:', estadoDocumento);
       return;
     }
 
-    // Si el documento está en estado editable, permitir edición
-    const estadosEditables = ['RADICADO', 'EN_REVISION', 'EN_REVISION_SUPERVISOR', 'PENDIENTE', 'PENDIENTE_CORRECCIONES', 'OBSERVADO'];
-    const esEstadoEditable = estadosEditables.some(e => estadoDocumento.includes(e));
+    const estadosEditablesSupervisor = ['APROBADO_AUDITOR', 'EN_REVISION_SUPERVISOR'];
+    const esEstadoEditable = estadosEditablesSupervisor.includes(estadoDocumento);
 
     if (esEstadoEditable) {
-      // Verificar si el supervisor actual es el asignado
       const usuarioActual = this.getCurrentUser().trim();
       let supervisorAsignado = documentoData.supervisorAsignado || documentoData.asignacion?.supervisorActual || '';
       supervisorAsignado = supervisorAsignado.trim();
@@ -389,7 +605,6 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
         supervisorAsignado === 'Sin asignar';
 
       if (soyElSupervisor) {
-        // Permitir edición SOLO si el supervisor actual es el asignado
         this.soloLectura = false;
         this.modoEdicion = true;
         console.log('✏️ MODO EDICIÓN - Documento editable y soy el supervisor asignado');
@@ -402,16 +617,13 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
       }
     }
 
-    // Por defecto, solo lectura
     this.soloLectura = true;
     this.modoEdicion = false;
-    console.log('⚠️ Por defecto: SOLO LECTURA');
+    console.log('⚠️ Por defecto: SOLO LECTURA para estado:', estadoDocumento);
   }
 
   private determinarModoDesdeParams(params: any, url: string): void {
     console.log('🔍 Determinando modo desde parámetros (referencia):', params);
-    // Este método ya no modifica soloLectura directamente
-    // Solo guarda información para referencia
   }
 
   private cargarDatosAuditorEspecificos(documentoData: any): void {
@@ -463,6 +675,7 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
   private cargarArchivosSupervisorDesdeBackend(documentoId: string, documentoData: any): void {
     console.log('🔍 Buscando archivos del supervisor para documento:', documentoId);
     this.cargarArchivosDesdeDocumento(documentoData);
+    this.cargarArchivosDesdeDocumento(documentoData);
 
     this.estadisticasService.obtenerHistorial()
       .pipe(
@@ -489,13 +702,11 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
           if (registroSupervisor) {
             console.log('✅ Archivos del supervisor encontrados en historial:', registroSupervisor);
 
-            // 🔑 También actualizar el estado del formulario si viene del historial
-            if (registroSupervisor.estado) {
-              const estadoMapeado = this.mapearEstadoParaDropdown(registroSupervisor.estado);
-              if (estadoMapeado) {
-                this.revisionForm.patchValue({ estadoRevision: estadoMapeado });
-                console.log(`📌 Estado actualizado desde historial: ${registroSupervisor.estado} → ${estadoMapeado}`);
-              }
+            if (registroSupervisor.actaFirmadaPath) {
+              this.tieneActaFirmada = true;
+              this.actaFirmadaNombre = registroSupervisor.actaFirmadaNombre;
+              this.fechaFirma = registroSupervisor.fechaFirma ? new Date(registroSupervisor.fechaFirma) : null;
+              console.log('✅ Acta firmada encontrada en historial:', this.actaFirmadaNombre);
             }
 
             if (registroSupervisor.nombreArchivoSupervisor) {
@@ -555,7 +766,6 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     const docData = documento.documento || documento;
     const supervisorActual = this.getCurrentUser();
 
-    // 🔑 CLAVE: Mapear el estado del backend al valor del dropdown
     const estadoBackend = docData.estado || '';
     const estadoParaDropdown = this.mapearEstadoParaDropdown(estadoBackend);
 
@@ -576,7 +786,7 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
       fechaAsignacion: this.formatDateForInput(docData.fechaAsignacion || new Date()),
       supervisorRevisor: supervisorActual,
       fechaRevision: this.getCurrentDate(),
-      estadoRevision: estadoParaDropdown  // ✅ Usar el estado mapeado
+      estadoRevision: estadoParaDropdown
     });
 
     if (docData.historialEstados && Array.isArray(docData.historialEstados)) {
@@ -617,13 +827,11 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
   }
 
   private configurarFormularioSegunModo(): void {
-    // Obtener el estado actual del documento
     const estadoActual = this.revisionForm.get('estadoRevision')?.value;
 
     console.log('[configurarFormularioSegunModo] soloLectura =', this.soloLectura);
     console.log('[configurarFormularioSegunModo] estadoDocumento =', estadoActual);
 
-    // 🔒 BLOQUEO TOTAL - Si soloLectura es true
     if (this.soloLectura === true) {
       console.log('🔒 BLOQUEANDO FORMULARIO COMPLETO - Modo solo lectura');
       this.revisionForm.disable();
@@ -634,16 +842,13 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // ✏️ MODO EDICIÓN
     console.log('✏️ MODO EDICIÓN - Habilitando campos editables');
 
-    // Habilitar SOLO los campos editables
     this.revisionForm.get('estadoRevision')?.enable();
     this.revisionForm.get('observacionSupervisor')?.enable();
     this.revisionForm.get('correcciones')?.enable();
     this.revisionForm.get('esUltimoRadicado')?.enable();
 
-    // Asegurar que los campos de solo lectura permanezcan deshabilitados
     this.revisionForm.get('numeroRadicado')?.disable();
     this.revisionForm.get('numeroContrato')?.disable();
     this.revisionForm.get('nombreContratista')?.disable();
@@ -659,7 +864,6 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     this.revisionForm.get('fechaRevision')?.disable();
     this.revisionForm.get('supervisorRevisor')?.disable();
 
-    // Mostrar campo de archivo solo si el estado es APROBADO
     this.mostrarCampoArchivo = estadoActual === 'APROBADO';
 
     this.cdr.detectChanges();
@@ -667,94 +871,131 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     console.log('[configurarFormularioSegunModo] estadoRevision enabled?', this.revisionForm.get('estadoRevision')?.enabled);
   }
 
-  guardarRevision(): void {
-    const idParaGuardar = this.documentoId;
+guardarRevision(): void {
+  const idParaGuardar = this.documentoId;
 
-    if (!idParaGuardar) {
-      console.error('[SupervisorForm] ¡Intento de guardar sin ID!');
-      this.notificationService.error('Error crítico', 'ID del documento no disponible');
-      return;
-    }
-
-    if (this.soloLectura || this.esModoAuditor) {
-      this.notificationService.warning('Acción bloqueada', 'No puedes guardar en modo consulta o auditoría.');
-      return;
-    }
-
-    if (this.revisionForm.invalid) {
-      this.notificationService.warning('Formulario incompleto', 'Completa los campos requeridos');
-      this.revisionForm.markAllAsTouched();
-      return;
-    }
-
-    const estadoSeleccionado = this.revisionForm.get('estadoRevision')?.value;
-    const esUltimo = this.revisionForm.get('esUltimoRadicado')?.value;
-
-    let estadoBackend = estadoSeleccionado;
-
-    if (estadoSeleccionado === 'PENDIENTE_CORRECCIONES') {
-      estadoBackend = 'OBSERVADO';
-    }
-
-    if (estadoBackend === 'APROBADO') {
-      if (!this.archivoAprobacion && !this.tieneAprobacionExistente()) {
-        this.notificationService.error('Error', 'Debe adjuntar documento de aprobación');
-        return;
-      }
-      if (esUltimo && !this.archivoPazSalvo && !this.tienePazSalvoExistente()) {
-        this.notificationService.error('Error', 'Debe adjuntar paz y salvo para último radicado');
-        return;
-      }
-    }
-
-    if (!confirm('¿Guardar revisión? Esto cambiará el estado del documento.')) return;
-
-    this.isProcessing = true;
-    const valores = this.revisionForm.getRawValue();
-
-    const payload = {
-      estado: estadoBackend,
-      observacion: valores.observacionSupervisor || '',
-      correcciones: valores.correcciones || '',
-      requierePazSalvo: esUltimo,
-      esUltimoRadicado: Boolean(esUltimo)
-    };
-
-    console.log('[SupervisorForm] Enviando payload:', { id: idParaGuardar, payload });
-
-    let request: Observable<any>;
-
-    if (estadoBackend === 'APROBADO' && (this.archivoAprobacion || this.archivoPazSalvo)) {
-      request = this.supervisorService.guardarRevisionConArchivo(
-        idParaGuardar,
-        payload,
-        this.archivoAprobacion,
-        esUltimo ? this.archivoPazSalvo : null
-      );
-    } else {
-      request = this.supervisorService.guardarRevision(idParaGuardar, payload);
-    }
-
-    request.subscribe({
-      next: (response) => {
-        console.log('[SupervisorForm] Revisión guardada OK:', response);
-        this.notificationService.success('Éxito', 'Revisión guardada correctamente');
-        this.isProcessing = false;
-        setTimeout(() => this.volverALista(), 1500);
-      },
-      error: (err) => {
-        console.error('[SupervisorForm] Error al guardar:', err);
-        let msg = 'No se pudo guardar la revisión';
-        if (err.error?.message) {
-          msg = err.error.message;
-        } else if (err.message) {
-          msg = err.message;
-        }
-        this.notificationService.error('Error', msg);
-        this.isProcessing = false;
-      }
-    });
+  if (!idParaGuardar) {
+    this.notificationService.error('Error crítico', 'ID del documento no disponible');
+    return;
   }
+
+  if (this.soloLectura || this.esModoAuditor) {
+    this.notificationService.warning('Acción bloqueada', 'No puedes guardar en modo consulta o auditoría.');
+    return;
+  }
+
+  if (this.revisionForm.invalid) {
+    this.notificationService.warning('Formulario incompleto', 'Completa los campos requeridos');
+    this.revisionForm.markAllAsTouched();
+    return;
+  }
+
+  const estadoSeleccionado = this.revisionForm.get('estadoRevision')?.value;
+  const esUltimo = this.revisionForm.get('esUltimoRadicado')?.value;
+
+  console.log('[guardarRevision] Validando aprobación:', {
+    estado: estadoSeleccionado,
+    tieneFirma: this.tieneFirma,
+    tienePosicion: !!this.firmaPosicion,
+    firmaPosicion: this.firmaPosicion,
+    userSignatureId: this.userSignature?.id
+  });
+
+  if (estadoSeleccionado === 'APROBADO') {
+    if (!this.tieneFirma) {
+      this.notificationService.error('Error', 'Debes tener una firma digital registrada para aprobar');
+      return;
+    }
+
+    if (!this.firmaPosicion) {
+      this.abrirSelectorPosicion();
+      this.notificationService.warning('Posición requerida', 'Selecciona la posición de la firma en el acta');
+      return;
+    }
+  }
+
+  if (!confirm('¿Guardar revisión? Esto cambiará el estado del documento.')) return;
+
+  this.isProcessing = true;
+  const valores = this.revisionForm.getRawValue();
+
+  // ✅ CORREGIDO: Usar APROBADO (no APROBADO_SUPERVISOR)
+  // El backend solo acepta: APROBADO, OBSERVADO, RECHAZADO
+  const estadoParaEnviar = estadoSeleccionado; // APROBADO, OBSERVADO o RECHAZADO
+
+  const payload: any = {
+    estado: estadoParaEnviar,
+    observacion: valores.observacionSupervisor || '',
+    correcciones: valores.correcciones || '',
+    requierePazSalvo: esUltimo,
+    esUltimoRadicado: Boolean(esUltimo)
+  };
+
+  // ✅ Agregar datos de firma SOLO si es APROBADO
+  if (estadoSeleccionado === 'APROBADO') {
+    if (this.firmaPosicion && this.userSignature?.id) {
+      payload.signatureId = this.userSignature.id;
+      // ✅ CORREGIDO: signaturePosition debe ser un STRING (JSON.stringify)
+      payload.signaturePosition = JSON.stringify({
+        page: this.firmaPosicion.page,
+        x: this.firmaPosicion.x,
+        y: this.firmaPosicion.y,
+        width: this.firmaPosicion.width,
+        height: this.firmaPosicion.height
+      });
+      console.log('[Supervisor] Enviando firma con revisión:', {
+        signatureId: this.userSignature.id,
+        signaturePosition: payload.signaturePosition
+      });
+    } else {
+      console.error('[Supervisor] ERROR: No se encontró firma o posición al guardar');
+      this.notificationService.error('Error', 'No se pudo obtener la información de la firma');
+      this.isProcessing = false;
+      return;
+    }
+  }
+
+  console.log('[Supervisor] Payload final:', JSON.stringify(payload, null, 2));
+
+  let request: Observable<any>;
+
+  if (estadoSeleccionado === 'APROBADO' && (this.archivoAprobacion || this.archivoPazSalvo)) {
+    request = this.supervisorService.guardarRevisionConArchivo(
+      idParaGuardar,
+      payload,
+      this.archivoAprobacion,
+      esUltimo ? this.archivoPazSalvo : null
+    );
+  } else {
+    request = this.supervisorService.guardarRevision(idParaGuardar, payload);
+  }
+
+  request.subscribe({
+    next: (response) => {
+      console.log('[SupervisorForm] Revisión guardada OK:', response);
+      this.notificationService.success('Éxito', 'Revisión guardada correctamente');
+      this.isProcessing = false;
+      this.firmaPosicion = null;
+      this.mostrarSelectorPosicion = false;
+      setTimeout(() => this.volverALista(), 1500);
+    },
+    error: (err) => {
+      console.error('[SupervisorForm] Error al guardar:', err);
+      if (err.error) {
+        console.error('[SupervisorForm] Detalle del error:', err.error);
+        if (err.error.message) {
+          console.error('[SupervisorForm] Mensaje:', err.error.message);
+        }
+        if (err.error.errors) {
+          console.error('[SupervisorForm] Errores de validación:', err.error.errors);
+        }
+      }
+      let msg = err.error?.message || err.message || 'No se pudo guardar la revisión';
+      this.notificationService.error('Error', msg);
+      this.isProcessing = false;
+    }
+  });
+}
 
   // ==================== MÉTODOS AUXILIARES ====================
 
@@ -842,16 +1083,41 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     this.notificationService.success('Archivo cargado', `Paz y salvo "${file.name}" cargado correctamente`);
   }
 
-  puedeGuardar(): boolean {
-    if (this.soloLectura) return false;
-    const estado = this.revisionForm.get('estadoRevision')?.value;
-    const esUltimoRadicado = this.revisionForm.get('esUltimoRadicado')?.value;
-    if (estado === 'APROBADO') {
-      if (esUltimoRadicado && !this.archivoPazSalvo && !this.tienePazSalvoExistente()) return false;
-      if (!this.archivoAprobacion && !this.tieneAprobacionExistente()) return false;
-    }
-    return this.revisionForm.valid;
+puedeGuardar(): boolean {
+  if (this.soloLectura) {
+    console.log('[puedeGuardar] false - soloLectura es true');
+    return false;
   }
+  
+  const estado = this.revisionForm.get('estadoRevision')?.value;
+  const esUltimoRadicado = this.revisionForm.get('esUltimoRadicado')?.value;
+  const esFormularioValido = this.revisionForm.valid;
+
+  
+
+  if (estado === 'APROBADO') {
+    if (!this.tieneFirma) {
+      
+      return false;
+    }
+    
+    if (!this.firmaPosicion) {
+      
+      return false;
+    }
+    
+    if (esUltimoRadicado && !this.archivoPazSalvo && !this.tienePazSalvoExistente()) {
+      console.log('[puedeGuardar] false - Último radicado sin paz y salvo');
+      return false;
+    }
+    
+   
+    return esFormularioValido;
+  }
+  
+  console.log('[puedeGuardar]', esFormularioValido ? 'true' : 'false', '- Estado:', estado);
+  return esFormularioValido;
+}
 
   tienePazSalvoExistente(): boolean {
     return !!this.nombrePazSalvoExistente || !!this.supervisorInfo?.nombrePazSalvo || this.supervisorInfo?.tienePazSalvo === true;
@@ -861,23 +1127,23 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     return !!this.nombreArchivoAprobacionExistente || !!this.supervisorInfo.nombreArchivoAprobacion;
   }
 
-  private verificarConsistenciaDatos(): void {
-    const tieneArchivoPazSalvo = this.tienePazSalvoExistente();
-    const esUltimoRadicado = this.revisionForm.get('esUltimoRadicado')?.value;
+private verificarConsistenciaDatos(): void {
+  const tieneArchivoPazSalvo = this.tienePazSalvoExistente();
+  const esUltimoRadicado = this.revisionForm.get('esUltimoRadicado')?.value;
 
-    if (tieneArchivoPazSalvo && !esUltimoRadicado) {
-      console.warn('⚠️ INCONSISTENCIA: Existe archivo de paz y salvo pero no está marcado como último radicado');
-      if (!this.soloLectura) {
-        this.revisionForm.patchValue({ esUltimoRadicado: true });
-        this.notificationService.info('Corrección automática', 'Se detectó un archivo de paz y salvo. El documento ha sido automáticamente marcado como último radicado.');
-      }
-    }
-
-    if (esUltimoRadicado && !tieneArchivoPazSalvo && !this.soloLectura) {
-      console.warn('⚠️ ADVERTENCIA: Marcado como último radicado pero sin archivo de paz y salvo');
-      this.notificationService.warning('Atención', 'Al marcar como último radicado, debe adjuntar el archivo de paz y salvo.');
+  if (tieneArchivoPazSalvo && !esUltimoRadicado) {
+    console.warn('⚠️ INCONSISTENCIA: Existe archivo de paz y salvo pero no está marcado como último radicado');
+    if (!this.soloLectura) {
+      this.revisionForm.patchValue({ esUltimoRadicado: true });
+      this.notificationService?.info('Corrección automática', 'Se detectó un archivo de paz y salvo. El documento ha sido automáticamente marcado como último radicado.');
     }
   }
+
+  if (esUltimoRadicado && !tieneArchivoPazSalvo && !this.soloLectura) {
+    console.warn('⚠️ ADVERTENCIA: Marcado como último radicado pero sin archivo de paz y salvo');
+    this.notificationService?.warning('Atención', 'Al marcar como último radicado, debe adjuntar el archivo de paz y salvo.');
+  }
+}
 
   onArchivoAprobacionSeleccionado(event: any): void {
     const file = event.target.files[0];
@@ -934,45 +1200,21 @@ export class SupervisorFormComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-previsualizarArchivosSupervisor(tipo: 'aprobacion' | 'pazsalvo'): void {
-    console.log(`[DEBUG] previsualizarArchivosSupervisor llamado con tipo: ${tipo}`);
-    
+  previsualizarArchivosSupervisor(tipo: 'aprobacion' | 'pazsalvo'): void {
     let nombreArchivo = '';
-    
-    if (tipo === 'aprobacion') {
-        nombreArchivo = this.nombreArchivoAprobacionExistente;
-        console.log(`nombreArchivoAprobacionExistente: ${nombreArchivo}`);
-    } else {
-        nombreArchivo = this.nombrePazSalvoExistente;
-        console.log(`nombrePazSalvoExistente: ${nombreArchivo}`);
-    }
-    
-    if (!nombreArchivo) {
-        this.notificationService.warning('Sin archivo', 'No hay archivo para previsualizar');
-        return;
-    }
-    
-    // ✅ IMPORTANTE: Usar SupervisorArchivosService, NO SupervisorService
-    const url = this.supervisorArchivosService.getUrlArchivoSupervisor(nombreArchivo, tipo);
-    
-    console.log(`URL generada por supervisorArchivosService: ${url}`);
-    
-    if (url && url !== '#') {
-        window.open(url, '_blank');
-    } else {
-        this.notificationService.error('Error', 'No se pudo generar la URL del archivo');
-    }
-}
 
-  previsualizarPazSalvo(): void {
-    const nombreArchivo = this.nombrePazSalvoExistente || this.supervisorInfo?.nombrePazSalvo || '';
+    if (tipo === 'aprobacion') {
+      nombreArchivo = this.nombreArchivoAprobacionExistente;
+    } else {
+      nombreArchivo = this.nombrePazSalvoExistente;
+    }
+
     if (!nombreArchivo) {
-      this.notificationService.warning('Sin archivo', 'No hay archivo de paz y salvo para previsualizar');
+      this.notificationService.warning('Sin archivo', 'No hay archivo para previsualizar');
       return;
     }
 
-    // ✅ Usar supervisorArchivosService en lugar de supervisorService
-    const url = this.supervisorArchivosService.getUrlArchivoSupervisor(nombreArchivo, 'pazsalvo');
+    const url = this.supervisorArchivosService.getUrlArchivoSupervisor(nombreArchivo, tipo);
 
     if (url && url !== '#') {
       window.open(url, '_blank');
@@ -981,21 +1223,17 @@ previsualizarArchivosSupervisor(tipo: 'aprobacion' | 'pazsalvo'): void {
     }
   }
 
-  // Método separado para paz y salvo si es necesario
-
-
   descargarArchivosSupervisor(tipo: 'aprobacion' | 'pazsalvo'): void {
     let nombreArchivo = '';
-    let tipoArchivo: 'aprobacion' | 'pazsalvo' = tipo;
 
     if (tipo === 'aprobacion') {
-      nombreArchivo = this.nombreArchivoAprobacionExistente || this.supervisorInfo?.nombreArchivoAprobacion || '';
+      nombreArchivo = this.nombreArchivoAprobacionExistente;
       if (!nombreArchivo) {
         this.notificationService.warning('Sin archivo', 'No hay archivo de aprobación para descargar');
         return;
       }
     } else {
-      nombreArchivo = this.nombrePazSalvoExistente || this.supervisorInfo?.nombrePazSalvo || '';
+      nombreArchivo = this.nombrePazSalvoExistente;
       if (!nombreArchivo) {
         this.notificationService.warning('Sin archivo', 'No hay archivo de paz y salvo para descargar');
         return;
@@ -1037,21 +1275,27 @@ previsualizarArchivosSupervisor(tipo: 'aprobacion' | 'pazsalvo'): void {
       this.notificationService.warning('Documento no disponible', 'El documento no está disponible');
       return;
     }
+
+    this.isProcessing = true;
+
     let servicioObservable: Observable<Blob>;
     if (this.esModoAuditor) {
       servicioObservable = this.auditorService.descargarArchivoRadicado(this.documentoId, this.documentosExistentes[index].indice);
     } else {
       servicioObservable = this.supervisorService.descargarArchivo(this.documentoId, this.documentosExistentes[index].indice);
     }
+
     servicioObservable.subscribe({
       next: (blob: Blob) => {
-        const fileURL = URL.createObjectURL(blob);
-        window.open(fileURL, '_blank');
-        setTimeout(() => URL.revokeObjectURL(fileURL), 1000);
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+        this.isProcessing = false;
       },
       error: (error) => {
         console.error('Error al previsualizar:', error);
         this.notificationService.error('Error', 'No se pudo abrir el documento');
+        this.isProcessing = false;
       }
     });
   }
@@ -1089,7 +1333,188 @@ previsualizarArchivosSupervisor(tipo: 'aprobacion' | 'pazsalvo'): void {
       case 'APROBADO_AUDITOR': return 'badge bg-success';
       case 'RECHAZADO_AUDITOR': return 'badge bg-danger';
       case 'OBSERVADO_AUDITOR': return 'badge bg-warning';
+      case 'FIRMADO_SUPERVISOR': return 'badge bg-primary';
       default: return 'badge bg-light text-dark';
     }
   }
+
+  firmarActa(): void {
+    if (!this.documentoId) {
+      this.notificationService.error('Error', 'No se pudo identificar el documento');
+      return;
+    }
+
+    if (!this.userSignature?.id) {
+      this.notificationService.error('Error', 'No tienes una firma digital registrada');
+      return;
+    }
+
+    if (!this.firmaPosicion) {
+      this.abrirSelectorPosicion();
+      this.notificationService.warning('Posición requerida', 'Selecciona la posición de la firma en el acta');
+      return;
+    }
+
+    this.isProcessing = true;
+
+    this.supervisorService.firmarActa(
+      this.documentoId,
+      this.userSignature.id,
+      this.firmaPosicion
+    ).subscribe({
+      next: (response) => {
+        console.log('✅ Acta firmada correctamente:', response);
+        this.notificationService.success('Éxito', 'Acta firmada correctamente');
+        this.cargarDocumentoCompleto(this.documentoId);
+        this.isProcessing = false;
+        this.firmaPosicion = null;
+      },
+      error: (error) => {
+        console.error('❌ Error al firmar acta:', error);
+        this.notificationService.error('Error', error.error?.message || 'No se pudo firmar el acta');
+        this.isProcessing = false;
+      }
+    });
+  }
+
+  // Método de depuración - llamar desde consola o template
+  debugFirma(): void {
+    console.log('========== DEBUG FIRMA ==========');
+    console.log('tieneFirma:', this.tieneFirma);
+    console.log('userSignature:', this.userSignature);
+    console.log('userSignature?.id:', this.userSignature?.id);
+    console.log('firmaPosicion:', this.firmaPosicion);
+    console.log('mostrarSelectorPosicion:', this.mostrarSelectorPosicion);
+    console.log('estadoRevision:', this.revisionForm.get('estadoRevision')?.value);
+    console.log('puedeGuardar():', this.puedeGuardar());
+    console.log('soloLectura:', this.soloLectura);
+    console.log('esModoAuditor:', this.esModoAuditor);
+    console.log('currentUserRole:', this.currentUserRole);
+    console.log('================================');
+  }
+
+    /**
+   * Método para registrar una firma de prueba
+   * Útil cuando el supervisor no tiene firma registrada en el sistema
+   */
+  registrarFirmaPrueba(): void {
+    if (!this.signatureService) {
+      this.notificationService.error('Error', 'Servicio de firmas no disponible');
+      return;
+    }
+
+    this.isProcessing = true;
+    
+    // Crear un canvas con una firma de prueba
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 200;
+    const ctx = canvas.getContext('2d');
+    
+    if (ctx) {
+      // Fondo blanco
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Dibujar un marco
+      ctx.strokeStyle = '#cccccc';
+      ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
+      
+      // Texto de firma
+      ctx.font = 'bold 24px cursive';
+      ctx.fillStyle = '#000000';
+      ctx.fillText('Firma Digital', 50, 80);
+      
+      // Nombre del usuario
+      const currentUser = this.authService?.getCurrentUser();
+      const userName = currentUser?.fullName || currentUser?.username || 'Supervisor';
+      ctx.font = '16px Arial';
+      ctx.fillStyle = '#333333';
+      ctx.fillText(userName, 50, 120);
+      
+      // Fecha actual
+      const fecha = new Date().toLocaleDateString();
+      ctx.font = '12px Arial';
+      ctx.fillStyle = '#666666';
+      ctx.fillText(fecha, 50, 150);
+      
+      // Línea simulando firma
+      ctx.beginPath();
+      ctx.moveTo(50, 170);
+      ctx.quadraticCurveTo(100, 180, 150, 165);
+      ctx.quadraticCurveTo(200, 150, 250, 160);
+      ctx.quadraticCurveTo(300, 170, 350, 155);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      // Convertir canvas a blob y subir
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const fileName = `firma_${this.currentUserRole}_${Date.now()}.png`;
+          const file = new File([blob], fileName, { type: 'image/png' });
+          
+          this.signatureService!.uploadSignature(file, 'Firma Digital Supervisor').subscribe({
+            next: (signature) => {
+              console.log('✅ Firma registrada exitosamente:', signature);
+              this.userSignature = signature;
+              this.tieneFirma = true;
+              this.notificationService.success('Éxito', 'Firma digital registrada correctamente');
+              this.cdr.detectChanges();
+              this.isProcessing = false;
+            },
+            error: (err) => {
+              console.error('❌ Error al registrar firma:', err);
+              this.notificationService.error('Error', 'No se pudo registrar la firma: ' + (err.message || 'Error desconocido'));
+              this.isProcessing = false;
+            }
+          });
+        } else {
+          this.notificationService.error('Error', 'No se pudo crear la imagen de la firma');
+          this.isProcessing = false;
+        }
+      }, 'image/png');
+    } else {
+      this.notificationService.error('Error', 'No se pudo crear el canvas para la firma');
+      this.isProcessing = false;
+    }
+  }
+
+  /**
+   * Método para crear firma temporal automáticamente (opcional)
+   */
+  private crearFirmaTemporal(): void {
+    if (!this.signatureService) return;
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 200;
+    const ctx = canvas.getContext('2d');
+    
+    if (ctx) {
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.font = '30px cursive';
+      ctx.fillStyle = '#000000';
+      ctx.fillText('Firma Temporal', 50, 100);
+      
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], 'firma_temporal.png', { type: 'image/png' });
+          this.signatureService!.uploadSignature(file, 'Firma Temporal').subscribe({
+            next: (signature) => {
+              console.log('✅ Firma temporal creada:', signature);
+              this.userSignature = signature;
+              this.tieneFirma = true;
+              this.cdr.detectChanges();
+            },
+            error: (err) => {
+              console.error('❌ Error al crear firma temporal:', err);
+            }
+          });
+        }
+      }, 'image/png');
+    }
+  }
+
 }

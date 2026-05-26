@@ -141,90 +141,129 @@ export class ContabilidadFormComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  cargarDocumento(idRecibido: string): void {
-    let idFinal = idRecibido;
+ cargarDocumento(idRecibido: string): void {
+  let idFinal = idRecibido;
 
-    console.log('[ContabilidadForm] Iniciando carga con ID:', idFinal);
-    this.isLoading = true;
+  console.log('[ContabilidadForm] Iniciando carga con ID:', idFinal);
+  this.isLoading = true;
 
-    this.contabilidadService.obtenerDetalleDocumento(idFinal)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (response: any) => {
-          console.log('[ContabilidadForm] Respuesta OK para ID:', idFinal);
-          
-          const data = response?.data || response;
-          
-          // ✅ Guardar el ID original recibido (este es el documentoRadicadoId)
-          const documentoOriginalId = idFinal;
-          
-          this.documento = {
-            ...(data?.documento || data || {}),
-            documentoId: data?.documentoId || data?.id || idFinal,
-            // ✅ IMPORTANTE: Guardar documentoRadicadoId para los subcomponentes
-            documentoRadicadoId: documentoOriginalId,
-            // ✅ También guardar el ID de la rendición si existe
-            rendicionId: data?.rendicionId || data?.id
-          };
-
-          if (!this.documento || !this.documento.documentoId) {
-            this.mostrarMensaje('Documento no encontrado', 'error');
-            this.isLoading = false;
-            return;
-          }
-
-          const estadoUpper = (this.documento.estado || '').toUpperCase();
-
-          this.estaEnRevision = this.estadosEdicionContabilidad.some(e => estadoUpper.includes(e));
-          this.esDocumentoDeOtroRol = this.estadosOtrosRoles.some(e => estadoUpper.includes(e));
-          this.estaProcesado = this.estadosFinalesContabilidad.some(e => estadoUpper.includes(e)) ||
-            estadoUpper.includes('TESORERIA') || estadoUpper.includes('COMPLETADO') || estadoUpper.includes('PROCESADO');
-
-          // Determinar si el formulario debe estar deshabilitado
-          const deshabilitarFormulario = this.esSoloLectura || this.esDocumentoDeOtroRol || this.estaProcesado;
-
-          console.log('=================================');
-          console.log('Carga completada - Estado:', estadoUpper);
-          console.log('estaEnRevision:', this.estaEnRevision);
-          console.log('esDocumentoDeOtroRol:', this.esDocumentoDeOtroRol);
-          console.log('estaProcesado:', this.estaProcesado);
-          console.log('esSoloLectura:', this.esSoloLectura);
-          console.log('documentoRadicadoId (para subcomponentes):', this.documento.documentoRadicadoId);
-          console.log('Formulario deshabilitado:', deshabilitarFormulario);
-          console.log('=================================');
-
-          this.cargarDatosPrevios();
-          this.inicializarFormulario(estadoUpper);
-
-          if (deshabilitarFormulario) {
-            this.form.disable();
-          } else {
-            this.form.enable();
-          }
-
-          this.actualizarEstadoBotones();
-          this.isLoading = false;
-        },
-        error: (err) => {
-          console.error('[ContabilidadForm] Falló carga con ID:', idFinal, err);
-          
-          // ✅ Si hay error 404, intentar cargar como rendiciónId (solo como fallback)
-          if (err.status === 404 && this.router.url.includes('/rendicion-cuentas/')) {
-            console.log('[ContabilidadForm] Error 404, intentando como rendiciónId...');
-            this.cargarViaRendicion(idFinal);
-          } else {
-            let msg = 'Error al cargar el documento contable';
-            if (err.status === 403) {
-              msg = 'No tienes permiso para acceder a este documento en su estado actual.';
-            } else if (err.status === 404) {
-              msg = 'Documento no encontrado en contabilidad';
-            }
-            this.mostrarMensaje(msg, 'error');
-            this.isLoading = false;
-          }
+  this.contabilidadService.obtenerDetalleDocumento(idFinal)
+    .pipe(takeUntil(this.destroy$))
+    .subscribe({
+      next: (response: any) => {
+        console.log('[ContabilidadForm] Respuesta OK para ID:', idFinal);
+        
+        // ✅ Extraer datos correctamente
+        let data = response?.data || response;
+        
+        // ✅ Si la respuesta está envuelta en 'data', extraer nuevamente
+        if (data?.data && !data.documento) {
+          data = data.data;
         }
-      });
-  }
+        
+        const documentoBase = data?.documento || data || {};
+        const contabilidadData = data?.contabilidad || {};
+        
+        this.documento = {
+          ...documentoBase,
+          // ✅ Mapear campos de contabilidad correctamente
+          documentoId: documentoBase.id || idFinal,
+          documentoRadicadoId: idFinal,
+          
+          // ✅ Campos de contabilidad
+          glosaPath: contabilidadData.glosaPath || documentoBase.glosaPath,
+          causacionPath: contabilidadData.causacionPath || documentoBase.causacionPath,
+          comprobanteEgresoPath: contabilidadData.comprobanteEgresoPath || documentoBase.comprobanteEgresoPath,
+          extractoPath: contabilidadData.extractoPath || documentoBase.extractoPath,
+          tieneGlosa: contabilidadData.tieneGlosa ?? documentoBase.tieneGlosa,
+          tipoCausacion: contabilidadData.tipoCausacion || documentoBase.tipoCausacion,
+          observacionesContabilidad: contabilidadData.observaciones || documentoBase.observacionesContabilidad || '',
+          tipoProceso: contabilidadData.tipoProceso || documentoBase.tipoProceso || 'n/a',
+          estadoFinal: contabilidadData.estadoFinal || this.inferirEstadoFinal(documentoBase.estado),
+          
+          // ✅ Datos del documento base
+          id: documentoBase.id,
+          numeroRadicado: documentoBase.numeroRadicado,
+          numeroContrato: documentoBase.numeroContrato,
+          nombreContratista: documentoBase.nombreContratista,
+          documentoContratista: documentoBase.documentoContratista,
+          estado: documentoBase.estado || documentoBase.estadoDocumento,
+          observacion: documentoBase.observacion || '',
+          
+          // ✅ Mantener el registro contable completo
+          contabilidadRegistro: contabilidadData
+        };
+
+        if (!this.documento || !this.documento.id) {
+          this.mostrarMensaje('Documento no encontrado', 'error');
+          this.isLoading = false;
+          return;
+        }
+
+        const estadoUpper = (this.documento.estado || '').toUpperCase();
+
+        this.estaEnRevision = this.estadosEdicionContabilidad.some(e => estadoUpper.includes(e));
+        this.esDocumentoDeOtroRol = this.estadosOtrosRoles.some(e => estadoUpper.includes(e));
+        this.estaProcesado = this.estadosFinalesContabilidad.some(e => estadoUpper.includes(e)) ||
+          estadoUpper.includes('TESORERIA') || estadoUpper.includes('COMPLETADO') || estadoUpper.includes('PROCESADO');
+
+        const deshabilitarFormulario = this.esSoloLectura || this.esDocumentoDeOtroRol || this.estaProcesado;
+
+        console.log('=================================');
+        console.log('Carga completada - Estado:', estadoUpper);
+        console.log('estaEnRevision:', this.estaEnRevision);
+        console.log('esDocumentoDeOtroRol:', this.esDocumentoDeOtroRol);
+        console.log('estaProcesado:', this.estaProcesado);
+        console.log('esSoloLectura:', this.esSoloLectura);
+        console.log('documentoRadicadoId:', this.documento.documentoRadicadoId);
+        console.log('glosaPath:', this.documento.glosaPath);
+        console.log('causacionPath:', this.documento.causacionPath);
+        console.log('comprobanteEgresoPath:', this.documento.comprobanteEgresoPath);
+        console.log('observacionesContabilidad:', this.documento.observacionesContabilidad);
+        console.log('Formulario deshabilitado:', deshabilitarFormulario);
+        console.log('=================================');
+
+        this.cargarDatosPrevios(); // ✅ Ahora debería encontrar los paths
+        this.inicializarFormulario(estadoUpper);
+
+        if (deshabilitarFormulario) {
+          this.form.disable();
+        } else {
+          this.form.enable();
+        }
+
+        this.actualizarEstadoBotones();
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.error('[ContabilidadForm] Falló carga con ID:', idFinal, err);
+        
+        if (err.status === 404 && this.router.url.includes('/rendicion-cuentas/')) {
+          console.log('[ContabilidadForm] Error 404, intentando como rendiciónId...');
+          this.cargarViaRendicion(idFinal);
+        } else {
+          let msg = 'Error al cargar el documento contable';
+          if (err.status === 403) {
+            msg = 'No tienes permiso para acceder a este documento en su estado actual.';
+          } else if (err.status === 404) {
+            msg = 'Documento no encontrado en contabilidad';
+          }
+          this.mostrarMensaje(msg, 'error');
+          this.isLoading = false;
+        }
+      }
+    });
+}
+
+// ✅ Método auxiliar para inferir estado final
+private inferirEstadoFinal(estado: string): string {
+  const e = (estado || '').toUpperCase();
+  if (e.includes('COMPLETADO') || e.includes('PROCESADO') || e.includes('APROBADO')) return 'APROBADO';
+  if (e.includes('OBSERVADO')) return 'OBSERVADO';
+  if (e.includes('RECHAZADO')) return 'RECHAZADO';
+  if (e.includes('GLOSADO')) return 'GLOSADO';
+  return 'PENDIENTE';
+}
 
   private cargarViaRendicion(rendicionId: string): void {
     this.rendicionService.obtenerDetalleRendicion(rendicionId).subscribe({
@@ -318,78 +357,71 @@ export class ContabilidadFormComponent implements OnInit, OnDestroy {
     this.mostrarMensaje(`Archivo ${file.name} seleccionado`, 'info');
   }
 
-  onSubmit(): void {
-    if (!this.estaEnRevision || this.esSoloLectura) {
-      this.mostrarMensaje('No puedes guardar en modo consulta', 'warning');
-      return;
-    }
-
-    if (this.form.invalid) {
-      this.mostrarMensaje('Complete todos los campos requeridos', 'warning');
-      return;
-    }
-
-    if (this.isProcessing) return;
-
-    const estado = this.form.get('estadoFinal')?.value;
-    const tipoProceso = this.form.get('tipoProceso')?.value;
-
-    if (tipoProceso === 'glosa') {
-      if (!this.archivos['glosa']) {
-        this.mostrarMensaje('Debe adjuntar el documento de Glosa', 'error');
-        return;
-      }
-      if (!this.archivos['extracto']) {
-        this.mostrarMensaje('Debe adjuntar el Extracto Bancario', 'error');
-        return;
-      }
-    } else if (tipoProceso === 'causacion') {
-      if (!this.archivos['causacion']) {
-        this.mostrarMensaje('Debe adjuntar el documento de Causación', 'error');
-        return;
-      }
-      if (!this.archivos['extracto']) {
-        this.mostrarMensaje('Debe adjuntar el Extracto Bancario', 'error');
-        return;
-      }
-    }
-
-    this.isProcessing = true;
-    this.mostrarMensaje('Guardando documento...', 'info');
-
-    const formData = new FormData();
-
-    Object.entries(this.archivos).forEach(([key, file]) => {
-      if (file) {
-        formData.append(key, file);
-      }
-    });
-
-    formData.append('observaciones', this.form.value.observaciones || '');
-    formData.append('tipoProceso', tipoProceso);
-    formData.append('estadoFinal', estado);
-
-    console.log('Enviando formulario:', {
-      documentoId: this.documento.id,
-      tipoProceso,
-      estado,
-      archivos: Object.keys(this.archivos).filter(k => this.archivos[k])
-    });
-
-    this.contabilidadService.subirDocumentosContabilidad(this.documento.id, formData)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: () => {
-          this.mostrarMensaje('Documento guardado correctamente', 'success');
-          this.isProcessing = false;
-          setTimeout(() => this.cargarDocumento(this.documento.id), 1500);
-        },
-        error: (err) => {
-          this.mostrarMensaje(err.error?.message || 'Error al guardar el documento', 'error');
-          this.isProcessing = false;
-        }
-      });
+onSubmit(): void {
+  if (!this.estaEnRevision || this.esSoloLectura) {
+    this.mostrarMensaje('No puedes guardar en modo consulta', 'warning');
+    return;
   }
+
+  if (this.form.invalid) {
+    this.mostrarMensaje('Complete todos los campos requeridos', 'warning');
+    return;
+  }
+
+  if (this.isProcessing) return;
+
+  const estado = this.form.get('estadoFinal')?.value;
+  const tipoProceso = this.form.get('tipoProceso')?.value;
+
+  // ✅ Validar solo el archivo necesario según el tipo de proceso (sin extracto)
+  if (tipoProceso === 'glosa') {
+    if (!this.archivos['glosa']) {
+      this.mostrarMensaje('Debe adjuntar el documento de Glosa', 'error');
+      return;
+    }
+  } else if (tipoProceso === 'causacion') {
+    if (!this.archivos['causacion']) {
+      this.mostrarMensaje('Debe adjuntar el documento de Causación', 'error');
+      return;
+    }
+  }
+
+  this.isProcessing = true;
+  this.mostrarMensaje('Guardando documento...', 'info');
+
+  const formData = new FormData();
+
+  Object.entries(this.archivos).forEach(([key, file]) => {
+    if (file) {
+      formData.append(key, file);
+    }
+  });
+
+  formData.append('observaciones', this.form.value.observaciones || '');
+  formData.append('tipoProceso', tipoProceso);
+  formData.append('estadoFinal', estado);
+
+  console.log('Enviando formulario:', {
+    documentoId: this.documento.id,
+    tipoProceso,
+    estado,
+    archivos: Object.keys(this.archivos).filter(k => this.archivos[k])
+  });
+
+  this.contabilidadService.subirDocumentosContabilidad(this.documento.id, formData)
+    .pipe(takeUntil(this.destroy$))
+    .subscribe({
+      next: () => {
+        this.mostrarMensaje('Documento guardado correctamente', 'success');
+        this.isProcessing = false;
+        setTimeout(() => this.cargarDocumento(this.documento.id), 1500);
+      },
+      error: (err) => {
+        this.mostrarMensaje(err.error?.message || 'Error al guardar el documento', 'error');
+        this.isProcessing = false;
+      }
+    });
+}
 
   liberarDocumento(): void {
     if (!this.estaEnRevision || this.esSoloLectura) {
@@ -422,41 +454,56 @@ export class ContabilidadFormComponent implements OnInit, OnDestroy {
     this.router.navigate(['/contabilidad/pendientes']);
   }
 
-  private actualizarEstadoBotones(): void {
-    if (!this.estaEnRevision || this.esSoloLectura) {
-      this.puedeGuardar = false;
-      this.puedeLiberar = false;
-      return;
-    }
+private actualizarEstadoBotones(): void {
+  if (!this.estaEnRevision || this.esSoloLectura) {
+    this.puedeGuardar = false;
+    this.puedeLiberar = false;
+    return;
+  }
 
-    const tipo = this.form.get('tipoProceso')?.value;
-    const estadoFinal = this.form.get('estadoFinal')?.value;
+  const tipo = this.form.get('tipoProceso')?.value;
+  const estadoFinal = this.form.get('estadoFinal')?.value;
 
-    if (!tipo || !estadoFinal) {
-      this.puedeGuardar = false;
-      this.puedeLiberar = true;
-      return;
-    }
-
-    let archivosRequeridos: string[] = [];
-    if (tipo === 'glosa') {
-      archivosRequeridos = ['glosa', 'extracto'];
-    } else if (tipo === 'causacion') {
-      archivosRequeridos = ['causacion', 'extracto'];
-    }
-
-    const todosArchivosCargados = archivosRequeridos.length === 0 ||
-      archivosRequeridos.every(req => !!this.archivos[req as keyof typeof this.archivos]);
-
-    this.puedeGuardar = this.form.valid && todosArchivosCargados;
+  if (!tipo || !estadoFinal) {
+    this.puedeGuardar = false;
     this.puedeLiberar = true;
+    return;
   }
 
-  private limpiarArchivosSegunTipo(tipo: string): void {
-    this.archivos['glosa'] = null;
-    this.archivos['causacion'] = null;
-    this.archivos['extracto'] = null;
+  let archivosRequeridos: string[] = [];
+  if (tipo === 'glosa') {
+    archivosRequeridos = ['glosa'];  // ✅ Solo glosa
+  } else if (tipo === 'causacion') {
+    archivosRequeridos = ['causacion'];  // ✅ Solo causacion
   }
+
+  const todosArchivosCargados = archivosRequeridos.length === 0 ||
+    archivosRequeridos.every(req => !!this.archivos[req as keyof typeof this.archivos]);
+
+  this.puedeGuardar = this.form.valid && todosArchivosCargados;
+  this.puedeLiberar = true;
+  
+  console.log('[Actualizar Botones]', {
+    tipo,
+    estadoFinal,
+    archivosRequeridos,
+    archivosCargados: Object.keys(this.archivos).filter(k => this.archivos[k]),
+    todosArchivosCargados,
+    puedeGuardar: this.puedeGuardar
+  });
+}
+
+private limpiarArchivosSegunTipo(tipo: string): void {
+  // Limpiar solo los archivos que no corresponden al tipo seleccionado
+  if (tipo === 'glosa') {
+    this.archivos['causacion'] = null;
+    // ✅ No limpiar extracto
+  } else if (tipo === 'causacion') {
+    this.archivos['glosa'] = null;
+    // ✅ No limpiar extracto
+  }
+  // ✅ Nunca limpiar extracto
+}
 
   mostrarMensaje(texto: string, tipo: 'success' | 'error' | 'warning' | 'info'): void {
     this.mensaje = texto;

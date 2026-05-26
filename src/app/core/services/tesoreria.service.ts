@@ -332,4 +332,29 @@ export class TesoreriaService {
 
     return true;
   }
+
+  verComprobanteExtra(documentoId: string): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/documentos/${documentoId}/descargar/comprobanteextra`, {
+      responseType: 'blob',
+      headers: this.getHeaders()
+    }).pipe(
+      catchError(err => {
+        console.error('Error al ver comprobante extra:', err);
+        return throwError(() => new Error('No se pudo abrir el comprobante extra'));
+      })
+    );
+  }
+
+  // Descargar comprobante extra
+  descargarComprobanteExtra(documentoId: string): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/documentos/${documentoId}/descargar/comprobanteextra`, {
+      responseType: 'blob',
+      headers: this.getHeaders()
+    }).pipe(
+      catchError(err => {
+        console.error('Error al descargar comprobante extra:', err);
+        return throwError(() => new Error('No se pudo descargar el comprobante extra'));
+      })
+    );
+  }
 }

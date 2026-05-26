@@ -25,21 +25,89 @@
       </h4>
     </div>
     <div class="card-body p-0">
-
-      <app-auditor-form *ngIf="documento.documentoRadicadoId || documentoId" [modo]="'auditoria'" [documentoId]="documentoId" (volver)="volverALista()">
+      <app-auditor-form *ngIf="documento.documentoRadicadoId || documentoId" [modo]="'auditoria'"
+        [documentoId]="documentoId" (volver)="volverALista()">
       </app-auditor-form>
     </div>
   </div>
 
   <!-- REVISIÓN DEL SUPERVISOR -->
   <div class="card shadow mb-4">
-    <div class="card-header bg-primary text-white">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
       <h4 class="mb-0">
         <i class="fas fa-clipboard-check me-2"></i>
         Revisión del Supervisor
       </h4>
+      <app-signature-pad [currentUserRole]="currentUserRole" [tieneFirma]="tieneFirma">
+      </app-signature-pad>
     </div>
     <div class="card-body">
+
+      <!-- ACTA DE SUPERVISIÓN (Documento a firmar) - Mostrar SOLO si NO hay acta firmada -->
+      <div *ngIf="tieneActaOriginal && !tieneActaFirmada" class="card mb-4 border-info">
+        <div class="card-header bg-info text-white py-2">
+          <h5 class="mb-0">
+            <i class="fas fa-file-signature me-2"></i>
+            Acta de Supervisión (Pendiente de firma)
+          </h5>
+        </div>
+        <div class="card-body py-3">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div class="d-flex align-items-center">
+              <i class="fas fa-file-pdf fa-3x text-danger me-3"></i>
+              <div>
+                <strong>{{ actaOriginalNombre || 'Acta de Supervisión' }}</strong>
+                <div class="small text-muted">
+                  Subida por: {{ actaOriginalSubidaPor || 'Auxiliar' }}
+                  <span *ngIf="actaOriginalFecha"> - {{ actaOriginalFecha | date:'dd/MM/yyyy HH:mm' }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="btn-group">
+              <!-- ✅ Usar verActaCorrecta que decide automáticamente -->
+              <button type="button" class="btn btn-outline-primary btn-sm" (click)="verActaCorrecta()"
+                [disabled]="isLoading">
+                <i class="fas fa-eye me-1"></i> Ver Acta
+              </button>
+              <button type="button" class="btn btn-outline-warning btn-sm ms-1"
+                *ngIf="!soloLectura && tieneFirma && revisionForm.get('estadoRevision')?.value === 'APROBADO'"
+                (click)="abrirSelectorPosicion()" [disabled]="isProcessing">
+                <i class="fas fa-arrows-alt me-1"></i>
+                {{ firmaPosicion ? 'Cambiar posición' : 'Seleccionar posición' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACTA FIRMADA (versión final) -->
+      <div *ngIf="tieneActaFirmada" class="card mb-4 border-success">
+        <div class="card-header bg-success text-white py-2">
+          <h5 class="mb-0">
+            <i class="fas fa-check-circle me-2"></i>
+            Acta Firmada (Versión Final)
+          </h5>
+        </div>
+        <div class="card-body py-3">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div class="d-flex align-items-center">
+              <i class="fas fa-file-signature fa-3x text-success me-3"></i>
+              <div>
+                <strong>{{ getNombreArchivoParaMostrar(actaFirmadaNombre) }}</strong>
+                <div *ngIf="fechaFirma" class="small text-muted">
+                  Firmada el {{ fechaFirma | date:'dd/MM/yyyy HH:mm' }}
+                </div>
+              </div>
+            </div>
+            <!-- ✅ También usar verActaCorrecta para la firmada -->
+            <button type="button" class="btn btn-outline-success btn-sm" (click)="verActaCorrecta()"
+              [disabled]="isLoading">
+              <i class="fas fa-eye me-1"></i> Ver Acta Firmada
+            </button>
+          </div>
+        </div>
+      </div>
+
       <form [formGroup]="revisionForm" (ngSubmit)="guardarRevision()">
         <!-- Supervisor Revisor y Fecha -->
         <div class="form-row">
@@ -65,53 +133,6 @@
             </select>
             <input *ngIf="soloLectura || esModoAuditor" type="text" class="form-control"
               [value]="revisionForm.get('estadoRevision')?.value || 'No revisado'" readonly>
-          </div>
-
-          <!-- Documento de Aprobación -->
-          <div class="form-group" *ngIf="mostrarCampoArchivo || soloLectura || esModoAuditor">
-            <label class="form-label"><i class="fas fa-file-upload"></i> Documento de Aprobación</label>
-
-            <div *ngIf="nombreArchivoAprobacionExistente"
-              class="existing-file mb-3 p-3 bg-primary bg-opacity-10 rounded">
-              <div class="d-flex align-items-center justify-content-between">
-                <div class="d-flex align-items-center">
-                  <i class="fas fa-file-upload text-primary fa-2x me-3"></i>
-                  <div>
-                    <strong>{{ getNombreArchivoParaMostrar(nombreArchivoAprobacionExistente) }}</strong>
-                    <div *ngIf="fechaArchivoAprobacionExistente" class="small text-muted">
-                      Cargado el: {{ fechaArchivoAprobacionExistente | date:'dd/MM/yyyy HH:mm' }}
-                    </div>
-                  </div>
-                </div>
-                <div class="btn-group">
-                  <button type="button" class="btn btn-sm btn-outline-primary"
-                    (click)="previsualizarArchivosSupervisor('aprobacion')"
-                    [disabled]="isProcessing || !nombreArchivoAprobacionExistente">
-                    <i class="fas fa-eye"></i> Ver
-                  </button>
-                  <button type="button" class="btn btn-sm btn-outline-success ms-1"
-                    (click)="descargarArchivosSupervisor('aprobacion')"
-                    [disabled]="isProcessing || !nombreArchivoAprobacionExistente">
-                    <i class="fas fa-download"></i> Descargar
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div *ngIf="!nombreArchivoAprobacionExistente && (soloLectura || esModoAuditor)"
-              class="alert alert-secondary small">
-              No se adjuntó documento de aprobación en esta revisión.
-            </div>
-
-            <div *ngIf="!soloLectura && !esModoAuditor && revisionForm.get('estadoRevision')?.value === 'APROBADO'">
-              <div class="mb-3">
-                <input type="file" class="form-control" (change)="onArchivoAprobacionSeleccionado($event)"
-                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
-                <div *ngIf="archivoAprobacion" class="mt-2">
-                  <span class="badge bg-success">{{ archivoAprobacion.name }}</span>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -222,3 +243,9 @@
     </div>
   </div>
 </div>
+
+<!-- SELECTOR DE POSICIÓN DE FIRMA -->
+<app-signature-position *ngIf="mostrarSelectorPosicion && actaOriginalFile" [pdfFile]="actaOriginalFile"
+  [signatureName]="userSignature?.name || 'Firma'" (positionChange)="onPositionSelected($event)"
+  (onClose)="cerrarSelectorPosicion()">
+</app-signature-position>

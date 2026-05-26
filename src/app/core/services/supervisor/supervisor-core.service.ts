@@ -1,4 +1,5 @@
 // src/app/core/services/supervisor/supervisor-core.service.ts
+
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
@@ -10,7 +11,8 @@ import { Documento } from '../../models/documento.model';
 })
 export class SupervisorCoreService {
     protected http = inject(HttpClient);
-    protected apiUrl = `${environment.apiUrl}/supervisor`;
+    protected apiUrl = `${environment.apiUrl}/supervisor/documentos`;
+    protected revisionApiUrl = `${environment.apiUrl}/supervisor/revision`;
 
     protected getAuthHeaders(): HttpHeaders {
         const token = localStorage.getItem('access_token') || localStorage.getItem('token');
@@ -55,9 +57,37 @@ export class SupervisorCoreService {
         return throwError(() => new Error(errorMessage));
     }
 
-    protected mapearDocumentosDesdeBackend(documentosArray: any[]): Documento[] {
-        if (!Array.isArray(documentosArray)) {
-            console.error('❌ documentosArray no es un array:', documentosArray);
+    protected extraerDatosRespuesta(response: any): any[] {
+        // Si la respuesta tiene data y es un array, usarlo
+        if (response?.data && Array.isArray(response.data)) {
+            console.log('📊 Extrayendo datos de response.data');
+            return response.data;
+        }
+        // Si la respuesta tiene data y dentro tiene data (anidado)
+        if (response?.data?.data && Array.isArray(response.data.data)) {
+            console.log('📊 Extrayendo datos de response.data.data');
+            return response.data.data;
+        }
+        // Si la respuesta directamente es un array
+        if (Array.isArray(response)) {
+            console.log('📊 Extrayendo datos de response (array)');
+            return response;
+        }
+        // Si la respuesta tiene success y data
+        if (response?.success === true && response?.data && Array.isArray(response.data)) {
+            console.log('📊 Extrayendo datos de response.success.data');
+            return response.data;
+        }
+        console.log('⚠️ No se pudieron extraer datos de la respuesta:', response);
+        return [];
+    }
+
+    protected mapearDocumentosDesdeBackend(response: any): Documento[] {
+        // Extraer los datos de la respuesta
+        const documentosArray = this.extraerDatosRespuesta(response);
+        
+        if (!Array.isArray(documentosArray) || documentosArray.length === 0) {
+            console.log('📊 No hay documentos para mapear');
             return [];
         }
 
@@ -65,68 +95,63 @@ export class SupervisorCoreService {
 
         return documentosArray.map((doc: any) => {
             try {
-                const documentoMapeado: Documento = {
-                    id: doc.id || '',
-                    numeroRadicado: doc.numeroRadicado || '',
-                    numeroContrato: doc.numeroContrato || '',
-                    nombreContratista: doc.nombreContratista || 'Sin contratista',
-                    documentoContratista: doc.documentoContratista || '',
-                    emailContratista: doc.emailContratista || '',
-                    telefonoContratista: doc.telefonoContratista || '',
-                    fechaInicio: doc.fechaInicio ? new Date(doc.fechaInicio) : new Date(),
-                    fechaFin: doc.fechaFin ? new Date(doc.fechaFin) : new Date(),
-                    estado: doc.estado || 'RADICADO',
-                    fechaRadicacion: doc.fechaRadicacion ? new Date(doc.fechaRadicacion) : new Date(),
-                    cuentaCobro: doc.cuentaCobro || '',
-                    seguridadSocial: doc.seguridadSocial || '',
-                    informeActividades: doc.informeActividades || '',
-                    descripcionCuentaCobro: doc.descripcionCuentaCobro || 'Cuenta de Cobro',
-                    descripcionSeguridadSocial: doc.descripcionSeguridadSocial || 'Seguridad Social',
-                    descripcionInformeActividades: doc.descripcionInformeActividades || 'Informe de Actividades',
-                    observacion: doc.observacion || '',
-                    nombreRadicador: doc.radicador || doc.nombreRadicador || 'Radicador',
-                    usuarioRadicador: doc.usuarioRadicador || '',
-                    rutaCarpetaRadicado: doc.rutaCarpetaRadicado || '',
-                    radicador: typeof doc.radicador === 'string' ? doc.radicador : doc.nombreRadicador,
-                    tokenPublico: doc.tokenPublico || '',
-                    tokenActivo: doc.tokenActivo || false,
-                    tokenExpiraEn: doc.tokenExpiraEn ? new Date(doc.tokenExpiraEn) : new Date(),
-                    contratistaId: doc.contratistaId || '',
-                    createdAt: doc.createdAt ? new Date(doc.createdAt) : new Date(),
-                    updatedAt: doc.updatedAt ? new Date(doc.updatedAt) : new Date(),
-                    ultimoAcceso: doc.ultimoAcceso ? new Date(doc.ultimoAcceso) : new Date(),
-                    ultimoUsuario: doc.ultimoUsuario || '',
-                    fechaActualizacion: doc.fechaActualizacion ? new Date(doc.fechaActualizacion) : new Date(),
-                    usuarioAsignadoNombre: doc.usuarioAsignadoNombre || doc.asignacion?.usuarioAsignado,
-                    primerRadicadoDelAno: doc.primerRadicadoDelAno || false,
-                    esUltimoRadicado: doc.esUltimoRadicado || false,
-                    tipoContrato: doc.tipoContrato || 'SERVICIOS',
-                    valorContrato: doc.valorContrato || 0,
-                    supervisorAsignado: doc.supervisorAsignado || doc.asignacion?.supervisorActual || undefined,
-                    fechaAprobacionSupervisor: doc.fechaAprobacionSupervisor || doc.fechaAsignacion ? new Date(doc.fechaAsignacion) : undefined,
-                    observacionSupervisor: doc.observacionSupervisor || undefined,
-                    requierePazSalvo: doc.requierePazSalvo || false,
-                    auditorAsignado: doc.auditorAsignado || undefined,
-                    fechaAsignacionAuditor: doc.fechaAsignacionAuditor ? new Date(doc.fechaAsignacionAuditor) : undefined,
-                    estadoAuditor: doc.estadoAuditor || undefined,
-                    historialEstados: doc.historialEstados || [],
+                // Si el documento está dentro de una propiedad "documento"
+                const documentoData = doc.documento || doc;
+                
+                return {
+                    id: documentoData.id || '',
+                    numeroRadicado: documentoData.numeroRadicado || '',
+                    numeroContrato: documentoData.numeroContrato || '',
+                    nombreContratista: documentoData.nombreContratista || 'Sin contratista',
+                    documentoContratista: documentoData.documentoContratista || '',
+                    emailContratista: documentoData.emailContratista || '',
+                    telefonoContratista: documentoData.telefonoContratista || '',
+                    fechaInicio: documentoData.fechaInicio ? new Date(documentoData.fechaInicio) : new Date(),
+                    fechaFin: documentoData.fechaFin ? new Date(documentoData.fechaFin) : new Date(),
+                    estado: documentoData.estado || 'RADICADO',
+                    fechaRadicacion: documentoData.fechaRadicacion ? new Date(documentoData.fechaRadicacion) : new Date(),
+                    cuentaCobro: documentoData.cuentaCobro || '',
+                    seguridadSocial: documentoData.seguridadSocial || '',
+                    informeActividades: documentoData.informeActividades || '',
+                    descripcionCuentaCobro: documentoData.descripcionCuentaCobro || 'Cuenta de Cobro',
+                    descripcionSeguridadSocial: documentoData.descripcionSeguridadSocial || 'Seguridad Social',
+                    descripcionInformeActividades: documentoData.descripcionInformeActividades || 'Informe de Actividades',
+                    observacion: documentoData.observacion || '',
+                    nombreRadicador: documentoData.radicador || documentoData.nombreRadicador || 'Radicador',
+                    usuarioRadicador: documentoData.usuarioRadicador || '',
+                    rutaCarpetaRadicado: documentoData.rutaCarpetaRadicado || '',
+                    radicador: typeof documentoData.radicador === 'string' ? documentoData.radicador : documentoData.nombreRadicador,
+                    tokenPublico: documentoData.tokenPublico || '',
+                    tokenActivo: documentoData.tokenActivo || false,
+                    tokenExpiraEn: documentoData.tokenExpiraEn ? new Date(documentoData.tokenExpiraEn) : new Date(),
+                    contratistaId: documentoData.contratistaId || '',
+                    createdAt: documentoData.createdAt ? new Date(documentoData.createdAt) : new Date(),
+                    updatedAt: documentoData.updatedAt ? new Date(documentoData.updatedAt) : new Date(),
+                    ultimoAcceso: documentoData.ultimoAcceso ? new Date(documentoData.ultimoAcceso) : new Date(),
+                    ultimoUsuario: documentoData.ultimoUsuario || '',
+                    fechaActualizacion: documentoData.fechaActualizacion ? new Date(documentoData.fechaActualizacion) : new Date(),
+                    usuarioAsignadoNombre: documentoData.usuarioAsignadoNombre || documentoData.asignacion?.usuarioAsignado,
+                    primerRadicadoDelAno: documentoData.primerRadicadoDelAno || false,
+                    esUltimoRadicado: documentoData.esUltimoRadicado || false,
+                    tipoContrato: documentoData.tipoContrato || 'SERVICIOS',
+                    valorContrato: documentoData.valorContrato || 0,
+                    supervisorAsignado: documentoData.supervisorAsignado || documentoData.asignacion?.supervisorActual,
+                    requierePazSalvo: documentoData.requierePazSalvo || false,
+                    historialEstados: documentoData.historialEstados || [],
                     asignacion: {
-                        estado: doc.asignacion?.estado || doc.supervisorEstado || 'PENDIENTE',
-                        supervisorActual: doc.asignacion?.supervisorActual || doc.supervisorAsignado,
-                        enRevision: doc.asignacion?.enRevision || false,
-                        auditorActual: doc.asignacion?.auditorActual || doc.auditorAsignado,
-                        puedoTomar: doc.asignacion?.puedoTomar !== undefined ? doc.asignacion.puedoTomar : true
+                        estado: documentoData.asignacion?.estado || documentoData.supervisorEstado || 'PENDIENTE',
+                        supervisorActual: documentoData.asignacion?.supervisorActual || documentoData.supervisorAsignado,
+                        enRevision: documentoData.asignacion?.enRevision || false,
+                        puedoTomar: documentoData.asignacion?.puedoTomar !== undefined ? documentoData.asignacion.puedoTomar : true
                     },
-                    puedeTomar: doc.asignacion?.puedoTomar !== undefined ? doc.asignacion.puedoTomar : true,
-                    enRevision: doc.asignacion?.enRevision || false,
-                    esPrimerRadicado: doc.primerRadicadoDelAno || false,
+                    puedeTomar: documentoData.asignacion?.puedoTomar !== undefined ? documentoData.asignacion.puedoTomar : true,
+                    enRevision: documentoData.asignacion?.enRevision || false,
+                    esPrimerRadicado: documentoData.primerRadicadoDelAno || false,
                     estadoBadge: {
-                        texto: this.getEstadoTexto(doc.estado || doc.asignacion?.estado || 'RADICADO'),
-                        clase: this.getEstadoClase(doc.estado || doc.asignacion?.estado || 'RADICADO')
+                        texto: this.getEstadoTexto(documentoData.estado || 'RADICADO'),
+                        clase: this.getEstadoClase(documentoData.estado || 'RADICADO')
                     }
-                };
-
-                return documentoMapeado;
+                } as Documento;
             } catch (error) {
                 console.error('❌ Error mapeando documento:', error, doc);
                 return null;
@@ -145,7 +170,8 @@ export class SupervisorCoreService {
             'APROBADO_AUDITOR': 'Aprobado por Auditor',
             'OBSERVADO_AUDITOR': 'Observado por Auditor',
             'RECHAZADO_AUDITOR': 'Rechazado por Auditor',
-            'FINALIZADO': 'Finalizado'
+            'FINALIZADO': 'Finalizado',
+            'FIRMADO_SUPERVISOR': 'Firmado por Supervisor'
         };
         return estados[estado] || estado;
     }
@@ -161,8 +187,21 @@ export class SupervisorCoreService {
             'APROBADO_AUDITOR': 'badge-success',
             'OBSERVADO_AUDITOR': 'badge-warning',
             'RECHAZADO_AUDITOR': 'badge-danger',
-            'FINALIZADO': 'badge-success'
+            'FINALIZADO': 'badge-success',
+            'FIRMADO_SUPERVISOR': 'badge-primary'
         };
         return clases[estado] || 'badge-secondary';
+    }
+
+    verActa(documentoId: string, soloLectura: boolean = true): void {
+        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+        if (token) {
+            const cleanToken = token.startsWith('Bearer ') ? token.slice(7) : token;
+            const url = `${this.apiUrl}/${documentoId}/acta?soloLectura=${soloLectura}&token=${encodeURIComponent(cleanToken)}`;
+            console.log(`📄 Abriendo acta: ${url}`);
+            window.open(url, '_blank');
+        } else {
+            console.error('❌ No hay token para ver acta');
+        }
     }
 }

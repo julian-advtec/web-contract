@@ -11,6 +11,8 @@ export interface Supervisor {
   nombreArchivoSupervisor?: string;
 }
 
+// src/app/core/models/documento.model.ts
+
 export interface Documento {
   id: string;
   numeroRadicado: string;
@@ -64,6 +66,19 @@ export interface Documento {
     [key: string]: any;
   };
   [key: string]: any;
+
+  // Acta de supervisión (subida por auxiliar)
+  actaSupervisionPath?: string;
+  actaSupervisionNombre?: string;
+  actaSupervisionSubidaPor?: string;
+  actaSupervisionFecha?: string;
+  
+  // ✅ Acta firmada (por supervisor)
+  actaFirmadaPath?: string;
+  actaFirmadaNombre?: string;
+  actaFirmadaFecha?: string;
+  actaFirmadaPor?: string;
+  tieneActaFirmada?: boolean;
 
   puedeTomar?: boolean;
   enRevision?: boolean;

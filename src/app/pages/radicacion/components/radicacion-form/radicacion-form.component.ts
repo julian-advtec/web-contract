@@ -111,14 +111,15 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
     private contratistasService: ContratistasService,
     private cdRef: ChangeDetectorRef,
     private juridicaService: JuridicaService,
-    private router: Router
+    private router: Router,
   ) {
     this.radicacionForm = this.createForm();
   }
 
   ngOnInit(): void {
     console.log('[RADICACION-FORM] ngOnInit - modo:', this.modo, 'documentoId:', this.documentoId);
-    
+      console.log('[RADICACION-FORM] ngOnInit - modo:', this.modo, 'documentoId:', this.documentoId);
+      
     const contratoStorage = localStorage.getItem('contratoPrecargado');
     if (contratoStorage && !this.contratoPrecargado && !this.esSoloLectura) {
       try {
@@ -221,64 +222,102 @@ export class RadicacionFormComponent implements OnInit, AfterViewInit, OnDestroy
   );
 }
 
- cargarDocumentoParaVista(id: string): void {
+cargarDocumentoParaVista(id: string): void {
   this.isLoading = true;
   this.mensaje = 'Cargando documento...';
   
-  console.log('[RADICACION-VIEW] Cargando documento ID:', id);
+  console.log('========== [RADICACION-FORM] INICIO CARGA ==========');
+  console.log('[RADICACION-FORM] ID recibido:', id);
   
   this.radicacionService.obtenerDocumentoPorId(id).subscribe({
-      next: (documento: Documento) => {
-          console.log('[RADICACION-VIEW] Documento recibido:', documento);
-          
-          if (!documento) {
-              this.mensaje = 'No se encontraron datos del documento';
-              this.isLoading = false;
-              return;
-          }
-          
-          // Guardar los nombres de archivo para mostrar
-          if (documento.cuentaCobro) {
-              this.documentosSeleccionados[0] = { name: this.extraerNombreArchivo(documento.cuentaCobro) } as File;
-          }
-          if (documento.seguridadSocial) {
-              this.documentosSeleccionados[1] = { name: this.extraerNombreArchivo(documento.seguridadSocial) } as File;
-          }
-          if (documento.informeActividades) {
-              this.documentosSeleccionados[2] = { name: this.extraerNombreArchivo(documento.informeActividades) } as File;
-          }
-          
-          // ✅ Cargar email y teléfono del documento guardado
-          this.radicacionForm.patchValue({
-              numeroRadicado: documento.numeroRadicado || '',
-              numeroContrato: documento.numeroContrato || '',
-              nombreContratista: documento.nombreContratista || '',
-              documentoContratista: documento.documentoContratista || '',
-              emailContratista: documento.emailContratista || '',
-              telefonoContratista: documento.telefonoContratista || '',
-              fechaInicio: documento.fechaInicio ? new Date(documento.fechaInicio).toISOString().split('T')[0] : '',
-              fechaFin: documento.fechaFin ? new Date(documento.fechaFin).toISOString().split('T')[0] : '',
-              descripcionCuentaCobro: documento.descripcionCuentaCobro || 'Cuenta de Cobro',
-              descripcionSeguridadSocial: documento.descripcionSeguridadSocial || 'Seguridad Social',
-              descripcionInformeActividades: documento.descripcionInformeActividades || 'Informe de Actividades',
-              observacion: documento.observacion || '',
-              primerRadicadoDelAno: documento.primerRadicadoDelAno || false
-          });
-          
-          this.radicacionForm.disable();
-          
-          this.mensaje = 'Documento cargado correctamente';
-          this.isLoading = false;
-          this.cdRef.detectChanges();
-          
-          setTimeout(() => { this.mensaje = ''; }, 3000);
-      },
-      error: (error) => {
-          console.error('[RADICACION-VIEW] Error:', error);
-          this.mensaje = 'Error al cargar el documento: ' + (error.message || 'Error desconocido');
-          this.isLoading = false;
-          this.cdRef.detectChanges();
+    next: (documento: Documento) => {
+      console.log('[RADICACION-FORM] Documento COMPLETO recibido:', JSON.stringify(documento, null, 2));
+      console.log('[RADICACION-FORM] emailContratista del documento:', documento.emailContratista);
+      console.log('[RADICACION-FORM] telefonoContratista del documento:', documento.telefonoContratista);
+      
+      if (!documento) {
+        this.mensaje = 'No se encontraron datos del documento';
+        this.isLoading = false;
+        return;
       }
+      
+      // Guardar los nombres de archivo para mostrar
+      if (documento.cuentaCobro) {
+        this.documentosSeleccionados[0] = { name: this.extraerNombreArchivo(documento.cuentaCobro) } as File;
+      }
+      if (documento.seguridadSocial) {
+        this.documentosSeleccionados[1] = { name: this.extraerNombreArchivo(documento.seguridadSocial) } as File;
+      }
+      if (documento.informeActividades) {
+        this.documentosSeleccionados[2] = { name: this.extraerNombreArchivo(documento.informeActividades) } as File;
+      }
+      
+      // Cargar datos básicos del documento
+      this.radicacionForm.patchValue({
+        numeroRadicado: documento.numeroRadicado || '',
+        numeroContrato: documento.numeroContrato || '',
+        nombreContratista: documento.nombreContratista || '',
+        documentoContratista: documento.documentoContratista || '',
+        emailContratista: documento.emailContratista || '',
+        telefonoContratista: documento.telefonoContratista || '',
+        fechaInicio: documento.fechaInicio ? new Date(documento.fechaInicio).toISOString().split('T')[0] : '',
+        fechaFin: documento.fechaFin ? new Date(documento.fechaFin).toISOString().split('T')[0] : '',
+        descripcionCuentaCobro: documento.descripcionCuentaCobro || 'Cuenta de Cobro',
+        descripcionSeguridadSocial: documento.descripcionSeguridadSocial || 'Seguridad Social',
+        descripcionInformeActividades: documento.descripcionInformeActividades || 'Informe de Actividades',
+        observacion: documento.observacion || '',
+        primerRadicadoDelAno: documento.primerRadicadoDelAno || false
+      });
+      
+      console.log('[RADICACION-FORM] Valores después de patchValue:');
+      console.log('  - emailContratista:', this.radicacionForm.get('emailContratista')?.value);
+      console.log('  - telefonoContratista:', this.radicacionForm.get('telefonoContratista')?.value);
+      
+      // ✅ FORZAR BÚSQUEDA DEL CONTRATISTA CON EL MÉTODO EXACTO
+      if (documento.numeroContrato) {
+        console.log('[RADICACION-FORM] Buscando contratista con número:', documento.numeroContrato);
+        
+        // ✅ USAR EL NUEVO MÉTODO EXACTO (debes agregarlo en ContratistasService)
+        this.contratistasService.buscarContratistaPorNumeroContratoExacto(documento.numeroContrato).subscribe({
+          next: (contratista) => {
+            console.log('[RADICACION-FORM] Contratista encontrado:', contratista);
+            
+            if (contratista) {
+              // Actualizar el formulario con los datos del contratista
+              this.radicacionForm.patchValue({
+                emailContratista: contratista.email || '',
+                telefonoContratista: contratista.telefono || ''
+              });
+              
+              console.log('[RADICACION-FORM] Email actualizado a:', contratista.email);
+              console.log('[RADICACION-FORM] Teléfono actualizado a:', contratista.telefono);
+              this.cdRef.detectChanges();
+            } else {
+              console.warn('[RADICACION-FORM] No se encontró contratista para:', documento.numeroContrato);
+            }
+          },
+          error: (error) => {
+            console.error('[RADICACION-FORM] Error buscando contratista:', error);
+          }
+        });
+      } else {
+        console.warn('[RADICACION-FORM] No hay numeroContrato para buscar contratista');
+      }
+      
+      this.radicacionForm.disable();
+      
+      this.mensaje = 'Documento cargado correctamente';
+      this.isLoading = false;
+      this.cdRef.detectChanges();
+      
+      setTimeout(() => { this.mensaje = ''; }, 3000);
+    },
+    error: (error) => {
+      console.error('[RADICACION-VIEW] Error:', error);
+      this.mensaje = 'Error al cargar el documento: ' + (error.message || 'Error desconocido');
+      this.isLoading = false;
+      this.cdRef.detectChanges();
+    }
   });
 }
 
@@ -1345,4 +1384,62 @@ seleccionarContratista(contratista: any): void {
   contarDocumentosDisponibles(): number {
     return this.documentosSeleccionados.filter(doc => doc?.name).length;
   }
+
+  private complementarDatosDesdeContratista(documento: Documento): void {
+  // Si ya tiene email y teléfono, no hacer nada
+  if (documento.emailContratista || documento.telefonoContratista) {
+    return;
+  }
+  
+  // Buscar el contratista por número de contrato
+  this.contratistasService.buscarPorNumeroContrato(documento.numeroContrato).subscribe({
+    next: (contratistas) => {
+      if (contratistas && contratistas.length > 0) {
+        const contratista = contratistas[0];
+        // Actualizar el formulario con los datos del contratista
+        this.radicacionForm.patchValue({
+          emailContratista: contratista.email || '',
+          telefonoContratista: contratista.telefono || ''
+        });
+        console.log('[RADICACION-FORM] Datos complementados desde contratista:', {
+          email: contratista.email,
+          telefono: contratista.telefono
+        });
+      }
+    },
+    error: (error) => {
+      console.warn('[RADICACION-FORM] No se pudo obtener contratista:', error);
+    }
+  });
+}
+
+private cargarEmailYTelefonoDesdeContratista(numeroContrato: string): void {
+  if (!numeroContrato) return;
+  
+  console.log('[RADICACION-FORM] Buscando email/teléfono desde contratista:', numeroContrato);
+  
+  this.contratistasService.buscarPorNumeroContrato(numeroContrato).subscribe({
+    next: (contratistas) => {
+      if (contratistas && contratistas.length > 0) {
+        const contratista = contratistas[0];
+        const emailActual = this.radicacionForm.get('emailContratista')?.value;
+        const telefonoActual = this.radicacionForm.get('telefonoContratista')?.value;
+        
+        // Solo actualizar si están vacíos
+        if (!emailActual && contratista.email) {
+          this.radicacionForm.patchValue({ emailContratista: contratista.email });
+          console.log('[RADICACION-FORM] Email cargado desde contratista:', contratista.email);
+        }
+        if (!telefonoActual && contratista.telefono) {
+          this.radicacionForm.patchValue({ telefonoContratista: contratista.telefono });
+          console.log('[RADICACION-FORM] Teléfono cargado desde contratista:', contratista.telefono);
+        }
+        this.cdRef.detectChanges();
+      }
+    },
+    error: (error) => {
+      console.warn('[RADICACION-FORM] Error obteniendo contratista:', error);
+    }
+  });
+}
 }

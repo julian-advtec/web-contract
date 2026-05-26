@@ -1,4 +1,7 @@
+// src/app/core/services/supervisor/supervisor.service.ts - VERSIÓN COMPLETA CORREGIDA
+
 import { Injectable, inject } from '@angular/core';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Documento } from '../../models/documento.model';
 import { SupervisorDocumentosService } from './supervisor-documentos.service';
@@ -7,6 +10,7 @@ import { SupervisorArchivosService } from './supervisor-archivos.service';
 import { SupervisorEstadisticasService } from './supervisor-estadisticas.service';
 import { SupervisorOperacionesService } from './supervisor-operaciones.service';
 import { FiltrosEstadisticasSupervisor, PeriodoStats } from '../../models/supervisor-estadisticas.model';
+import { environment } from '../../../../environments/environment';
 
 @Injectable({
     providedIn: 'root'
@@ -17,6 +21,7 @@ export class SupervisorService {
     private archivosService = inject(SupervisorArchivosService);
     private estadisticasService = inject(SupervisorEstadisticasService);
     private operacionesService = inject(SupervisorOperacionesService);
+    private http = inject(HttpClient); // 👈 AGREGAR
 
     // ===============================
     // Documentos
@@ -103,6 +108,49 @@ export class SupervisorService {
         return this.revisionService.observarDocumento(id, observaciones);
     }
 
+    // ==================== MÉTODOS PARA FIRMA ====================
+   firmarActa(documentoId: string, signatureId: string, position: any): Observable<any> {
+    console.log('📤 Enviando firma:', { signatureId, position });
+    return this.revisionService.firmarActa(documentoId, signatureId, position);
+}
+
+  verActaOriginal(documentoId: string, soloLectura: boolean = true): void {
+    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+    if (token) {
+        const cleanToken = token.startsWith('Bearer ') ? token.slice(7) : token;
+        // ✅ Si es modo lectura, intentar obtener acta firmada primero
+        let endpoint = 'acta-original';
+        if (soloLectura) {
+            endpoint = 'acta-firmada';
+        }
+        const url = `${environment.apiUrl}/supervisor/documentos/${documentoId}/${endpoint}?token=${encodeURIComponent(cleanToken)}`;
+        window.open(url, '_blank');
+    } else {
+        console.error('No hay token para ver acta');
+    }
+}
+
+    verActaFirmada(documentoId: string): void {
+        const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+        if (token) {
+            const cleanToken = token.startsWith('Bearer ') ? token.slice(7) : token;
+            const url = `${environment.apiUrl}/supervisor/documentos/${documentoId}/acta-firmada?token=${encodeURIComponent(cleanToken)}`;
+            window.open(url, '_blank');
+        } else {
+            console.error('No hay token para ver acta firmada');
+        }
+    }
+
+ descargarActaOriginal(documentoId: string): Observable<Blob> {
+    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+    const cleanToken = token?.startsWith('Bearer ') ? token.slice(7) : token || '';
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${cleanToken}`);
+    return this.http.get(`${environment.apiUrl}/supervisor/documentos/${documentoId}/acta-original`, {
+        headers,
+        responseType: 'blob'
+    });
+}
+
     // ===============================
     // Archivos - DESCARGA
     // ===============================
@@ -137,7 +185,6 @@ export class SupervisorService {
         return this.archivosService.previsualizarPazSalvo(nombreArchivo);
     }
 
-  
     // ===============================
     // Archivos - URLs
     // ===============================
@@ -190,4 +237,8 @@ export class SupervisorService {
     obtenerInfoContratista(documentoId: string): Observable<any> {
         return this.operacionesService.obtenerInfoContratista(documentoId);
     }
+
+    verActa(documentoId: string, soloLectura: boolean = true): void {
+    return this.documentosService.verActa(documentoId, soloLectura);
+}
 }

@@ -648,24 +648,32 @@ obtenerDocumentoParaVista(id: string, esDesdeContabilidad: boolean = false): Obs
     );
   }
 
-  verActaSupervision(documentoId: string, tieneActa: boolean): void {
-    if (!documentoId || !tieneActa) {
-      console.warn('[AuditorService] Acta no disponible');
-      return;
-    }
-
-    const url = `${environment.apiUrl}/auxiliar-auditor/documentos/${documentoId}/acta`;
-    window.open(url, '_blank');
+verActaSupervision(documentoId: string, tieneActa: boolean): void {
+  if (!documentoId || !tieneActa) {
+    console.warn('[AuditorService] Acta no disponible');
+    return;
   }
+  
+  // ✅ Usar el endpoint correcto para AUDITOR
+  const token = this.getToken();
+  const url = `${this.apiUrl}/documentos/${documentoId}/acta?token=${encodeURIComponent(token)}`;
+  
+  console.log('[AuditorService] Ver acta:', url);
+  window.open(url, '_blank');
+}
 
-  descargarActaSupervision(documentoId: string, tieneActa: boolean): void {
-    if (!documentoId || !tieneActa) {
-      console.warn('[AuditorService] Acta no disponible para descarga');
-      return;
-    }
-
-    const url = `${environment.apiUrl}/auxiliar-auditor/documentos/${documentoId}/acta?download=true`;
-    window.open(url, '_blank');
+descargarActaSupervision(documentoId: string, tieneActa: boolean): void {
+  if (!documentoId || !tieneActa) {
+    console.warn('[AuditorService] Acta no disponible para descarga');
+    return;
   }
+  
+  // ✅ Usar el endpoint correcto para AUDITOR con descarga
+  const token = this.getToken();
+  const url = `${this.apiUrl}/documentos/${documentoId}/acta?download=true&token=${encodeURIComponent(token)}`;
+  
+  console.log('[AuditorService] Descargar acta:', url);
+  window.open(url, '_blank');
+}
 
 }

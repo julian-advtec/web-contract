@@ -141,47 +141,49 @@
         </div>
       </div>
 
-      <!-- Decisión de Asesor Gerencia (vista) -->
-      <div class="card shadow border-primary mb-5">
-        <div class="card-header bg-primary text-white">
-          <h4 class="mb-0">
-            <i class="fas fa-gavel me-2"></i>Decisión de Asesor Gerencia
-          </h4>
+      <!-- COMPROBANTE EXTRA DE TESORERIA - Documento adicional -->
+      <div class="card shadow mb-5 border-info"
+        *ngIf="documento?.comprobanteExtraPath || documento?.pathComprobanteExtra">
+        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">
+            <i class="fas fa-paperclip me-2"></i>
+            Documento Extra de Tesorería
+          </h5>
+          <span class="badge bg-light text-dark">
+            <i class="fas fa-file-alt me-1"></i>Adjunto por Tesorería
+          </span>
         </div>
         <div class="card-body">
-          <div class="row g-4">
-            <div class="col-md-6">
-              <label class="form-label fw-bold">Estado final</label>
-              <p class="form-control-static fw-bold fs-5" [ngClass]="{
-                'text-success': documento.estado === 'COMPLETADO_ASESOR_GERENCIA',
-                'text-warning': documento.estado === 'OBSERVADO_ASESOR_GERENCIA',
-                'text-danger': documento.estado === 'RECHAZADO_ASESOR_GERENCIA'
-              }">
-                {{ getEstadoTexto(documento.estado) }}
-              </p>
+          <div class="d-flex align-items-center justify-content-between p-3 bg-light rounded border">
+            <div class="d-flex align-items-center">
+              <i class="fas fa-file-pdf fa-3x text-danger me-3"></i>
+              <div>
+                <strong>{{ getNombreArchivoExtra() }}</strong>
+                <div class="small text-muted">
+                  Documento adicional subido por tesorería
+                  <span *ngIf="documento.fechaComprobanteExtra">
+                    - {{ documento.fechaComprobanteExtra | date:'dd/MM/yyyy HH:mm' }}
+                  </span>
+                </div>
+                <div class="small text-muted" *ngIf="documento.descripcionComprobanteExtra">
+                  <i class="fas fa-info-circle me-1"></i>
+                  {{ documento.descripcionComprobanteExtra }}
+                </div>
+              </div>
             </div>
-            <div class="col-md-6">
-              <label class="form-label fw-bold">Observaciones de Gerencia</label>
-              <p class="form-control-static pre-wrap">
-                {{ documento.observacionesGerencia || documento.observaciones || documento.observacion || 'Sin
-                observaciones registradas por gerencia' }}
-              </p>
+            <div class="d-flex gap-2">
+              <button class="btn btn-outline-primary btn-sm" (click)="verComprobanteExtra()" [disabled]="isProcessing">
+                <i class="fas fa-eye me-1"></i> Ver
+              </button>
+              <button class="btn btn-outline-success btn-sm" (click)="descargarComprobanteExtra()"
+                [disabled]="isProcessing">
+                <i class="fas fa-download me-1"></i> Descargar
+              </button>
             </div>
           </div>
-          <small class="text-muted d-block mt-3">
-            Procesado el: {{ documento.fechaFinRevision || documento.fechaActualizacion | date:'dd/MM/yyyy HH:mm' || 'No
-            disponible' }}
-          </small>
         </div>
       </div>
 
-      <!-- Alerta modo -->
-      <div class="alert alert-info shadow mb-5">
-        <i class="fas fa-info-circle me-2 fa-lg"></i>
-        <strong>Modo actual:</strong>
-        {{ estaProcesado ? 'Ya procesado por gerencia' : (esModoLectura ? 'Solo consulta' : 'Edición / firma pendiente')
-        }}
-      </div>
 
       <!-- Formulario + botones SOLO en modo edición -->
       <div *ngIf="!esModoLectura && !estaProcesado">
@@ -254,6 +256,8 @@
       </div>
     </ng-container>
   </div>
+
+
 
   <!-- Modal PDF -->
   <app-pdf-viewer-modal *ngIf="showPdfModal" [blob]="pdfBlob" [title]="pdfModalTitle" (closed)="cerrarModalPdf()">

@@ -4,6 +4,8 @@ import { Observable, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
+export type TipoArchivoAsesor = 'pagoRealizado' | 'aprobacion' | 'comprobanteFirmado' | 'comprobanteExtra';
+
 @Injectable({
   providedIn: 'root'
 })
@@ -132,7 +134,8 @@ export class AsesorGerenciaService {
     );
   }
 
-  verArchivo(documentoId: string, tipo: 'pagoRealizado' | 'aprobacion' | 'comprobanteFirmado'): Observable<Blob> {
+  // ✅ TIPO CORREGIDO - ahora incluye 'comprobanteExtra'
+  verArchivo(documentoId: string, tipo: TipoArchivoAsesor): Observable<Blob> {
     return this.http.get(`${this.apiUrl}/documentos/${documentoId}/archivo/${tipo}`, {
       responseType: 'blob',
       headers: this.getAuthHeaders()
@@ -144,7 +147,8 @@ export class AsesorGerenciaService {
     );
   }
 
-  descargarArchivo(documentoId: string, tipo: 'pagoRealizado' | 'aprobacion' | 'comprobanteFirmado'): Observable<Blob> {
+  // ✅ TIPO CORREGIDO - ahora incluye 'comprobanteExtra'
+  descargarArchivo(documentoId: string, tipo: TipoArchivoAsesor): Observable<Blob> {
     return this.http.get(`${this.apiUrl}/documentos/${documentoId}/descargar/${tipo}`, {
       responseType: 'blob',
       headers: this.getAuthHeaders()
@@ -203,18 +207,14 @@ export class AsesorGerenciaService {
       map(response => {
         console.log('[SERVICE] Todos documentos - respuesta completa:', JSON.stringify(response, null, 2));
 
-        // Extraer datos según la estructura
         let documentos = [];
 
-        // Si response.data existe y es un array
         if (response?.data && Array.isArray(response.data)) {
           documentos = response.data;
         }
-        // Si response.data.data existe y es un array
         else if (response?.data?.data && Array.isArray(response.data.data)) {
           documentos = response.data.data;
         }
-        // Si response es un array directamente
         else if (Array.isArray(response)) {
           documentos = response;
         }
@@ -229,5 +229,28 @@ export class AsesorGerenciaService {
     );
   }
 
-  
+  verArchivoAuditorEnNuevaPestana(documentoId: string, tipo: string): boolean {
+    if (!documentoId) {
+      console.error('[AuditorService] No hay documentoId');
+      return false;
+    }
+
+    // Obtener el token
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+    const cleanToken = token?.startsWith('Bearer ') ? token.slice(7) : token;
+
+    // Construir URL
+    const url = `${this.apiUrl}/documentos/${documentoId}/archivo/${tipo}?download=false&token=${encodeURIComponent(cleanToken || '')}`;
+
+    console.log(`[AuditorService] Abriendo archivo ${tipo} en nueva pestaña`);
+
+    const newWindow = window.open(url, '_blank');
+
+    if (!newWindow) {
+      console.warn('[AuditorService] Bloqueador de popups detectado');
+      return false;
+    }
+
+    return true;
+  }
 }
