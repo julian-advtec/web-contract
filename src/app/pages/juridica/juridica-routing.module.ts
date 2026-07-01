@@ -20,27 +20,27 @@ const routes: Routes = [
       {
         path: 'list',
         component: JuridicaListComponent,
-        title: '📋 Contratos Jurídicos - Listado General'
+        title: 'Contratos Jurídicos - Listado General'
       },
       {
         path: 'crear',
         component: JuridicaCreacionComponent,
-        title: '✏️ Contratos Jurídicos - Nuevo Registro'
+        title: 'Contratos Jurídicos - Nuevo Registro'
       },
       {
         path: 'editar/:id',
         component: JuridicaCreacionComponent,
-        title: '✏️ Contratos Jurídicos - Editar'
+        title: 'Contratos Jurídicos - Editar'
       },
       {
         path: 'ver/:id',
         component: JuridicaCreacionComponent,
-        title: '👁️ Contratos Jurídicos - Visualizar'
+        title: 'Contratos Jurídicos - Visualizar'
       },
       {
         path: 'stats',
         component: JuridicaStatsComponent,
-        title: '📊 Contratos Jurídicos - Estadísticas'
+        title: 'Contratos Jurídicos - Estadísticas'
       }
     ]
   }

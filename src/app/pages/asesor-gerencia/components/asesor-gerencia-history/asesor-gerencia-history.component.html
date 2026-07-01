@@ -103,12 +103,7 @@
 
               <div class="pago-acciones">
                 <div class="d-flex flex-column gap-2 align-items-start">
-                  <button class="btn btn-sm w-100 btn-info" 
-                          (click)="verDetalleRevision(item)" 
-                          [disabled]="isProcessing || loading">
-                    <i class="fas fa-eye me-1"></i>
-                    Ver Detalles
-                  </button>
+                 
 
                   <button *ngIf="item.estado === 'EN_REVISION_ASESOR_GERENCIA' && esMiRevision(item)" 
                           class="btn btn-sm w-100 btn-warning" 

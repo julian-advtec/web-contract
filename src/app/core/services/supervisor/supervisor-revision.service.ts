@@ -68,7 +68,7 @@ guardarRevisionConArchivo(
     const token = this.getAuthToken();
     const headers = new HttpHeaders({ 'Authorization': token });
 
-    return this.http.post<any>(`${this.revisionApiUrl}/con-archivo/${documentoId}`, formData, { headers });
+    return this.http.post<any>(`${this.revisionApiUrl}/${documentoId}`, formData, { headers });
 }
 
     tomarDocumentoParaRevision(documentoId: string): Observable<any> {

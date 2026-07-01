@@ -582,12 +582,12 @@ export class TesoreriaFormComponent implements OnInit {
       formData.append('signatureId', this.userSignature.id);
       formData.append('signaturePosition', JSON.stringify(this.firmaPosicion));
     } else if (estadoFinal === 'PAGADO' && this.tieneFirma) {
-      console.warn('⚠️ PAGADO pero NO se envía firma (falta ID o posición)');
+      console.warn('PAGADO pero NO se envía firma (falta ID o posición)');
     }
 
     this.tesoreriaService.procesarPago(this.documento.id, formData).subscribe({
       next: (response) => {
-        console.log('✅ Pago procesado:', response);
+        console.log('Pago procesado:', response);
         this.mostrarMensaje(`Documento marcado como ${estadoFinal} correctamente`, 'success');
         this.isProcessing = false;
         setTimeout(() => this.volverALista(), 1800);

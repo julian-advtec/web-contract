@@ -42,12 +42,25 @@
       ¿Olvidaste tu contraseña?
     </a>
 
-    <!-- Error general -->
+    <!-- Error general - Mensajes claros y amigables -->
     <p *ngIf="errorMessage" class="error">
-      <i class="fa fa-times-circle"></i> {{ errorMessage }}
+      <i class="fa fa-times-circle"></i> 
+      <ng-container [ngSwitch]="errorMessage">
+        <ng-container *ngSwitchCase="'Usuario no encontrado'">
+          El usuario no está registrado en el sistema
+        </ng-container>
+        <ng-container *ngSwitchCase="'Contraseña incorrecta'">
+          La contraseña ingresada es incorrecta
+        </ng-container>
+        <ng-container *ngSwitchCase="'No se puede conectar al servidor'">
+          No se puede conectar al servidor. Verifica tu conexión a internet.
+        </ng-container>
+        <ng-container *ngSwitchDefault>
+          {{ errorMessage }}
+        </ng-container>
+      </ng-container>
     </p>
   </form>
 
-  <!-- Marca de agua FUERA del formulario, en el contenedor principal -->
   <div class="global-watermark">© 2025 Advising Technology - Soporte de Certificados SSL para API Docker en Colombia</div>
 </div>

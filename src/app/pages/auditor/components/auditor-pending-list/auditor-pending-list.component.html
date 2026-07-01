@@ -49,7 +49,7 @@
             <div class="header-item">Contratista</div>
             <div class="header-item">Contrato</div>
             <div class="header-item">Estado</div>
-            <div class="header-item">Supervisor/Fechas</div>
+            
             <div class="header-item acciones-header">Acciones</div>
           </div>
 
@@ -111,25 +111,13 @@
 
               <div class="documento-supervisor-fechas">
                 <div class="supervisor-info mb-2">
-                  <small class="d-block text-success">
-                    <i class="fas fa-user-shield me-1"></i>
-                    <strong>Supervisor:</strong> {{doc.supervisorAsignado || 'No asignado'}}
-                  </small>
+                  
                   <small *ngIf="doc['supervisorRevisor']" class="d-block text-success">
                     <i class="fas fa-user-check me-1"></i>
                     <strong>Revisor:</strong> {{doc['supervisorRevisor']}}
                   </small>
                 </div>
-                <div class="fechas-container">
-                  <div class="fecha-line">
-                    <span class="fecha-label">Aprobado:</span>
-                    <span class="fecha-value">{{ formatDateShort(doc['fechaAprobacion'] || doc['fechaRevision'] || doc.fechaActualizacion) }}</span>
-                  </div>
-                  <div class="fecha-line">
-                    <span class="fecha-label">Asignado:</span>
-                    <span class="fecha-value">{{ formatDateShort(doc['fechaAsignacion']) }}</span>
-                  </div>
-                </div>
+                
               </div>
 
               <div class="documento-acciones">

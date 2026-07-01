@@ -2,17 +2,17 @@
 @import '../../../../shared/layout-styles.scss';
 
 /* ───────────────────────────────────────────────────────────────
-   VARIABLES ESPECÍFICAS DE RENDICIÓN DE CUENTAS
-─────────────────────────────────────────────────────────────── */
-$color-primary: #0d6efd;                // Azul principal
-$color-primary-light: rgba(13, 110, 253, 0.1);
-$color-primary-medium: rgba(13, 110, 253, 0.25);
-$color-primary-dark: #0b5ed7;
+   VARIABLES ESPECÍFICAS - RECHAZADOS (COLOR ROJO)
+   ─────────────────────────────────────────────────────────────── */
+$color-primary: #dc3545;
+$color-primary-light: rgba(220, 53, 69, 0.1);
+$color-primary-medium: rgba(220, 53, 69, 0.25);
+$color-primary-dark: #b02a37;
 
-$color-danger: #dc3545;                 // Rechazado
+$color-danger: #dc3545;
 $color-danger-light: rgba(220, 53, 69, 0.1);
 
-$color-warning: #ffc107;                // Observado / pendiente
+$color-warning: #ffc107;
 $color-warning-light: rgba(255, 193, 7, 0.1);
 
 $color-success: #198754;
@@ -26,7 +26,7 @@ $color-secondary-light: rgba(108, 117, 125, 0.15);
 
 /* ───────────────────────────────────────────────────────────────
    CONTENEDOR PRINCIPAL
-─────────────────────────────────────────────────────────────── */
+   ─────────────────────────────────────────────────────────────── */
 .rendicion-rechazados-container {
   width: 100%;
   height: 100%;
@@ -47,8 +47,8 @@ $color-secondary-light: rgba(108, 117, 125, 0.15);
 }
 
 /* ───────────────────────────────────────────────────────────────
-   HEADER (Título + Botón Actualizar)
-─────────────────────────────────────────────────────────────── */
+   HEADER
+   ─────────────────────────────────────────────────────────────── */
 .d-flex.justify-content-between {
   h4 {
     font-weight: 600;
@@ -60,11 +60,14 @@ $color-secondary-light: rgba(108, 117, 125, 0.15);
   }
 
   .btn-outline-primary {
+    color: $color-primary;
+    border-color: $color-primary;
     transition: all 0.3s ease;
 
     &:hover {
       background-color: $color-primary;
       color: white;
+      border-color: $color-primary;
     }
 
     &:disabled {
@@ -75,7 +78,7 @@ $color-secondary-light: rgba(108, 117, 125, 0.15);
 
 /* ───────────────────────────────────────────────────────────────
    BARRA DE BÚSQUEDA
-─────────────────────────────────────────────────────────────── */
+   ─────────────────────────────────────────────────────────────── */
 .search-container {
   max-width: 700px;
   margin: 0 auto 1.5rem;
@@ -89,7 +92,7 @@ $color-secondary-light: rgba(108, 117, 125, 0.15);
 
     &:focus-within {
       border-color: $color-primary;
-      box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.15);
+      box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.15);
     }
 
     .input-group-text {
@@ -126,11 +129,11 @@ $color-secondary-light: rgba(108, 117, 125, 0.15);
 
 /* ───────────────────────────────────────────────────────────────
    TARJETA PRINCIPAL
-─────────────────────────────────────────────────────────────── */
+   ─────────────────────────────────────────────────────────────── */
 .main-card {
   border: none;
   border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+  box-shadow: 0 8px 20px rgba(220, 53, 69, 0.08);
   border: 1px solid $color-primary-light;
   overflow: hidden;
 
@@ -141,7 +144,7 @@ $color-secondary-light: rgba(108, 117, 125, 0.15);
 
 /* ───────────────────────────────────────────────────────────────
    ESTADOS DE CARGA / ERROR / VACÍO
-─────────────────────────────────────────────────────────────── */
+   ─────────────────────────────────────────────────────────────── */
 .text-center.py-5 {
   min-height: 400px;
   display: flex;
@@ -189,16 +192,16 @@ $color-secondary-light: rgba(108, 117, 125, 0.15);
 
 /* ───────────────────────────────────────────────────────────────
    ENCABEZADOS (solo desktop)
-─────────────────────────────────────────────────────────────── */
+   ─────────────────────────────────────────────────────────────── */
 .documentos-header {
-  display: none; // Oculto por defecto (responsive)
+  display: none;
 
   @media (min-width: 992px) {
     display: grid;
     grid-template-columns: 1.8fr 1.6fr 1.2fr 1.2fr 1.2fr 1fr;
     gap: 1rem;
     padding: 1rem 1.5rem;
-    background: rgba(13, 110, 253, 0.05);
+    background: rgba(220, 53, 69, 0.05);
     border-bottom: 2px solid $color-primary-medium;
     font-weight: 600;
     color: $color-primary-dark;
@@ -219,7 +222,7 @@ $color-secondary-light: rgba(108, 117, 125, 0.15);
 
 /* ───────────────────────────────────────────────────────────────
    LISTA DE DOCUMENTOS
-─────────────────────────────────────────────────────────────── */
+   ─────────────────────────────────────────────────────────────── */
 .documentos-list {
   display: flex;
   flex-direction: column;
@@ -228,7 +231,7 @@ $color-secondary-light: rgba(108, 117, 125, 0.15);
 
 /* ───────────────────────────────────────────────────────────────
    TARJETA DE DOCUMENTO
-─────────────────────────────────────────────────────────────── */
+   ─────────────────────────────────────────────────────────────── */
 .documento-card {
   background: white;
   border-radius: 10px;
@@ -238,7 +241,7 @@ $color-secondary-light: rgba(108, 117, 125, 0.15);
 
   &:hover {
     border-color: $color-primary;
-    box-shadow: 0 6px 18px rgba(13, 110, 253, 0.12);
+    box-shadow: 0 6px 18px rgba(220, 53, 69, 0.12);
     transform: translateY(-3px);
   }
 
@@ -252,7 +255,6 @@ $color-secondary-light: rgba(108, 117, 125, 0.15);
     background: linear-gradient(to right, $color-warning-light, white);
   }
 
-  // Versión desktop (grid)
   .documento-grid {
     @media (min-width: 992px) {
       display: grid;
@@ -263,7 +265,6 @@ $color-secondary-light: rgba(108, 117, 125, 0.15);
     }
   }
 
-  // Versión móvil (stacked)
   @media (max-width: 991px) {
     padding: 1.25rem;
 
@@ -287,8 +288,50 @@ $color-secondary-light: rgba(108, 117, 125, 0.15);
 }
 
 /* ───────────────────────────────────────────────────────────────
+   FECHA - JUNTA, CENTRADA Y EN COLOR ROJO
+   ─────────────────────────────────────────────────────────────── */
+
+// Versión desktop
+.fecha-creacion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  font-size: 0.8rem;
+
+  .fecha-label {
+    font-weight: 500;
+    color: #6c757d;
+  }
+
+  .fecha-valor {
+    font-weight: 600;
+    color: $color-danger !important;
+  }
+}
+
+// Versión móvil
+.fecha-creacion-movil {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  font-size: 0.8rem;
+  color: #6c757d;
+
+  .fecha-label {
+    font-weight: 500;
+    color: #6c757d;
+  }
+
+  .fecha-valor {
+    font-weight: 600;
+    color: $color-danger !important;
+  }
+}
+
+/* ───────────────────────────────────────────────────────────────
    BADGES Y ETIQUETAS
-─────────────────────────────────────────────────────────────── */
+   ─────────────────────────────────────────────────────────────── */
 .estado-badge,
 .rechazado-badge,
 .contrato-badge,
@@ -306,11 +349,35 @@ $color-secondary-light: rgba(108, 117, 125, 0.15);
 .estado-badge {
   border: 1px solid;
 
-  &.bg-success { background: $color-success-light; color: $color-success; border-color: $color-success; }
-  &.bg-danger  { background: $color-danger-light; color: $color-danger; border-color: $color-danger; }
-  &.bg-warning { background: $color-warning-light; color: darken($color-warning, 30%); border-color: $color-warning; }
-  &.bg-info    { background: $color-info-light; color: $color-info; border-color: $color-info; }
-  &.bg-secondary { background: $color-secondary-light; color: $color-secondary; border-color: $color-secondary; }
+  &.bg-success {
+    background: $color-success-light;
+    color: $color-success;
+    border-color: $color-success;
+  }
+
+  &.bg-danger {
+    background: $color-danger-light;
+    color: $color-danger;
+    border-color: $color-danger;
+  }
+
+  &.bg-warning {
+    background: $color-warning-light;
+    color: darken($color-warning, 30%);
+    border-color: $color-warning;
+  }
+
+  &.bg-info {
+    background: $color-info-light;
+    color: $color-info;
+    border-color: $color-info;
+  }
+
+  &.bg-secondary {
+    background: $color-secondary-light;
+    color: $color-secondary;
+    border-color: $color-secondary;
+  }
 }
 
 .reciente-badge {
@@ -326,9 +393,15 @@ $color-secondary-light: rgba(108, 117, 125, 0.15);
   border: 1px solid $color-primary;
 }
 
+.rechazado-badge {
+  background: $color-danger-light;
+  color: $color-danger;
+  border: 1px solid $color-danger;
+}
+
 /* ───────────────────────────────────────────────────────────────
    PAGINACIÓN
-─────────────────────────────────────────────────────────────── */
+   ─────────────────────────────────────────────────────────────── */
 .documentos-pagination {
   padding: 1.5rem 1rem;
   border-top: 1px solid $color-primary-light;
@@ -357,21 +430,87 @@ $color-secondary-light: rgba(108, 117, 125, 0.15);
       border-radius: 8px;
       transition: all 0.25s ease;
 
-      &:hover:not(:disabled) {
-        transform: translateY(-2px);
+      &.btn-outline-primary {
+        color: $color-primary;
+        border-color: $color-primary;
+
+        &:hover:not(:disabled) {
+          background-color: $color-primary;
+          color: white;
+          transform: translateY(-2px);
+        }
+      }
+
+      &.btn-primary {
+        background-color: $color-primary;
+        border-color: $color-primary;
+        color: white;
+
+        &:hover:not(:disabled) {
+          background-color: $color-primary-dark;
+          border-color: $color-primary-dark;
+          transform: translateY(-2px);
+        }
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
       }
     }
   }
 }
 
 /* ───────────────────────────────────────────────────────────────
+   BOTONES PRIMARIOS
+   ─────────────────────────────────────────────────────────────── */
+.btn-primary {
+  background-color: $color-primary !important;
+  border-color: $color-primary !important;
+  color: white !important;
+
+  &:hover:not(:disabled) {
+    background-color: $color-primary-dark !important;
+    border-color: $color-primary-dark !important;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+  }
+}
+
+.btn-outline-primary {
+  color: $color-primary !important;
+  border-color: $color-primary !important;
+
+  &:hover:not(:disabled) {
+    background-color: $color-primary !important;
+    color: white !important;
+  }
+}
+
+.btn-outline-info {
+  color: $color-info !important;
+  border-color: $color-info !important;
+
+  &:hover:not(:disabled) {
+    background-color: $color-info !important;
+    color: white !important;
+  }
+}
+
+/* ───────────────────────────────────────────────────────────────
    RESPONSIVE
-─────────────────────────────────────────────────────────────── */
+   ─────────────────────────────────────────────────────────────── */
 @media (max-width: 991px) {
-  .documentos-header { display: none; }
+  .documentos-header {
+    display: none;
+  }
 
   .documento-card {
-    .documento-grid { display: none; }
+    .documento-grid {
+      display: none;
+    }
 
     .d-lg-none {
       display: block !important;
@@ -380,7 +519,9 @@ $color-secondary-light: rgba(108, 117, 125, 0.15);
 }
 
 @media (max-width: 576px) {
-  .search-container { max-width: 100%; }
+  .search-container {
+    max-width: 100%;
+  }
 
   .pagination-controls .btn {
     min-width: 34px;
@@ -391,7 +532,7 @@ $color-secondary-light: rgba(108, 117, 125, 0.15);
 
 /* ───────────────────────────────────────────────────────────────
    SCROLLBAR PERSONALIZADO
-─────────────────────────────────────────────────────────────── */
+   ─────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 8px;
 }

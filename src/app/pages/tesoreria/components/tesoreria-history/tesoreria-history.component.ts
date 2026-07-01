@@ -675,4 +675,6 @@ export class TesoreriaHistoryComponent implements OnInit, OnDestroy {
     dismissInfo(): void {
         this.infoMessage = '';
     }
+
+    
 }

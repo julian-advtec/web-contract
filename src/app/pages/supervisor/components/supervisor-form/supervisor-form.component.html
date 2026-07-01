@@ -8,8 +8,7 @@
   </div>
 
   <div *ngIf="soloLectura && !esModoAuditor" class="alert-message info mb-3">
-    <i class="fas fa-eye"></i> <strong>Modo consulta (solo lectura)</strong> - Este documento ya fue revisado y no se
-    puede modificar.
+    <i class="fas fa-eye"></i> <strong>Modo consulta (solo lectura)</strong> - Este documento ya fue revisado y no se puede modificar.
   </div>
 
   <div *ngIf="!soloLectura" class="alert-message success mb-3">
@@ -43,6 +42,33 @@
     </div>
     <div class="card-body">
 
+      <!-- ACTA FIRMADA (versión final) - Mostrar PRIMERO si existe -->
+      <div *ngIf="tieneActaFirmada" class="card mb-4 border-success">
+        <div class="card-header bg-success text-white py-2">
+          <h5 class="mb-0">
+            <i class="fas fa-check-circle me-2"></i>
+            Acta Firmada (Versión Final)
+          </h5>
+        </div>
+        <div class="card-body py-3">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div class="d-flex align-items-center">
+              <i class="fas fa-file-signature fa-3x text-success me-3"></i>
+              <div>
+                <strong>{{ getNombreArchivoParaMostrar(actaFirmadaNombre) }}</strong>
+                <div *ngIf="fechaFirma" class="small text-muted">
+                  Firmada el {{ fechaFirma | date:'dd/MM/yyyy HH:mm' }}
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-outline-success btn-sm" (click)="verActaCorrecta()"
+              [disabled]="isLoading">
+              <i class="fas fa-eye me-1"></i> Ver Acta Firmada
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- ACTA DE SUPERVISIÓN (Documento a firmar) - Mostrar SOLO si NO hay acta firmada -->
       <div *ngIf="tieneActaOriginal && !tieneActaFirmada" class="card mb-4 border-info">
         <div class="card-header bg-info text-white py-2">
@@ -64,7 +90,6 @@
               </div>
             </div>
             <div class="btn-group">
-              <!-- ✅ Usar verActaCorrecta que decide automáticamente -->
               <button type="button" class="btn btn-outline-primary btn-sm" (click)="verActaCorrecta()"
                 [disabled]="isLoading">
                 <i class="fas fa-eye me-1"></i> Ver Acta
@@ -77,33 +102,10 @@
               </button>
             </div>
           </div>
-        </div>
-      </div>
-
-      <!-- ACTA FIRMADA (versión final) -->
-      <div *ngIf="tieneActaFirmada" class="card mb-4 border-success">
-        <div class="card-header bg-success text-white py-2">
-          <h5 class="mb-0">
-            <i class="fas fa-check-circle me-2"></i>
-            Acta Firmada (Versión Final)
-          </h5>
-        </div>
-        <div class="card-body py-3">
-          <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-            <div class="d-flex align-items-center">
-              <i class="fas fa-file-signature fa-3x text-success me-3"></i>
-              <div>
-                <strong>{{ getNombreArchivoParaMostrar(actaFirmadaNombre) }}</strong>
-                <div *ngIf="fechaFirma" class="small text-muted">
-                  Firmada el {{ fechaFirma | date:'dd/MM/yyyy HH:mm' }}
-                </div>
-              </div>
-            </div>
-            <!-- ✅ También usar verActaCorrecta para la firmada -->
-            <button type="button" class="btn btn-outline-success btn-sm" (click)="verActaCorrecta()"
-              [disabled]="isLoading">
-              <i class="fas fa-eye me-1"></i> Ver Acta Firmada
-            </button>
+          <!-- ✅ Mostrar la posición seleccionada si existe -->
+          <div *ngIf="firmaPosicion" class="mt-2 small text-muted">
+            <i class="fas fa-check-circle text-success"></i> Posición de firma seleccionada: 
+            Página {{ firmaPosicion.page }}, posición ({{ firmaPosicion.x | number:'1.0-0' }}, {{ firmaPosicion.y | number:'1.0-0' }})
           </div>
         </div>
       </div>
@@ -205,16 +207,6 @@
           </div>
         </div>
 
-        <!-- Correcciones -->
-        <div class="form-row">
-          <div class="form-group full-width">
-            <label class="form-label"><i class="fas fa-edit"></i> Correcciones Sugeridas</label>
-            <textarea class="form-control" formControlName="correcciones" rows="3"
-              [readonly]="soloLectura || esModoAuditor"
-              placeholder="Ingrese las correcciones que el contratista debe realizar (opcional)"></textarea>
-          </div>
-        </div>
-
         <!-- Botones de acción -->
         <div class="form-actions mt-5 text-end" *ngIf="!esModoAuditor">
           <ng-container *ngIf="!soloLectura; else soloLecturaButtons">
@@ -234,8 +226,12 @@
           </ng-container>
 
           <ng-template #soloLecturaButtons>
-            <button type="button" class="btn btn-outline-primary btn-lg px-5" (click)="volverALista()">
+            <button type="button" class="btn btn-outline-secondary btn-lg px-4 me-3" (click)="volverALista()">
               <i class="fas fa-arrow-left me-1"></i> Volver al listado
+            </button>
+            <button type="button" class="btn btn-outline-primary btn-lg px-4" (click)="recargarDocumento()"
+              [disabled]="isLoading">
+              <i class="fas fa-sync-alt me-1"></i> Recargar
             </button>
           </ng-template>
         </div>
@@ -244,8 +240,11 @@
   </div>
 </div>
 
-<!-- SELECTOR DE POSICIÓN DE FIRMA -->
-<app-signature-position *ngIf="mostrarSelectorPosicion && actaOriginalFile" [pdfFile]="actaOriginalFile"
-  [signatureName]="userSignature?.name || 'Firma'" (positionChange)="onPositionSelected($event)"
+<!-- SELECTOR DE POSICIÓN DE FIRMA - MODIFICADO para NO cerrar al seleccionar -->
+<app-signature-position 
+  *ngIf="mostrarSelectorPosicion && actaOriginalFile" 
+  [pdfFile]="actaOriginalFile"
+  [signatureName]="userSignature?.name || 'Firma'" 
+  (positionChange)="onPositionSelected($event)"
   (onClose)="cerrarSelectorPosicion()">
 </app-signature-position>

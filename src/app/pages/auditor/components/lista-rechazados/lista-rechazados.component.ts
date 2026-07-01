@@ -1,16 +1,16 @@
-// src/app/pages/auditor/components/lista-rechazados/lista-rechazados.component.ts
+// lista-rechazados.component.ts
 
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { Subject } from 'rxjs';
+import { Subject, finalize } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
 import { AuditorService } from '../../../../core/services/auditor.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 
-// Interfaces locales para manejar la estructura de datos
+// Interfaces
 interface DocumentoAuditor {
   id?: string;
   numeroRadicado?: string;
@@ -24,6 +24,9 @@ interface DocumentoAuditor {
   seguridadSocial?: string;
   informeActividades?: string;
   primerRadicadoDelAno?: boolean;
+  comentarios?: string;
+  observaciones?: string;
+  estado?: string;
   [key: string]: any;
 }
 
@@ -35,6 +38,8 @@ interface ItemRechazado {
   motivoRechazo?: string;
   fechaRechazo?: Date | string;
   fechaActualizacion?: Date | string;
+  fechaCreacion?: Date | string;
+  fechaAprobacion?: Date | string;
   auditorRevisor?: string;
   usuarioAsignadoNombre?: string;
   rechazadoPor?: string;
@@ -106,15 +111,21 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ✅ VERSIÓN CORREGIDA - Con validación de array
   cargarDocumentosRechazados(): void {
     this.isLoading = true;
     this.errorMessage = '';
+    this.successMessage = '';
+    this.infoMessage = '';
 
     console.log('📋 Cargando documentos rechazados desde historial...');
 
     this.auditorService.obtenerHistorial()
-      .pipe(takeUntil(this.destroy$))
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.isLoading = false;
+        })
+      )
       .subscribe({
         next: (historial: any[]) => {
           console.log('[HISTORIAL] Datos recibidos:', historial);
@@ -131,79 +142,68 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
           
           // Mostrar el primer registro para depuración
           if (historial.length > 0) {
-            console.log('[HISTORIAL] Primer registro:', historial[0]);
+            console.log('[HISTORIAL] Primer registro completo:', JSON.stringify(historial[0], null, 2));
           }
 
-          // Filtrar solo documentos rechazados/observados del historial
+          // Filtrar solo documentos rechazados/observados
+          const estadosRechazo = ['RECHAZADO', 'RECHAZADO_AUDITOR', 'OBSERVADO', 'OBSERVADO_AUDITOR'];
+          
           const itemsFiltrados = historial.filter(item => {
-            // Asegurarse de que item existe
             if (!item) return false;
             
+            // Verificar en el estado principal
             const estado = (item.estado || '').toUpperCase();
             
-            // Verificar en el item principal o en el documento anidado
+            // Verificar en el documento anidado
             const documentoEstado = (item.documento?.estado || '').toUpperCase();
             
-            // Incluir estados de rechazo y observación
-            return estado.includes('RECHAZADO') || 
-                   estado === 'OBSERVADO' ||
-                   estado.includes('OBSERVADO') ||
-                   documentoEstado.includes('RECHAZADO') ||
-                   documentoEstado === 'OBSERVADO' ||
-                   documentoEstado.includes('OBSERVADO');
+            // Incluir si el estado coincide con los de rechazo/observación
+            return estadosRechazo.some(est => 
+              estado.includes(est) || 
+              documentoEstado.includes(est)
+            );
           });
 
           console.log(`[FILTRADO] ${itemsFiltrados.length} documentos rechazados/observados encontrados`);
 
-          // Mapear los items a nuestro formato
+          // Mapear los items a nuestro formato con datos completos
           this.documentos = itemsFiltrados.map(item => {
-            // Crear objeto base con las propiedades del item
+            // Obtener el documento
+            const doc = item.documento || item;
+            
+            // Crear objeto base
             const docBase: ItemRechazado = {
-              id: item.id,
-              estado: item.estado || item.documento?.estado || 'RECHAZADO',
-              observaciones: item.observaciones || item.documento?.observaciones || '',
-              motivoRechazo: item.motivoRechazo || item.observaciones || '',
-              fechaRechazo: item.fechaAprobacion || item.fechaActualizacion || item.updatedAt || item.fechaCreacion,
-              fechaActualizacion: item.fechaActualizacion || item.updatedAt || item.fechaCreacion,
-              auditorRevisor: item.auditor || item.auditorRevisor || item.usuarioAsignadoNombre || item.rechazadoPor,
-              usuarioAsignadoNombre: item.usuarioAsignadoNombre,
-              rechazadoPor: item.rechazadoPor
+              id: item.id || doc.id,
+              estado: item.estado || doc.estado || 'RECHAZADO',
+              observaciones: item.observaciones || doc.observaciones || doc.observacion || '',
+              motivoRechazo: item.motivoRechazo || item.observaciones || doc.comentarios || '',
+              fechaRechazo: item.fechaRechazo || item.fechaAprobacion || item.fechaActualizacion || item.fechaCreacion || doc.fechaActualizacion,
+              fechaActualizacion: item.fechaActualizacion || item.fechaCreacion || doc.fechaActualizacion,
+              fechaCreacion: item.fechaCreacion || doc.fechaCreacion,
+              fechaAprobacion: item.fechaAprobacion || doc.fechaAprobacion,
+              auditorRevisor: item.auditorRevisor || item.auditor?.fullName || item.auditor?.username || item.usuarioAsignadoNombre || '',
+              usuarioAsignadoNombre: item.usuarioAsignadoNombre || item.auditor?.fullName || item.auditor?.username || '',
+              rechazadoPor: item.rechazadoPor || item.auditor?.fullName || item.auditor?.username || ''
             };
 
-            // Si el documento viene anidado, lo asignamos
-            if (item.documento) {
-              docBase.documento = {
-                id: item.documento.id,
-                numeroRadicado: item.documento.numeroRadicado,
-                fechaRadicacion: item.documento.fechaRadicacion,
-                nombreContratista: item.documento.nombreContratista,
-                documentoContratista: item.documento.documentoContratista,
-                numeroContrato: item.documento.numeroContrato,
-                fechaInicio: item.documento.fechaInicio,
-                fechaFin: item.documento.fechaFin,
-                cuentaCobro: item.documento.cuentaCobro,
-                seguridadSocial: item.documento.seguridadSocial,
-                informeActividades: item.documento.informeActividades,
-                primerRadicadoDelAno: item.documento.primerRadicadoDelAno
-              };
-            } 
-            // Si hay campos directos del documento en el item
-            else if (item.numeroRadicado) {
-              docBase.documento = {
-                id: item.id || item.documentoId,
-                numeroRadicado: item.numeroRadicado || 'N/A',
-                fechaRadicacion: item.fechaRadicacion || new Date(),
-                nombreContratista: item.nombreContratista || 'N/A',
-                documentoContratista: item.documentoContratista || 'N/A',
-                numeroContrato: item.numeroContrato || 'N/A',
-                fechaInicio: item.fechaInicio,
-                fechaFin: item.fechaFin,
-                cuentaCobro: item.cuentaCobro,
-                seguridadSocial: item.seguridadSocial,
-                informeActividades: item.informeActividades,
-                primerRadicadoDelAno: item.primerRadicadoDelAno
-              };
-            }
+            // Asignar documento
+            docBase.documento = {
+              id: doc.id,
+              numeroRadicado: doc.numeroRadicado || 'N/A',
+              fechaRadicacion: doc.fechaRadicacion,
+              nombreContratista: doc.nombreContratista || 'N/A',
+              documentoContratista: doc.documentoContratista || 'N/A',
+              numeroContrato: doc.numeroContrato || 'N/A',
+              fechaInicio: doc.fechaInicio,
+              fechaFin: doc.fechaFin,
+              cuentaCobro: doc.cuentaCobro,
+              seguridadSocial: doc.seguridadSocial,
+              informeActividades: doc.informeActividades,
+              primerRadicadoDelAno: doc.primerRadicadoDelAno || false,
+              comentarios: doc.comentarios || '',
+              observaciones: doc.observacion || '',
+              estado: doc.estado || ''
+            };
 
             return docBase;
           });
@@ -212,9 +212,8 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
         },
         error: (err: any) => {
           console.error('[AUDITOR] Error cargando historial:', err);
-          this.errorMessage = 'Error al cargar documentos rechazados';
+          this.errorMessage = 'Error al cargar documentos rechazados. Por favor, intenta nuevamente.';
           this.notificationService.error('Error', this.errorMessage);
-          this.isLoading = false;
           this.documentos = [];
           this.procesarDocumentos();
         }
@@ -227,90 +226,65 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
     if (this.documentos.length > 0) {
       const misRechazos = this.documentos.filter(d => this.esMiRechazo(d)).length;
       this.successMessage = `Se encontraron ${this.documentos.length} documentos (${misRechazos} tuyos)`;
-      setTimeout(() => this.successMessage = '', 4000);
+      setTimeout(() => this.successMessage = '', 5000);
     } else {
-      this.infoMessage = 'No hay documentos rechazados';
+      this.infoMessage = 'No hay documentos rechazados o observados';
     }
 
     this.filteredDocumentos = [...this.documentos];
     this.updatePagination();
-    this.isLoading = false;
   }
 
   // ───────────────────────────────────────────────────────────────
-  // Métodos específicos para rechazados
+  // Métodos de filtrado y búsqueda
   // ───────────────────────────────────────────────────────────────
 
-  esMiRechazo(doc: ItemRechazado): boolean {
-    return doc.auditorRevisor === this.usuarioActual ||
-           doc.usuarioAsignadoNombre === this.usuarioActual ||
-           doc.rechazadoPor === this.usuarioActual;
-  }
+  onSearch(): void {
+    const term = this.searchTerm.trim().toLowerCase();
+    
+    if (!term) {
+      this.filteredDocumentos = this.filtroActual === 'todos' 
+        ? [...this.documentos] 
+        : this.documentos.filter(d => this.esMiRechazo(d));
+    } else {
+      const baseDocs = this.filtroActual === 'todos' 
+        ? this.documentos 
+        : this.documentos.filter(d => this.esMiRechazo(d));
 
-  getAuditorRechazo(doc: ItemRechazado): string {
-    return doc.auditorRevisor ||
-           doc.usuarioAsignadoNombre ||
-           doc.rechazadoPor ||
-           'Auditor';
-  }
+      this.filteredDocumentos = baseDocs.filter(doc => {
+        const radicado = doc.documento?.numeroRadicado || '';
+        const contratista = doc.documento?.nombreContratista || '';
+        const contrato = doc.documento?.numeroContrato || '';
+        const documentoContratista = doc.documento?.documentoContratista || '';
+        const motivo = this.getMotivoRechazo(doc) || '';
+        const auditor = this.getAuditorRechazo(doc) || '';
+        const estado = doc.estado || '';
 
-  getMotivoRechazo(doc: ItemRechazado): string {
-    return doc.motivoRechazo ||
-           doc.observaciones ||
-           (doc.documento ? doc.documento['comentarios'] : '') ||
-           'Sin motivo especificado';
-  }
-
-  getObservaciones(doc: ItemRechazado): string {
-    return doc.observaciones || (doc.documento ? doc.documento['comentarios'] : '') || '';
-  }
-
-  getDiasDesdeRechazo(doc: ItemRechazado): number {
-    const fechaRechazo = doc.fechaRechazo || doc.fechaActualizacion;
-    if (!fechaRechazo) return 0;
-
-    try {
-      const fechaDoc = new Date(fechaRechazo);
-      const hoy = new Date();
-      const diferenciaMs = hoy.getTime() - fechaDoc.getTime();
-      return Math.floor(diferenciaMs / (1000 * 60 * 60 * 24));
-    } catch {
-      return 0;
+        return radicado.toLowerCase().includes(term) ||
+          contratista.toLowerCase().includes(term) ||
+          contrato.toLowerCase().includes(term) ||
+          documentoContratista.toLowerCase().includes(term) ||
+          motivo.toLowerCase().includes(term) ||
+          auditor.toLowerCase().includes(term) ||
+          estado.toLowerCase().includes(term);
+      });
     }
-  }
 
-  esDocumentoReciente(doc: ItemRechazado): boolean {
-    const dias = this.getDiasDesdeRechazo(doc);
-    return dias < 2; // Menos de 2 días
+    this.currentPage = 1;
+    this.updatePagination();
   }
-
-  getTotalRechazadosMios(): number {
-    return this.documentos.filter(d => this.esMiRechazo(d)).length;
-  }
-
-  // ───────────────────────────────────────────────────────────────
-  // Filtros
-  // ───────────────────────────────────────────────────────────────
 
   cambiarFiltro(filtro: 'todos' | 'mios'): void {
     if (this.filtroActual === filtro) return;
 
     this.filtroActual = filtro;
     this.currentPage = 1;
-
-    if (filtro === 'todos') {
-      this.filteredDocumentos = [...this.documentos];
-    } else {
-      this.filteredDocumentos = this.documentos.filter(d => this.esMiRechazo(d));
-    }
-
-    this.updatePagination();
+    this.onSearch(); // Reutilizar la lógica de búsqueda
   }
 
   aplicarFiltroFechas(): void {
     if (!this.filtroFechaDesde || !this.filtroFechaHasta) {
-      this.notificationService.warning('Fechas incompletas',
-        'Selecciona ambas fechas para filtrar');
+      this.notificationService.warning('Fechas incompletas', 'Selecciona ambas fechas para filtrar');
       return;
     }
 
@@ -319,7 +293,11 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
     const hasta = new Date(this.filtroFechaHasta);
     hasta.setHours(23, 59, 59, 999);
 
-    this.filteredDocumentos = this.documentos.filter(doc => {
+    const baseDocs = this.filtroActual === 'todos' 
+      ? this.documentos 
+      : this.documentos.filter(d => this.esMiRechazo(d));
+
+    this.filteredDocumentos = baseDocs.filter(doc => {
       const fechaDoc = new Date(doc.fechaRechazo || doc.fechaActualizacion || new Date());
       return fechaDoc >= desde && fechaDoc <= hasta;
     });
@@ -330,15 +308,7 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
   limpiarFiltrosFecha(): void {
     this.filtroFechaDesde = '';
     this.filtroFechaHasta = '';
-
-    if (this.filtroActual === 'todos') {
-      this.filteredDocumentos = [...this.documentos];
-    } else {
-      this.filteredDocumentos = this.documentos.filter(d => this.esMiRechazo(d));
-    }
-
-    this.currentPage = 1;
-    this.updatePagination();
+    this.onSearch();
   }
 
   getPeriodoLabel(): string {
@@ -348,68 +318,9 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
     return 'Filtrar por fechas';
   }
 
-  onSearch(): void {
-    if (!this.searchTerm.trim()) {
-      if (this.filtroActual === 'todos') {
-        this.filteredDocumentos = [...this.documentos];
-      } else {
-        this.filteredDocumentos = this.documentos.filter(d => this.esMiRechazo(d));
-      }
-    } else {
-      const term = this.searchTerm.toLowerCase();
-      const baseDocs = this.filtroActual === 'todos' ? this.documentos : this.documentos.filter(d => this.esMiRechazo(d));
-
-      this.filteredDocumentos = baseDocs.filter(doc => {
-        const radicado = doc.documento?.numeroRadicado || '';
-        const contratista = doc.documento?.nombreContratista || '';
-        const contrato = doc.documento?.numeroContrato || '';
-        const documentoContratista = doc.documento?.documentoContratista || '';
-        const motivo = this.getMotivoRechazo(doc) || '';
-        const auditor = this.getAuditorRechazo(doc) || '';
-
-        return radicado.toLowerCase().includes(term) ||
-          contratista.toLowerCase().includes(term) ||
-          contrato.toLowerCase().includes(term) ||
-          documentoContratista.toLowerCase().includes(term) ||
-          motivo.toLowerCase().includes(term) ||
-          auditor.toLowerCase().includes(term);
-      });
-    }
-
-    this.currentPage = 1;
-    this.updatePagination();
-  }
-
-  verDetalle(doc: ItemRechazado): void {
-    const documentoId = doc.documento?.id || doc.id;
-
-    if (!documentoId) {
-      this.notificationService.error('Error', 'ID de documento no válido');
-      return;
-    }
-
-    console.log(`👁️ Ver documento rechazado: ${doc.documento?.numeroRadicado || 'N/A'} (${documentoId})`);
-
-    this.router.navigate(['/auditor/revisar', documentoId], {
-      queryParams: {
-        soloLectura: 'true',
-        modo: 'consulta',
-        desde: 'rechazados'
-      }
-    }).catch(err => {
-      console.error('[VER] Error:', err);
-      this.notificationService.error('Redirección fallida', 'Intenta ingresar manualmente');
-    });
-  }
-
   // ───────────────────────────────────────────────────────────────
-  // Métodos de paginación y refresco
+  // Métodos de paginación
   // ───────────────────────────────────────────────────────────────
-
-  refreshData(): void {
-    console.log('🔄 Refrescando lista de rechazados...');
-    this.cargarDocumentosRechazados();
-  }
 
   updatePagination(): void {
     this.totalPages = Math.ceil(this.filteredDocumentos.length / this.pageSize);
@@ -438,8 +349,57 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
     }
   }
 
+  refreshData(): void {
+    console.log('🔄 Refrescando lista de rechazados...');
+    this.cargarDocumentosRechazados();
+  }
+
   // ───────────────────────────────────────────────────────────────
-  // Métodos de formateo y helpers
+  // Métodos helpers
+  // ───────────────────────────────────────────────────────────────
+
+  esMiRechazo(doc: ItemRechazado): boolean {
+    return doc.auditorRevisor === this.usuarioActual ||
+           doc.usuarioAsignadoNombre === this.usuarioActual ||
+           doc.rechazadoPor === this.usuarioActual;
+  }
+
+  getAuditorRechazo(doc: ItemRechazado): string {
+    return doc.auditorRevisor || doc.usuarioAsignadoNombre || doc.rechazadoPor || 'Auditor';
+  }
+
+  getMotivoRechazo(doc: ItemRechazado): string {
+    return doc.motivoRechazo || doc.observaciones || doc.documento?.comentarios || 'Sin motivo especificado';
+  }
+
+  getObservaciones(doc: ItemRechazado): string {
+    return doc.observaciones || doc.documento?.observaciones || '';
+  }
+
+  getDiasDesdeRechazo(doc: ItemRechazado): number {
+    const fechaRechazo = doc.fechaRechazo || doc.fechaActualizacion;
+    if (!fechaRechazo) return 0;
+
+    try {
+      const fechaDoc = new Date(fechaRechazo);
+      const hoy = new Date();
+      const diferenciaMs = hoy.getTime() - fechaDoc.getTime();
+      return Math.floor(diferenciaMs / (1000 * 60 * 60 * 24));
+    } catch {
+      return 0;
+    }
+  }
+
+  esDocumentoReciente(doc: ItemRechazado): boolean {
+    return this.getDiasDesdeRechazo(doc) < 2;
+  }
+
+  getTotalRechazadosMios(): number {
+    return this.documentos.filter(d => this.esMiRechazo(d)).length;
+  }
+
+  // ───────────────────────────────────────────────────────────────
+  // Métodos de formateo
   // ───────────────────────────────────────────────────────────────
 
   formatDate(fecha: Date | string | undefined): string {
@@ -552,8 +512,30 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
   }
 
   // ───────────────────────────────────────────────────────────────
-  // Métodos para archivos
+  // Métodos de navegación y acciones
   // ───────────────────────────────────────────────────────────────
+
+  verDetalle(doc: ItemRechazado): void {
+    const documentoId = doc.documento?.id || doc.id;
+
+    if (!documentoId) {
+      this.notificationService.error('Error', 'ID de documento no válido');
+      return;
+    }
+
+    console.log(`👁️ Ver documento rechazado: ${doc.documento?.numeroRadicado || 'N/A'} (${documentoId})`);
+
+    this.router.navigate(['/auditor/revisar', documentoId], {
+      queryParams: {
+        soloLectura: 'true',
+        modo: 'consulta',
+        desde: 'rechazados'
+      }
+    }).catch(err => {
+      console.error('[VER] Error:', err);
+      this.notificationService.error('Redirección fallida', 'Intenta ingresar manualmente');
+    });
+  }
 
   previsualizarDocumentoRadicado(doc: ItemRechazado, index: number): void {
     console.log(`👁️ Previsualizando documento ${doc.documento?.numeroRadicado}, archivo ${index}`);
@@ -578,23 +560,13 @@ export class ListaRechazadosComponent implements OnInit, OnDestroy {
     }
 
     if (!existeDocumento) {
-      this.notificationService.warning('Documento no disponible',
-        `El documento ${index} no está disponible`);
+      this.notificationService.warning('Documento no disponible', `El documento ${index} no está disponible`);
       return;
     }
 
     const documentoId = doc.documento?.id || doc.id;
     if (documentoId) {
       this.auditorService.previsualizarArchivoRadicado(documentoId, index);
-    } else {
-      this.notificationService.error('Error', 'ID de documento no válido');
-    }
-  }
-
-  previsualizarArchivoAuditor(doc: ItemRechazado, tipo: string): void {
-    const documentoId = doc.documento?.id || doc.id;
-    if (documentoId) {
-      this.auditorService.previsualizarArchivoAuditor(documentoId, tipo);
     } else {
       this.notificationService.error('Error', 'ID de documento no válido');
     }

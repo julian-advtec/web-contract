@@ -26,6 +26,10 @@
     <h5 class="text-muted">Cargando información del documento...</h5>
   </div>
 
+  <div *ngIf="!isLoading && documentoId">
+    <app-radicacion-form [modo]="'solo-lectura'" [documentoId]="documentoId" >
+    </app-radicacion-form>
+  </div>
   <!-- Contenido -->
   <div *ngIf="!isLoading && documento">
     <!-- Información del Documento -->
@@ -78,7 +82,7 @@
       </div>
     </div>
 
-    
+
 
     <!-- Subir Acta de Supervisión -->
     <div class="card">
@@ -97,12 +101,9 @@
 
         <!-- Área de subida de archivo -->
         <div class="file-upload-area" [class.has-file]="actaFile">
-          <input type="file" 
-                 id="actaSupervision" 
-                 class="file-input" 
-                 (change)="onFileSelected($event)"
-                 accept=".pdf,.doc,.docx">
-          
+          <input type="file" id="actaSupervision" class="file-input" (change)="onFileSelected($event)"
+            accept=".pdf,.doc,.docx">
+
           <label for="actaSupervision" class="file-label">
             <i class="fas" [class.fa-cloud-upload-alt]="!actaFile" [class.fa-file-pdf]="actaFile"></i>
             <span *ngIf="!actaFile">Seleccionar acta de supervisión</span>
@@ -111,7 +112,7 @@
               {{ actaFileName }}
             </span>
           </label>
-          
+
           <button *ngIf="actaFile" type="button" class="btn-remove" (click)="removeFile()">
             <i class="fas fa-times"></i>
           </button>
@@ -119,9 +120,7 @@
 
         <!-- Botón de subida -->
         <div class="mt-4 text-center">
-          <button class="btn-subir-acta" 
-                  (click)="subirActa()" 
-                  [disabled]="!actaFile || subiendoActa">
+          <button class="btn-subir-acta" (click)="subirActa()" [disabled]="!actaFile || subiendoActa">
             <span *ngIf="!subiendoActa">
               <i class="fas fa-upload me-2"></i> Subir Acta de Supervisión
             </span>

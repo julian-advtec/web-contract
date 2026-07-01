@@ -1,9 +1,11 @@
+// src/app/pages/contabilidad/components/contabilidad-history/contabilidad-history.component.ts
+
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { Subject, forkJoin } from 'rxjs';
+import { takeUntil, finalize } from 'rxjs/operators';
 import { ContabilidadService } from '../../../../core/services/contabilidad.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 
@@ -74,7 +76,12 @@ export class ContabilidadHistoryComponent implements OnInit, OnDestroy {
     this.infoMessage = '';
 
     this.contabilidadService.getHistorial()
-      .pipe(takeUntil(this.destroy$))
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.loading = false;
+        })
+      )
       .subscribe({
         next: (data: any[]) => {
           console.log('📊 Respuesta del historial:', data);
@@ -82,21 +89,26 @@ export class ContabilidadHistoryComponent implements OnInit, OnDestroy {
           this.historial = data || [];
           console.log('✅ Historial cargado con', this.historial.length, 'registros');
 
+          // Enriquecer cada item con el estado del documento
+          this.historial = this.historial.map(item => ({
+            ...item,
+            estadoDocumento: item.documento?.estado || item.estado || 'PROCESADO',
+            estadoContabilidad: this.determinarEstadoContabilidad(item)
+          }));
+
           this.filteredHistorial = [...this.historial];
           this.updatePagination();
 
           if (this.filteredHistorial.length > 0) {
             const recientes = this.filteredHistorial.filter(item => this.esDocumentoReciente(item));
             this.successMessage = `Se encontraron ${this.filteredHistorial.length} procesamientos (${recientes.length} recientes)`;
+            setTimeout(() => this.successMessage = '', 4000);
           } else {
             this.infoMessage = 'No hay procesamientos en el historial';
           }
-          
-          this.loading = false;
         },
         error: (err: any) => {
           this.error = err.message || 'Error al cargar el historial';
-          this.loading = false;
           console.error('Error:', err);
 
           if (err.status === 404 || err.status === 0) {
@@ -111,25 +123,48 @@ export class ContabilidadHistoryComponent implements OnInit, OnDestroy {
       });
   }
 
-consultarDocumento(item: any): void {
-  const documentoId = item.documento?.id || item.id || item.documentoId;
-  
-  if (!documentoId) {
-    this.notificationService.error('Error', 'ID de documento no disponible');
-    return;
+  /**
+   * Determina el estado de contabilidad según el estado del documento
+   */
+  determinarEstadoContabilidad(item: any): string {
+    const estadoDoc = item.documento?.estado || item.estado || '';
+    const estadoUpper = estadoDoc.toUpperCase();
+
+    if (estadoUpper.includes('COMPLETADO')) return 'COMPLETADO';
+    if (estadoUpper.includes('PROCESADO')) return 'PROCESADO';
+    if (estadoUpper.includes('GLOSADO')) return 'GLOSADO';
+    if (estadoUpper.includes('OBSERVADO')) return 'OBSERVADO';
+    if (estadoUpper.includes('RECHAZADO')) return 'RECHAZADO';
+    if (estadoUpper.includes('EN_REVISION')) return 'EN_REVISION';
+    
+    return 'PROCESADO';
   }
 
-  // Solo enviamos metadatos útiles, sin forzar modo
-  const queryParams = {
-    desdeHistorial: 'true',
-    origen: 'historial-contabilidad'
-    // ← NO enviamos soloLectura ni modo → el formulario decide basado en el estado real
-  };
+  consultarDocumento(item: any): void {
+    const documentoId = item.documento?.id || item.id || item.documentoId;
+    
+    if (!documentoId) {
+      this.notificationService.error('Error', 'ID de documento no disponible');
+      return;
+    }
 
-  console.log('[consultarDocumento] Navegando sin forzar modo:', { documentoId, queryParams });
+    // Determinar modo según estado
+    const estado = item.estadoDocumento || item.estado || '';
+    const esEditable = estado.includes('EN_REVISION') || estado.includes('PENDIENTE');
+    
+    const queryParams = {
+      desdeHistorial: 'true',
+      origen: 'historial-contabilidad',
+      modo: esEditable ? 'edicion' : 'consulta',
+      soloLectura: esEditable ? 'false' : 'true'
+    };
 
-  this.router.navigate(['/contabilidad/procesar', documentoId], { queryParams });
-}
+    console.log('[consultarDocumento] Navegando:', { documentoId, queryParams });
+
+    this.router.navigate(['/contabilidad/procesar', documentoId], { queryParams });
+  }
+
+  // ==================== MÉTODOS GETTERS ====================
 
   getContadorRevisor(item: any): string {
     return item.contadorRevisor ||
@@ -140,34 +175,163 @@ consultarDocumento(item: any): void {
            'Contador';
   }
 
-  getEstadoBadgeClass(estado: string): string {
-    if (!estado) return 'badge bg-light text-dark';
-
-    const upper = estado.toUpperCase();
-
-    if (upper.includes('PROCESADO')) return 'badge bg-primary';
-    if (upper.includes('COMPLETADO')) return 'badge bg-success';
-    if (upper.includes('GLOSADO')) return 'badge bg-warning text-dark';
-    if (upper.includes('OBSERVADO')) return 'badge bg-info';
-    if (upper.includes('RECHAZADO')) return 'badge bg-danger';
-    if (upper.includes('EN_REVISION')) return 'badge bg-secondary';
-
-    return 'badge bg-light text-dark';
+  getNumeroRadicado(item: any): string {
+    return item.documento?.numeroRadicado || item.numeroRadicado || 'N/A';
   }
 
-  getEstadoTexto(estado: string): string {
+  getNombreContratista(item: any): string {
+    return item.documento?.nombreContratista || item.nombreContratista || 'N/A';
+  }
+
+  getDocumentoContratista(item: any): string {
+    return item.documento?.documentoContratista || item.documentoContratista || 'N/A';
+  }
+
+  getNumeroContrato(item: any): string {
+    return item.documento?.numeroContrato || item.numeroContrato || 'N/A';
+  }
+
+  getDuracionRevision(item: any): string {
+    const fechaInicio = item.fechaInicioRevision || item.documento?.fechaInicio || item.createdAt;
+    const fechaFin = item.fechaActualizacion || item.updatedAt || new Date();
+
+    if (!fechaInicio) return 'N/A';
+
+    try {
+      const inicio = new Date(fechaInicio);
+      const fin = new Date(fechaFin);
+      const diffMs = fin.getTime() - inicio.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 0) return 'Hoy';
+      if (diffDays === 1) return '1 día';
+      return `${diffDays} días`;
+    } catch {
+      return 'N/A';
+    }
+  }
+
+  // ==================== MÉTODOS DE ESTADO ====================
+
+  /**
+   * Retorna la clase CSS para el badge del ESTADO DEL DOCUMENTO (COMPLETO)
+   */
+  getEstadoDocumentoBadgeClass(estado: string | undefined): string {
+    if (!estado) return 'badge bg-secondary estado-default';
+    
+    const e = estado.toUpperCase();
+    
+    // Estados de Supervisor
+    if (e === 'APROBADO_SUPERVISOR') return 'badge bg-success estado-aprobado-supervisor';
+    if (e === 'OBSERVADO_SUPERVISOR') return 'badge bg-warning estado-observado';
+    if (e === 'RECHAZADO_SUPERVISOR') return 'badge bg-danger estado-rechazado';
+    if (e === 'EN_REVISION_SUPERVISOR') return 'badge bg-primary estado-en-revision-auditor';
+    
+    // Estados de Auditor
+    if (e === 'EN_REVISION_AUDITOR') return 'badge bg-primary estado-en-revision-auditor';
+    if (e === 'APROBADO_AUDITOR') return 'badge bg-success estado-aprobado-supervisor';
+    if (e === 'OBSERVADO_AUDITOR') return 'badge bg-warning estado-observado';
+    if (e === 'RECHAZADO_AUDITOR') return 'badge bg-danger estado-rechazado';
+    if (e === 'COMPLETADO_AUDITOR') return 'badge bg-success estado-completado';
+    
+    // Estados de Contabilidad
+    if (e === 'EN_REVISION_CONTABILIDAD') return 'badge bg-primary estado-en-revision-auditor';
+    if (e === 'APROBADO_CONTABILIDAD') return 'badge bg-success estado-aprobado-supervisor';
+    if (e === 'OBSERVADO_CONTABILIDAD') return 'badge bg-warning estado-observado';
+    if (e === 'RECHAZADO_CONTABILIDAD') return 'badge bg-danger estado-rechazado';
+    if (e === 'COMPLETADO_CONTABILIDAD') return 'badge bg-success estado-completado';
+    if (e === 'GLOSADO_CONTABILIDAD') return 'badge bg-purple estado-glosado';
+    if (e === 'PROCESADO_CONTABILIDAD') return 'badge bg-success estado-procesado';
+    
+    // Estados finales
+    if (e === 'COMPLETADO') return 'badge bg-success estado-completado';
+    if (e === 'PROCESADO') return 'badge bg-success estado-procesado';
+    if (e === 'RECHAZADO') return 'badge bg-danger estado-rechazado';
+    if (e === 'OBSERVADO') return 'badge bg-warning estado-observado';
+    if (e === 'GLOSADO') return 'badge bg-purple estado-glosado';
+    if (e === 'RADICADO') return 'badge bg-secondary estado-default';
+    
+    return 'badge bg-secondary estado-default';
+  }
+
+  /**
+   * Retorna el texto legible del ESTADO DEL DOCUMENTO (COMPLETO)
+   */
+  getEstadoDocumentoTexto(estado: string | undefined): string {
     if (!estado) return 'Desconocido';
-    const upper = estado.toUpperCase();
-
-    if (upper.includes('PROCESADO_CONTABILIDAD')) return 'Procesado';
-    if (upper.includes('COMPLETADO_CONTABILIDAD')) return 'Completado';
-    if (upper.includes('GLOSADO_CONTABILIDAD')) return 'Glosado';
-    if (upper.includes('OBSERVADO_CONTABILIDAD')) return 'Observado';
-    if (upper.includes('RECHAZADO_CONTABILIDAD')) return 'Rechazado';
-    if (upper.includes('EN_REVISION')) return 'En Revisión';
-
-    return estado.replace(/_CONTABILIDAD/g, '');
+    
+    const e = estado.toUpperCase();
+    
+    const mapeo: Record<string, string> = {
+      'APROBADO_SUPERVISOR': 'Aprobado Supervisor',
+      'OBSERVADO_SUPERVISOR': 'Observado Supervisor',
+      'RECHAZADO_SUPERVISOR': 'Rechazado Supervisor',
+      'EN_REVISION_SUPERVISOR': 'En Revisión Supervisor',
+      'EN_REVISION_AUDITOR': 'En Revisión Auditor',
+      'APROBADO_AUDITOR': 'Aprobado Auditor',
+      'OBSERVADO_AUDITOR': 'Observado Auditor',
+      'RECHAZADO_AUDITOR': 'Rechazado Auditor',
+      'COMPLETADO_AUDITOR': 'Completado Auditor',
+      'EN_REVISION_CONTABILIDAD': 'En Revisión Contabilidad',
+      'APROBADO_CONTABILIDAD': 'Aprobado Contabilidad',
+      'OBSERVADO_CONTABILIDAD': 'Observado Contabilidad',
+      'RECHAZADO_CONTABILIDAD': 'Rechazado Contabilidad',
+      'COMPLETADO_CONTABILIDAD': 'Completado Contabilidad',
+      'GLOSADO_CONTABILIDAD': 'Glosado Contabilidad',
+      'PROCESADO_CONTABILIDAD': 'Procesado Contabilidad',
+      'COMPLETADO': 'Completado',
+      'PROCESADO': 'Procesado',
+      'RECHAZADO': 'Rechazado',
+      'OBSERVADO': 'Observado',
+      'GLOSADO': 'Glosado',
+      'RADICADO': 'Radicado'
+    };
+    
+    return mapeo[e] || estado.replace(/_/g, ' ');
   }
+
+  /**
+   * Retorna la clase CSS para el badge del ESTADO DE CONTABILIDAD
+   */
+  getEstadoContabilidadBadgeClass(estado: string | undefined): string {
+    if (!estado) return 'badge bg-secondary';
+    
+    const e = estado.toUpperCase();
+    
+    if (e === 'DISPONIBLE') return 'badge bg-info';
+    if (e === 'EN_REVISION') return 'badge bg-primary';
+    if (e === 'COMPLETADO' || e === 'APROBADO') return 'badge bg-success';
+    if (e === 'OBSERVADO') return 'badge bg-warning text-dark';
+    if (e === 'RECHAZADO') return 'badge bg-danger';
+    if (e === 'GLOSADO') return 'badge bg-purple';
+    if (e === 'PROCESADO') return 'badge bg-success';
+    
+    return 'badge bg-secondary';
+  }
+
+  /**
+   * Retorna el texto legible del ESTADO DE CONTABILIDAD
+   */
+  getEstadoContabilidadTexto(estado: string | undefined): string {
+    if (!estado) return 'Desconocido';
+    
+    const e = estado.toUpperCase();
+    
+    const mapeo: Record<string, string> = {
+      'DISPONIBLE': 'Disponible',
+      'EN_REVISION': 'En Revisión',
+      'COMPLETADO': 'Completado',
+      'APROBADO': 'Aprobado',
+      'OBSERVADO': 'Observado',
+      'RECHAZADO': 'Rechazado',
+      'GLOSADO': 'Glosado',
+      'PROCESADO': 'Procesado'
+    };
+    
+    return mapeo[e] || estado;
+  }
+
+  // ==================== MÉTODOS DE UTILIDAD ====================
 
   esDocumentoReciente(item: any): boolean {
     const fechaActualizacion = item.fechaActualizacion || item.updatedAt;
@@ -183,45 +347,14 @@ consultarDocumento(item: any): void {
     }
   }
 
-  tieneDocumentos(item: any): boolean {
-    const docData = item.documento || item;
-    return !!(docData.cuentaCobro || docData.seguridadSocial || docData.informeActividades);
-  }
-
-  getDuracionRevision(item: any): string {
-    const fechaInicio = item.fechaInicioRevision || item.documento?.fechaInicio || item.createdAt;
-    const fechaFin = item.fechaActualizacion || item.updatedAt || new Date();
-
-    if (!fechaInicio) return 'N/A';
-
-    try {
-      const inicio = new Date(fechaInicio);
-      const fin = new Date(fechaFin);
-      const diffMs = fin.getTime() - inicio.getTime();
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-      if (diffDays === 0) {
-        return 'Hoy';
-      } else if (diffDays === 1) {
-        return '1 día';
-      } else {
-        return `${diffDays} días`;
-      }
-    } catch {
-      return 'N/A';
-    }
-  }
-
-  formatDate(fecha: Date | string): string {
+  formatDateOnly(fecha: Date | string): string {
     if (!fecha) return 'N/A';
     try {
       const date = new Date(fecha);
       return date.toLocaleDateString('es-ES', {
         year: 'numeric',
         month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
+        day: '2-digit'
       });
     } catch {
       return 'Fecha inválida';
@@ -242,50 +375,7 @@ consultarDocumento(item: any): void {
     }
   }
 
-  formatDateOnly(fecha: Date | string): string {
-    if (!fecha) return 'N/A';
-    try {
-      const date = new Date(fecha);
-      return date.toLocaleDateString('es-ES', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      });
-    } catch {
-      return 'Fecha inválida';
-    }
-  }
-
-  getDocumentCount(item: any): number {
-    let count = 0;
-    const docData = item.documento || item;
-
-    if (docData.cuentaCobro) count++;
-    if (docData.seguridadSocial) count++;
-    if (docData.informeActividades) count++;
-
-    return count;
-  }
-
-  getNumeroRadicado(item: any): string {
-    return item.documento?.numeroRadicado || item.numeroRadicado || 'N/A';
-  }
-
-  getNombreContratista(item: any): string {
-    return item.documento?.nombreContratista || item.nombreContratista || 'N/A';
-  }
-
-  getDocumentoContratista(item: any): string {
-    return item.documento?.documentoContratista || item.documentoContratista || 'N/A';
-  }
-
-  getNumeroContrato(item: any): string {
-    return item.documento?.numeroContrato || item.numeroContrato || 'N/A';
-  }
-
-  getSupervisorRevisor(item: any): string {
-    return item.contadorRevisor || item.usuarioAsignadoNombre || this.usuarioActual || 'Contador';
-  }
+  // ==================== FILTROS Y PAGINACIÓN ====================
 
   onSearch(): void {
     if (!this.searchTerm.trim()) {
@@ -299,7 +389,8 @@ consultarDocumento(item: any): void {
           (doc.nombreContratista?.toLowerCase().includes(term)) ||
           (doc.numeroContrato?.toLowerCase().includes(term)) ||
           (doc.documentoContratista?.toLowerCase().includes(term)) ||
-          (item.estado?.toLowerCase().includes(term)) ||
+          (item.estadoDocumento?.toLowerCase().includes(term)) ||
+          (item.estadoContabilidad?.toLowerCase().includes(term)) ||
           (item.contadorRevisor?.toLowerCase().includes(term))
         );
       });

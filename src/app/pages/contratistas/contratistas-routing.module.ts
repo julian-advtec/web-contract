@@ -5,7 +5,7 @@ import { ContratistasComponent } from './contratistas.component';
 import { ContratistaListComponent } from './components/contratista-list/contratista-list.component';
 import { ContratistaCreacionComponent } from './components/contratista-creacion/contratista-creacion.component';
 import { ContratistaDetalleComponent } from './components/contratista-detalle/contratista-detalle.component';
-
+import { ContratistaEnvioEnlacesComponent } from './components/contratista-envio-enlaces/contratista-envio-enlaces.component';
 
 const routes: Routes = [
   {
@@ -17,7 +17,8 @@ const routes: Routes = [
       { path: 'crear', component: ContratistaCreacionComponent },
       { path: 'editar/:id', component: ContratistaCreacionComponent },
       { path: 'ver/:id', component: ContratistaDetalleComponent },
-      { path: 'documentos/:id', component: ContratistaDetalleComponent } // Ruta para ver documentos
+      { path: 'documentos/:id', component: ContratistaDetalleComponent },
+      { path: 'enviar-enlaces', component: ContratistaEnvioEnlacesComponent }
     ]
   }
 ];

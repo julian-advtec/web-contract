@@ -218,7 +218,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
       console.log('📍 Detectada página jurídica:', cleanUrl);
       
       if (cleanUrl === '/juridica' || cleanUrl === '/juridica/list') {
-        this.currentPageTitle = '📋 Lista de Contratos';
+        this.currentPageTitle = 'Lista de Contratos';
         this.currentPageSubtitle = 'Gestión y visualización de todos los contratos registrados';
       } 
       else if (cleanUrl === '/juridica/crear') {

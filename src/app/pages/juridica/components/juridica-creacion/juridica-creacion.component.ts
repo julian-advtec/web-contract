@@ -278,7 +278,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     this.archivos[tipo].fileName = file.name;
     this.archivos[tipo].fileId = null;
     this.archivos[tipo].mostrarUpload = false;
-    
+
     // Subir automáticamente (usando el método que ya existe en tu servicio)
     this.subirArchivoIndividual(tipo);
   }
@@ -286,7 +286,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   // Método para subir archivo individual con reintentos
   subirArchivoIndividual(tipo: string, isRetry: boolean = false): void {
     const archivo = this.archivos[tipo];
-    
+
     if (!archivo.file) {
       archivo.error = 'No hay archivo seleccionado';
       return;
@@ -296,7 +296,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       archivo.uploading = true;
       archivo.uploadProgress = 0;
       archivo.error = null;
-      
+
       // Simular progreso para mejor UX
       this.simulateProgress(tipo);
     }
@@ -304,7 +304,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     const formData = new FormData();
     formData.append('file', archivo.file);
     formData.append('tipoDocumento', tipo);
-    
+
     // Usar el método existente en tu servicio para subir documentos
     // Asumiendo que tienes un método para subir documentos asociados al contrato
     this.juridicaService.subirDocumentoContrato(formData).subscribe({
@@ -315,17 +315,17 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
         archivo.fileId = response.fileId || response.id || response.documentoId;
         archivo.error = null;
         archivo.retryCount = 0;
-        
+
         this.successMessage = `Documento ${archivo.fileName} subido correctamente`;
         setTimeout(() => this.dismissSuccess(), 2000);
       },
       error: (error: any) => {
         console.error(`Error subiendo archivo ${tipo}:`, error);
-        
+
         if (archivo.retryCount < this.MAX_RETRIES) {
           archivo.retryCount++;
           archivo.error = `Error en subida (intento ${archivo.retryCount}/${this.MAX_RETRIES}). Reintentando...`;
-          
+
           // Reintentar después del delay
           setTimeout(() => {
             this.subirArchivoIndividual(tipo, true);
@@ -347,7 +347,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
         clearInterval(interval);
         return;
       }
-      
+
       if (archivo.uploadProgress < 90) {
         archivo.uploadProgress += 10;
       }
@@ -357,14 +357,14 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   // Método para validar archivos requeridos antes de guardar
   private validarArchivosRequeridos(): boolean {
     const archivosRequeridos = ['MINUTA', 'ACTA_INICIO'];
-    
+
     // Si requiere pólizas, validar póliza de cumplimiento
     if (this.contratoForm.get('requierePolizas')?.value) {
       archivosRequeridos.push('POLIZA_CUMPLIMIENTO');
     }
-    
+
     let isValid = true;
-    
+
     for (const tipo of archivosRequeridos) {
       const archivo = this.archivos[tipo];
       // Verificar si tiene file (nuevo) o fileId (existente)
@@ -374,14 +374,14 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
         isValid = false;
       }
     }
-    
+
     return isValid;
   }
 
   // Método para obtener documentos subidos
   private obtenerDocumentosSubidos(): any[] {
     const documentos = [];
-    
+
     for (const [tipo, data] of Object.entries(this.archivos)) {
       if (data.fileId) {
         documentos.push({
@@ -391,7 +391,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
         });
       }
     }
-    
+
     return documentos;
   }
 
@@ -883,6 +883,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
     }
 
     const documentosContrato = datosContrato.documentos || [];
+    const polizasExistentes = datosContrato.polizas || [];
 
     // Resetear archivos
     Object.keys(this.archivos).forEach(key => {
@@ -902,6 +903,58 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       }
     });
 
+    // ==================== CARGAR PÓLIZAS EXISTENTES ====================
+    // Buscar póliza de Cumplimiento
+    const polizaCumplimiento = polizasExistentes.find((p: any) => p.tipoPoliza === 'CUMPLIMIENTO');
+    if (polizaCumplimiento) {
+      this.contratoForm.patchValue({
+        requierePolizas: true,
+        polizaCumplimientoNumero: polizaCumplimiento.numeroPoliza,
+        polizaCumplimientoAseguradora: polizaCumplimiento.aseguradora,
+        polizaCumplimientoValor: polizaCumplimiento.valorAsegurado,
+        polizaCumplimientoVigenciaDesde: polizaCumplimiento.fechaVigenciaInicio ? new Date(polizaCumplimiento.fechaVigenciaInicio).toISOString().split('T')[0] : '',
+        polizaCumplimientoVigenciaHasta: polizaCumplimiento.fechaVigenciaFin ? new Date(polizaCumplimiento.fechaVigenciaFin).toISOString().split('T')[0] : ''
+      });
+    }
+
+    // Buscar póliza de Calidad
+    const polizaCalidad = polizasExistentes.find((p: any) => p.tipoPoliza === 'CALIDAD');
+    if (polizaCalidad) {
+      this.contratoForm.patchValue({
+        requierePolizaCalidad: true,
+        polizaCalidadNumero: polizaCalidad.numeroPoliza,
+        polizaCalidadAseguradora: polizaCalidad.aseguradora,
+        polizaCalidadValor: polizaCalidad.valorAsegurado,
+        polizaCalidadVigenciaDesde: polizaCalidad.fechaVigenciaInicio ? new Date(polizaCalidad.fechaVigenciaInicio).toISOString().split('T')[0] : '',
+        polizaCalidadVigenciaHasta: polizaCalidad.fechaVigenciaFin ? new Date(polizaCalidad.fechaVigenciaFin).toISOString().split('T')[0] : ''
+      });
+    }
+
+    // Buscar póliza de Responsabilidad Civil
+    const polizaRC = polizasExistentes.find((p: any) => p.tipoPoliza === 'RESPONSABILIDAD_CIVIL');
+    if (polizaRC) {
+      this.contratoForm.patchValue({
+        requierePolizaRC: true,
+        polizaRCNumero: polizaRC.numeroPoliza,
+        polizaRCAseguradora: polizaRC.aseguradora,
+        polizaRCValor: polizaRC.valorAsegurado,
+        polizaRCVigenciaDesde: polizaRC.fechaVigenciaInicio ? new Date(polizaRC.fechaVigenciaInicio).toISOString().split('T')[0] : '',
+        polizaRCVigenciaHasta: polizaRC.fechaVigenciaFin ? new Date(polizaRC.fechaVigenciaFin).toISOString().split('T')[0] : ''
+      });
+    }
+
+    // Si hay alguna póliza, activar el switch principal
+    if (polizaCumplimiento) {
+      this.onRequierePolizasChange(true);
+    }
+    if (polizaCalidad) {
+      this.contratoForm.get('requierePolizaCalidad')?.setValue(true);
+    }
+    if (polizaRC) {
+      this.contratoForm.get('requierePolizaRC')?.setValue(true);
+    }
+
+    // Fechas
     const fechaInicio = datosContrato.fechaInicio
       ? new Date(datosContrato.fechaInicio).toISOString().split('T')[0]
       : '';
@@ -948,24 +1001,7 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       valorAnticipo: datosContrato.valorAnticipo || '',
       fechaDesembolsoAnticipo: fechaDesembolso,
       adiciones: datosContrato.adiciones || 0,
-      requierePolizas: datosContrato.requierePolizas || false,
-      polizaCumplimientoNumero: datosContrato.polizaCumplimientoNumero || '',
-      polizaCumplimientoAseguradora: datosContrato.polizaCumplimientoAseguradora || '',
-      polizaCumplimientoValor: datosContrato.polizaCumplimientoValor || '',
-      polizaCumplimientoVigenciaDesde: datosContrato.polizaCumplimientoVigenciaDesde || '',
-      polizaCumplimientoVigenciaHasta: datosContrato.polizaCumplimientoVigenciaHasta || '',
-      requierePolizaCalidad: datosContrato.requierePolizaCalidad || false,
-      polizaCalidadNumero: datosContrato.polizaCalidadNumero || '',
-      polizaCalidadAseguradora: datosContrato.polizaCalidadAseguradora || '',
-      polizaCalidadValor: datosContrato.polizaCalidadValor || '',
-      polizaCalidadVigenciaDesde: datosContrato.polizaCalidadVigenciaDesde || '',
-      polizaCalidadVigenciaHasta: datosContrato.polizaCalidadVigenciaHasta || '',
-      requierePolizaRC: datosContrato.requierePolizaRC || false,
-      polizaRCNumero: datosContrato.polizaRCNumero || '',
-      polizaRCAseguradora: datosContrato.polizaRCAseguradora || '',
-      polizaRCValor: datosContrato.polizaRCValor || '',
-      polizaRCVigenciaDesde: datosContrato.polizaRCVigenciaDesde || '',
-      polizaRCVigenciaHasta: datosContrato.polizaRCVigenciaHasta || ''
+      requierePolizas: datosContrato.requierePolizas || false
     };
 
     this.contratoForm.patchValue(patchData);
@@ -975,10 +1011,6 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
       this.contratoForm.get('porcentajeAnticipo')?.enable();
       this.contratoForm.get('valorAnticipo')?.enable();
       this.contratoForm.get('fechaDesembolsoAnticipo')?.enable();
-    }
-
-    if (datosContrato.requierePolizas) {
-      this.onRequierePolizasChange(true);
     }
 
     this.calcularValores();
@@ -1079,161 +1111,206 @@ export class JuridicaCreacionComponent implements OnInit, OnDestroy {
   }
 
   guardarContrato(): void {
-  if (this.isViewMode) {
-    this.router.navigate(['/juridica/list']);
-    return;
-  }
+    if (this.isViewMode) {
+      this.router.navigate(['/juridica/list']);
+      return;
+    }
 
-  this.submitted = true;
-  
-  // Validar archivos requeridos ANTES de guardar
-  if (!this.validarArchivosRequeridos()) {
-    this.errorMessage = 'Por favor complete todos los documentos requeridos';
-    this.pasoActual = 3;
-    setTimeout(() => {
-      const requeridos = document.querySelectorAll('.document-card .alert-danger');
-      if (requeridos.length) {
-        requeridos[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    this.submitted = true;
+
+    // Validar archivos requeridos ANTES de guardar
+    if (!this.validarArchivosRequeridos()) {
+      this.errorMessage = 'Por favor complete todos los documentos requeridos';
+      this.pasoActual = 3;
+      setTimeout(() => {
+        const requeridos = document.querySelectorAll('.document-card .alert-danger');
+        if (requeridos.length) {
+          requeridos[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+      return;
+    }
+
+    if (this.contratoForm.invalid) {
+      this.errorMessage = 'Por favor complete todos los campos requeridos';
+      this.markStepFieldsAsTouched();
+      return;
+    }
+
+    this.isSubmitting = true;
+    this.errorMessage = '';
+
+    const formValue = this.contratoForm.getRawValue();
+    const valorTotal = this.valorNumerico + this.adicionesNumerico;
+
+    // Función para convertir fechas: null o string vacío se convierten a undefined
+    const toDateOrUndefined = (value: any): Date | undefined => {
+      if (!value || value === '' || value === 'null' || value === 'undefined') {
+        return undefined;
       }
-    }, 100);
-    return;
+      return new Date(value);
+    };
+
+    // Función para convertir número: null o string vacío se convierten a undefined
+    const toNumberOrUndefined = (value: any): number | undefined => {
+      if (!value || value === '' || value === 'null' || value === 'undefined') {
+        return undefined;
+      }
+      const num = Number(value);
+      return isNaN(num) ? undefined : num;
+    };
+
+    // Función para convertir string: null se convierte a undefined
+    const toStringOrUndefined = (value: any): string | undefined => {
+      if (!value || value === '' || value === 'null' || value === 'undefined') {
+        return undefined;
+      }
+      return String(value);
+    };
+
+    // ==================== CONSTRUIR ARRAY DE PÓLIZAS ====================
+    const polizasArray: any[] = [];
+
+    // Póliza de Cumplimiento
+    if (formValue.requierePolizas && formValue.polizaCumplimientoNumero) {
+      polizasArray.push({
+        tipoPoliza: 'CUMPLIMIENTO',
+        numeroPoliza: formValue.polizaCumplimientoNumero,
+        aseguradora: formValue.polizaCumplimientoAseguradora,
+        valorAsegurado: toNumberOrUndefined(formValue.polizaCumplimientoValor) || 0,
+        fechaExpedicion: toDateOrUndefined(formValue.polizaCumplimientoVigenciaDesde) || new Date(),
+        fechaVigenciaInicio: toDateOrUndefined(formValue.polizaCumplimientoVigenciaDesde),
+        fechaVigenciaFin: toDateOrUndefined(formValue.polizaCumplimientoVigenciaHasta),
+      });
+    }
+
+    // Póliza de Calidad
+    if (formValue.requierePolizaCalidad && formValue.polizaCalidadNumero) {
+      polizasArray.push({
+        tipoPoliza: 'CALIDAD',
+        numeroPoliza: formValue.polizaCalidadNumero,
+        aseguradora: formValue.polizaCalidadAseguradora,
+        valorAsegurado: toNumberOrUndefined(formValue.polizaCalidadValor) || 0,
+        fechaExpedicion: toDateOrUndefined(formValue.polizaCalidadVigenciaDesde) || new Date(),
+        fechaVigenciaInicio: toDateOrUndefined(formValue.polizaCalidadVigenciaDesde),
+        fechaVigenciaFin: toDateOrUndefined(formValue.polizaCalidadVigenciaHasta),
+      });
+    }
+
+    // Póliza de Responsabilidad Civil
+    if (formValue.requierePolizaRC && formValue.polizaRCNumero) {
+      polizasArray.push({
+        tipoPoliza: 'RESPONSABILIDAD_CIVIL',
+        numeroPoliza: formValue.polizaRCNumero,
+        aseguradora: formValue.polizaRCAseguradora,
+        valorAsegurado: toNumberOrUndefined(formValue.polizaRCValor) || 0,
+        fechaExpedicion: toDateOrUndefined(formValue.polizaRCVigenciaDesde) || new Date(),
+        fechaVigenciaInicio: toDateOrUndefined(formValue.polizaRCVigenciaDesde),
+        fechaVigenciaFin: toDateOrUndefined(formValue.polizaRCVigenciaHasta),
+      });
+    }
+
+    // ==================== PREPARAR CONTRATO DATA ====================
+    const contratoData: any = {
+      vigencia: this.anioActual.toString(),
+      numeroContrato: formValue.numeroContrato,
+      tipoContrato: formValue.tipoContrato,
+      objeto: formValue.objeto,
+      valor: this.valorNumerico,
+      plazoDias: Number(formValue.plazoDias) || 0,
+      fechaInicio: toDateOrUndefined(formValue.fechaInicio),
+      fechaTerminacion: toDateOrUndefined(formValue.fechaTerminacion),
+      fechaFirma: toDateOrUndefined(formValue.fechaFirma),
+      valorTotal: valorTotal,
+      adiciones: this.adicionesNumerico,
+      supervisor: formValue.supervisor,
+      cdp: toStringOrUndefined(formValue.cdp),
+      rp: toStringOrUndefined(formValue.rp),
+      creadoPor: this.obtenerUsuarioActual(),
+      ultimoUsuario: this.obtenerUsuarioActual(),
+      seDesembolsaAnticipo: !!formValue.seDesembolsaAnticipo,
+      porcentajeAnticipo: toNumberOrUndefined(formValue.porcentajeAnticipo),
+      valorAnticipo: toNumberOrUndefined(formValue.valorAnticipo),
+      fechaDesembolsoAnticipo: toDateOrUndefined(formValue.fechaDesembolsoAnticipo),
+      requierePolizas: !!formValue.requierePolizas,
+      // Mantener campos planos por compatibilidad (opcional)
+      polizaCumplimientoNumero: toStringOrUndefined(formValue.polizaCumplimientoNumero),
+      polizaCumplimientoAseguradora: toStringOrUndefined(formValue.polizaCumplimientoAseguradora),
+      polizaCumplimientoValor: toNumberOrUndefined(formValue.polizaCumplimientoValor),
+      polizaCumplimientoVigenciaDesde: toDateOrUndefined(formValue.polizaCumplimientoVigenciaDesde),
+      polizaCumplimientoVigenciaHasta: toDateOrUndefined(formValue.polizaCumplimientoVigenciaHasta),
+      requierePolizaCalidad: !!formValue.requierePolizaCalidad,
+      polizaCalidadNumero: toStringOrUndefined(formValue.polizaCalidadNumero),
+      polizaCalidadAseguradora: toStringOrUndefined(formValue.polizaCalidadAseguradora),
+      polizaCalidadValor: toNumberOrUndefined(formValue.polizaCalidadValor),
+      polizaCalidadVigenciaDesde: toDateOrUndefined(formValue.polizaCalidadVigenciaDesde),
+      polizaCalidadVigenciaHasta: toDateOrUndefined(formValue.polizaCalidadVigenciaHasta),
+      requierePolizaRC: !!formValue.requierePolizaRC,
+      polizaRCNumero: toStringOrUndefined(formValue.polizaRCNumero),
+      polizaRCAseguradora: toStringOrUndefined(formValue.polizaRCAseguradora),
+      polizaRCValor: toNumberOrUndefined(formValue.polizaRCValor),
+      polizaRCVigenciaDesde: toDateOrUndefined(formValue.polizaRCVigenciaDesde),
+      polizaRCVigenciaHasta: toDateOrUndefined(formValue.polizaRCVigenciaHasta),
+      // NUEVO: Array de pólizas
+      polizas: polizasArray,
+      proveedor: {
+        tipoIdentificacion: formValue.proveedor?.tipoIdentificacion || 'NIT',
+        numeroIdentificacion: formValue.proveedor?.numeroIdentificacion || '',
+        nombreRazonSocial: formValue.proveedor?.nombreRazonSocial || '',
+        telefono: toStringOrUndefined(formValue.proveedor?.telefono),
+        email: toStringOrUndefined(formValue.proveedor?.email)
+      }
+    };
+
+    let request: Observable<any>;
+
+    if (this.isEditMode && this.contratoId) {
+      // Actualizar contrato (solo JSON, sin archivos nuevos)
+      request = this.juridicaService.actualizarContrato(this.contratoId, contratoData);
+    } else {
+      // Crear contrato CON archivos (usando FormData)
+      const formData = new FormData();
+      formData.append('contrato', JSON.stringify(contratoData));
+
+      // Agregar archivos pendientes
+      if (this.archivos['MINUTA'].file) {
+        formData.append('minutaFile', this.archivos['MINUTA'].file);
+      }
+      if (this.archivos['ACTA_INICIO'].file) {
+        formData.append('actaInicioFile', this.archivos['ACTA_INICIO'].file);
+      }
+      if (this.archivos['CDP'].file) {
+        formData.append('cdpFile', this.archivos['CDP'].file);
+      }
+      if (this.archivos['RP'].file) {
+        formData.append('rpFile', this.archivos['RP'].file);
+      }
+      if (this.archivos['POLIZA_CUMPLIMIENTO'].file) {
+        formData.append('polizaCumplimientoFile', this.archivos['POLIZA_CUMPLIMIENTO'].file);
+      }
+      if (this.archivos['POLIZA_CALIDAD'].file) {
+        formData.append('polizaCalidadFile', this.archivos['POLIZA_CALIDAD'].file);
+      }
+      if (this.archivos['POLIZA_RC'].file) {
+        formData.append('polizaRCFile', this.archivos['POLIZA_RC'].file);
+      }
+
+      request = this.juridicaService.crearContratoConArchivos(formData);
+    }
+
+    request.subscribe({
+      next: (resultado: any) => {
+        this.successMessage = this.isEditMode ? 'Contrato actualizado exitosamente' : 'Contrato creado exitosamente';
+        this.isSubmitting = false;
+        setTimeout(() => this.router.navigate(['/juridica/list']), 1800);
+      },
+      error: (error: any) => {
+        console.error('Error al guardar contrato:', error);
+        this.errorMessage = error.message || 'Error al guardar el contrato';
+        this.isSubmitting = false;
+      }
+    });
   }
-  
-  if (this.contratoForm.invalid) {
-    this.errorMessage = 'Por favor complete todos los campos requeridos';
-    this.markStepFieldsAsTouched();
-    return;
-  }
-
-  this.isSubmitting = true;
-  this.errorMessage = '';
-
-  const formValue = this.contratoForm.getRawValue();
-  const valorTotal = this.valorNumerico + this.adicionesNumerico;
-
-  // Función para convertir fechas: null o string vacío se convierten a undefined
-  const toDateOrUndefined = (value: any): Date | undefined => {
-    if (!value || value === '' || value === 'null' || value === 'undefined') {
-      return undefined;
-    }
-    return new Date(value);
-  };
-
-  // Función para convertir número: null o string vacío se convierten a undefined
-  const toNumberOrUndefined = (value: any): number | undefined => {
-    if (!value || value === '' || value === 'null' || value === 'undefined') {
-      return undefined;
-    }
-    const num = Number(value);
-    return isNaN(num) ? undefined : num;
-  };
-
-  // Función para convertir string: null se convierte a undefined
-  const toStringOrUndefined = (value: any): string | undefined => {
-    if (!value || value === '' || value === 'null' || value === 'undefined') {
-      return undefined;
-    }
-    return String(value);
-  };
-
-  // Preparar el DTO para el contrato
-  const contratoData: any = {
-    vigencia: this.anioActual.toString(),
-    numeroContrato: formValue.numeroContrato,
-    tipoContrato: formValue.tipoContrato,
-    objeto: formValue.objeto,
-    valor: this.valorNumerico,
-    plazoDias: Number(formValue.plazoDias) || 0,
-    fechaInicio: toDateOrUndefined(formValue.fechaInicio),
-    fechaTerminacion: toDateOrUndefined(formValue.fechaTerminacion),
-    fechaFirma: toDateOrUndefined(formValue.fechaFirma),
-    valorTotal: valorTotal,
-    adiciones: this.adicionesNumerico,
-    supervisor: formValue.supervisor,
-    cdp: toStringOrUndefined(formValue.cdp),
-    rp: toStringOrUndefined(formValue.rp),
-    creadoPor: this.obtenerUsuarioActual(),
-    ultimoUsuario: this.obtenerUsuarioActual(),
-    seDesembolsaAnticipo: !!formValue.seDesembolsaAnticipo,
-    porcentajeAnticipo: toNumberOrUndefined(formValue.porcentajeAnticipo),
-    valorAnticipo: toNumberOrUndefined(formValue.valorAnticipo),
-    fechaDesembolsoAnticipo: toDateOrUndefined(formValue.fechaDesembolsoAnticipo),
-    requierePolizas: !!formValue.requierePolizas,
-    polizaCumplimientoNumero: toStringOrUndefined(formValue.polizaCumplimientoNumero),
-    polizaCumplimientoAseguradora: toStringOrUndefined(formValue.polizaCumplimientoAseguradora),
-    polizaCumplimientoValor: toNumberOrUndefined(formValue.polizaCumplimientoValor),
-    polizaCumplimientoVigenciaDesde: toDateOrUndefined(formValue.polizaCumplimientoVigenciaDesde),
-    polizaCumplimientoVigenciaHasta: toDateOrUndefined(formValue.polizaCumplimientoVigenciaHasta),
-    requierePolizaCalidad: !!formValue.requierePolizaCalidad,
-    polizaCalidadNumero: toStringOrUndefined(formValue.polizaCalidadNumero),
-    polizaCalidadAseguradora: toStringOrUndefined(formValue.polizaCalidadAseguradora),
-    polizaCalidadValor: toNumberOrUndefined(formValue.polizaCalidadValor),
-    polizaCalidadVigenciaDesde: toDateOrUndefined(formValue.polizaCalidadVigenciaDesde),
-    polizaCalidadVigenciaHasta: toDateOrUndefined(formValue.polizaCalidadVigenciaHasta),
-    requierePolizaRC: !!formValue.requierePolizaRC,
-    polizaRCNumero: toStringOrUndefined(formValue.polizaRCNumero),
-    polizaRCAseguradora: toStringOrUndefined(formValue.polizaRCAseguradora),
-    polizaRCValor: toNumberOrUndefined(formValue.polizaRCValor),
-    polizaRCVigenciaDesde: toDateOrUndefined(formValue.polizaRCVigenciaDesde),
-    polizaRCVigenciaHasta: toDateOrUndefined(formValue.polizaRCVigenciaHasta),
-    proveedor: {
-      tipoIdentificacion: formValue.proveedor?.tipoIdentificacion || 'NIT',
-      numeroIdentificacion: formValue.proveedor?.numeroIdentificacion || '',
-      nombreRazonSocial: formValue.proveedor?.nombreRazonSocial || '',
-      telefono: toStringOrUndefined(formValue.proveedor?.telefono),
-      email: toStringOrUndefined(formValue.proveedor?.email)
-    }
-  };
-
-  let request: Observable<any>;
-
-  if (this.isEditMode && this.contratoId) {
-    // Actualizar contrato (solo JSON, sin archivos nuevos)
-    request = this.juridicaService.actualizarContrato(this.contratoId, contratoData);
-  } else {
-    // Crear contrato CON archivos (usando FormData)
-    const formData = new FormData();
-    formData.append('contrato', JSON.stringify(contratoData));
-
-    // Agregar archivos pendientes
-    if (this.archivos['MINUTA'].file) {
-      formData.append('minutaFile', this.archivos['MINUTA'].file);
-    }
-    if (this.archivos['ACTA_INICIO'].file) {
-      formData.append('actaInicioFile', this.archivos['ACTA_INICIO'].file);
-    }
-    if (this.archivos['CDP'].file) {
-      formData.append('cdpFile', this.archivos['CDP'].file);
-    }
-    if (this.archivos['RP'].file) {
-      formData.append('rpFile', this.archivos['RP'].file);
-    }
-    if (this.archivos['POLIZA_CUMPLIMIENTO'].file) {
-      formData.append('polizaCumplimientoFile', this.archivos['POLIZA_CUMPLIMIENTO'].file);
-    }
-    if (this.archivos['POLIZA_CALIDAD'].file) {
-      formData.append('polizaCalidadFile', this.archivos['POLIZA_CALIDAD'].file);
-    }
-    if (this.archivos['POLIZA_RC'].file) {
-      formData.append('polizaRCFile', this.archivos['POLIZA_RC'].file);
-    }
-
-    request = this.juridicaService.crearContratoConArchivos(formData);
-  }
-
-  request.subscribe({
-    next: (resultado: any) => {
-      this.successMessage = this.isEditMode ? 'Contrato actualizado exitosamente' : 'Contrato creado exitosamente';
-      this.isSubmitting = false;
-      setTimeout(() => this.router.navigate(['/juridica/list']), 1800);
-    },
-    error: (error: any) => {
-      console.error('Error al guardar contrato:', error);
-      this.errorMessage = error.message || 'Error al guardar el contrato';
-      this.isSubmitting = false;
-    }
-  });
-}
 
   private obtenerUsuarioActual(): string {
     const userStr = localStorage.getItem('user');

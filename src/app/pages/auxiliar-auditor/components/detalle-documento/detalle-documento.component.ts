@@ -6,11 +6,12 @@ import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { AuxiliarAuditorService } from '../../../../core/services/auxiliar-auditor.service';
+import { RadicacionFormComponent } from '../../../radicacion/components/radicacion-form/radicacion-form.component'; // ← IMPORTAR
 
 @Component({
   selector: 'app-detalle-documento',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RadicacionFormComponent],
   templateUrl: './detalle-documento.component.html',
   styleUrls: ['./detalle-documento.component.scss']
 })
@@ -19,21 +20,22 @@ export class DetalleDocumentoComponent implements OnInit, OnDestroy {
   documento: any = null;
   isLoading = false;
   subiendoActa = false;
-  
+
   actaFile: File | null = null;
   actaFileName: string = '';
-  
+
   errorMessage = '';
   showError = false;
   successMessage = '';
   showSuccess = false;
-  
+
   private destroy$ = new Subject<void>();
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private auxiliarService: AuxiliarAuditorService
+    private auxiliarService: AuxiliarAuditorService,
+
   ) { }
 
   ngOnInit(): void {
@@ -51,55 +53,60 @@ export class DetalleDocumentoComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-cargarDetalleDocumento(): void {
-  this.isLoading = true;
-  this.errorMessage = '';
-  this.showError = false;
+  cargarDetalleDocumento(): void {
+    this.isLoading = true;
+    this.errorMessage = '';
+    this.showError = false;
 
-  console.log(`🔍 Cargando detalle del documento ${this.documentoId}...`);
+    console.log(`🔍 Cargando detalle del documento ${this.documentoId}...`);
 
-  this.auxiliarService.obtenerDetalleDocumento(this.documentoId)
-    .pipe(takeUntil(this.destroy$))
-    .subscribe({
-      next: (response: any) => {
-        console.log('✅ Detalle recibido (RAW):', response);
-        
-        // ✅ CORRECCIÓN: Navegar por las capas del interceptor
-        // response.data contiene { success: true, data: {...}, timestamp }
-        const apiResponse = response?.data;
-        
-        if (apiResponse && apiResponse.success && apiResponse.data) {
-          // apiResponse.data contiene { documento: {...}, archivosRadicados: [...] }
-          const data = apiResponse.data;
-          
-          if (data && data.documento) {
-            this.documento = data;
-            console.log('✅ Documento cargado correctamente:', this.documento);
+    this.auxiliarService.obtenerDetalleDocumento(this.documentoId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response: any) => {
+          console.log('✅ Detalle recibido (RAW):', response);
+
+          // ✅ CORRECCIÓN: Navegar por las capas del interceptor
+          // response.data contiene { success: true, data: {...}, timestamp }
+          const apiResponse = response?.data;
+
+          if (apiResponse && apiResponse.success && apiResponse.data) {
+            // apiResponse.data contiene { documento: {...}, archivosRadicados: [...] }
+            const data = apiResponse.data;
+
+            if (data && data.documento) {
+              this.documento = data;
+              console.log('✅ Documento cargado correctamente:', this.documento);
+            } else {
+              console.error('❌ Estructura de datos inesperada en apiResponse.data:', data);
+              this.errorMessage = 'Estructura de datos inválida';
+              this.showError = true;
+            }
+          } else if (apiResponse && apiResponse.documento) {
+            // Caso alternativo: la respuesta ya viene directa
+            this.documento = apiResponse;
+            console.log('✅ Documento cargado (alternativo):', this.documento);
           } else {
-            console.error('❌ Estructura de datos inesperada en apiResponse.data:', data);
+            console.error('❌ Estructura de datos inesperada:', apiResponse);
             this.errorMessage = 'Estructura de datos inválida';
             this.showError = true;
           }
-        } else if (apiResponse && apiResponse.documento) {
-          // Caso alternativo: la respuesta ya viene directa
-          this.documento = apiResponse;
-          console.log('✅ Documento cargado (alternativo):', this.documento);
-        } else {
-          console.error('❌ Estructura de datos inesperada:', apiResponse);
-          this.errorMessage = 'Estructura de datos inválida';
+
+          this.isLoading = false;
+        },
+        error: (error) => {
+          console.error('❌ Error cargando detalle:', error);
+          this.errorMessage = `Error al cargar el documento: ${error.message || 'Error desconocido'}`;
           this.showError = true;
+          this.isLoading = false;
         }
-        
-        this.isLoading = false;
-      },
-      error: (error) => {
-        console.error('❌ Error cargando detalle:', error);
-        this.errorMessage = `Error al cargar el documento: ${error.message || 'Error desconocido'}`;
-        this.showError = true;
-        this.isLoading = false;
-      }
-    });
-}
+      });
+  }
+
+  volverALista(): void {
+    this.router.navigate(['/auxiliar-auditor/documentos-disponibles']);
+  }
+
 
   onFileSelected(event: any): void {
     const file = event.target.files[0];
@@ -150,18 +157,18 @@ cargarDetalleDocumento(): void {
       .subscribe({
         next: (response: any) => {
           console.log('✅ Acta subida exitosamente:', response);
-          
+
           this.successMessage = 'Acta de supervisión subida exitosamente';
           this.showSuccess = true;
           this.subiendoActa = false;
-          
+
           // Limpiar el archivo seleccionado
           this.actaFile = null;
           this.actaFileName = '';
-          
+
           // Recargar el documento para mostrar el estado actualizado
           this.cargarDetalleDocumento();
-          
+
           // Redirigir a la lista después de 2 segundos
           setTimeout(() => {
             this.router.navigate(['/auxiliar-auditor/documentos-disponibles']);
@@ -182,7 +189,7 @@ cargarDetalleDocumento(): void {
       this.showError = true;
       return;
     }
-    
+
     // Usar el servicio de radicación para previsualizar
     // Esto requiere importar RadicacionService
     window.open(`/api/radicacion/${this.documento.documento.id}/archivo/${index}?token=${localStorage.getItem('token')}`, '_blank');
@@ -194,7 +201,7 @@ cargarDetalleDocumento(): void {
       this.showError = true;
       return;
     }
-    
+
     window.open(`/api/radicacion/${this.documento.documento.id}/descargar/${index}`, '_blank');
   }
 

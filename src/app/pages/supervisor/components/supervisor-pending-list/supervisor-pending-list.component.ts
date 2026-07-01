@@ -611,4 +611,21 @@ getTextoBoton(doc: Documento): string {
         }
       });
   }
+
+  formatDateSpanish(fecha: Date | string): string {
+  if (!fecha) return 'N/A';
+  try {
+    const date = new Date(fecha);
+    const meses = [
+      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+    ];
+    const dia = date.getDate();
+    const mes = meses[date.getMonth()];
+    const año = date.getFullYear();
+    return `${dia} ${mes} ${año}`;
+  } catch {
+    return 'N/A';
+  }
+}
 }

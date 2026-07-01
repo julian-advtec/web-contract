@@ -259,14 +259,17 @@ private procederTomarDocumento(doc: any): void {
 
   formatDate(fecha: Date | string | undefined): string {
     if (!fecha) return 'N/A';
-    return new Date(fecha).toLocaleDateString('es-ES');
-  }
-
-  formatDateShort(fecha: Date | string | undefined): string {
-    if (!fecha) return 'N/A';
-    const d = new Date(fecha);
-    return `${d.getDate()}/${d.getMonth() + 1}`;
-  }
+    try {
+        const date = new Date(fecha);
+        return date.toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+    } catch {
+        return 'Fecha inválida';
+    }
+}
 
   getDiasTranscurridos(fecha: Date | string | undefined): number {
     if (!fecha) return 0;

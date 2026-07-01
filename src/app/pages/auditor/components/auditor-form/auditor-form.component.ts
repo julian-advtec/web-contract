@@ -262,7 +262,7 @@ cargarDocumentoParaAuditor(id: string): void {
 
       // Cargar archivos del auditor
       if (data.archivosAuditor && Array.isArray(data.archivosAuditor)) {
-        console.log('[AUDITOR] Archivos recibidos:', data.archivosAuditor);
+        
         
         for (const archivo of data.archivosAuditor) {
           const key = archivo.tipo;
@@ -280,7 +280,7 @@ cargarDocumentoParaAuditor(id: string): void {
 
       // ✅ CARGAR DOCUMENTOS DEL CONTRATISTA (después de tener numeroContrato y contratistaId)
       if (this.numeroContrato) {
-        console.log('[AUDITOR] Cargando documentos del contratista para contrato:', this.numeroContrato);
+       
         this.cargarContratistaConDocumentos();
       } else {
         console.warn('[AUDITOR] No hay numeroContrato, no se pueden cargar documentos del contratista');
@@ -453,19 +453,19 @@ cargarContratistaConDocumentos(): void {
     return;
   }
 
-  console.log('[AUDITOR] Buscando contratista por contrato:', this.numeroContrato);
+  
   this.cargandoDocumentosContratista = true;
 
   this.auditorService.obtenerContratistaPorNumeroContrato(this.numeroContrato).subscribe({
     next: (contratista: any) => {
-      console.log('[AUDITOR] Contratista recibido:', contratista);
+      
       
       if (contratista && contratista.id) {
         this.contratistaId = contratista.id;
         const documentos = contratista.documentos || [];
         this.documentosContratista = documentos;
         
-        console.log(`[AUDITOR] Documentos del contratista cargados: ${documentos.length}`);
+        
         
         // Mapear documentos del contratista a los tipos de archivo de auditoría
         const mapeoTipos: Record<string, string[]> = {
@@ -496,7 +496,7 @@ cargarContratistaConDocumentos(): void {
                 fechaSubida: documentoEncontrado.fechaSubida
               }
             };
-            console.log(`[AUDITOR] Documento ${clave} encontrado en contratista: ${documentoEncontrado.nombreArchivo}`);
+            
           }
         }
       } else {
@@ -517,7 +517,7 @@ cargarContratistaConDocumentos(): void {
   });
 }
 recargarDocumentosContratista(): void {
-  console.log('[AUDITOR] Recargando documentos del contratista manualmente');
+ 
   this.cargarContratistaConDocumentos();
 }
 
@@ -730,7 +730,7 @@ private abrirComprobanteExtraEnNuevaPestana(tipo: string): void {
   const baseUrl = this.auditorService['apiUrl'] || 'http://localhost:3001/api/auditor';
   const url = `${baseUrl}/documentos/${this.documentoId}/archivo/${tipo}?download=false&token=${encodeURIComponent(cleanToken || '')}`;
   
-  console.log(`[AUDITOR] Abriendo comprobante extra en nueva pestaña:`, url.substring(0, 150) + '...');
+  
   
   // Abrir en nueva pestaña
   const newWindow = window.open(url, '_blank');

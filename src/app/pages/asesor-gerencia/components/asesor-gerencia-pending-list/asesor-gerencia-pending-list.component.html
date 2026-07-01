@@ -64,7 +64,7 @@
             <div class="header-item">Contratista</div>
             <div class="header-item">Contrato</div>
             <div class="header-item">Estado</div>
-            <div class="header-item">Tesorero/Fechas</div>
+            <div class="header-item">Tesorero</div>
             <div class="header-item acciones-header">Acciones</div>
           </div>
 
@@ -119,16 +119,7 @@
                     <strong>Tesorero:</strong> {{ doc.tesoreroAsignado || 'No asignado' }}
                   </small>
                 </div>
-                <div class="fechas-container">
-                  <div class="fecha-line">
-                    <span class="fecha-label">Completado:</span>
-                    <span class="fecha-value">{{ formatDateShort(doc.fechaCompletadoTesoreria) || '—' }}</span>
-                  </div>
-                  <div class="fecha-line">
-                    <span class="fecha-label">Asignado:</span>
-                    <span class="fecha-value">{{ formatDateShort(doc.fechaAsignacion) || '—' }}</span>
-                  </div>
-                </div>
+                
               </div>
 
               <div class="documento-acciones">

@@ -1,13 +1,14 @@
+// src/app/pages/contabilidad/components/contabilidad-list/contabilidad-list.component.ts
+
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { Subject, forkJoin } from 'rxjs';
+import { takeUntil, finalize } from 'rxjs/operators';
 
 import { ContabilidadService } from '../../../../core/services/contabilidad.service';
 import { NotificationService } from '../../../../core/services/notification.service';
-import { DocumentoContable } from '../../../../core/models/documento-contable.model';
 
 @Component({
   selector: 'app-contabilidad-list',
@@ -76,23 +77,35 @@ export class ContabilidadListComponent implements OnInit, OnDestroy {
     this.successMessage = '';
     this.infoMessage = '';
 
-    // Cargar disponibles, en revisión e historial en paralelo
-    Promise.all([
-      this.contabilidadService.obtenerDocumentosDisponibles().pipe(takeUntil(this.destroy$)).toPromise(),
-      this.contabilidadService.obtenerDocumentosEnRevision().pipe(takeUntil(this.destroy$)).toPromise(),
-      this.contabilidadService.getHistorial().pipe(takeUntil(this.destroy$)).toPromise()
-    ]).then(([disponibles, enRevision, historial]) => {
-      console.log('📊 Disponibles:', disponibles);
-      console.log('📊 En revisión:', enRevision);
-      console.log('📊 Historial:', historial);
-      
-      this.combinarDocumentos(disponibles || [], enRevision || [], historial || []);
-      this.loading = false;
-    }).catch((err) => {
-      console.error('Error cargando documentos:', err);
-      this.error = 'Error al cargar los documentos';
-      this.notificationService.error('Error', this.error);
-      this.loading = false;
+    forkJoin({
+      disponibles: this.contabilidadService.obtenerDocumentosDisponibles().pipe(takeUntil(this.destroy$)),
+      enRevision: this.contabilidadService.obtenerDocumentosEnRevision().pipe(takeUntil(this.destroy$)),
+      historial: this.contabilidadService.getHistorial().pipe(takeUntil(this.destroy$))
+    }).pipe(
+      finalize(() => {
+        this.loading = false;
+      })
+    ).subscribe({
+      next: (resultados) => {
+        console.log('📊 Disponibles:', resultados.disponibles?.length || 0);
+        console.log('📊 En revisión:', resultados.enRevision?.length || 0);
+        console.log('📊 Historial:', resultados.historial?.length || 0);
+        
+        this.combinarDocumentos(
+          resultados.disponibles || [],
+          resultados.enRevision || [],
+          resultados.historial || []
+        );
+        this.aplicarFiltros();
+      },
+      error: (err) => {
+        console.error('Error cargando documentos:', err);
+        this.error = 'Error al cargar los documentos';
+        this.notificationService.error('Error', this.error);
+        this.documentos = [];
+        this.filteredDocumentos = [];
+        this.updatePagination();
+      }
     });
   }
 
@@ -100,14 +113,19 @@ export class ContabilidadListComponent implements OnInit, OnDestroy {
     const todos: any[] = [];
     const idsProcesados = new Set<string>();
 
-    // Procesar disponibles (documentos que vienen de obtenerDocumentosDisponibles)
+    // 1. Documentos disponibles (APROBADO_SUPERVISOR)
     disponibles.forEach((doc: any) => {
       if (!doc?.id || idsProcesados.has(doc.id)) return;
+      
+      // ✅ Mantener el estado COMPLETO del documento
+      const estadoDocumento = doc.estado || 'APROBADO_SUPERVISOR';
+      
       todos.push({
         ...doc,
         tipo: 'disponible',
-        estadoContabilidad: 'DISPONIBLE', // Para contabilidad están disponibles
-        estadoDocumento: doc.estado || 'APROBADO_AUDITOR',
+        estadoContabilidad: 'DISPONIBLE',
+        estadoDocumento: estadoDocumento, // ← Estado COMPLETO
+        estadoOriginal: estadoDocumento,   // ← Guardar copia del estado original
         contadorAsignado: null,
         puedeTomar: true,
         esMio: false,
@@ -116,94 +134,88 @@ export class ContabilidadListComponent implements OnInit, OnDestroy {
       idsProcesados.add(doc.id);
     });
 
-    // Procesar en revisión (documentos que el usuario tiene en su contabilidad_documentos con estado EN_REVISION)
+    // 2. Documentos en revisión
     enRevision.forEach((doc: any) => {
       if (!doc?.id || idsProcesados.has(doc.id)) return;
       
-      // Determinar el estado real según el documento principal
+      // ✅ Mantener el estado COMPLETO del documento
+      const estadoDocumento = doc.estado || 'EN_REVISION_CONTABILIDAD';
       let estadoContabilidad = 'EN_REVISION';
-      if (doc.estado?.includes('EN_REVISION_CONTABILIDAD')) {
-        estadoContabilidad = 'EN_REVISION';
-      } else if (doc.estado?.includes('COMPLETADO_CONTABILIDAD')) {
-        estadoContabilidad = 'COMPLETADO';
-      } else if (doc.estado?.includes('RECHAZADO_CONTABILIDAD')) {
-        estadoContabilidad = 'RECHAZADO';
-      } else if (doc.estado?.includes('OBSERVADO_CONTABILIDAD')) {
-        estadoContabilidad = 'OBSERVADO';
-      } else if (doc.estado?.includes('GLOSADO_CONTABILIDAD')) {
-        estadoContabilidad = 'GLOSADO';
-      } else if (doc.estado?.includes('PROCESADO_CONTABILIDAD')) {
-        estadoContabilidad = 'PROCESADO';
-      }
+      
+      // Determinar estado de contabilidad
+      if (estadoDocumento.includes('COMPLETADO')) estadoContabilidad = 'COMPLETADO';
+      else if (estadoDocumento.includes('RECHAZADO')) estadoContabilidad = 'RECHAZADO';
+      else if (estadoDocumento.includes('OBSERVADO')) estadoContabilidad = 'OBSERVADO';
+      else if (estadoDocumento.includes('GLOSADO')) estadoContabilidad = 'GLOSADO';
+      else if (estadoDocumento.includes('PROCESADO')) estadoContabilidad = 'PROCESADO';
 
       todos.push({
         ...doc,
         tipo: 'en_revision',
         estadoContabilidad: estadoContabilidad,
-        estadoDocumento: doc.estado || 'EN_REVISION',
+        estadoDocumento: estadoDocumento, // ← Estado COMPLETO
+        estadoOriginal: estadoDocumento,   // ← Guardar copia
         contadorAsignado: this.usuarioActual,
         puedeTomar: false,
         esMio: true,
         tieneGlosa: doc.tieneGlosa,
         tipoCausacion: doc.tipoCausacion,
         observaciones: doc.observaciones || doc.observacion || '',
-        fechaInicioRevision: doc.fechaInicioRevision || doc.fechaAsignacion,
-        fechaFinRevision: doc.fechaFinRevision,
         fechaReferencia: doc.fechaAsignacion || doc.fechaInicioRevision || doc.fechaRadicacion
       });
       idsProcesados.add(doc.id);
     });
 
-    // Procesar historial (documentos ya procesados)
-  historial.forEach((item: any) => {
-    const doc = item.documento || item;
-    if (!doc?.id || idsProcesados.has(doc.id)) return;
-    
-    // Determinar estado simplificado (solo 3 opciones)
-    let estadoSimplificado = 'PROCESADO';
-    const estadoOriginal = item.estado || doc.estado || '';
-    const observaciones = item.observaciones || doc.observacion || '';
-    
-    if (estadoOriginal.includes('COMPLETADO') || 
-        estadoOriginal.includes('APROBADO') ||
-        estadoOriginal === 'COMPLETADO' ||
-        estadoOriginal === 'APROBADO') {
-        estadoSimplificado = 'COMPLETADO';
-    } 
-    else if (estadoOriginal.includes('RECHAZADO') || 
-             estadoOriginal === 'RECHAZADO' ||
-             observaciones.toUpperCase().includes('RECHAZ')) {
-        estadoSimplificado = 'RECHAZADO';
-    } 
-    else if (estadoOriginal.includes('OBSERVADO') || 
-             estadoOriginal === 'OBSERVADO' ||
-             observaciones.toUpperCase().includes('OBSERV')) {
-        estadoSimplificado = 'OBSERVADO';
-    }
+    // 3. Historial
+    historial.forEach((item: any) => {
+      const doc = item.documento || item;
+      if (!doc?.id || idsProcesados.has(doc.id)) return;
 
-    todos.push({
+      // ✅ Mantener el estado COMPLETO del documento
+      const estadoDocumento = doc.estado || item.estadoDocumento || 'PROCESADO';
+      let estadoContabilidad = 'PROCESADO';
+      const observaciones = item.observaciones || doc.observacion || '';
+
+      // Determinar estado de contabilidad simplificado
+      if (estadoDocumento.includes('COMPLETADO') || 
+          estadoDocumento.includes('APROBADO') ||
+          estadoDocumento === 'COMPLETADO') {
+        estadoContabilidad = 'COMPLETADO';
+      } else if (estadoDocumento.includes('RECHAZADO') || 
+                 estadoDocumento === 'RECHAZADO' ||
+                 observaciones.toUpperCase().includes('RECHAZ')) {
+        estadoContabilidad = 'RECHAZADO';
+      } else if (estadoDocumento.includes('OBSERVADO') || 
+                 estadoDocumento === 'OBSERVADO' ||
+                 observaciones.toUpperCase().includes('OBSERV')) {
+        estadoContabilidad = 'OBSERVADO';
+      } else if (estadoDocumento.includes('GLOSADO')) {
+        estadoContabilidad = 'GLOSADO';
+      }
+
+      const esMio = this.esMiDocumento({
+        contadorRevisor: item.contadorRevisor || item.contadorAsignado,
+        contadorAsignado: item.contadorAsignado
+      });
+
+      todos.push({
         ...doc,
         tipo: 'procesado',
-        estadoContabilidad: estadoSimplificado,
-        estadoDocumento: doc.estado || item.estadoDocumento,
+        estadoContabilidad: estadoContabilidad,
+        estadoDocumento: estadoDocumento, // ← Estado COMPLETO
+        estadoOriginal: estadoDocumento,   // ← Guardar copia
+        esMio: esMio,
+        puedeTomar: false,
+        contadorRevisor: item.contadorRevisor || item.contadorAsignado,
+        observacionesContabilidad: item.observaciones || '',
         tieneGlosa: item.tieneGlosa ?? doc.tieneGlosa,
         tipoCausacion: item.tipoCausacion ?? doc.tipoCausacion,
-        observaciones: item.observaciones || doc.observacion || '',
-        fechaInicioRevision: item.fechaInicioRevision || doc.fechaInicioRevision,
-        fechaFinRevision: item.fechaFinRevision || doc.fechaFinRevision,
-        contadorRevisor: item.contadorRevisor || item.contadorAsignado || doc.contadorRevisor,
-        contadorAsignado: item.contadorRevisor || item.contadorAsignado || doc.contadorAsignado,
-        puedeTomar: false,
-        esMio: this.esMiDocumento({
-            contadorRevisor: item.contadorRevisor,
-            contadorAsignado: item.contadorAsignado
-        }),
         fechaReferencia: item.fechaFinRevision || item.fechaActualizacion || doc.fechaRadicacion
+      });
+      idsProcesados.add(doc.id);
     });
-    idsProcesados.add(doc.id);
-});
 
-    // Ordenar: primero en revisión (míos), luego disponibles, luego procesados
+    // Ordenar: en revisión → disponibles → procesados
     this.documentos = [
       ...todos.filter(d => d.tipo === 'en_revision'),
       ...todos.filter(d => d.tipo === 'disponible'),
@@ -214,12 +226,10 @@ export class ContabilidadListComponent implements OnInit, OnDestroy {
     console.table(this.documentos.map(d => ({
       radicado: d.numeroRadicado,
       tipo: d.tipo,
-      estadoCont: d.estadoContabilidad,
-      estadoDoc: d.estadoDocumento,
+      estadoDocumento: d.estadoDocumento,
+      estadoContabilidad: d.estadoContabilidad,
       tieneGlosa: d.tieneGlosa
     })));
-    
-    this.aplicarFiltros();
   }
 
   // ==================== MÉTODOS GETTERS ====================
@@ -268,8 +278,13 @@ export class ContabilidadListComponent implements OnInit, OnDestroy {
     return documento.fechaFin;
   }
 
-  getEstado(documento: any): string {
-    return documento.estado || '';
+  getEstadoDocumento(documento: any): string {
+    // ✅ Retorna el estado COMPLETO del documento
+    return documento.estadoOriginal || documento.estadoDocumento || documento.estado || '';
+  }
+
+  getEstadoContabilidad(documento: any): string {
+    return documento.estadoContabilidad || '';
   }
 
   getObservacion(documento: any): string {
@@ -327,7 +342,6 @@ export class ContabilidadListComponent implements OnInit, OnDestroy {
         next: (response: any) => {
           this.notificationService.success('Éxito', 'Documento tomado para revisión');
           
-          // Actualizar el documento en la lista
           const index = this.documentos.findIndex(d => d.id === documento.id);
           if (index !== -1) {
             this.documentos[index] = {
@@ -335,6 +349,7 @@ export class ContabilidadListComponent implements OnInit, OnDestroy {
               tipo: 'en_revision',
               estadoContabilidad: 'EN_REVISION',
               estadoDocumento: 'EN_REVISION_CONTABILIDAD',
+              estadoOriginal: 'EN_REVISION_CONTABILIDAD',
               contadorAsignado: this.usuarioActual,
               esMio: true,
               puedeTomar: false
@@ -344,7 +359,6 @@ export class ContabilidadListComponent implements OnInit, OnDestroy {
           this.aplicarFiltros();
           this.isProcessing = false;
 
-          // Redirigir a la revisión
           setTimeout(() => {
             this.router.navigate(['/contabilidad/procesar', documento.id], {
               queryParams: { modo: 'edicion', soloLectura: 'false' }
@@ -391,85 +405,160 @@ export class ContabilidadListComponent implements OnInit, OnDestroy {
     return dias <= 7;
   }
 
-// ==================== MÉTODOS DE ESTADO SIMPLIFICADOS ====================
+  // ==================== MÉTODOS DE ESTADO ====================
 
-/**
- * Retorna la clase CSS para el badge según el estado
- * Solo 3 estados principales: Aprobado, Rechazado, Observado
- */
-getEstadoBadgeClass(estado: string | undefined): string {
+  /**
+   * Retorna la clase CSS para el badge según el estado del DOCUMENTO (COMPLETO)
+   */
+  getEstadoDocumentoBadgeClass(estado: string | undefined): string {
     if (!estado) return 'badge bg-secondary';
     
     const e = estado.toUpperCase();
     
-    // Aprobado/Completado - Verde
-    if (e === 'COMPLETADO' || e.includes('COMPLETADO') || 
-        e === 'APROBADO' || e.includes('APROBADO') ||
-        e === 'PROCESADO' || e.includes('PROCESADO')) {
-        return 'badge bg-success';
-    }
+    // Estados de Supervisor
+    if (e === 'APROBADO_SUPERVISOR') return 'badge bg-success';
+    if (e === 'OBSERVADO_SUPERVISOR') return 'badge bg-warning text-dark';
+    if (e === 'RECHAZADO_SUPERVISOR') return 'badge bg-danger';
+    if (e === 'EN_REVISION_SUPERVISOR') return 'badge bg-primary';
+    if (e === 'FIRMADO_SUPERVISOR') return 'badge bg-info';
     
-    // Rechazado - Rojo
-    if (e === 'RECHAZADO' || e.includes('RECHAZADO')) {
-        return 'badge bg-danger';
-    }
+    // Estados de Auditor
+    if (e === 'EN_REVISION_AUDITOR') return 'badge bg-primary';
+    if (e === 'APROBADO_AUDITOR') return 'badge bg-success';
+    if (e === 'OBSERVADO_AUDITOR') return 'badge bg-warning text-dark';
+    if (e === 'RECHAZADO_AUDITOR') return 'badge bg-danger';
+    if (e === 'COMPLETADO_AUDITOR') return 'badge bg-success';
     
-    // Observado - Amarillo
-    if (e === 'OBSERVADO' || e.includes('OBSERVADO')) {
-        return 'badge bg-warning text-dark';
-    }
+    // Estados de Contabilidad
+    if (e === 'EN_REVISION_CONTABILIDAD') return 'badge bg-primary';
+    if (e === 'APROBADO_CONTABILIDAD') return 'badge bg-success';
+    if (e === 'OBSERVADO_CONTABILIDAD') return 'badge bg-warning text-dark';
+    if (e === 'RECHAZADO_CONTABILIDAD') return 'badge bg-danger';
+    if (e === 'COMPLETADO_CONTABILIDAD') return 'badge bg-success';
+    if (e === 'GLOSADO_CONTABILIDAD') return 'badge bg-purple';
+    if (e === 'PROCESADO_CONTABILIDAD') return 'badge bg-success';
     
-    // En Revisión - Azul
-    if (e === 'EN_REVISION' || e.includes('EN_REVISION')) {
-        return 'badge bg-primary';
-    }
+    // Estados de Tesorería
+    if (e === 'EN_REVISION_TESORERIA') return 'badge bg-primary';
+    if (e === 'APROBADO_TESORERIA') return 'badge bg-success';
+    if (e === 'OBSERVADO_TESORERIA') return 'badge bg-warning text-dark';
+    if (e === 'RECHAZADO_TESORERIA') return 'badge bg-danger';
+    if (e === 'COMPLETADO_TESORERIA') return 'badge bg-success';
     
-    // Disponible - Celeste
-    if (e === 'DISPONIBLE') {
-        return 'badge bg-info';
-    }
+    // Estados de Asesor Gerencia
+    if (e === 'EN_REVISION_ASESOR_GERENCIA') return 'badge bg-primary';
+    if (e === 'APROBADO_ASESOR_GERENCIA') return 'badge bg-success';
+    if (e === 'OBSERVADO_ASESOR_GERENCIA') return 'badge bg-warning text-dark';
+    if (e === 'RECHAZADO_ASESOR_GERENCIA') return 'badge bg-danger';
+    
+    // Estados de Rendición Cuentas
+    if (e === 'EN_REVISION_RENDICION_CUENTAS') return 'badge bg-primary';
+    if (e === 'APROBADO_RENDICION_CUENTAS') return 'badge bg-success';
+    if (e === 'OBSERVADO_RENDICION_CUENTAS') return 'badge bg-warning text-dark';
+    if (e === 'RECHAZADO_RENDICION_CUENTAS') return 'badge bg-danger';
+    
+    // Estados finales
+    if (e === 'COMPLETADO') return 'badge bg-success';
+    if (e === 'PAGADO') return 'badge bg-success';
+    if (e === 'FINALIZADO') return 'badge bg-secondary';
+    if (e === 'ANULADO') return 'badge bg-secondary';
+    if (e === 'RADICADO') return 'badge bg-secondary';
+    if (e === 'CON_ACTA') return 'badge bg-info';
     
     return 'badge bg-secondary';
-}
+  }
 
-/**
- * Retorna el texto legible del estado
- * Solo 3 estados principales: Aprobado, Rechazado, Observado
- */
-getEstadoTexto(estado: string | undefined): string {
+  /**
+   * Retorna el texto legible del estado del DOCUMENTO (COMPLETO)
+   */
+  getEstadoDocumentoTexto(estado: string | undefined): string {
     if (!estado) return 'Desconocido';
     
     const e = estado.toUpperCase();
     
-    // Aprobado/Completado
-    if (e === 'COMPLETADO' || e.includes('COMPLETADO') || 
-        e === 'APROBADO' || e.includes('APROBADO') ||
-        e === 'PROCESADO' || e.includes('PROCESADO')) {
-        return 'Aprobado';
-    }
+    // Mapeo completo de estados
+    const mapeo: Record<string, string> = {
+      'APROBADO_SUPERVISOR': 'Aprobado Supervisor',
+      'OBSERVADO_SUPERVISOR': 'Observado Supervisor',
+      'RECHAZADO_SUPERVISOR': 'Rechazado Supervisor',
+      'EN_REVISION_SUPERVISOR': 'En Revisión Supervisor',
+      'FIRMADO_SUPERVISOR': 'Firmado Supervisor',
+      'EN_REVISION_AUDITOR': 'En Revisión Auditor',
+      'APROBADO_AUDITOR': 'Aprobado Auditor',
+      'OBSERVADO_AUDITOR': 'Observado Auditor',
+      'RECHAZADO_AUDITOR': 'Rechazado Auditor',
+      'COMPLETADO_AUDITOR': 'Completado Auditor',
+      'EN_REVISION_CONTABILIDAD': 'En Revisión Contabilidad',
+      'APROBADO_CONTABILIDAD': 'Aprobado Contabilidad',
+      'OBSERVADO_CONTABILIDAD': 'Observado Contabilidad',
+      'RECHAZADO_CONTABILIDAD': 'Rechazado Contabilidad',
+      'COMPLETADO_CONTABILIDAD': 'Completado Contabilidad',
+      'GLOSADO_CONTABILIDAD': 'Glosado Contabilidad',
+      'PROCESADO_CONTABILIDAD': 'Procesado Contabilidad',
+      'EN_REVISION_TESORERIA': 'En Revisión Tesorería',
+      'APROBADO_TESORERIA': 'Aprobado Tesorería',
+      'OBSERVADO_TESORERIA': 'Observado Tesorería',
+      'RECHAZADO_TESORERIA': 'Rechazado Tesorería',
+      'COMPLETADO_TESORERIA': 'Completado Tesorería',
+      'EN_REVISION_ASESOR_GERENCIA': 'En Revisión Asesor Gerencia',
+      'APROBADO_ASESOR_GERENCIA': 'Aprobado Asesor Gerencia',
+      'OBSERVADO_ASESOR_GERENCIA': 'Observado Asesor Gerencia',
+      'RECHAZADO_ASESOR_GERENCIA': 'Rechazado Asesor Gerencia',
+      'EN_REVISION_RENDICION_CUENTAS': 'En Revisión Rendición Cuentas',
+      'APROBADO_RENDICION_CUENTAS': 'Aprobado Rendición Cuentas',
+      'OBSERVADO_RENDICION_CUENTAS': 'Observado Rendición Cuentas',
+      'RECHAZADO_RENDICION_CUENTAS': 'Rechazado Rendición Cuentas',
+      'COMPLETADO': 'Completado',
+      'PAGADO': 'Pagado',
+      'FINALIZADO': 'Finalizado',
+      'ANULADO': 'Anulado',
+      'RADICADO': 'Radicado',
+      'CON_ACTA': 'Con Acta'
+    };
     
-    // Rechazado
-    if (e === 'RECHAZADO' || e.includes('RECHAZADO')) {
-        return 'Rechazado';
-    }
+    return mapeo[e] || estado.replace(/_/g, ' ');
+  }
+
+  /**
+   * Retorna la clase CSS para el badge del estado de CONTABILIDAD
+   */
+  getEstadoContabilidadBadgeClass(estado: string | undefined): string {
+    if (!estado) return 'badge bg-secondary';
     
-    // Observado
-    if (e === 'OBSERVADO' || e.includes('OBSERVADO')) {
-        return 'Observado';
-    }
+    const e = estado.toUpperCase();
     
-    // En Revisión
-    if (e === 'EN_REVISION' || e.includes('EN_REVISION')) {
-        return 'En Revisión';
-    }
+    if (e === 'DISPONIBLE') return 'badge bg-info';
+    if (e === 'EN_REVISION') return 'badge bg-primary';
+    if (e === 'COMPLETADO' || e === 'APROBADO') return 'badge bg-success';
+    if (e === 'OBSERVADO') return 'badge bg-warning text-dark';
+    if (e === 'RECHAZADO') return 'badge bg-danger';
+    if (e === 'GLOSADO') return 'badge bg-purple';
+    if (e === 'PROCESADO') return 'badge bg-success';
     
-    // Disponible
-    if (e === 'DISPONIBLE') {
-        return 'Disponible';
-    }
+    return 'badge bg-secondary';
+  }
+
+  /**
+   * Retorna el texto legible del estado de CONTABILIDAD
+   */
+  getEstadoContabilidadTexto(estado: string | undefined): string {
+    if (!estado) return 'Desconocido';
     
-    return estado;
-}
+    const e = estado.toUpperCase();
+    
+    const mapeo: Record<string, string> = {
+      'DISPONIBLE': 'Disponible',
+      'EN_REVISION': 'En Revisión',
+      'COMPLETADO': 'Completado',
+      'APROBADO': 'Aprobado',
+      'OBSERVADO': 'Observado',
+      'RECHAZADO': 'Rechazado',
+      'GLOSADO': 'Glosado',
+      'PROCESADO': 'Procesado'
+    };
+    
+    return mapeo[e] || estado;
+  }
 
   getTipoDocumentoTexto(documento: any): string {
     switch (documento.tipo) {
@@ -534,97 +623,99 @@ getEstadoTexto(estado: string | undefined): string {
     return count;
   }
 
-aplicarFiltros(): void {
+  // ==================== FILTROS ====================
+
+  aplicarFiltros(): void {
     let filtered = [...this.documentos];
 
-    // Filtro por estado - VERSIÓN SIMPLIFICADA
+    // Filtro por estado de contabilidad
     if (this.filtroEstado !== 'todos') {
-        switch (this.filtroEstado) {
-            case 'disponibles':
-                filtered = filtered.filter(doc => doc.tipo === 'disponible');
-                break;
-            case 'en_revision':
-                filtered = filtered.filter(doc => doc.tipo === 'en_revision');
-                break;
-            case 'aprobados':
-                filtered = filtered.filter(doc => 
-                    doc.estadoContabilidad === 'COMPLETADO' || 
-                    doc.estadoContabilidad === 'APROBADO' ||
-                    doc.estadoContabilidad?.includes('COMPLETADO') ||
-                    doc.estadoContabilidad?.includes('APROBADO')
-                );
-                break;
-            case 'observados':
-                filtered = filtered.filter(doc => 
-                    doc.estadoContabilidad === 'OBSERVADO' || 
-                    doc.estadoContabilidad?.includes('OBSERVADO')
-                );
-                break;
-            case 'rechazados':
-                filtered = filtered.filter(doc => 
-                    doc.estadoContabilidad === 'RECHAZADO' || 
-                    doc.estadoContabilidad?.includes('RECHAZADO')
-                );
-                break;
-        }
+      switch (this.filtroEstado) {
+        case 'disponibles':
+          filtered = filtered.filter(doc => doc.tipo === 'disponible');
+          break;
+        case 'en_revision':
+          filtered = filtered.filter(doc => doc.tipo === 'en_revision');
+          break;
+        case 'aprobados':
+          filtered = filtered.filter(doc => 
+            doc.estadoContabilidad === 'COMPLETADO' || 
+            doc.estadoContabilidad === 'APROBADO' ||
+            doc.estadoContabilidad?.includes('COMPLETADO') ||
+            doc.estadoContabilidad?.includes('APROBADO')
+          );
+          break;
+        case 'observados':
+          filtered = filtered.filter(doc => 
+            doc.estadoContabilidad === 'OBSERVADO' || 
+            doc.estadoContabilidad?.includes('OBSERVADO')
+          );
+          break;
+        case 'rechazados':
+          filtered = filtered.filter(doc => 
+            doc.estadoContabilidad === 'RECHAZADO' || 
+            doc.estadoContabilidad?.includes('RECHAZADO')
+          );
+          break;
+      }
     }
 
     // Filtro por asignación
     if (this.filtroAsignacion !== 'todos') {
-        switch (this.filtroAsignacion) {
-            case 'mios':
-                filtered = filtered.filter(doc => doc.esMio);
-                break;
-            case 'disponibles':
-                filtered = filtered.filter(doc => doc.tipo === 'disponible');
-                break;
-        }
+      switch (this.filtroAsignacion) {
+        case 'mios':
+          filtered = filtered.filter(doc => doc.esMio);
+          break;
+        case 'disponibles':
+          filtered = filtered.filter(doc => doc.tipo === 'disponible');
+          break;
+      }
     }
 
     // Filtro por fecha
     if (this.filtroFecha !== 'todos') {
-        const ahora = new Date();
-        filtered = filtered.filter(doc => {
-            const fechaDoc = doc.fechaReferencia || doc.fechaRadicacion || doc.fechaCreacion;
-            if (!fechaDoc) return true;
-            const fecha = new Date(fechaDoc);
-            const diffDias = Math.floor((ahora.getTime() - fecha.getTime()) / (1000 * 60 * 60 * 24));
-            
-            switch (this.filtroFecha) {
-                case 'hoy': return diffDias === 0;
-                case 'semana': return diffDias <= 7;
-                case 'mes': return diffDias <= 30;
-                default: return true;
-            }
-        });
+      const ahora = new Date();
+      filtered = filtered.filter(doc => {
+        const fechaDoc = doc.fechaReferencia || doc.fechaRadicacion || doc.fechaCreacion;
+        if (!fechaDoc) return true;
+        const fecha = new Date(fechaDoc);
+        const diffDias = Math.floor((ahora.getTime() - fecha.getTime()) / (1000 * 60 * 60 * 24));
+        
+        switch (this.filtroFecha) {
+          case 'hoy': return diffDias === 0;
+          case 'semana': return diffDias <= 7;
+          case 'mes': return diffDias <= 30;
+          default: return true;
+        }
+      });
     }
 
     // Filtro por búsqueda
     if (this.searchTerm.trim()) {
-        const term = this.searchTerm.toLowerCase();
-        filtered = filtered.filter(item => {
-            return (
-                (item.numeroRadicado?.toLowerCase().includes(term)) ||
-                (item.nombreContratista?.toLowerCase().includes(term)) ||
-                (item.numeroContrato?.toLowerCase().includes(term)) ||
-                (item.estado?.toLowerCase().includes(term)) ||
-                (item.estadoContabilidad?.toLowerCase().includes(term)) ||
-                (item.observacion?.toLowerCase().includes(term))
-            );
-        });
+      const term = this.searchTerm.toLowerCase();
+      filtered = filtered.filter(item => {
+        return (
+          (item.numeroRadicado?.toLowerCase().includes(term)) ||
+          (item.nombreContratista?.toLowerCase().includes(term)) ||
+          (item.numeroContrato?.toLowerCase().includes(term)) ||
+          (item.estadoDocumento?.toLowerCase().includes(term)) ||
+          (item.estadoContabilidad?.toLowerCase().includes(term)) ||
+          (item.observacion?.toLowerCase().includes(term))
+        );
+      });
     }
 
     this.filteredDocumentos = filtered;
     this.currentPage = 1;
     this.updatePagination();
 
-    if (this.filteredDocumentos.length === 0) {
-        this.infoMessage = 'No hay documentos con los filtros aplicados';
-    } else {
-        this.successMessage = `Mostrando ${this.filteredDocumentos.length} documentos`;
-        setTimeout(() => this.successMessage = '', 3000);
+    if (this.filteredDocumentos.length === 0 && this.documentos.length > 0) {
+      this.infoMessage = 'No hay documentos con los filtros aplicados';
+    } else if (this.filteredDocumentos.length > 0) {
+      this.successMessage = `Mostrando ${this.filteredDocumentos.length} documentos`;
+      setTimeout(() => this.successMessage = '', 3000);
     }
-}
+  }
 
   onSearch(): void {
     this.aplicarFiltros();

@@ -1,0 +1,230 @@
+<!-- src/app/pages/contratistas/components/contratista-envio-enlaces/contratista-envio-enlaces.component.html -->
+<div class="envio-enlaces-container">
+  <div class="envio-enlaces-inner">
+
+    <!-- HEADER -->
+    <div class="header-section">
+      <div class="header-left">
+        <button class="btn btn-outline-secondary btn-sm" (click)="volverAlListado()">
+          <i class="fas fa-arrow-left me-1"></i> Volver
+        </button>
+        <h2 class="page-title">
+          <i class="fas fa-envelope-open-text me-2"></i>
+          Envío de Enlaces a Contratistas
+        </h2>
+      </div>
+      <div class="header-right">
+        <button class="btn btn-outline-primary btn-sm" (click)="refrescar()" [disabled]="isLoading">
+          <i class="fas fa-sync me-1" [class.fa-spin]="isLoading"></i>
+          Refrescar
+        </button>
+      </div>
+    </div>
+
+    <!-- ESTADÍSTICAS -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon bg-primary">
+          <i class="fas fa-users"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">{{ estadisticas.total }}</span>
+          <span class="stat-label">Total Contratistas</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-success">
+          <i class="fas fa-envelope"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">{{ estadisticas.conEmail }}</span>
+          <span class="stat-label">Con Email</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-danger">
+          <i class="fas fa-envelope-slash"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">{{ estadisticas.sinEmail }}</span>
+          <span class="stat-label">Sin Email</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-warning">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value">{{ estadisticas.activos }}</span>
+          <span class="stat-label">Activos</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BARRA DE ACCIONES -->
+    <div class="actions-bar" *ngIf="getContratistasSeleccionados().length > 0">
+      <div class="actions-content">
+        <span class="selected-count">
+          <i class="fas fa-check-circle text-success me-1"></i>
+          {{ getContratistasSeleccionados().length }} contratista(s) seleccionado(s)
+        </span>
+        <div class="actions-buttons">
+          <button class="btn btn-success btn-sm" 
+                  (click)="enviarEnlaceMultiple()" 
+                  [disabled]="isSending">
+            <i class="fas fa-paper-plane me-1"></i>
+            {{ isSending ? 'Enviando...' : 'Enviar enlaces' }}
+          </button>
+          <button class="btn btn-outline-secondary btn-sm" (click)="deseleccionarTodos()">
+            <i class="fas fa-times me-1"></i> Deseleccionar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILTROS -->
+    <div class="filters-section">
+      <div class="filters-row">
+        <div class="search-box">
+          <i class="fas fa-search search-icon"></i>
+          <input type="text" 
+                 class="form-control" 
+                 placeholder="Buscar por nombre, documento o email..."
+                 [(ngModel)]="searchTerm" 
+                 (input)="onSearch()">
+        </div>
+        <div class="filter-group">
+          <select class="form-select" [(ngModel)]="filtroEstado" (change)="aplicarFiltros()">
+            <option value="TODOS">Todos los estados</option>
+            <option value="ACTIVO">Activo</option>
+            <option value="INACTIVO">Inactivo</option>
+            <option value="SUSPENDIDO">Suspendido</option>
+          </select>
+          <button class="btn btn-outline-secondary btn-sm" (click)="limpiarFiltros()">
+            <i class="fas fa-eraser me-1"></i> Limpiar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOADING -->
+    <div *ngIf="isLoading" class="loading-container">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+      <p class="text-muted mt-2">Cargando contratistas...</p>
+    </div>
+
+    <!-- TABLA -->
+    <div *ngIf="!isLoading" class="table-container">
+      <div *ngIf="filteredContratistas.length === 0" class="empty-state">
+        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">No se encontraron contratistas</h5>
+        <p class="text-muted small">Intenta con otros filtros o verifica que haya contratistas registrados</p>
+      </div>
+
+      <div *ngIf="filteredContratistas.length > 0" class="table-wrapper">
+        <!-- HEADER -->
+        <div class="table-header">
+          <div class="col-select">
+            <input type="checkbox" 
+                   [checked]="seleccionTodos" 
+                   (change)="toggleSeleccionTodos()"
+                   [disabled]="getContratistasConEmailFiltrados().length === 0">
+          </div>
+          <div class="col-documento">Documento</div>
+          <div class="col-nombre">Razón Social</div>
+          <div class="col-email">Email</div>
+          <div class="col-estado">Estado</div>
+          <div class="col-acciones">Acciones</div>
+        </div>
+
+        <!-- FILAS -->
+        <div class="table-body">
+          <div *ngFor="let contratista of getContratistasPaginated()" 
+               class="table-row" 
+               [class.sin-email]="!contratista.tieneEmail"
+               [class.seleccionado]="contratista.seleccionado">
+            
+            <div class="col-select">
+              <input type="checkbox" 
+                     [checked]="contratista.seleccionado" 
+                     (change)="toggleSeleccion(contratista)"
+                     [disabled]="!contratista.tieneEmail">
+            </div>
+            
+            <div class="col-documento">
+              <span class="documento-text">{{ contratista.documentoIdentidad }}</span>
+            </div>
+            
+            <div class="col-nombre">
+              <span class="nombre-text">{{ contratista.razonSocial }}</span>
+              <span class="telefono-text" *ngIf="contratista.telefono">
+                <i class="fas fa-phone me-1"></i>{{ contratista.telefono }}
+              </span>
+            </div>
+            
+            <div class="col-email">
+              <span class="email-text" [class.text-muted]="!contratista.tieneEmail">
+                <i class="fas" [ngClass]="[getEmailStatusIcon(contratista), getEmailStatusColor(contratista)]"
+                   [title]="getEmailStatusTooltip(contratista)">
+                </i>
+                {{ contratista.email || 'Sin email' }}
+              </span>
+            </div>
+            
+            <div class="col-estado">
+              <span class="status-badge" [class]="getEstadoClass(contratista.estado)">
+                {{ getEstadoTexto(contratista.estado) }}
+              </span>
+            </div>
+            
+            <div class="col-acciones">
+              <button class="btn-action btn-send" 
+                      (click)="enviarEnlaceIndividual(contratista)"
+                      [disabled]="!contratista.tieneEmail || enviandoIds.has(contratista.id)"
+                      [title]="!contratista.tieneEmail ? 'Sin email registrado' : 'Enviar enlace'">
+                <i class="fas fa-paper-plane" 
+                   [class.fa-spin]="enviandoIds.has(contratista.id)"></i>
+                {{ enviandoIds.has(contratista.id) ? 'Enviando...' : 'Enviar' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGINACIÓN -->
+      <div class="pagination-container" *ngIf="filteredContratistas.length > 0">
+        <div class="pagination-info">
+          Mostrando {{ (currentPage - 1) * pageSize + 1 }} - 
+          {{ Math.min(currentPage * pageSize, filteredContratistas.length) }} 
+          de {{ filteredContratistas.length }} contratistas
+        </div>
+        <div class="pagination-controls">
+          <button class="page-btn" [disabled]="currentPage === 1" (click)="changePage(currentPage - 1)">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <span *ngFor="let page of pages" 
+                class="page-number" 
+                [class.active]="page === currentPage"
+                (click)="changePage(page)">
+            {{ page }}
+          </span>
+          <button class="page-btn" [disabled]="currentPage === totalPages" (click)="changePage(currentPage + 1)">
+            <i class="fas fa-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER INFO -->
+    <div class="footer-info">
+      <p class="text-muted small">
+        <i class="fas fa-info-circle me-1"></i>
+        Los contratistas sin email no pueden recibir enlaces. 
+        Para enviar enlaces, asegúrese de que el contratista tenga un email registrado.
+      </p>
+    </div>
+
+  </div>
+</div>

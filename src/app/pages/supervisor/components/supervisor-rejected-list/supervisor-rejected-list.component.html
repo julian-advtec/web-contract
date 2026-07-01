@@ -182,24 +182,7 @@
                                             <i class="fas fa-lock me-1"></i> Solo lectura
                                         </div>
 
-                                        <!-- Botones de vista rápida de documentos -->
-                                        <div class="btn-group mt-1" *ngIf="getDocumentCount(doc) > 0">
-                                            <button class="btn btn-outline-info btn-sm flex-fill"
-                                                (click)="previsualizarDocumentoEspecifico(doc, 1)"
-                                                [disabled]="!doc.cuentaCobro" title="Ver Cuenta de Cobro">
-                                                <i class="fas fa-file-invoice"></i>
-                                            </button>
-                                            <button class="btn btn-outline-info btn-sm flex-fill"
-                                                (click)="previsualizarDocumentoEspecifico(doc, 2)"
-                                                [disabled]="!doc.seguridadSocial" title="Ver Seguridad Social">
-                                                <i class="fas fa-shield-alt"></i>
-                                            </button>
-                                            <button class="btn btn-outline-info btn-sm flex-fill"
-                                                (click)="previsualizarDocumentoEspecifico(doc, 3)"
-                                                [disabled]="!doc.informeActividades" title="Ver Informe de Actividades">
-                                                <i class="fas fa-chart-line"></i>
-                                            </button>
-                                        </div>
+                                        
                                     </div>
                                 </div>
                             </div>

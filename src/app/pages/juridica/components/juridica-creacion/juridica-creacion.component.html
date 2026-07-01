@@ -91,7 +91,8 @@
                 <i class="fas fa-calendar-alt me-1"></i> Vigencia
               </label>
               <div class="field-value-auto">
-                <input type="text" class="form-control campo-bloqueado" [value]="anioActual" [readonly]="true" [disabled]="true">
+                <input type="text" class="form-control campo-bloqueado" [value]="anioActual" [readonly]="true"
+                  [disabled]="true">
                 <span class="auto-badge"><i class="fas fa-robot"></i> Auto</span>
               </div>
             </div>
@@ -105,14 +106,10 @@
                   <i class="fas fa-lock"></i> Bloqueado
                 </span>
               </label>
-              <input type="text" class="form-control" 
-                [class.campo-bloqueado]="isEditMode || isViewMode"
-                formControlName="numeroContrato"
-                [class.is-invalid]="submitted && f['numeroContrato'].errors" 
-                placeholder="Ej: CTG-2025-001"
-                [readonly]="isEditMode || isViewMode" 
-                [disabled]="isEditMode || isViewMode"
-                (blur)="!isEditMode && buscarContratistaPorContrato()">
+              <input type="text" class="form-control" [class.campo-bloqueado]="isEditMode || isViewMode"
+                formControlName="numeroContrato" [class.is-invalid]="submitted && f['numeroContrato'].errors"
+                placeholder="Ej: CTG-2025-001" [readonly]="isEditMode || isViewMode"
+                [disabled]="isEditMode || isViewMode" (blur)="!isEditMode && buscarContratistaPorContrato()">
               <div *ngIf="submitted && f['numeroContrato'].errors" class="invalid-feedback">
                 <i class="fas fa-exclamation-circle me-1"></i> El número de contrato es requerido
               </div>
@@ -125,8 +122,7 @@
                 <i class="fas fa-tag me-1"></i> Tipo de Contrato
               </label>
               <select class="form-select" formControlName="tipoContrato"
-                [class.is-invalid]="submitted && f['tipoContrato'].errors" 
-                [disabled]="isViewMode">
+                [class.is-invalid]="submitted && f['tipoContrato'].errors" [disabled]="isViewMode">
                 <option value="">Seleccione tipo</option>
                 <option *ngFor="let tipo of tiposContrato" [value]="tipo.value">
                   {{ tipo.label }}
@@ -141,8 +137,7 @@
                 <i class="fas fa-user-check me-1"></i> Supervisor
               </label>
               <select class="form-select" formControlName="supervisor"
-                [class.is-invalid]="submitted && f['supervisor'].errors" 
-                [disabled]="isViewMode">
+                [class.is-invalid]="submitted && f['supervisor'].errors" [disabled]="isViewMode">
                 <option value="">Seleccione supervisor</option>
                 <option *ngFor="let sup of supervisores" [value]="sup.id">
                   {{ sup.nombre }}
@@ -158,11 +153,12 @@
             <i class="fas fa-info-circle"></i>
           </div>
           <div class="alert-text">
-            <strong>Información:</strong> Los datos del contratista se cargarán automáticamente al ingresar el número de contrato.
+            <strong>Información:</strong> Los datos del contratista se cargarán automáticamente al ingresar el número de
+            contrato.
           </div>
         </div>
 
-        
+
 
         <!-- Grupo de Datos del Contratista - BLOQUEADOS -->
         <div class="grupo-campos-bloqueados" formGroupName="proveedor">
@@ -182,25 +178,29 @@
             <div class="col-md-2">
               <div class="form-field">
                 <label class="field-label">Número</label>
-                <input type="text" class="form-control campo-bloqueado" formControlName="numeroIdentificacion" [readonly]="true" [disabled]="true">
+                <input type="text" class="form-control campo-bloqueado" formControlName="numeroIdentificacion"
+                  [readonly]="true" [disabled]="true">
               </div>
             </div>
             <div class="col-md-4">
               <div class="form-field">
                 <label class="field-label">Razón Social</label>
-                <input type="text" class="form-control campo-bloqueado" formControlName="nombreRazonSocial" [readonly]="true" [disabled]="true">
+                <input type="text" class="form-control campo-bloqueado" formControlName="nombreRazonSocial"
+                  [readonly]="true" [disabled]="true">
               </div>
             </div>
             <div class="col-md-2">
               <div class="form-field">
                 <label class="field-label">Teléfono</label>
-                <input type="text" class="form-control campo-bloqueado" formControlName="telefono" [readonly]="true" [disabled]="true">
+                <input type="text" class="form-control campo-bloqueado" formControlName="telefono" [readonly]="true"
+                  [disabled]="true">
               </div>
             </div>
             <div class="col-md-2">
               <div class="form-field">
                 <label class="field-label">Email</label>
-                <input type="email" class="form-control campo-bloqueado" formControlName="email" [readonly]="true" [disabled]="true">
+                <input type="email" class="form-control campo-bloqueado" formControlName="email" [readonly]="true"
+                  [disabled]="true">
               </div>
             </div>
           </div>
@@ -212,8 +212,10 @@
             <i class="fas fa-file-alt me-1"></i> Objeto del Contrato
             <span class="badge-locked ms-1"><i class="fas fa-sync-alt"></i> Carga automática</span>
           </label>
-          <textarea class="form-control campo-bloqueado" formControlName="objeto" rows="3" [readonly]="true" [disabled]="true"></textarea>
-          <small class="text-muted"><i class="fas fa-info-circle me-1"></i> Este objeto se carga desde el objetivo del contratista</small>
+          <textarea class="form-control campo-bloqueado" formControlName="objeto" rows="3" [readonly]="true"
+            [disabled]="true"></textarea>
+          <small class="text-muted"><i class="fas fa-info-circle me-1"></i> Este objeto se carga desde el objetivo del
+            contratista</small>
         </div>
 
         <hr class="my-4">
@@ -233,9 +235,8 @@
               <div class="input-group">
                 <span class="input-group-text">$</span>
                 <input type="text" class="form-control text-end" formControlName="valor"
-                  [class.is-invalid]="submitted && f['valor'].errors" 
-                  placeholder="0"
-                  (input)="formatearValor('valor')" (blur)="formatearValor('valor')">
+                  [class.is-invalid]="submitted && f['valor'].errors" placeholder="0" (input)="formatearValor('valor')"
+                  (blur)="formatearValor('valor')">
               </div>
               <small class="text-success" *ngIf="valorNumerico > 0">
                 <i class="fas fa-language me-1"></i> {{ convertirAPalabras(valorNumerico) }}
@@ -249,8 +250,7 @@
                 <i class="fas fa-clock me-1"></i> Plazo (días)
               </label>
               <input type="number" class="form-control" formControlName="plazoDias"
-                [class.is-invalid]="submitted && f['plazoDias'].errors" 
-                placeholder="Días de ejecución" min="1">
+                [class.is-invalid]="submitted && f['plazoDias'].errors" placeholder="Días de ejecución" min="1">
             </div>
           </div>
 
@@ -270,7 +270,8 @@
                 <i class="fas fa-calendar-week me-1"></i> Fecha de Terminación
               </label>
               <div class="field-value-auto">
-                <input type="date" class="form-control campo-bloqueado" formControlName="fechaTerminacion" [readonly]="true">
+                <input type="date" class="form-control campo-bloqueado" formControlName="fechaTerminacion"
+                  [readonly]="true">
                 <span class="auto-badge"><i class="fas fa-calculator"></i> Auto</span>
               </div>
               <small class="text-muted">Calculada automáticamente</small>
@@ -317,7 +318,7 @@
               <label class="field-label">Número CDP</label>
               <input type="text" class="form-control" formControlName="cdp" placeholder="Ej: CDP-2025-000123">
             </div>
-            
+
             <div class="document-card">
               <div class="document-card-header">
                 <i class="fas fa-file-pdf text-danger"></i>
@@ -331,7 +332,8 @@
                     <button type="button" class="btn-icon btn-view" (click)="verDocumento('CDP')" title="Ver">
                       <i class="fas fa-eye"></i>
                     </button>
-                    <button type="button" class="btn-icon btn-download" (click)="descargarDocumento('CDP')" title="Descargar">
+                    <button type="button" class="btn-icon btn-download" (click)="descargarDocumento('CDP')"
+                      title="Descargar">
                       <i class="fas fa-download"></i>
                     </button>
                     <button type="button" class="btn-icon btn-edit" (click)="toggleUpload('CDP')" title="Cambiar">
@@ -339,7 +341,7 @@
                     </button>
                   </div>
                 </div>
-                
+
                 <div *ngIf="!archivos['CDP'].fileName || archivos['CDP'].mostrarUpload" class="upload-area">
                   <input type="file" #fileInputCDP (change)="onFileSelected($event, 'CDP')" accept=".pdf">
                   <label class="upload-btn" (click)="triggerFileInput('CDP')">
@@ -357,7 +359,7 @@
               <label class="field-label">Número RP</label>
               <input type="text" class="form-control" formControlName="rp" placeholder="Ej: RP-2025-000456">
             </div>
-            
+
             <div class="document-card">
               <div class="document-card-header">
                 <i class="fas fa-file-pdf text-danger"></i>
@@ -371,7 +373,8 @@
                     <button type="button" class="btn-icon btn-view" (click)="verDocumento('RP')" title="Ver">
                       <i class="fas fa-eye"></i>
                     </button>
-                    <button type="button" class="btn-icon btn-download" (click)="descargarDocumento('RP')" title="Descargar">
+                    <button type="button" class="btn-icon btn-download" (click)="descargarDocumento('RP')"
+                      title="Descargar">
                       <i class="fas fa-download"></i>
                     </button>
                     <button type="button" class="btn-icon btn-edit" (click)="toggleUpload('RP')" title="Cambiar">
@@ -379,7 +382,7 @@
                     </button>
                   </div>
                 </div>
-                
+
                 <div *ngIf="!archivos['RP'].fileName || archivos['RP'].mostrarUpload" class="upload-area">
                   <input type="file" #fileInputRP (change)="onFileSelected($event, 'RP')" accept=".pdf">
                   <label class="upload-btn" (click)="triggerFileInput('RP')">
@@ -403,8 +406,8 @@
 
         <div class="checkbox-card mb-4">
           <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" role="switch" 
-              formControlName="seDesembolsaAnticipo" id="anticipoCheck">
+            <input class="form-check-input" type="checkbox" role="switch" formControlName="seDesembolsaAnticipo"
+              id="anticipoCheck">
             <label class="form-check-label fw-bold" for="anticipoCheck">
               <i class="fas fa-hand-holding-usd me-2"></i>
               ¿Se desembolsa anticipo?
@@ -428,7 +431,8 @@
                 <label class="field-label">Valor Anticipo</label>
                 <div class="input-group">
                   <span class="input-group-text">$</span>
-                  <input type="text" class="form-control campo-bloqueado text-end" formControlName="valorAnticipo" [readonly]="true">
+                  <input type="text" class="form-control campo-bloqueado text-end" formControlName="valorAnticipo"
+                    [readonly]="true">
                 </div>
               </div>
             </div>
@@ -483,91 +487,93 @@
 
         <hr class="my-4">
 
-        <!-- Pólizas -->
-        <div class="section-title">
-          <i class="fas fa-shield-alt me-2"></i>
-          PÓLIZAS Y GARANTÍAS
-        </div>
+     
+               <!-- PÓLIZAS -->
+        <div class="section-title"><i class="fas fa-shield-alt me-2"></i>PÓLIZAS Y GARANTÍAS</div>
 
         <div class="checkbox-card mb-4">
           <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" role="switch" 
-              formControlName="requierePolizas" id="polizasCheck">
-            <label class="form-check-label fw-bold" for="polizasCheck">
-              <i class="fas fa-shield-virus me-2"></i>
-              ¿El contrato requiere pólizas?
-            </label>
+            <input class="form-check-input" type="checkbox" formControlName="requierePolizas" id="polizasCheck">
+            <label class="form-check-label fw-bold" for="polizasCheck">¿El contrato requiere pólizas?</label>
           </div>
         </div>
 
         <div *ngIf="contratoForm.get('requierePolizas')?.value" class="polizas-container">
+          
           <!-- Póliza de Cumplimiento -->
           <div class="document-card mb-4">
-            <div class="document-card-header">
-              <i class="fas fa-shield-alt"></i>
-              <span>Póliza de Cumplimiento</span>
-              <span class="badge bg-danger">Requerido</span>
-            </div>
+            <div class="document-card-header"><i class="fas fa-shield-alt"></i>Póliza de Cumplimiento <span class="badge bg-danger">Requerido</span></div>
             <div class="document-card-body">
               <div class="row g-3">
-                <div class="col-md-6">
-                  <input type="text" class="form-control" formControlName="polizaCumplimientoNumero" 
-                    placeholder="Número de póliza">
-                </div>
-                <div class="col-md-6">
-                  <select class="form-select" formControlName="polizaCumplimientoAseguradora">
-                    <option value="">Seleccione aseguradora</option>
-                    <option *ngFor="let aseguradora of aseguradoras" [value]="aseguradora">{{ aseguradora }}</option>
-                  </select>
-                </div>
-                <div class="col-md-4">
-                  <div class="input-group">
-                    <span class="input-group-text">$</span>
-                    <input type="text" class="form-control text-end" formControlName="polizaCumplimientoValor"
-                      placeholder="Valor asegurado">
-                  </div>
-                </div>
-                <div class="col-md-4">
-                  <input type="date" class="form-control" formControlName="polizaCumplimientoVigenciaDesde"
-                    placeholder="Vigencia desde">
-                </div>
-                <div class="col-md-4">
-                  <input type="date" class="form-control" formControlName="polizaCumplimientoVigenciaHasta"
-                    placeholder="Vigencia hasta">
-                </div>
+                <div class="col-md-6"><input type="text" class="form-control" formControlName="polizaCumplimientoNumero" placeholder="Número de póliza"></div>
+                <div class="col-md-6"><select class="form-select" formControlName="polizaCumplimientoAseguradora"><option value="">Seleccione aseguradora</option><option *ngFor="let a of aseguradoras" [value]="a">{{ a }}</option></select></div>
+                <div class="col-md-4"><div class="input-group"><span class="input-group-text">$</span><input type="text" class="form-control text-end" formControlName="polizaCumplimientoValor" placeholder="Valor asegurado"></div></div>
+                <div class="col-md-4"><input type="date" class="form-control" formControlName="polizaCumplimientoVigenciaDesde"></div>
+                <div class="col-md-4"><input type="date" class="form-control" formControlName="polizaCumplimientoVigenciaHasta"></div>
               </div>
               <div class="mt-3">
-                <div *ngIf="archivos['POLIZA_CUMPLIMIENTO'].fileName" class="file-preview small">
-                  <i class="fas fa-file-pdf text-danger"></i>
-                  <span>{{ archivos['POLIZA_CUMPLIMIENTO'].fileName }}</span>
-                </div>
-                <div class="upload-area small">
-                  <input type="file" #fileInputPolizaCumplimiento (change)="onFileSelected($event, 'POLIZA_CUMPLIMIENTO')" accept=".pdf">
-                  <label class="upload-btn-sm" (click)="triggerFileInput('POLIZA_CUMPLIMIENTO')">
-                    <i class="fas fa-cloud-upload-alt me-1"></i>
-                    {{ archivos['POLIZA_CUMPLIMIENTO'].fileName ? 'Cambiar PDF' : 'Subir PDF' }}
-                  </label>
-                </div>
+                <div *ngIf="archivos['POLIZA_CUMPLIMIENTO'].fileName" class="file-preview small"><i class="fas fa-file-pdf text-danger"></i><span>{{ archivos['POLIZA_CUMPLIMIENTO'].fileName }}</span></div>
+                <div class="upload-area small"><input type="file" #fileInputPolizaCumplimiento (change)="onFileSelected($event, 'POLIZA_CUMPLIMIENTO')" accept=".pdf"><label class="upload-btn-sm" (click)="triggerFileInput('POLIZA_CUMPLIMIENTO')">{{ archivos['POLIZA_CUMPLIMIENTO'].fileName ? 'Cambiar PDF' : 'Subir PDF' }}</label></div>
               </div>
             </div>
           </div>
+
+          <!-- Póliza de Calidad -->
+          <div class="checkbox-card mb-3">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" formControlName="requierePolizaCalidad" id="polizaCalidadCheck">
+              <label class="form-check-label" for="polizaCalidadCheck"><i class="fas fa-certificate me-2"></i>¿Requiere Póliza de Calidad?</label>
+            </div>
+          </div>
+          <div *ngIf="contratoForm.get('requierePolizaCalidad')?.value" class="document-card mb-4">
+            <div class="document-card-header"><i class="fas fa-certificate"></i>Póliza de Calidad <span class="badge bg-info">Opcional</span></div>
+            <div class="document-card-body">
+              <div class="row g-3">
+                <div class="col-md-6"><input type="text" class="form-control" formControlName="polizaCalidadNumero" placeholder="Número de póliza"></div>
+                <div class="col-md-6"><select class="form-select" formControlName="polizaCalidadAseguradora"><option value="">Seleccione aseguradora</option><option *ngFor="let a of aseguradoras" [value]="a">{{ a }}</option></select></div>
+                <div class="col-md-4"><div class="input-group"><span class="input-group-text">$</span><input type="text" class="form-control text-end" formControlName="polizaCalidadValor" placeholder="Valor asegurado"></div></div>
+                <div class="col-md-4"><input type="date" class="form-control" formControlName="polizaCalidadVigenciaDesde"></div>
+                <div class="col-md-4"><input type="date" class="form-control" formControlName="polizaCalidadVigenciaHasta"></div>
+              </div>
+              <div class="mt-3">
+                <div *ngIf="archivos['POLIZA_CALIDAD'].fileName" class="file-preview small"><i class="fas fa-file-pdf text-danger"></i><span>{{ archivos['POLIZA_CALIDAD'].fileName }}</span></div>
+                <div class="upload-area small"><input type="file" #fileInputPolizaCalidad (change)="onFileSelected($event, 'POLIZA_CALIDAD')" accept=".pdf"><label class="upload-btn-sm" (click)="triggerFileInput('POLIZA_CALIDAD')">{{ archivos['POLIZA_CALIDAD'].fileName ? 'Cambiar PDF' : 'Subir PDF' }}</label></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Póliza de Responsabilidad Civil -->
+          <div class="checkbox-card mb-3">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" formControlName="requierePolizaRC" id="polizaRCCheck">
+              <label class="form-check-label" for="polizaRCCheck"><i class="fas fa-gavel me-2"></i>¿Requiere Póliza de Responsabilidad Civil?</label>
+            </div>
+          </div>
+          <div *ngIf="contratoForm.get('requierePolizaRC')?.value" class="document-card mb-4">
+            <div class="document-card-header"><i class="fas fa-gavel"></i>Póliza de Responsabilidad Civil <span class="badge bg-info">Opcional</span></div>
+            <div class="document-card-body">
+              <div class="row g-3">
+                <div class="col-md-6"><input type="text" class="form-control" formControlName="polizaRCNumero" placeholder="Número de póliza"></div>
+                <div class="col-md-6"><select class="form-select" formControlName="polizaRCAseguradora"><option value="">Seleccione aseguradora</option><option *ngFor="let a of aseguradoras" [value]="a">{{ a }}</option></select></div>
+                <div class="col-md-4"><div class="input-group"><span class="input-group-text">$</span><input type="text" class="form-control text-end" formControlName="polizaRCValor" placeholder="Valor asegurado"></div></div>
+                <div class="col-md-4"><input type="date" class="form-control" formControlName="polizaRCVigenciaDesde"></div>
+                <div class="col-md-4"><input type="date" class="form-control" formControlName="polizaRCVigenciaHasta"></div>
+              </div>
+              <div class="mt-3">
+                <div *ngIf="archivos['POLIZA_RC'].fileName" class="file-preview small"><i class="fas fa-file-pdf text-danger"></i><span>{{ archivos['POLIZA_RC'].fileName }}</span></div>
+                <div class="upload-area small"><input type="file" #fileInputPolizaRC (change)="onFileSelected($event, 'POLIZA_RC')" accept=".pdf"><label class="upload-btn-sm" (click)="triggerFileInput('POLIZA_RC')">{{ archivos['POLIZA_RC'].fileName ? 'Cambiar PDF' : 'Subir PDF' }}</label></div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
-
       <div class="card-footer d-flex justify-content-between">
-        <button type="button" class="btn btn-outline-secondary" (click)="pasoAnterior()">
-          <i class="fas fa-arrow-left me-2"></i> Anterior
-        </button>
-        <div>
-          <button type="button" class="btn btn-outline-danger me-2" (click)="cancelar()">
-            <i class="fas fa-times me-2"></i> Cancelar
-          </button>
-          <button type="button" class="btn btn-primary" (click)="siguientePaso()">
-            Siguiente <i class="fas fa-arrow-right ms-2"></i>
-          </button>
-        </div>
+        <button type="button" class="btn btn-outline-secondary" (click)="pasoAnterior()">Anterior</button>
+        <div><button type="button" class="btn btn-outline-danger me-2" (click)="cancelar()">Cancelar</button><button type="button" class="btn btn-primary" (click)="siguientePaso()">Siguiente</button></div>
       </div>
     </div>
+
 
     <!-- ==================== PASO 3 ==================== -->
     <div class="card fade-in" *ngIf="pasoActual === 3">
@@ -609,7 +615,8 @@
                     <button type="button" class="btn-icon btn-view" (click)="verDocumento('MINUTA')" title="Ver">
                       <i class="fas fa-eye"></i>
                     </button>
-                    <button type="button" class="btn-icon btn-download" (click)="descargarDocumento('MINUTA')" title="Descargar">
+                    <button type="button" class="btn-icon btn-download" (click)="descargarDocumento('MINUTA')"
+                      title="Descargar">
                       <i class="fas fa-download"></i>
                     </button>
                     <button type="button" class="btn-icon btn-edit" (click)="toggleUpload('MINUTA')" title="Cambiar">
@@ -617,7 +624,7 @@
                     </button>
                   </div>
                 </div>
-                
+
                 <div *ngIf="!archivos['MINUTA'].fileName || archivos['MINUTA'].mostrarUpload" class="upload-area">
                   <input type="file" #fileInputMinuta (change)="onFileSelected($event, 'MINUTA')" accept=".pdf">
                   <label class="upload-btn" (click)="triggerFileInput('MINUTA')">
@@ -646,17 +653,20 @@
                     <button type="button" class="btn-icon btn-view" (click)="verDocumento('ACTA_INICIO')" title="Ver">
                       <i class="fas fa-eye"></i>
                     </button>
-                    <button type="button" class="btn-icon btn-download" (click)="descargarDocumento('ACTA_INICIO')" title="Descargar">
+                    <button type="button" class="btn-icon btn-download" (click)="descargarDocumento('ACTA_INICIO')"
+                      title="Descargar">
                       <i class="fas fa-download"></i>
                     </button>
-                    <button type="button" class="btn-icon btn-edit" (click)="toggleUpload('ACTA_INICIO')" title="Cambiar">
+                    <button type="button" class="btn-icon btn-edit" (click)="toggleUpload('ACTA_INICIO')"
+                      title="Cambiar">
                       <i class="fas fa-edit"></i>
                     </button>
                   </div>
                 </div>
-                
+
                 <div *ngIf="!archivos['ACTA_INICIO'].fileName" class="upload-area">
-                  <input type="file" #fileInputActaInicio (change)="onFileSelected($event, 'ACTA_INICIO')" accept=".pdf">
+                  <input type="file" #fileInputActaInicio (change)="onFileSelected($event, 'ACTA_INICIO')"
+                    accept=".pdf">
                   <label class="upload-btn" (click)="triggerFileInput('ACTA_INICIO')">
                     <i class="fas fa-cloud-upload-alt me-2"></i>
                     Seleccionar archivo PDF
@@ -685,7 +695,7 @@
             <i class="fas fa-building me-2"></i>
             Documentos subidos por: <strong>{{ contratistaEncontrado?.razonSocial || 'Contratista' }}</strong>
           </div>
-          
+
           <div class="table-responsive">
             <table class="table table-hover">
               <thead>
@@ -710,10 +720,12 @@
                   <td><i class="fas fa-user-check me-1"></i> {{ doc.subidoPor || 'Sistema' }}</td>
                   <td>
                     <div class="btn-group btn-group-sm">
-                      <button type="button" class="btn-action btn-view" (click)="verDocumentoContratista(doc)" title="Ver">
+                      <button type="button" class="btn-action btn-view" (click)="verDocumentoContratista(doc)"
+                        title="Ver">
                         <i class="fas fa-eye"></i>
                       </button>
-                      <button type="button" class="btn-action btn-download" (click)="descargarDocumentoContratista(doc)" title="Descargar">
+                      <button type="button" class="btn-action btn-download" (click)="descargarDocumentoContratista(doc)"
+                        title="Descargar">
                         <i class="fas fa-download"></i>
                       </button>
                     </div>
@@ -724,16 +736,19 @@
           </div>
         </div>
 
-        <div *ngIf="!cargandoDocumentosContratista && contratistaDocumentos.length === 0 && contratistaEncontrado" class="text-center py-4">
+        <div *ngIf="!cargandoDocumentosContratista && contratistaDocumentos.length === 0 && contratistaEncontrado"
+          class="text-center py-4">
           <div class="alert-warning-card">
             <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
-            <p>El contratista <strong>{{ contratistaEncontrado.razonSocial }}</strong> no tiene documentos subidos en el sistema.</p>
+            <p>El contratista <strong>{{ contratistaEncontrado.razonSocial }}</strong> no tiene documentos subidos en el
+              sistema.</p>
           </div>
         </div>
 
         <div *ngIf="!contratistaEncontrado" class="alert-warning-card">
           <i class="fas fa-info-circle me-2"></i>
-          No hay un contratista asociado a este número de contrato. Por favor ingrese el número de contrato en el paso 1.
+          No hay un contratista asociado a este número de contrato. Por favor ingrese el número de contrato en el paso
+          1.
         </div>
       </div>
 

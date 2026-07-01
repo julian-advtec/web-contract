@@ -77,7 +77,7 @@
             <div class="header-item">Contratista</div>
             <div class="header-item">Contrato</div>
             <div class="header-item">Estado</div>
-            <div class="header-item">Supervisor / Fechas</div>
+            <div class="header-item">Supervisor</div>
             <div class="header-item acciones-header">Acciones</div>
           </div>
 
@@ -149,16 +149,7 @@
                     <strong>Supervisor:</strong> {{ doc.supervisor || doc.usuarioAsignadoNombre || 'No asignado' }}
                   </small>
                 </div>
-                <div class="fechas-container small">
-                  <div class="fecha-line">
-                    <span class="fecha-label">Aprobado:</span>
-                    <span class="fecha-value">{{ formatDateShort(doc.fechaAprobacionSupervisor) || 'N/A' }}</span>
-                  </div>
-                  <div class="fecha-line" *ngIf="doc.fechaAsignacionContabilidad">
-                    <span class="fecha-label">Asignado:</span>
-                    <span class="fecha-value">{{ formatDateShort(doc.fechaAsignacionContabilidad) }}</span>
-                  </div>
-                </div>
+                
               </div>
 
               <!-- Acciones -->
@@ -222,10 +213,7 @@
                   </div>
                 </div>
 
-                <!-- Mensaje si no hay documentos -->
-                <div *ngIf="getDocumentCount(doc) === 0" class="text-muted small text-center mt-2">
-                  <i class="fas fa-exclamation-circle me-1"></i> Sin documentos disponibles
-                </div>
+                
               </div>
             </div>
           </div>

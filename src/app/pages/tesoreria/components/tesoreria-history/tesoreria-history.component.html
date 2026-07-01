@@ -1,21 +1,42 @@
 <div class="tesoreria-history-container" [class.sidebar-collapsed]="sidebarCollapsed">
   <div class="tesoreria-history-inner">
 
+    <!-- Cabecera con título y contadores -->
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
+      <h4 class="mb-0">
+        <i class="fas fa-history me-2 text-primary"></i>
+        Historial de Pagos
+      </h4>
+
+    </div>
+
     <!-- Barra de búsqueda -->
-    <div class="search-container mt-3 mb-5">
-      <div class="d-flex flex-wrap gap-2 align-items-center">
-        <div class="input-group search-group flex-grow-1">
-          <span class="input-group-text">
-            <i class="fas fa-search"></i>
-          </span>
-          <input type="text" class="form-control"
-            placeholder="Buscar radicado, contratista, estado, número de pago..." [(ngModel)]="searchTerm"
-            (input)="onSearch()" [disabled]="loading" />
-        </div>
+    <div class="search-container mt-3 mb-4">
+      <div class="input-group search-group">
+        <span class="input-group-text bg-white border-end-0">
+          <i class="fas fa-search text-muted"></i>
+        </span>
+        <input type="text" class="form-control border-start-0" 
+               placeholder="Buscar por radicado, contratista, contrato, estado, número de pago..."
+               [(ngModel)]="searchTerm" (input)="onSearch()" [disabled]="loading" />
       </div>
     </div>
 
-   
+    <!-- Mensajes -->
+    <div *ngIf="error" class="alert alert-danger alert-dismissible fade show">
+      <i class="fas fa-exclamation-triangle me-2"></i> {{ error }}
+      <button type="button" class="btn-close" (click)="dismissError()"></button>
+    </div>
+
+    <div *ngIf="successMessage" class="alert alert-success alert-dismissible fade show">
+      <i class="fas fa-check-circle me-2"></i> {{ successMessage }}
+      <button type="button" class="btn-close" (click)="dismissSuccess()"></button>
+    </div>
+
+    <div *ngIf="infoMessage" class="alert alert-info alert-dismissible fade show">
+      <i class="fas fa-info-circle me-2"></i> {{ infoMessage }}
+      <button type="button" class="btn-close" (click)="dismissInfo()"></button>
+    </div>
 
     <!-- Contenido principal -->
     <div class="card shadow main-card">
@@ -67,26 +88,24 @@
 
               <!-- Radicado -->
               <div class="pago-info">
-                <div class="pago-details">
-                  <h5 class="pago-numero mb-1">
-                    <i class="fas fa-hashtag me-1"></i>{{ getNumeroRadicado(item) }}
-                    <span *ngIf="esPagoReciente(item)" class="reciente-badge ms-2">
-                      <i class="fas fa-star me-1"></i>NUEVO
-                    </span>
-                  </h5>
-                  <p class="pago-fecha mb-1">
-                    <i class="far fa-calendar me-1"></i>
-                    {{ formatDateOnly(item.documento?.fechaRadicacion || item.fechaPago || item.fechaActualizacion) }}
-                  </p>
-                  <small class="text-muted">
-                    {{ getResponsablePago(item) || 'Tesorería' }}
-                  </small>
-                </div>
+                <h5 class="pago-numero mb-1">
+                  <i class="fas fa-hashtag me-1"></i>{{ getNumeroRadicado(item) }}
+                  <span *ngIf="esPagoReciente(item)" class="reciente-badge ms-2">
+                    <i class="fas fa-star me-1"></i>NUEVO
+                  </span>
+                </h5>
+                <p class="pago-fecha mb-1">
+                  <i class="far fa-calendar me-1"></i>
+                  {{ formatDateOnly(item.documento?.fechaRadicacion || item.fechaPago || item.fechaActualizacion) }}
+                </p>
+                <small class="text-muted">
+                  {{ getResponsablePago(item) || 'Tesorería' }}
+                </small>
               </div>
 
               <!-- Contratista -->
               <div class="pago-contratista">
-                <p class="contratista-nombre mb-1">{{ getNombreContratista(item) || 'Sin nombre' }}</p>
+                <p class="contratista-nombre mb-1"><strong>{{ getNombreContratista(item) || 'Sin nombre' }}</strong></p>
                 <p class="contratista-documento mb-0">
                   <i class="fas fa-id-card me-1"></i>{{ getDocumentoContratista(item) || 'Sin documento' }}
                 </p>
@@ -98,10 +117,7 @@
                   <i class="fas fa-file-contract me-1"></i>
                   {{ getNumeroContrato(item) || 'Sin contrato' }}
                 </span>
-                <span class="valor-pago mt-1 d-block">
-                  <i class="fas fa-money-bill-wave me-1"></i>
-                  {{ getValorPago(item) | currency:'COP':'symbol':'1.0-0' }}
-                </span>
+          
               </div>
 
               <!-- Estado Pago -->
@@ -110,11 +126,11 @@
                   <i class="fas fa-flag me-1"></i>
                   {{ getEstadoPagoTexto(item.estadoPago) }}
                 </span>
-                <div *ngIf="item.numeroPago" class="numero-pago mt-1 d-block">
+                <div *ngIf="item.numeroPago" class="numero-pago mt-1">
                   <i class="fas fa-file-invoice me-1"></i>
                   Pago #{{ item.numeroPago }}
                 </div>
-                <div class="fecha-pago mt-1 d-block">
+                <div class="fecha-pago mt-1">
                   <i class="far fa-calendar-alt me-1"></i>
                   {{ formatDateOnly(item.fechaPago || item.fechaActualizacion) }}
                 </div>
@@ -122,49 +138,27 @@
 
               <!-- Acciones -->
               <div class="pago-acciones">
-                <div class="d-flex flex-column gap-2 align-items-start">
-                  <!-- Ver detalles del pago -->
-                  <button class="btn btn-sm w-100 btn-info" 
-                          (click)="verDetallePago(item)" 
-                          [disabled]="isProcessing || loading">
-                    <i class="fas fa-eye me-1"></i>
-                    Ver Detalles
-                  </button>
+                <button class="btn btn-sm w-100 btn-info" 
+                        (click)="verDetallePago(item)" 
+                        [disabled]="isProcessing || loading">
+                  <i class="fas fa-eye me-1"></i> Ver Detalles
+                </button>
 
-                  <!-- Si está en proceso y soy el responsable, puedo continuar -->
-                  <button *ngIf="item.estadoPago === 'EN_PROCESO' && esMiPago(item)" 
-                          class="btn btn-sm w-100 btn-warning" 
-                          (click)="continuarPago(item)">
-                    <i class="fas fa-edit me-1"></i>
-                    Continuar Pago
-                  </button>
+                <button *ngIf="item.estadoPago === 'EN_PROCESO' && esMiPago(item)" 
+                        class="btn btn-sm w-100 btn-warning mt-1" 
+                        (click)="continuarPago(item)">
+                  <i class="fas fa-edit me-1"></i> Continuar Pago
+                </button>
 
-                  <!-- Botón para generar comprobante si está pagado -->
-                  <button *ngIf="item.estadoPago === 'PAGADO'" 
-                          class="btn btn-sm w-100 btn-success" 
-                          (click)="generarComprobante(item)">
-                    <i class="fas fa-file-pdf me-1"></i>
-                    Comprobante
-                  </button>
+                <button *ngIf="item.estadoPago === 'PAGADO'" 
+                        class="btn btn-sm w-100 btn-success mt-1" 
+                        (click)="generarComprobante(item)">
+                  <i class="fas fa-file-pdf me-1"></i> Comprobante
+                </button>
 
-                  <div class="badge w-100 text-center mt-2" [ngClass]="{
-                    'bg-success': item.estadoPago === 'PAGADO',
-                    'bg-warning text-dark': item.estadoPago === 'EN_PROCESO',
-                    'bg-danger': item.estadoPago === 'ANULADO',
-                    'bg-primary': item.estadoPago === 'PENDIENTE',
-                    'bg-secondary': !item.estadoPago
-                  }">
-                    <i class="fas me-1" [ngClass]="{
-                      'fa-lock': item.estadoPago === 'PAGADO' || item.estadoPago === 'ANULADO',
-                      'fa-unlock': item.estadoPago === 'EN_PROCESO'
-                    }"></i>
-                    {{ getAccesoTexto(item) }}
-                  </div>
+               
 
-                  <small class="text-muted w-100 text-center mt-2">
-                    <i class="fas fa-clock me-1"></i> Duración: {{ getDuracionProceso(item) }}
-                  </small>
-                </div>
+              
               </div>
 
             </div>

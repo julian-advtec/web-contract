@@ -1,145 +1,590 @@
 @import '../../../../shared/layout-styles.scss';
 
-$color-verde: #10B981;
-$color-verde-light: rgba(16, 185, 129, 0.1);
-$color-verde-medium: rgba(16, 185, 129, 0.2);
-$color-verde-dark: #0D9D6B;
+/* ===== VARIABLES ESPECÍFICAS DE AUDITOR LIST ===== */
+$color-auditor: #10B981;               // Verde principal
+$color-auditor-light: rgba(16, 185, 129, 0.1);
+$color-auditor-medium: rgba(16, 185, 129, 0.2);
+$color-auditor-dark: #0D9D6B;
+$color-success: #10B981;
+$color-success-light: rgba(16, 185, 129, 0.1);
+$color-warning: #F59E0B;
+$color-warning-light: rgba(245, 158, 11, 0.1);
+$color-danger: #EF4444;
+$color-danger-light: rgba(239, 68, 68, 0.1);
+$color-info: #3B82F6;
+$color-info-light: rgba(59, 130, 246, 0.1);
+$color-secondary: #6B7280;
+$color-secondary-light: rgba(107, 114, 128, 0.1);
 
+/* ===== CONTENEDOR PRINCIPAL ===== */
 .auditor-list-container {
   width: 100%;
+  height: 100%;
   min-height: calc(100vh - 80px);
-  background: #f8f9fa;
+  background-color: #f8f9fa;
+  overflow-y: auto;
+  
+  &.sidebar-collapsed {
+    margin-left: 0;
+  }
 
   .auditor-list-inner {
     padding: 15px;
     max-width: 1600px;
     margin: 0 auto;
+    width: 100%;
+    min-height: 100%;
   }
 }
 
+/* ===== BARRA DE BÚSQUEDA ===== */
 .search-container {
+  width: 100%;
+  margin: 0 auto 20px;
+  max-width: 800px;
+  
   .search-group {
+    width: 100%;
     border: 4px solid rgba(16, 185, 129, 0.4);
     border-radius: 12px;
     overflow: hidden;
     background: white;
-
+    display: flex;
+    align-items: stretch;
+    
     .input-group-text {
-      background: rgba(16, 185, 129, 0.08);
-      color: $color-verde;
+      background-color: rgba(16, 185, 129, 0.08);
       border: none;
+      margin: 0;
+      color: $color-auditor;
+      padding: 0.7rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      flex-shrink: 0;
     }
-
+    
     .form-control {
       border: none;
+      margin: 0;
+      width: 100%;
+      padding: 0.7rem 1rem;
+      font-size: 0.9rem;
+      box-shadow: none;
       text-align: center;
-
+      flex: 1;
+      
       &:focus {
+        outline: none;
         box-shadow: none;
       }
-
+      
       &::placeholder {
         color: rgba(16, 185, 129, 0.6);
+        font-size: 0.9rem;
       }
     }
   }
 }
 
+/* ===== TARJETA PRINCIPAL ===== */
+.main-card {
+  border: none;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+  border: 2px solid $color-auditor-light;
+  margin-bottom: 1.5rem;
+
+  .card-body {
+    padding: 0;
+  }
+}
+
+/* ===== CONTENEDOR DE DOCUMENTOS ===== */
 .documentos-container {
   padding: 20px;
+  width: 100%;
 }
 
+/* ===== ENCABEZADOS DE TABLA ===== */
 .documentos-header {
   display: grid;
-  grid-template-columns: 1.5fr 1.5fr 1fr 1fr 1fr 1fr;
-  gap: 1.2rem;
+  grid-template-columns: 1.5fr 1.5fr 1fr 1fr 1fr 1.2fr;
+  gap: 1rem;
   padding: 1rem 1.2rem;
-  background: $color-verde-light;
-  border-bottom: 2px solid $color-verde-medium;
+  margin-bottom: 0.8rem;
+  border-bottom: 2px solid $color-auditor-medium;
   font-weight: 700;
-  color: $color-verde-dark;
+  color: $color-auditor-dark;
   text-align: center;
+  width: 100%;
   font-size: 0.85rem;
+  background: $color-auditor-light;
   border-radius: 8px 8px 0 0;
+
+  .header-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+  }
+  
+  .acciones-header {
+    text-align: center;
+  }
 }
 
+/* ===== LISTA DE DOCUMENTOS ===== */
 .documentos-list {
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
+  width: 100%;
 }
 
+/* ===== TARJETA DE DOCUMENTO ===== */
 .documento-card {
   display: grid;
-  grid-template-columns: 1.5fr 1.5fr 1fr 1fr 1fr 1fr;
-  gap: 1.2rem;
+  grid-template-columns: 1.5fr 1.5fr 1fr 1fr 1fr 1.2fr;
+  gap: 1rem;
   padding: 1rem;
-  background: $color-verde-light !important;
-  border: 1px solid $color-verde-medium;
+  background: $color-auditor-light !important;
   border-radius: 10px;
+  border: 1px solid $color-auditor-medium;
+  transition: all 0.3s ease;
   align-items: center;
   text-align: center;
+  width: 100%;
+  cursor: default;
+  position: relative;
 
   &:hover {
-    background: $color-verde-medium !important;
-    border-color: $color-verde;
+    background-color: $color-auditor-medium !important;
+    border-color: $color-auditor;
     transform: translateY(-2px);
     box-shadow: 0 6px 15px rgba(16, 185, 129, 0.15);
   }
 
+  &.reciente {
+    background: linear-gradient(90deg, $color-info-light 0%, $color-auditor-light 100%) !important;
+    border-left: 4px solid $color-info;
+    
+    .reciente-badge {
+      background: $color-info;
+      color: white;
+      font-size: 0.7rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 10px;
+      margin-left: 0.5rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+    }
+  }
+
   & > * {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-width: 0;
+    overflow: hidden;
+  }
+}
+
+/* ===== INFORMACIÓN DEL DOCUMENTO ===== */
+.documento-info {
+  .documento-details {
+    width: 100%;
+    text-align: center;
+
+    .documento-numero {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: $color-auditor-dark;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 0.3rem;
+      line-height: 1.3;
+    }
+
+    .documento-fecha {
+      margin: 0.25rem 0 0 0;
+      font-size: 0.8rem;
+      color: $color-auditor-dark;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    small {
+      font-size: 0.75rem;
+      color: $color-auditor;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+  }
+}
+
+/* ===== CONTRATISTA ===== */
+.documento-contratista {
+  .contratista-info {
+    width: 100%;
+    text-align: center;
+
+    .contratista-nombre {
+      margin: 0 0 0.3rem 0;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: $color-auditor-dark;
+      word-break: break-word;
+    }
+
+    .contratista-documento {
+      margin: 0;
+      font-size: 0.8rem;
+      color: $color-secondary;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+}
+
+/* ===== CONTRATO ===== */
+.documento-contrato {
+  .contrato-info {
+    width: 100%;
+    text-align: center;
+
+    .contrato-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.3em 0.7em;
+      border-radius: 50px;
+      font-size: 0.8em;
+      font-weight: 500;
+      background-color: white !important;
+      color: $color-auditor-dark !important;
+      border: 1px solid $color-auditor;
+      white-space: nowrap;
+      min-width: 80px;
+    }
+
+    .contrato-periodo {
+      font-size: 0.75rem;
+      color: $color-secondary;
+      margin-top: 0.3rem;
+      display: block;
+    }
+  }
+}
+
+/* ===== ESTADO ===== */
+.documento-estado {
+  .estado-info {
+    width: 100%;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+
+    .estado-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.3rem;
+      padding: 0.4em 0.8em;
+      border-radius: 50px;
+      font-size: 0.8em;
+      font-weight: 500;
+      white-space: nowrap;
+      background-color: white;
+      border: 1px solid;
+      min-width: 100px;
+
+      &.bg-success {
+        color: $color-success;
+        border-color: $color-success;
+        background-color: $color-success-light;
+      }
+
+      &.bg-warning {
+        color: $color-warning;
+        border-color: $color-warning;
+        background-color: $color-warning-light;
+      }
+
+      &.bg-danger {
+        color: $color-danger;
+        border-color: $color-danger;
+        background-color: $color-danger-light;
+      }
+
+      &.bg-info {
+        color: $color-info;
+        border-color: $color-info;
+        background-color: $color-info-light;
+      }
+
+      &.bg-primary {
+        color: $color-auditor;
+        border-color: $color-auditor;
+        background-color: $color-auditor-light;
+      }
+
+      &.bg-secondary {
+        color: $color-secondary;
+        border-color: $color-secondary;
+        background-color: $color-secondary-light;
+      }
+    }
+
+    .estado-fecha {
+      font-size: 0.8rem;
+      color: $color-secondary;
+    }
+
+    .observacion-preview {
+      small {
+        font-size: 0.75rem;
+        color: $color-secondary;
+        line-height: 1.3;
+      }
+    }
+  }
+}
+
+/* ===== FECHA ===== */
+.documento-fecha {
+  .fecha-info {
+    width: 100%;
+    text-align: center;
+
+    .fecha-texto {
+      font-size: 0.8rem;
+      color: $color-secondary;
+    }
+  }
+}
+
+/* ===== ACCIONES ===== */
+.documento-acciones {
+  .acciones-buttons {
+    width: 100%;
+    text-align: center;
+
+    .d-flex {
+      flex-direction: column;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .btn-success {
+      background: $color-auditor !important;
+      border-color: $color-auditor !important;
+      color: white !important;
+      min-width: 100px;
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+
+      &:hover:not(:disabled) {
+        background: $color-auditor-dark !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+      }
+    }
+
+    small {
+      font-size: 0.75rem;
+      color: $color-secondary;
+      margin-top: 0.3rem;
+    }
+  }
+}
+
+/* ===== PAGINACIÓN ===== */
+.documentos-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  margin-top: 1.2rem;
+  border-top: 1px solid $color-auditor-light;
+  flex-wrap: wrap;
+
+  .pagination-info {
+    font-size: 0.9rem;
+    color: $color-secondary;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    width: 100%;
+    text-align: center;
+  }
+
+  .pagination-controls {
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 0.8rem;
+    width: 100%;
+    flex-wrap: wrap;
+
+    .btn {
+      border-radius: 8px;
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      min-width: 100px;
+      transition: all 0.3s ease;
+
+      &:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      &.btn-outline-success {
+        color: $color-auditor;
+        border-color: $color-auditor;
+
+        &:hover {
+          background: $color-auditor;
+          color: white;
+        }
+      }
+
+      &.btn-success {
+        background: $color-auditor;
+        border-color: $color-auditor;
+      }
+    }
+
+    .page-numbers {
+      display: flex;
+      gap: 0.3rem;
+      flex-wrap: wrap;
+      justify-content: center;
+
+      .btn {
+        min-width: 36px;
+        height: 36px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
   }
 }
 
-.documento-numero {
-  font-weight: 700;
-  color: $color-verde-dark;
-}
+/* ===== RESPONSIVE ===== */
 
-.contrato-badge {
-  background: white;
-  color: $color-verde-dark;
-  border: 1px solid $color-verde;
-  padding: 0.3em 0.7em;
-  border-radius: 50px;
-  font-weight: 500;
-}
-
-.badge {
-  padding: 0.4em 0.8em;
-  border-radius: 50px;
-  font-weight: 500;
-  min-width: 100px;
-}
-
-.btn-success {
-  background: $color-verde;
-  border-color: $color-verde;
-
-  &:hover {
-    background: $color-verde-dark;
+/* Desktop grande */
+@media (min-width: 1200px) {
+  .documentos-header {
+    font-size: 0.9rem;
   }
-}
 
-/* Responsive */
-@media (max-width: 992px) {
-  .documentos-header { display: none; }
   .documento-card {
+    padding: 1.2rem;
+  }
+}
+
+/* Tablet grande */
+@media (max-width: 1199px) {
+  .documentos-header {
+    grid-template-columns: 1.3fr 1.3fr 1fr 1fr 1fr 1.3fr;
+    gap: 0.8rem;
+  }
+
+  .documento-card {
+    grid-template-columns: 1.3fr 1.3fr 1fr 1fr 1fr 1.3fr;
+    gap: 0.8rem;
+  }
+}
+
+/* Tablet / Mobile grande */
+@media (max-width: 992px) {
+  .documentos-header {
+    display: none;
+  }
+
+  .documento-card {
+    display: grid;
     grid-template-columns: 1fr 1fr;
     grid-template-areas: 
       "info info"
-      "contratista estado"
+      "contratista contrato"
+      "estado fecha"
       "acciones acciones";
+    gap: 1rem;
+    padding: 1.2rem;
+
+    .documento-info { grid-area: info; border-bottom: 2px solid $color-auditor-light; padding-bottom: 1rem; }
+    .documento-contratista { grid-area: contratista; }
+    .documento-contrato { grid-area: contrato; }
+    .documento-estado { grid-area: estado; }
+    .documento-fecha { grid-area: fecha; }
+    .documento-acciones { grid-area: acciones; margin-top: 1rem; border-top: 2px solid $color-auditor-light; padding-top: 1rem; }
   }
 }
 
+/* Mobile */
 @media (max-width: 768px) {
   .documento-card {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    padding: 1rem;
+
+    > * {
+      width: 100%;
+      text-align: center;
+      padding: 0.8rem 0;
+      border-bottom: 1px solid $color-auditor-light;
+
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+  }
+
+  .documentos-pagination {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+  }
+}
+
+/* Scrollbar personalizado */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: $color-auditor;
+  border-radius: 4px;
+
+  &:hover {
+    background: $color-auditor-dark;
   }
 }

@@ -588,6 +588,8 @@ private limpiarArchivosSegunTipo(tipo: string): void {
       });
   }
 
+  
+
   previsualizarArchivo(tipo: string): void {
     const archivo = this.archivosPrevios.find(a => a.tipo === tipo);
 

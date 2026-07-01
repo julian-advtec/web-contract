@@ -1,4 +1,3 @@
-// src/app/core/services/auth.service.ts
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, throwError, Subscription } from 'rxjs';
@@ -10,11 +9,6 @@ import { TokenUtils } from '../utils/token.util';
 import { NotificationService } from './notification.service';
 import { UserActivityService } from './user-activity.service';
 
-interface LoginRequest {
-  username: string;
-  password: string;
-}
-
 interface LoginResponse {
   token?: string;
   access_token?: string;
@@ -22,11 +16,6 @@ interface LoginResponse {
   userId?: string;
   requiresTwoFactor?: boolean;
   message?: string;
-}
-
-interface TwoFactorRequest {
-  userId: string;
-  code: string;
 }
 
 interface TwoFactorResponse {
@@ -72,8 +61,7 @@ export class AuthService {
   private warningShown = false;
   private lastRefreshTime = 0;
   
-  // ✅ CAMBIADO A 15 MINUTOS (900,000 milisegundos)
-  private readonly MIN_REFRESH_INTERVAL = 15 * 60 * 1000; // 15 minutos
+  private readonly MIN_REFRESH_INTERVAL = 15 * 60 * 1000;
   
   private timeInterval: any = null;
 
@@ -88,7 +76,6 @@ export class AuthService {
 
       if (token && userStr && token !== 'undefined' && userStr !== 'undefined' && userStr !== 'null') {
         if (TokenUtils.isTokenExpired(token)) {
-          console.log('🔐 Token almacenado expirado, limpiando');
           this.clearStoredAuth();
           return;
         }
@@ -100,8 +87,6 @@ export class AuthService {
         this.startActivityMonitoring();
         this.updateTimeRemaining();
         this.startTimeInterval();
-
-        console.log('🔐 Auth loaded from storage:', user.username);
       }
     } catch (error) {
       console.error('Error loading stored auth:', error);
@@ -161,12 +146,7 @@ export class AuthService {
     this.timeRemainingSubject.next(Math.max(0, timeLeft));
     this.tokenExpirationSubject.next(TokenUtils.getTokenExpiration(token));
 
-    const minutes = Math.floor(timeLeft / 60);
-    const seconds = timeLeft % 60;
-    
-
     if (timeLeft <= 0) {
-      console.log('❌ Token expirado, cerrando sesión');
       this.logout('Tu sesión ha expirado');
       return;
     }
@@ -179,46 +159,27 @@ export class AuthService {
 
   private onUserActivity(): void {
     const token = this.getToken();
-    if (!token) {
-      console.log('❌ No hay token para renovar');
-      return;
-    }
+    if (!token) return;
 
-    const timeLeft = TokenUtils.getTimeToExpiration(token);
     const now = Date.now();
-    const minutesSinceLastRefresh = Math.floor((now - this.lastRefreshTime) / 60000);
-    const minutesLeft = Math.floor(timeLeft / 60);
-
-  
-
-    // ✅ Solo renovar si han pasado 15 minutos desde el último refresh
     const shouldRefresh = (now - this.lastRefreshTime) >= this.MIN_REFRESH_INTERVAL;
     
     if (shouldRefresh) {
       const userId = this.getCurrentUser()?.id;
       if (userId) {
-     
         this.refreshToken(userId).subscribe({
           next: () => {
             this.lastRefreshTime = Date.now();
             this.warningShown = false;
-            const newToken = this.getToken();
-            if (newToken) {
-              const newTimeLeft = TokenUtils.getTimeToExpiration(newToken);
-
-            }
           },
           error: (error) => {
-            console.error('❌ Error renovando token:', error);
+            console.error('Error renovando token:', error);
             if (error.status === 401) {
               this.logout('Tu sesión ha expirado');
             }
           }
         });
       }
-    } else {
-      const minutesToWait = Math.ceil((this.MIN_REFRESH_INTERVAL - (now - this.lastRefreshTime)) / 60000);
-     
     }
   }
 
@@ -240,12 +201,8 @@ export class AuthService {
   }
 
   refreshToken(userId: string): Observable<{ token: string }> {
-   
-    
     return this.http.post<any>(`${this.apiUrl}/auth/refresh-token`, { userId }).pipe(
       map(response => {
-       
-        
         let token = null;
         if (response.token) {
           token = response.token;
@@ -262,14 +219,8 @@ export class AuthService {
         return { token };
       }),
       tap(({ token }) => {
-       
-        
         localStorage.setItem('token', token);
-        
-        const newTimeLeft = TokenUtils.getTimeToExpiration(token);
-    
-        
-        this.timeRemainingSubject.next(newTimeLeft);
+        this.timeRemainingSubject.next(TokenUtils.getTimeToExpiration(token));
         this.tokenExpirationSubject.next(TokenUtils.getTokenExpiration(token));
         this.warningShown = false;
         
@@ -280,22 +231,17 @@ export class AuthService {
         );
       }),
       catchError(error => {
-        console.error('❌ Error en refresh token:', error);
+        console.error('Error en refresh token:', error);
         return throwError(() => error);
       })
     );
   }
 
   login(username: string, password: string): Observable<LoginResponse> {
-    const loginRequest: LoginRequest = { username, password };
-
-    return this.http.post<LoginResponse>(`${this.apiUrl}/auth/login`, loginRequest).pipe(
+    return this.http.post<LoginResponse>(`${this.apiUrl}/auth/login`, { username, password }).pipe(
       tap(response => {
-        console.log('🔐 AuthService - Login response:', response);
-
         if (response.requiresTwoFactor && response.userId) {
           this.setPendingUserId(response.userId);
-          console.log('🔐 2FA required for user:', response.userId);
           this.router.navigate(['/two-factor']);
         } else if ((response.token || response.access_token) && response.user) {
           const token = response.token || response.access_token || '';
@@ -304,18 +250,15 @@ export class AuthService {
         }
       }),
       catchError(error => {
-        console.error('🔐 AuthService - Error en login:', error);
+        console.error('Error en login:', error);
         return throwError(() => error);
       })
     );
   }
 
   verify2FA(userId: string, code: string): Observable<TwoFactorResponse> {
-    const request: TwoFactorRequest = { userId, code };
-
-    return this.http.post<TwoFactorResponse>(`${this.apiUrl}/auth/verify-2fa`, request).pipe(
+    return this.http.post<TwoFactorResponse>(`${this.apiUrl}/auth/verify-2fa`, { userId, code }).pipe(
       tap(response => {
-        console.log('🔐 AuthService - 2FA verification successful:', response);
         if ((response.token || response.access_token) && response.user) {
           const token = response.token || response.access_token || '';
           this.completeLogin(token, response.user);
@@ -324,7 +267,7 @@ export class AuthService {
         }
       }),
       catchError(error => {
-        console.error('🔐 AuthService - Error en verificación 2FA:', error);
+        console.error('Error en verificación 2FA:', error);
         return throwError(() => error);
       })
     );
@@ -333,17 +276,14 @@ export class AuthService {
   resend2FACode(userId: string): Observable<any> {
     return this.http.post(`${this.apiUrl}/auth/resend-2fa`, { userId }).pipe(
       catchError(error => {
-        console.error('🔐 AuthService - Error al reenviar código:', error);
+        console.error('Error al reenviar código:', error);
         return throwError(() => error);
       })
     );
   }
 
   loginDirect(username: string, password: string): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${this.apiUrl}/auth/login-direct`, {
-      username,
-      password
-    }).pipe(
+    return this.http.post<LoginResponse>(`${this.apiUrl}/auth/login-direct`, { username, password }).pipe(
       tap(response => {
         if ((response.token || response.access_token) && response.user) {
           const token = response.token || response.access_token || '';
@@ -352,7 +292,7 @@ export class AuthService {
         }
       }),
       catchError(error => {
-        console.error('🔐 AuthService - Error en login directo:', error);
+        console.error('Error en login directo:', error);
         return throwError(() => error);
       })
     );
@@ -360,8 +300,6 @@ export class AuthService {
 
   public completeLogin(token: string, user: User): void {
     try {
-      console.log('🔐 Completando login...');
-
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
 
@@ -375,20 +313,14 @@ export class AuthService {
       this.warningShown = false;
       this.lastRefreshTime = Date.now();
 
-      const timeLeft = TokenUtils.getTimeToExpiration(token);
-      console.log(`🔐 ✅ Login completado para: ${user.username}`);
-      console.log(`🔐 Token expira en: ${Math.floor(timeLeft / 60)} minutos y ${timeLeft % 60} segundos`);
-      console.log(`🔐 Modo: Renovación cada 15 minutos SOLO con interacción del usuario`);
-
     } catch (error) {
-      console.error('🔐 ❌ Error completando login:', error);
+      console.error('Error completando login:', error);
     }
   }
 
   public setToken(token: string): void {
     try {
       localStorage.setItem('token', token);
-      console.log('🔐 Token saved to storage');
     } catch (error) {
       console.error('Error saving token:', error);
     }
@@ -399,7 +331,6 @@ export class AuthService {
       localStorage.setItem('user', JSON.stringify(user));
       this.currentUserSubject.next(user);
       this.isLoggedInSubject.next(true);
-      console.log('🔐 User saved to storage:', user.username);
     } catch (error) {
       console.error('Error saving user:', error);
     }
@@ -411,21 +342,16 @@ export class AuthService {
       localStorage.removeItem('user');
       this.currentUserSubject.next(null);
       this.isLoggedInSubject.next(false);
-      console.log('🔐 Auth data cleared from storage');
     } catch (error) {
       console.error('Error clearing stored auth:', error);
     }
   }
 
   logout(message?: string): void {
-    console.log('🔐 Logging out user...');
-
     this.stopActivityMonitoring();
     this.stopTimeInterval();
-
     this.clearStoredAuth();
     this.clearPendingAuth();
-
     this.tokenExpirationSubject.next(null);
     this.timeRemainingSubject.next(0);
     this.warningShown = false;
@@ -457,7 +383,6 @@ export class AuthService {
     if (!token || !user) return false;
 
     if (TokenUtils.isTokenExpired(token)) {
-      console.log('🔐 Token expirado en verificación');
       this.logout('Tu sesión ha expirado');
       return false;
     }
@@ -471,36 +396,29 @@ export class AuthService {
 
   setPendingUserId(userId: string): void {
     this.pendingUserId.next(userId);
-    console.log('🔐 Pending user ID set:', userId);
   }
 
   clearPendingAuth(): void {
     this.pendingUserId.next(null);
-    console.log('🔐 Pending auth cleared');
   }
 
   hasPendingAuth(): boolean {
-    const hasPending = !!this.pendingUserId.value;
-    console.log('🔐 Pending auth check:', hasPending);
-    return hasPending;
+    return !!this.pendingUserId.value;
   }
 
   forgotPassword(email: string): Observable<any> {
     return this.http.post(`${this.apiUrl}/auth/forgot-password`, { email }).pipe(
       catchError(error => {
-        console.error('🔐 AuthService - Error en forgot password:', error);
+        console.error('Error en forgot password:', error);
         return throwError(() => error);
       })
     );
   }
 
   resetPassword(token: string, newPassword: string): Observable<any> {
-    return this.http.post(`${this.apiUrl}/auth/reset-password`, {
-      token,
-      newPassword
-    }).pipe(
+    return this.http.post(`${this.apiUrl}/auth/reset-password`, { token, newPassword }).pipe(
       catchError(error => {
-        console.error('🔐 AuthService - Error en reset password:', error);
+        console.error('Error en reset password:', error);
         return throwError(() => error);
       })
     );
@@ -509,7 +427,7 @@ export class AuthService {
   validateResetToken(token: string): Observable<any> {
     return this.http.post(`${this.apiUrl}/auth/validate-reset-token`, { token }).pipe(
       catchError(error => {
-        console.error('🔐 AuthService - Error validando reset token:', error);
+        console.error('Error validando reset token:', error);
         return throwError(() => error);
       })
     );
@@ -577,8 +495,6 @@ export class AuthService {
   }
 
   public forceAuthState(token: string, user: User): void {
-    console.log('🔐 Forzando estado de autenticación...');
-
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
     localStorage.setItem('auth_force_token', token);
@@ -591,15 +507,12 @@ export class AuthService {
 
     this.startActivityMonitoring();
     this.startTimeInterval();
-
-    console.log('🔐 Estado de autenticación forzado exitosamente');
   }
 
   public updateUser(user: User): void {
     try {
       localStorage.setItem('user', JSON.stringify(user));
       this.currentUserSubject.next(user);
-      console.log('🔐 Usuario actualizado:', user.username);
     } catch (error) {
       console.error('Error updating user:', error);
     }
@@ -614,5 +527,3 @@ export class AuthService {
     );
   }
 }
-
-export { User, UserRole };

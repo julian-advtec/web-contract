@@ -15,16 +15,6 @@
     </button>
   </div>
 
-  <!-- DEBUG - Mostrar valores para verificar (puedes eliminar después) -->
-  <div class="alert alert-info mb-3" *ngIf="estadisticas">
-    <strong>🔍 DEBUG - Valores recibidos:</strong><br>
-    aprobados: {{ estadisticas.misDocumentos.aprobados }} |
-    rechazados: {{ estadisticas.misDocumentos.rechazados }} |
-    observados: {{ estadisticas.misDocumentos.observados }} |
-    completados: {{ estadisticas.misDocumentos.completados }} |
-    eficiencia: {{ estadisticas.eficiencia }}% |
-    últimos: {{ estadisticas.ultimosProcesados.length }}
-  </div>
 
   <!-- Filtros -->
   <div class="card mb-3 shadow-sm">

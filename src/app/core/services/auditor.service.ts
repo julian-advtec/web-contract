@@ -292,54 +292,63 @@ export class AuditorService {
     }));
   }
 
-  obtenerHistorial(): Observable<any[]> {
-    console.log('[AUDITOR SERVICE] Solicitando historial...');
+ obtenerHistorial(): Observable<any[]> {
+  console.log('[AUDITOR SERVICE] Solicitando historial...');
 
-    return this.http.get<ApiResponse>(`${this.baseUrl}/historial`, {
-      headers: this.getAuthHeaders()
-    }).pipe(
-      map((response: ApiResponse) => {
-        // CASO 1: Si la respuesta es directamente un array
-        if (Array.isArray(response)) {
-          return response;
+  return this.http.get<ApiResponse>(`${this.baseUrl}/historial`, {
+    headers: this.getAuthHeaders()
+  }).pipe(
+    map((response: ApiResponse) => {
+      console.log('[AUDITOR SERVICE] Respuesta recibida:', response);
+      
+      // CASO 1: La respuesta es directamente un array
+      if (Array.isArray(response)) {
+        return response;
+      }
+
+      const resp = response as any;
+
+      // CASO 2: La respuesta tiene propiedad 'data' que es array
+      if (resp && typeof resp === 'object') {
+        if (resp.data && Array.isArray(resp.data)) {
+          return resp.data;
+        }
+        if (resp.historial && Array.isArray(resp.historial)) {
+          return resp.historial;
+        }
+        if (resp.items && Array.isArray(resp.items)) {
+          return resp.items;
         }
 
-        const resp = response as any;
+        // Buscar cualquier propiedad que sea array
+        const possibleArrays: any[][] = [];
+        Object.keys(resp).forEach(key => {
+          const value = resp[key];
+          if (Array.isArray(value)) {
+            possibleArrays.push(value);
+          }
+        });
 
-        // CASO 2: Si la respuesta tiene propiedad 'data' que es array
-        if (resp && typeof resp === 'object') {
-          if (resp.data && Array.isArray(resp.data)) {
-            return resp.data;
-          }
-          if (resp.historial && Array.isArray(resp.historial)) {
-            return resp.historial;
-          }
-          if (resp.items && Array.isArray(resp.items)) {
-            return resp.items;
-          }
-
-          // Buscar cualquier propiedad que sea array
-          const possibleArrays: any[][] = [];
-          Object.keys(resp).forEach(key => {
-            const value = resp[key];
-            if (Array.isArray(value)) {
-              possibleArrays.push(value);
-            }
-          });
-
-          if (possibleArrays.length > 0) {
-            return possibleArrays[0];
-          }
+        if (possibleArrays.length > 0) {
+          return possibleArrays[0];
         }
+      }
 
-        return [];
-      }),
-      catchError((error: any) => {
-        console.error('[AUDITOR SERVICE] Error obteniendo historial:', error);
-        return of([]);
-      })
-    );
-  }
+      console.warn('[AUDITOR SERVICE] No se encontró array en la respuesta');
+      return [];
+    }),
+    tap((data) => {
+      console.log(`[AUDITOR SERVICE] ${data.length} registros procesados`);
+      if (data.length > 0) {
+        console.log('[AUDITOR SERVICE] Primer registro:', data[0]);
+      }
+    }),
+    catchError((error: any) => {
+      console.error('[AUDITOR SERVICE] Error obteniendo historial:', error);
+      return of([]);
+    })
+  );
+}
 
   obtenerDocumentoParaAuditoria(id: string): Observable<any> {
     return this.http.get(`${this.apiUrl}/documento/${id}`, { headers: this.getAuthHeaders() });
@@ -432,7 +441,7 @@ obtenerDocumentoParaVista(id: string, esDesdeContabilidad: boolean = false): Obs
       return data;
     }),
     catchError(err => {
-      console.error('[AuditorService] Error en /vista:', err);
+     
       return of(null);
     })
   );

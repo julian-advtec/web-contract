@@ -40,7 +40,7 @@
       'alert-info': estaEnRevision && !esDocumentoDeOtroRol && !esSoloLectura,
       'alert-secondary': esDocumentoDeOtroRol,
       'alert-success': estaProcesado && (documento.estado?.includes('COMPLETADO') || documento.estado?.includes('PROCESADO')),
-      'alert-warning': estaProcesado && (documento.estado?.includes('OBSERVADO') || documento.estado?.includes('GLOSADO')),
+      
       'alert-danger': estaProcesado && documento.estado?.includes('RECHAZADO')
     }">
       <strong>
@@ -72,7 +72,7 @@
                   <option value="APROBADO">APROBADO</option>
                   <option value="OBSERVADO">OBSERVADO</option>
                   <option value="RECHAZADO">RECHAZADO</option>
-                  <option value="GLOSADO">GLOSADO</option>
+                  
                 </select>
                 <small class="text-muted">Seleccione la decisión final para este documento</small>
               </div>

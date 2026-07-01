@@ -10,6 +10,7 @@ import { ContratistasComponent } from './contratistas.component';
 import { ContratistaListComponent } from './components/contratista-list/contratista-list.component';
 import { ContratistaCreacionComponent } from './components/contratista-creacion/contratista-creacion.component';
 import { ContratistaDetalleComponent } from './components/contratista-detalle/contratista-detalle.component';
+import { ContratistaEnvioEnlacesComponent } from './components/contratista-envio-enlaces/contratista-envio-enlaces.component';
 
 @NgModule({
   declarations: [
@@ -25,7 +26,8 @@ import { ContratistaDetalleComponent } from './components/contratista-detalle/co
     ContratistasComponent,
     ContratistaListComponent,
     ContratistaCreacionComponent,
-    ContratistaDetalleComponent
+    ContratistaDetalleComponent,
+    ContratistaEnvioEnlacesComponent
   ]
 })
 export class ContratistasModule {}

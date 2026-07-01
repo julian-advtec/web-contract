@@ -41,11 +41,11 @@
         </div>
 
         <!-- Empty State -->
-<div *ngIf="!isLoading && filteredDocumentos.length === 0" class="text-center py-5">
-  <div class="empty-state">
-    <i class="fas fa-check-circle fa-4x text-success mb-4"></i>
-    <h4 class="text-muted mb-2">No hay documentos APROBADOS POR AUDITOR</h4>
-    <p class="text-muted mb-3">Los documentos que el auditor ha aprobado aparecerán aquí para tu revisión</p>
+        <div *ngIf="!isLoading && filteredDocumentos.length === 0" class="text-center py-5">
+          <div class="empty-state">
+            <i class="fas fa-check-circle fa-4x text-success mb-4"></i>
+            <h4 class="text-muted mb-2">No hay documentos APROBADOS POR AUDITOR</h4>
+            <p class="text-muted mb-3">Los documentos que el auditor ha aprobado aparecerán aquí para tu revisión</p>
             <div class="mt-4">
               <p class="text-start"><strong>¿Por qué no hay documentos?</strong></p>
               <ul class="list-unstyled text-start">
@@ -79,7 +79,6 @@
             <div class="header-item">Contrato</div>
             <div class="header-item">Estado</div>
             <div class="header-item">Fechas</div>
-            <div class="header-item">Documentos</div>
             <div class="header-item acciones-header">Acciones</div>
           </div>
 
@@ -151,40 +150,19 @@
               <!-- Fechas -->
               <div class="documento-fechas">
                 <div class="fechas-container">
-                  <div class="fecha-line">
-                    <span class="fecha-label">Inicio:</span>
-                    <span class="fecha-value">{{ formatDateShort(doc.fechaInicio) }}</span>
-                  </div>
-                  <div class="fecha-line">
-                    <span class="fecha-label">Fin:</span>
-                    <span class="fecha-value">{{ formatDateShort(doc.fechaFin) }}</span>
-                  </div>
+                  <span class="fecha-item">
+                    <span class="fecha-label">Inicio:     </span>
+                    <span class="fecha-value">{{ formatDateSpanish(doc.fechaInicio) }}</span>
+                  </span>
+                  
+                  <span class="fecha-item">
+                    <span class="fecha-label">Fin:      </span>
+                    <span class="fecha-value">{{ formatDateSpanish(doc.fechaFin) }}</span>
+                  </span>
                 </div>
               </div>
 
-              <!-- Documentos -->
-              <div class="documento-archivos">
-                <div class="archivos-info">
-                  <div class="archivo-count mb-2">
-                    <i class="fas fa-file me-1"></i>
-                    {{ getDocumentCount(doc) }} documentos
-                  </div>
-                  <div class="archivos-preview">
-                    <span *ngIf="doc.cuentaCobro" class="archivo-type badge bg-primary me-1 mb-1"
-                      (click)="previsualizarDocumentoEspecifico(doc, 1)" style="cursor: pointer;">
-                      <i class="fas fa-file-invoice me-1"></i>Cuenta
-                    </span>
-                    <span *ngIf="doc.seguridadSocial" class="archivo-type badge bg-success me-1 mb-1"
-                      (click)="previsualizarDocumentoEspecifico(doc, 2)" style="cursor: pointer;">
-                      <i class="fas fa-shield-alt me-1"></i>SS
-                    </span>
-                    <span *ngIf="doc.informeActividades" class="archivo-type badge bg-info"
-                      (click)="previsualizarDocumentoEspecifico(doc, 3)" style="cursor: pointer;">
-                      <i class="fas fa-chart-line me-1"></i>Informe
-                    </span>
-                  </div>
-                </div>
-              </div>
+
 
               <!-- Acciones -->
               <div class="documento-acciones">

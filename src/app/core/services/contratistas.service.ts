@@ -29,32 +29,32 @@ export class ContratistasService {
     });
   }
 
-private mapearContratista(item: any): Contratista {
-  return {
-    id: item.id || item._id || '',
-    tipoDocumento: item.tipoDocumento || item.tipo_documento || 'CC',
-    documentoIdentidad: item.documentoIdentidad || item.documento_identidad || item.documento || '',
-    razonSocial: item.razonSocial || item.razon_social || item.nombreCompleto || item.nombre || item.label || item.value || 'Nombre no disponible',
-    representanteLegal: item.representanteLegal || item.representante_legal || '',
-    documentoRepresentante: item.documentoRepresentante || item.documento_representante || '',
-    telefono: item.telefono || '',
-    email: item.email || '',
-    direccion: item.direccion || '',
-    departamento: item.departamento || '',
-    ciudad: item.ciudad || '',
-    tipoContratista: item.tipoContratista || item.tipo_contratista || item.tipo || '',
-    estado: item.estado || 'ACTIVO',
-    numeroContrato: item.numeroContrato || item.numero_contrato || '',
-    cargo: item.cargo || '',
-    // ✅ CORREGIDO: usar 'objetivoContrato' en lugar de 'observaciones'
-    objetivoContrato: item.objetivoContrato || item.observaciones || '',
-    createdAt: item.createdAt ? new Date(item.createdAt) : item.fecha_creacion ? new Date(item.fecha_creacion) : new Date(),
-    updatedAt: item.updatedAt ? new Date(item.updatedAt) : item.fecha_actualizacion ? new Date(item.fecha_actualizacion) : new Date(),
-    nombreCompleto: item.razonSocial || item.razon_social || item.nombreCompleto || item.nombre || '',
-    fechaCreacion: item.createdAt ? new Date(item.createdAt) : item.fecha_creacion ? new Date(item.fecha_creacion) : new Date(),
-    fechaActualizacion: item.updatedAt ? new Date(item.updatedAt) : item.fecha_actualizacion ? new Date(item.fecha_actualizacion) : new Date()
-  };
-}
+  private mapearContratista(item: any): Contratista {
+    return {
+      id: item.id || item._id || '',
+      tipoDocumento: item.tipoDocumento || item.tipo_documento || 'CC',
+      documentoIdentidad: item.documentoIdentidad || item.documento_identidad || item.documento || '',
+      razonSocial: item.razonSocial || item.razon_social || item.nombreCompleto || item.nombre || item.label || item.value || 'Nombre no disponible',
+      representanteLegal: item.representanteLegal || item.representante_legal || '',
+      documentoRepresentante: item.documentoRepresentante || item.documento_representante || '',
+      telefono: item.telefono || '',
+      email: item.email || '',
+      direccion: item.direccion || '',
+      departamento: item.departamento || '',
+      ciudad: item.ciudad || '',
+      tipoContratista: item.tipoContratista || item.tipo_contratista || item.tipo || '',
+      estado: item.estado || 'ACTIVO',
+      numeroContrato: item.numeroContrato || item.numero_contrato || '',
+      cargo: item.cargo || '',
+      // ✅ CORREGIDO: usar 'objetivoContrato' en lugar de 'observaciones'
+      objetivoContrato: item.objetivoContrato || item.observaciones || '',
+      createdAt: item.createdAt ? new Date(item.createdAt) : item.fecha_creacion ? new Date(item.fecha_creacion) : new Date(),
+      updatedAt: item.updatedAt ? new Date(item.updatedAt) : item.fecha_actualizacion ? new Date(item.fecha_actualizacion) : new Date(),
+      nombreCompleto: item.razonSocial || item.razon_social || item.nombreCompleto || item.nombre || '',
+      fechaCreacion: item.createdAt ? new Date(item.createdAt) : item.fecha_creacion ? new Date(item.fecha_creacion) : new Date(),
+      fechaActualizacion: item.updatedAt ? new Date(item.updatedAt) : item.fecha_actualizacion ? new Date(item.fecha_actualizacion) : new Date()
+    };
+  }
 
   // ===============================
   // MÉTODOS DE BÚSQUEDA
@@ -481,54 +481,54 @@ private mapearContratista(item: any): Contratista {
     );
   }
 
-obtenerDocumentos(contratistaId: string): Observable<DocumentoContratista[]> {
-  const headers = this.getAuthHeaders();
-  return this.http.get<any>(`${this.apiUrl}/${contratistaId}/documentos`, { headers }).pipe(
-    map(response => {
-      console.log('📥 Respuesta de documentos - estructura completa:', response);
-      
-      // ✅ La respuesta tiene estructura: { ok: true, data: { success: true, data: [...] } }
-      // O puede ser: { ok: true, data: [...] }
-      
-      // Caso 1: response.ok === true y response.data.data es un array
-      if (response?.ok === true && response?.data?.data && Array.isArray(response.data.data)) {
-        console.log('✅ Documentos encontrados en response.data.data:', response.data.data.length);
-        return response.data.data;
-      }
-      
-      // Caso 2: response.ok === true y response.data es un array
-      if (response?.ok === true && response?.data && Array.isArray(response.data)) {
-        console.log('✅ Documentos encontrados en response.data:', response.data.length);
-        return response.data;
-      }
-      
-      // Caso 3: response.data.data es un array
-      if (response?.data?.data && Array.isArray(response.data.data)) {
-        console.log('✅ Documentos encontrados en data.data:', response.data.data.length);
-        return response.data.data;
-      }
-      
-      // Caso 4: response.data es un array
-      if (response?.data && Array.isArray(response.data)) {
-        console.log('✅ Documentos encontrados en data:', response.data.length);
-        return response.data;
-      }
-      
-      // Caso 5: response es directamente un array
-      if (Array.isArray(response)) {
-        console.log('✅ Documentos encontrados en respuesta directa:', response.length);
-        return response;
-      }
-      
-      console.warn('⚠️ Estructura de respuesta no reconocida:', response);
-      return [];
-    }),
-    catchError(error => {
-      console.error('❌ Error obteniendo documentos:', error);
-      return of([]);
-    })
-  );
-}
+  obtenerDocumentos(contratistaId: string): Observable<DocumentoContratista[]> {
+    const headers = this.getAuthHeaders();
+    return this.http.get<any>(`${this.apiUrl}/${contratistaId}/documentos`, { headers }).pipe(
+      map(response => {
+        console.log('📥 Respuesta de documentos - estructura completa:', response);
+
+        // ✅ La respuesta tiene estructura: { ok: true, data: { success: true, data: [...] } }
+        // O puede ser: { ok: true, data: [...] }
+
+        // Caso 1: response.ok === true y response.data.data es un array
+        if (response?.ok === true && response?.data?.data && Array.isArray(response.data.data)) {
+          console.log('✅ Documentos encontrados en response.data.data:', response.data.data.length);
+          return response.data.data;
+        }
+
+        // Caso 2: response.ok === true y response.data es un array
+        if (response?.ok === true && response?.data && Array.isArray(response.data)) {
+          console.log('✅ Documentos encontrados en response.data:', response.data.length);
+          return response.data;
+        }
+
+        // Caso 3: response.data.data es un array
+        if (response?.data?.data && Array.isArray(response.data.data)) {
+          console.log('✅ Documentos encontrados en data.data:', response.data.data.length);
+          return response.data.data;
+        }
+
+        // Caso 4: response.data es un array
+        if (response?.data && Array.isArray(response.data)) {
+          console.log('✅ Documentos encontrados en data:', response.data.length);
+          return response.data;
+        }
+
+        // Caso 5: response es directamente un array
+        if (Array.isArray(response)) {
+          console.log('✅ Documentos encontrados en respuesta directa:', response.length);
+          return response;
+        }
+
+        console.warn('⚠️ Estructura de respuesta no reconocida:', response);
+        return [];
+      }),
+      catchError(error => {
+        console.error('❌ Error obteniendo documentos:', error);
+        return of([]);
+      })
+    );
+  }
 
   descargarTodosDocumentos(contratistaId: string): Observable<Blob> {
     const headers = this.getFormDataHeaders();
@@ -583,54 +583,95 @@ obtenerDocumentos(contratistaId: string): Observable<DocumentoContratista[]> {
   }
 
   // ===============================
-// BÚSQUEDA EXACTA POR CONTRATO
-// ===============================
+  // BÚSQUEDA EXACTA POR CONTRATO
+  // ===============================
 
-/**
- * Buscar contratista por número de contrato EXACTO
- * Este método usa el endpoint específico que funciona correctamente
- */
-buscarContratistaPorNumeroContratoExacto(numeroContrato: string): Observable<Contratista | null> {
-  const headers = this.getAuthHeaders();
-  if (!headers.get('Authorization') || !numeroContrato || numeroContrato.trim().length < 1) {
-    return of(null);
+  /**
+   * Buscar contratista por número de contrato EXACTO
+   * Este método usa el endpoint específico que funciona correctamente
+   */
+  buscarContratistaPorNumeroContratoExacto(numeroContrato: string): Observable<Contratista | null> {
+    const headers = this.getAuthHeaders();
+    if (!headers.get('Authorization') || !numeroContrato || numeroContrato.trim().length < 1) {
+      return of(null);
+    }
+
+    console.log('[ContratistasService] Buscando contratista exacto por contrato:', numeroContrato);
+
+    // ✅ Usar el mismo endpoint que funciona en AuditorService
+    return this.http.get<any>(
+      `${this.apiUrl}/buscar-por-contrato/${encodeURIComponent(numeroContrato.trim())}`,
+      { headers }
+    ).pipe(
+      map(response => {
+        console.log('[ContratistasService] Respuesta del endpoint exacto:', response);
+
+        // Extraer el contratista de la respuesta (misma lógica que en AuditorService)
+        let contratista = response?.data?.data?.data ||
+          response?.data?.data ||
+          response?.data ||
+          response;
+
+        // Si es un array, tomar el primero
+        if (Array.isArray(contratista) && contratista.length > 0) {
+          contratista = contratista[0];
+        }
+
+        if (contratista && contratista.id) {
+          console.log('[ContratistasService] Contratista encontrado:', contratista.razonSocial);
+          console.log('[ContratistasService] Email:', contratista.email);
+          console.log('[ContratistasService] Teléfono:', contratista.telefono);
+          return this.mapearContratista(contratista);
+        }
+
+        console.log('[ContratistasService] No se encontró contratista para:', numeroContrato);
+        return null;
+      }),
+      catchError(error => {
+        console.error('[ContratistasService] Error buscando contratista exacto:', error);
+        return of(null);
+      })
+    );
   }
 
-  console.log('[ContratistasService] Buscando contratista exacto por contrato:', numeroContrato);
+  /**
+   * Envía enlace a un contratista individual
+   */
+  enviarEnlaceAlContratista(id: string, email?: string): Observable<any> {
+    const headers = this.getAuthHeaders();
+    const body = email ? { email } : {};
+    return this.http.post(`${this.apiUrl}/${id}/enviar-enlace`, body, { headers }).pipe(
+      catchError(error => {
+        console.error('❌ Error enviando enlace:', error);
+        throw error;
+      })
+    );
+  }
 
-  // ✅ Usar el mismo endpoint que funciona en AuditorService
-  return this.http.get<any>(
-    `${this.apiUrl}/buscar-por-contrato/${encodeURIComponent(numeroContrato.trim())}`,
-    { headers }
-  ).pipe(
-    map(response => {
-      console.log('[ContratistasService] Respuesta del endpoint exacto:', response);
-      
-      // Extraer el contratista de la respuesta (misma lógica que en AuditorService)
-      let contratista = response?.data?.data?.data ||
-        response?.data?.data ||
-        response?.data ||
-        response;
-      
-      // Si es un array, tomar el primero
-      if (Array.isArray(contratista) && contratista.length > 0) {
-        contratista = contratista[0];
-      }
-      
-      if (contratista && contratista.id) {
-        console.log('[ContratistasService] Contratista encontrado:', contratista.razonSocial);
-        console.log('[ContratistasService] Email:', contratista.email);
-        console.log('[ContratistasService] Teléfono:', contratista.telefono);
-        return this.mapearContratista(contratista);
-      }
-      
-      console.log('[ContratistasService] No se encontró contratista para:', numeroContrato);
-      return null;
-    }),
-    catchError(error => {
-      console.error('[ContratistasService] Error buscando contratista exacto:', error);
-      return of(null);
-    })
-  );
-}
+  /**
+   * Envía enlace a múltiples contratistas
+   */
+  enviarEnlaceMultiple(ids: string[]): Observable<any> {
+    const headers = this.getAuthHeaders();
+    return this.http.post(`${this.apiUrl}/enviar-enlace-multiple`, { ids }, { headers }).pipe(
+      catchError(error => {
+        console.error('❌ Error enviando enlaces múltiples:', error);
+        throw error;
+      })
+    );
+  }
+
+  /**
+   * Verifica si un contratista tiene email
+   */
+  verificarEmailContratista(id: string): Observable<any> {
+    const headers = this.getAuthHeaders();
+    return this.http.get(`${this.apiUrl}/${id}/tiene-email`, { headers }).pipe(
+      catchError(error => {
+        console.error('❌ Error verificando email:', error);
+        throw error;
+      })
+    );
+  }
+
 }

@@ -103,7 +103,6 @@ export class ContratistasComponent implements OnInit {
   }
 
   verificarPermisos(): void {
-    // Método simplificado - asigna permisos basados en el rol
     if (this.currentUser) {
       this.puedeCrear = this.userCanCreate(this.currentUser.role);
       this.puedeVer = true;
@@ -130,14 +129,26 @@ export class ContratistasComponent implements OnInit {
       isActive: true
     });
 
-    // Módulo Contratistas
+    // Módulo Contratistas - Lista
     modulesToShow.push({
       id: 'contratistas',
       title: 'Contratistas',
       description: 'Gestión de contratistas y proveedores',
-      path: '/contratistas',
-      route: '/contratistas',
+      path: '/contratistas/list',
+      route: '/contratistas/list',
       icon: 'contratistas',
+      requiredRole: UserRole.RADICADOR,
+      isActive: true
+    });
+
+    // 🆕 Módulo: Enviar Enlaces
+    modulesToShow.push({
+      id: 'contratistas-enviar',
+      title: '📧 Enviar Enlaces',
+      description: 'Enviar enlaces de acceso a contratistas',
+      path: '/contratistas/enviar-enlaces',
+      route: '/contratistas/enviar-enlaces',
+      icon: 'envelope',
       requiredRole: UserRole.RADICADOR,
       isActive: true
     });

@@ -115,8 +115,10 @@
                         <i class="fas fa-star me-1"></i>NUEVO
                       </span>
                     </h5>
-                    <small class="text-muted">
-                      <i class="far fa-calendar me-1"></i>{{ formatDate(getFechaRechazo(doc)) }}
+                    <!-- FECHA MÓVIL - JUNTA Y CENTRADA EN ROJO -->
+                    <small class="fecha-creacion-movil">
+                      <span class="fecha-label">Rechazado:</span>
+                      <span class="fecha-valor">{{ formatDate(getFechaRechazo(doc)) }}</span>
                     </small>
                   </div>
                   <span class="estado-badge" [ngClass]="getEstadoClass(doc.estado)">
@@ -177,8 +179,10 @@
                         <i class="fas fa-star me-1"></i>NUEVO
                       </span>
                     </h5>
-                    <p class="documento-fecha mb-0">
-                      <i class="far fa-calendar me-1"></i>{{ formatDate(getFechaRechazo(doc)) }}
+                    <!-- FECHA DESKTOP - JUNTA Y CENTRADA EN ROJO -->
+                    <p class="documento-fecha mb-0 fecha-creacion">
+                      <span class="fecha-label">Rechazado:</span>
+                      <span class="fecha-valor">{{ formatDate(getFechaRechazo(doc)) }}</span>
                     </p>
                   </div>
                 </div>
@@ -228,11 +232,7 @@
                             title="Ver detalles completos">
                       <i class="fas fa-eye me-1"></i> Ver
                     </button>
-                    <button class="btn btn-outline-info btn-sm ms-1" 
-                            (click)="mostrarInfoRechazo(doc)" 
-                            title="Ver motivo de rechazo">
-                      <i class="fas fa-info-circle me-1"></i> Motivo
-                    </button>
+               
                   </div>
                 </div>
               </div>

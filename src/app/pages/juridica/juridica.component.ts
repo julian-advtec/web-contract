@@ -93,7 +93,7 @@ export class JuridicaComponent implements OnInit, OnDestroy {
     // Detectar la ruta actual y configurar el título correspondiente
     if (currentUrl.includes('/juridica/list') || currentUrl === '/juridica') {
       subtitle = 'Lista de Contratos';
-      title = '📋 Contratos Jurídicos';
+      title = 'Contratos Jurídicos';
       icon = 'fas fa-list';
       description = 'Gestión y visualización de todos los contratos registrados';
       breadcrumb.push({ label: 'Lista de Contratos', icon: 'fas fa-file-contract' });
@@ -300,7 +300,7 @@ export class JuridicaComponent implements OnInit, OnDestroy {
       }
     ];
 
-    console.log('📋 Módulos disponibles para jurídica:', this.availableModules);
+    console.log('Módulos disponibles para jurídica:', this.availableModules);
   }
 
   getUserRoleName(): string {

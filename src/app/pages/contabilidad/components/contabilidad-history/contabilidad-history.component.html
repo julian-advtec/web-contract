@@ -8,9 +8,8 @@
           <span class="input-group-text">
             <i class="fas fa-search"></i>
           </span>
-          <input type="text" class="form-control"
-            placeholder="Buscar radicado, contratista, estado, causación..." [(ngModel)]="searchTerm"
-            (input)="onSearch()" [disabled]="loading" />
+          <input type="text" class="form-control" placeholder="Buscar radicado, contratista, estado, causación..."
+            [(ngModel)]="searchTerm" (input)="onSearch()" [disabled]="loading" />
         </div>
       </div>
     </div>
@@ -51,9 +50,12 @@
             <div class="mt-4 text-start">
               <p><strong>¿Por qué no aparece nada?</strong></p>
               <ul class="list-unstyled">
-                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Aún no se han finalizado revisiones contables</li>
-                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Los documentos deben estar en estados finales</li>
-                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Verifica que estás logueado como CONTABILIDAD o ADMIN</li>
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Aún no se han finalizado revisiones
+                  contables</li>
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Los documentos deben estar en estados
+                  finales</li>
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Verifica que estás logueado como
+                  CONTABILIDAD o ADMIN</li>
               </ul>
             </div>
 
@@ -77,7 +79,8 @@
           </div>
 
           <div class="documentos-list">
-            <div *ngFor="let item of paginatedHistorial" class="documento-card" [class.reciente]="esDocumentoReciente(item)">
+            <div *ngFor="let item of paginatedHistorial" class="documento-card"
+              [class.reciente]="esDocumentoReciente(item)">
 
               <!-- Radicado -->
               <div class="documento-info">
@@ -123,9 +126,9 @@
 
               <!-- Estado -->
               <div class="documento-estado">
-                <span class="estado-badge" [ngClass]="getEstadoBadgeClass(item.estado)">
+                <span class="estado-badge" [ngClass]="getEstadoDocumentoBadgeClass(item.estadoDocumento)">
                   <i class="fas fa-flag me-1"></i>
-                  {{ getEstadoTexto(item.estado) }}
+                  {{ getEstadoDocumentoTexto(item.estadoDocumento) }}
                 </span>
                 <span class="estado-fecha mt-1 d-block">
                   <i class="far fa-calendar-alt me-1"></i>
@@ -176,17 +179,18 @@
               Página {{ currentPage }} de {{ totalPages }}
             </div>
             <div class="pagination-controls">
-              <button class="btn btn-outline-primary btn-sm" [disabled]="currentPage === 1" (click)="changePage(currentPage - 1)">
+              <button class="btn btn-outline-primary btn-sm" [disabled]="currentPage === 1"
+                (click)="changePage(currentPage - 1)">
                 <i class="fas fa-chevron-left"></i> Anterior
               </button>
               <div class="page-numbers">
-                <button *ngFor="let page of pages" class="btn btn-sm"
-                  [class.btn-primary]="page === currentPage"
+                <button *ngFor="let page of pages" class="btn btn-sm" [class.btn-primary]="page === currentPage"
                   [class.btn-outline-primary]="page !== currentPage" (click)="changePage(page)">
                   {{ page }}
                 </button>
               </div>
-              <button class="btn btn-outline-primary btn-sm" [disabled]="currentPage === totalPages" (click)="changePage(currentPage + 1)">
+              <button class="btn btn-outline-primary btn-sm" [disabled]="currentPage === totalPages"
+                (click)="changePage(currentPage + 1)">
                 Siguiente <i class="fas fa-chevron-right"></i>
               </button>
             </div>
