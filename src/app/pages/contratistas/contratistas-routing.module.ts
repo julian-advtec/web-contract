@@ -6,6 +6,7 @@ import { ContratistaListComponent } from './components/contratista-list/contrati
 import { ContratistaCreacionComponent } from './components/contratista-creacion/contratista-creacion.component';
 import { ContratistaDetalleComponent } from './components/contratista-detalle/contratista-detalle.component';
 import { ContratistaEnvioEnlacesComponent } from './components/contratista-envio-enlaces/contratista-envio-enlaces.component';
+import { FormularioAprobacionListComponent } from './components/formulario-aprobacion-list/formulario-aprobacion-list.component';
 
 const routes: Routes = [
   {
@@ -18,7 +19,9 @@ const routes: Routes = [
       { path: 'editar/:id', component: ContratistaCreacionComponent },
       { path: 'ver/:id', component: ContratistaDetalleComponent },
       { path: 'documentos/:id', component: ContratistaDetalleComponent },
-      { path: 'enviar-enlaces', component: ContratistaEnvioEnlacesComponent }
+      { path: 'enviar-enlaces', component: ContratistaEnvioEnlacesComponent },
+      { path: 'formularios-aprobacion', component: FormularioAprobacionListComponent },
+      { path: 'formularios-aprobacion/:id', component: FormularioAprobacionListComponent }
     ]
   }
 ];
@@ -27,4 +30,4 @@ const routes: Routes = [
   imports: [RouterModule.forChild(routes)],
   exports: [RouterModule]
 })
-export class ContratistasRoutingModule {}
+export class ContratistasRoutingModule { }

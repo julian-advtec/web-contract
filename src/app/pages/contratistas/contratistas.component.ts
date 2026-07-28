@@ -141,10 +141,21 @@ export class ContratistasComponent implements OnInit {
       isActive: true
     });
 
+    modulesToShow.push({
+      id: 'formularios-aprobacion',
+      title: 'Aprobar Formularios',
+      description: 'Revisar y aprobar formularios de contratistas',
+      path: '/contratistas/formularios-aprobacion',
+      route: '/contratistas/formularios-aprobacion',
+      icon: 'clipboard-check', // Usa un icono que tengas disponible
+      requiredRole: UserRole.RADICADOR,
+      isActive: true
+    });
+
     // 🆕 Módulo: Enviar Enlaces
     modulesToShow.push({
       id: 'contratistas-enviar',
-      title: '📧 Enviar Enlaces',
+      title: 'Envío de Enlaces a Contratistas',
       description: 'Enviar enlaces de acceso a contratistas',
       path: '/contratistas/enviar-enlaces',
       route: '/contratistas/enviar-enlaces',

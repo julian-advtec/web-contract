@@ -12,6 +12,8 @@ import { ContratistaCreacionComponent } from './components/contratista-creacion/
 import { ContratistaDetalleComponent } from './components/contratista-detalle/contratista-detalle.component';
 import { ContratistaEnvioEnlacesComponent } from './components/contratista-envio-enlaces/contratista-envio-enlaces.component';
 
+import { FormularioAprobacionListComponent } from './components/formulario-aprobacion-list/formulario-aprobacion-list.component';
+
 @NgModule({
   declarations: [
     // ❌ NO declarar componentes standalone
@@ -27,7 +29,8 @@ import { ContratistaEnvioEnlacesComponent } from './components/contratista-envio
     ContratistaListComponent,
     ContratistaCreacionComponent,
     ContratistaDetalleComponent,
-    ContratistaEnvioEnlacesComponent
+    ContratistaEnvioEnlacesComponent,
+    FormularioAprobacionListComponent
   ]
 })
 export class ContratistasModule {}

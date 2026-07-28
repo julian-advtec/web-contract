@@ -3,9 +3,9 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { Subscription, forkJoin } from 'rxjs';
 import { ContratistasService } from '../../../../core/services/contratistas.service';
-import { NotificationService } from '../../../../core/services/notification.service'; // ✅ CAMBIAR
+import { NotificationService } from '../../../../core/services/notification.service';
 
 interface ContratistaSeleccionado {
     id: string;
@@ -26,7 +26,6 @@ interface ContratistaSeleccionado {
     styleUrls: ['./contratista-envio-enlaces.component.scss']
 })
 export class ContratistaEnvioEnlacesComponent implements OnInit, OnDestroy {
-    // ✅ EXPONER Math PARA EL TEMPLATE
     Math = Math;
 
     contratistas: ContratistaSeleccionado[] = [];
@@ -55,11 +54,21 @@ export class ContratistaEnvioEnlacesComponent implements OnInit, OnDestroy {
     enviadosExitosos: string[] = [];
     enviadosFallidos: string[] = [];
 
+    // ✅ PROGRESO DE ENVÍO MASIVO
+    envioProgreso = {
+        total: 0,
+        completados: 0,
+        exitosos: 0,
+        fallidos: 0,
+        enProceso: false,
+        mensaje: ''
+    };
+
     private subscriptions: Subscription[] = [];
 
     constructor(
         private contratistaService: ContratistasService,
-        private notificationService: NotificationService, // ✅ CAMBIAR
+        private notificationService: NotificationService,
         private router: Router
     ) { }
 
@@ -69,11 +78,13 @@ export class ContratistaEnvioEnlacesComponent implements OnInit, OnDestroy {
 
     ngOnDestroy(): void {
         this.subscriptions.forEach(sub => sub.unsubscribe());
+        // Limpiar estado de envío
+        this.envioProgreso.enProceso = false;
     }
 
-    // ===============================
+    // ============================================
     // CARGA DE DATOS
-    // ===============================
+    // ============================================
 
     cargarContratistas(): void {
         this.isLoading = true;
@@ -109,9 +120,9 @@ export class ContratistaEnvioEnlacesComponent implements OnInit, OnDestroy {
         this.subscriptions.push(sub);
     }
 
-    // ===============================
+    // ============================================
     // ESTADÍSTICAS
-    // ===============================
+    // ============================================
 
     calcularEstadisticas(): void {
         const total = this.contratistas.length;
@@ -128,9 +139,9 @@ export class ContratistaEnvioEnlacesComponent implements OnInit, OnDestroy {
         };
     }
 
-    // ===============================
+    // ============================================
     // FILTROS Y BÚSQUEDA
-    // ===============================
+    // ============================================
 
     aplicarFiltros(): void {
         let filtrados = [...this.contratistas];
@@ -169,9 +180,9 @@ export class ContratistaEnvioEnlacesComponent implements OnInit, OnDestroy {
         this.aplicarFiltros();
     }
 
-    // ===============================
+    // ============================================
     // PAGINACIÓN
-    // ===============================
+    // ============================================
 
     updatePagination(): void {
         this.totalPages = Math.ceil(this.filteredContratistas.length / this.pageSize);
@@ -189,9 +200,9 @@ export class ContratistaEnvioEnlacesComponent implements OnInit, OnDestroy {
         }
     }
 
-    // ===============================
+    // ============================================
     // SELECCIÓN
-    // ===============================
+    // ============================================
 
     toggleSeleccion(contratista: ContratistaSeleccionado): void {
         if (!contratista.tieneEmail) {
@@ -230,9 +241,9 @@ export class ContratistaEnvioEnlacesComponent implements OnInit, OnDestroy {
         return this.contratistas.filter(c => c.seleccionado);
     }
 
-    // ===============================
-    // ENVÍO DE ENLACES
-    // ===============================
+    // ============================================
+    // ENVÍO DE ENLACES - INDIVIDUAL
+    // ============================================
 
     enviarEnlaceIndividual(contratista: ContratistaSeleccionado): void {
         if (!contratista.tieneEmail) {
@@ -254,7 +265,7 @@ export class ContratistaEnvioEnlacesComponent implements OnInit, OnDestroy {
 
                 if (response?.data?.success) {
                     this.notificationService.success(
-                        `Enlace enviado a ${contratista.email}`,
+                        `Enlace enviado a ${contratista.razonSocial}`,
                         '✅ Enlace enviado'
                     );
                     this.enviadosExitosos.push(contratista.id);
@@ -277,6 +288,10 @@ export class ContratistaEnvioEnlacesComponent implements OnInit, OnDestroy {
         this.subscriptions.push(sub);
     }
 
+    // ============================================
+    // ENVÍO DE ENLACES - MASIVO MEJORADO
+    // ============================================
+
     enviarEnlaceMultiple(): void {
         const seleccionados = this.getContratistasSeleccionados();
 
@@ -295,13 +310,34 @@ export class ContratistaEnvioEnlacesComponent implements OnInit, OnDestroy {
             return;
         }
 
-        if (!confirm(`¿Enviar enlace a ${seleccionados.length} contratista(s)?`)) {
+        // ✅ Confirmación mejorada
+        const total = seleccionados.length;
+        const emailList = seleccionados.map(c => c.email).join(', ');
+        if (!confirm(`¿Enviar enlace a ${total} contratista(s)?\n\nEmails:\n${emailList}`)) {
             return;
         }
 
+        // ✅ Inicializar progreso
+        this.envioProgreso = {
+            total: seleccionados.length,
+            completados: 0,
+            exitosos: 0,
+            fallidos: 0,
+            enProceso: true,
+            mensaje: `Iniciando envío a ${seleccionados.length} contratistas...`
+        };
+
         this.isSending = true;
-        let enviados = 0;
-        let fallidos = 0;
+        this.enviadosExitosos = [];
+        this.enviadosFallidos = [];
+
+        // ✅ Mostrar progreso inicial
+        this.notificationService.info(
+            `Enviando enlaces a ${seleccionados.length} contratistas...`,
+            '📤 Enviando'
+        );
+
+        let procesados = 0;
 
         seleccionados.forEach((contratista) => {
             this.enviandoIds.add(contratista.id);
@@ -309,44 +345,36 @@ export class ContratistaEnvioEnlacesComponent implements OnInit, OnDestroy {
             const sub = this.contratistaService.enviarEnlaceAlContratista(contratista.id, contratista.email).subscribe({
                 next: (response: any) => {
                     this.enviandoIds.delete(contratista.id);
+                    procesados++;
+                    this.envioProgreso.completados = procesados;
 
                     if (response?.data?.success) {
-                        enviados++;
+                        this.envioProgreso.exitosos++;
                         this.enviadosExitosos.push(contratista.id);
                     } else {
-                        fallidos++;
+                        this.envioProgreso.fallidos++;
                         this.enviadosFallidos.push(contratista.id);
                     }
 
-                    if (enviados + fallidos === seleccionados.length) {
-                        this.isSending = false;
-                        this.deseleccionarTodos();
+                    this.actualizarProgreso(procesados, seleccionados.length);
 
-                        if (fallidos === 0) {
-                            this.notificationService.success(
-                                `Enlaces enviados a ${enviados} contratista(s)`,
-                                '✅ Envío completado'
-                            );
-                        } else {
-                            this.notificationService.warning(
-                                `${enviados} enviados, ${fallidos} fallaron`,
-                                '⚠️ Envío parcial'
-                            );
-                        }
+                    if (procesados === seleccionados.length) {
+                        this.finalizarEnvioMasivo();
                     }
                 },
                 error: (error: any) => {
                     this.enviandoIds.delete(contratista.id);
-                    fallidos++;
+                    procesados++;
+                    this.envioProgreso.completados = procesados;
+                    this.envioProgreso.fallidos++;
                     this.enviadosFallidos.push(contratista.id);
 
-                    if (enviados + fallidos === seleccionados.length) {
-                        this.isSending = false;
-                        this.deseleccionarTodos();
-                        this.notificationService.warning(
-                            `${enviados} enviados, ${fallidos} fallaron`,
-                            '⚠️ Envío parcial'
-                        );
+                    console.error(`❌ Error enviando a ${contratista.razonSocial}:`, error);
+
+                    this.actualizarProgreso(procesados, seleccionados.length);
+
+                    if (procesados === seleccionados.length) {
+                        this.finalizarEnvioMasivo();
                     }
                 }
             });
@@ -354,9 +382,58 @@ export class ContratistaEnvioEnlacesComponent implements OnInit, OnDestroy {
         });
     }
 
-    // ===============================
+    // ============================================
+    // PROGRESO DE ENVÍO MASIVO
+    // ============================================
+
+    actualizarProgreso(procesados: number, total: number): void {
+        const porcentaje = Math.round((procesados / total) * 100);
+        const mensaje = `Enviando ${procesados}/${total} (${porcentaje}%) - ${this.envioProgreso.exitosos} exitosos, ${this.envioProgreso.fallidos} fallidos`;
+        this.envioProgreso.mensaje = mensaje;
+
+        // Actualizar notificación cada 5 envíos o al finalizar
+        if (procesados % 5 === 0 || procesados === total) {
+            this.notificationService.info(mensaje, '📤 Progreso de envío');
+        }
+    }
+
+    finalizarEnvioMasivo(): void {
+        this.isSending = false;
+        this.envioProgreso.enProceso = false;
+        this.deseleccionarTodos();
+
+        const total = this.envioProgreso.total;
+        const exitosos = this.envioProgreso.exitosos;
+        const fallidos = this.envioProgreso.fallidos;
+
+        if (fallidos === 0) {
+            this.notificationService.success(
+                `¡Todos los enlaces enviados exitosamente!\n${exitosos} contratistas procesados.`,
+                '✅ Envío completado'
+            );
+        } else if (exitosos > 0 && fallidos > 0) {
+            this.notificationService.warning(
+                `Envío parcial completado: ${exitosos} exitosos, ${fallidos} fallidos.`,
+                '⚠️ Envío completado con errores'
+            );
+        } else {
+            this.notificationService.error(
+                `No se pudo enviar ningún enlace. ${fallidos} fallidos.`,
+                '❌ Error en el envío'
+            );
+        }
+
+        // Limpiar estado
+        this.envioProgreso.mensaje = '';
+        this.enviandoIds.clear();
+
+        // Actualizar estadísticas
+        this.estadisticas.enviadosHoy = this.enviadosExitosos.length;
+    }
+
+    // ============================================
     // UTILIDADES
-    // ===============================
+    // ============================================
 
     getEstadoClass(estado: string): string {
         const clases: Record<string, string> = {
@@ -389,10 +466,20 @@ export class ContratistaEnvioEnlacesComponent implements OnInit, OnDestroy {
     }
 
     volverAlListado(): void {
+        if (this.isSending) {
+            if (!confirm('Hay envíos en progreso. ¿Está seguro de salir?')) {
+                return;
+            }
+        }
         this.router.navigate(['/contratistas/list']);
     }
 
     refrescar(): void {
+        if (this.isSending) {
+            if (!confirm('Hay envíos en progreso. ¿Desea cancelar y recargar?')) {
+                return;
+            }
+        }
         this.cargarContratistas();
     }
 

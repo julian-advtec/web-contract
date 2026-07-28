@@ -1,0 +1,199 @@
+<!-- src/app/pages/contratistas/components/formulario-aprobacion-list/formulario-aprobacion-list.component.html -->
+<div class="formulario-aprobacion-container">
+  <div class="formulario-aprobacion-inner">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2 class="page-title">
+        <i class="fas fa-clipboard-check me-2"></i>
+        Aprobación de Formularios
+      </h2>
+      <button class="btn btn-outline-secondary" (click)="cargarFormularios()">
+        <i class="fas fa-sync me-2"></i> Refrescar
+      </button>
+    </div>
+
+    <!-- Mensajes -->
+    <div *ngIf="showError" class="alert alert-danger alert-dismissible fade show">
+      <i class="fas fa-exclamation-triangle me-2"></i>
+      {{ errorMessage }}
+      <button type="button" class="btn-close" (click)="dismissError()"></button>
+    </div>
+
+    <div *ngIf="showSuccess" class="alert alert-success alert-dismissible fade show">
+      <i class="fas fa-check-circle me-2"></i>
+      {{ successMessage }}
+      <button type="button" class="btn-close" (click)="dismissSuccess()"></button>
+    </div>
+
+    <!-- Barra de búsqueda -->
+    <div class="search-container mb-3">
+      <div class="input-group">
+        <span class="input-group-text">
+          <i class="fas fa-search"></i>
+        </span>
+        <input type="text" class="form-control" placeholder="Buscar por contratista, documento o ID..."
+          [(ngModel)]="searchTerm" (input)="onSearch()" />
+      </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="filters-bar mb-3">
+      <div class="filters-container">
+        <select class="form-select form-select-sm" [(ngModel)]="filtroEstado" (change)="aplicarFiltros()">
+          <option *ngFor="let estado of estados" [value]="estado.value">{{ estado.label }}</option>
+        </select>
+        <button class="btn btn-outline-secondary btn-sm" (click)="limpiarFiltros()">
+          <i class="fas fa-eraser me-1"></i> Limpiar
+        </button>
+        <span class="badge bg-primary ms-2">
+          {{ filteredFormularios.length }} formularios
+        </span>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div *ngIf="isLoading" class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+      <p class="mt-2 text-muted">Cargando formularios...</p>
+    </div>
+
+    <!-- Tabla de formularios -->
+    <div *ngIf="!isLoading" class="card shadow main-card">
+      <div class="card-body p-0">
+
+        <!-- Sin resultados -->
+        <div *ngIf="filteredFormularios.length === 0" class="text-center py-5">
+          <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+          <h5 class="text-muted">No hay formularios pendientes de aprobación</h5>
+          <p class="text-muted small">Los formularios completados por los contratistas aparecerán aquí</p>
+          <button class="btn btn-primary mt-3" (click)="cargarFormularios()">
+            <i class="fas fa-sync me-2"></i> Refrescar
+          </button>
+        </div>
+
+        <!-- Lista de formularios -->
+        <div *ngIf="filteredFormularios.length > 0" class="formularios-list-container">
+
+          <!-- Header -->
+          <div class="formularios-header">
+            <div class="header-item">Contratista</div>
+            <div class="header-item">Documento</div>
+            <div class="header-item">Tipo</div>
+            <div class="header-item">Documentos</div>
+            <div class="header-item">Estado</div>
+            <div class="header-item">Fecha</div>
+            <div class="header-item">Acciones</div>
+          </div>
+
+          <!-- Filas -->
+          <div class="formularios-list">
+            <div *ngFor="let formulario of paginatedFormularios" class="formulario-card">
+
+              <!-- Contratista -->
+              <div class="formulario-info">
+                <div class="formulario-details">
+                  <h4 class="formulario-name">{{ formulario.contratistaNombre || 'N/A' }}</h4>
+                  <p class="formulario-sub">ID: {{ formulario.id | slice:0:8 }}...</p>
+                </div>
+              </div>
+
+              <!-- Documento -->
+              <div class="formulario-documento">
+                <span class="documento-text">{{ formulario.contratistaDocumento || 'N/A' }}</span>
+              </div>
+
+              <!-- Tipo -->
+              <div class="formulario-tipo">
+                <span class="tipo-badge">
+                  {{ getTipoContratistaTexto(formulario.contratista?.tipoContratista) }}
+                </span>
+              </div>
+
+              <!-- Documentos -->
+              <div class="formulario-docs">
+                <span class="docs-count">
+                  <i class="fas fa-file-pdf me-1"></i>
+                  {{ formulario.totalDocumentos || 0 }}
+                </span>
+                <span class="docs-groups" *ngIf="formulario.estadoGrupos">
+                  <span *ngFor="let grupo of formulario.estadoGrupos | keyvalue" 
+                        class="group-status" 
+                        [class.complete]="grupo.value['completado']">
+                    {{ grupo.value['combinadoExiste'] ? '✅' : '⏳' }}
+                  </span>
+                </span>
+              </div>
+
+              <!-- Estado -->
+              <div class="formulario-estado">
+                <span class="estado-badge" [ngClass]="getEstadoClass(formulario.estado)">
+                  <i class="fas" [class.fa-check-circle]="formulario.estado === 'APROBADO'"
+                     [class.fa-times-circle]="formulario.estado === 'RECHAZADO'"
+                     [class.fa-clock]="formulario.estado === 'PENDIENTE'"
+                     [class.fa-spinner]="formulario.estado === 'EN_REVISION'">
+                  </i>
+                  {{ getEstadoTexto(formulario.estado) }}
+                </span>
+              </div>
+
+              <!-- Fecha -->
+              <div class="formulario-fecha">
+                <span class="fecha-text">
+                  {{ formulario.fechaCompletado || formulario.createdAt | date:'dd/MM/yyyy HH:mm' }}
+                </span>
+                <span class="fecha-label">Completado</span>
+              </div>
+
+              <!-- Acciones -->
+              <div class="formulario-acciones">
+                <button class="btn-action btn-primary" 
+                        (click)="verDetalle(formulario)"
+                        [disabled]="formulario.estado === 'APROBADO' || formulario.estado === 'RECHAZADO'">
+                  <i class="fas fa-eye me-1"></i> Revisar
+                </button>
+                <button class="btn-action btn-outline-secondary btn-sm" 
+                        (click)="verDetalle(formulario)" title="Ver detalle">
+                  <i class="fas fa-info-circle"></i>
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Paginación -->
+          <div class="formularios-footer">
+            <div class="footer-content-row">
+              <div class="footer-empty"></div>
+
+              <div class="footer-pagination">
+                <button class="page-btn" [disabled]="currentPage === 1" (click)="changePage(currentPage - 1)">
+                  <i class="fas fa-chevron-left"></i>
+                </button>
+
+                <span *ngFor="let page of pages" class="page-number" [class.active]="page === currentPage"
+                      (click)="changePage(page)">
+                  {{ page }}
+                </span>
+
+                <button class="page-btn" [disabled]="currentPage === totalPages" (click)="changePage(currentPage + 1)">
+                  <i class="fas fa-chevron-right"></i>
+                </button>
+              </div>
+
+              <div class="footer-actions">
+                <span class="text-muted">
+                  Mostrando {{ paginatedFormularios.length }} de {{ filteredFormularios.length }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
