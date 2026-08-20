@@ -1,0 +1,162 @@
+// src/app/shared/components/confirm-dialog/confirm-dialog.component.scss
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 1rem;
+}
+
+.dialog-container {
+  background: white;
+  border-radius: 16px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 1.5rem 0.5rem 1.5rem;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.dialog-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1F2937;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+
+  i {
+    font-size: 1.3rem;
+  }
+}
+
+.dialog-close {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: #6B7280;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #F3F4F6;
+    color: #1F2937;
+  }
+}
+
+.dialog-body {
+  padding: 1.5rem;
+}
+
+.dialog-message {
+  margin: 0;
+  color: #4B5563;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.dialog-details {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: #F9FAFB;
+  border-radius: 8px;
+
+  .details-content {
+    max-height: 200px;
+    overflow: auto;
+
+    pre {
+      margin: 0;
+      font-size: 0.8rem;
+      color: #4B5563;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+  }
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem 1.5rem 1.5rem;
+  border-top: 1px solid #E5E7EB;
+}
+
+.btn {
+  padding: 0.6rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  &.btn-secondary {
+    background: #F3F4F6;
+    color: #4B5563;
+
+    &:hover {
+      background: #E5E7EB;
+    }
+  }
+
+  &.btn-primary {
+    background: #10B981;
+    color: white;
+
+    &:hover {
+      background: #0D9D6B;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+  }
+
+  &.btn-danger {
+    background: #EF4444;
+    color: white;
+
+    &:hover {
+      background: #DC2626;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    }
+  }
+
+  &.btn-warning {
+    background: #F59E0B;
+    color: white;
+
+    &:hover {
+      background: #D97706;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+  }
+}

@@ -46,7 +46,6 @@ export class ContratistasService {
       estado: item.estado || 'ACTIVO',
       numeroContrato: item.numeroContrato || item.numero_contrato || '',
       cargo: item.cargo || '',
-      // ✅ CORREGIDO: usar 'objetivoContrato' en lugar de 'observaciones'
       objetivoContrato: item.objetivoContrato || item.observaciones || '',
       createdAt: item.createdAt ? new Date(item.createdAt) : item.fecha_creacion ? new Date(item.fecha_creacion) : new Date(),
       updatedAt: item.updatedAt ? new Date(item.updatedAt) : item.fecha_actualizacion ? new Date(item.fecha_actualizacion) : new Date(),
@@ -219,24 +218,20 @@ export class ContratistasService {
       map(response => {
         console.log('📥 Respuesta completa - estructura:', JSON.stringify(response, null, 2));
 
-        // Función recursiva para encontrar los datos reales
         const encontrarDatos = (obj: any, profundidad: number = 0): any => {
           if (profundidad > 10) return null;
           if (!obj || typeof obj !== 'object') return null;
 
-          // Si tiene documentos y propiedades de contratista
           if (obj.documentos && Array.isArray(obj.documentos) && obj.id && obj.razonSocial) {
             console.log(`✅ Contratista encontrado con ${obj.documentos.length} documentos`);
             return obj;
           }
 
-          // Buscar en data
           if (obj.data) {
             const encontrado = encontrarDatos(obj.data, profundidad + 1);
             if (encontrado) return encontrado;
           }
 
-          // Buscar en todas las propiedades
           for (const key in obj) {
             if (obj.hasOwnProperty(key) && typeof obj[key] === 'object') {
               const encontrado = encontrarDatos(obj[key], profundidad + 1);
@@ -368,8 +363,6 @@ export class ContratistasService {
   // GESTIÓN DE DOCUMENTOS
   // ===============================
 
-
-
   eliminarDocumento(contratistaId: string, documentoId: string): Observable<void> {
     const headers = this.getAuthHeaders();
     return this.http.delete<any>(`${this.apiUrl}/${contratistaId}/documentos/${documentoId}`, { headers }).pipe(
@@ -487,34 +480,26 @@ export class ContratistasService {
       map(response => {
         console.log('📥 Respuesta de documentos - estructura completa:', response);
 
-        // ✅ La respuesta tiene estructura: { ok: true, data: { success: true, data: [...] } }
-        // O puede ser: { ok: true, data: [...] }
-
-        // Caso 1: response.ok === true y response.data.data es un array
         if (response?.ok === true && response?.data?.data && Array.isArray(response.data.data)) {
           console.log('✅ Documentos encontrados en response.data.data:', response.data.data.length);
           return response.data.data;
         }
 
-        // Caso 2: response.ok === true y response.data es un array
         if (response?.ok === true && response?.data && Array.isArray(response.data)) {
           console.log('✅ Documentos encontrados en response.data:', response.data.length);
           return response.data;
         }
 
-        // Caso 3: response.data.data es un array
         if (response?.data?.data && Array.isArray(response.data.data)) {
           console.log('✅ Documentos encontrados en data.data:', response.data.data.length);
           return response.data.data;
         }
 
-        // Caso 4: response.data es un array
         if (response?.data && Array.isArray(response.data)) {
           console.log('✅ Documentos encontrados en data:', response.data.length);
           return response.data;
         }
 
-        // Caso 5: response es directamente un array
         if (Array.isArray(response)) {
           console.log('✅ Documentos encontrados en respuesta directa:', response.length);
           return response;
@@ -534,11 +519,10 @@ export class ContratistasService {
     const headers = this.getFormDataHeaders();
     console.log(`📦 Solicitando descarga de todos los documentos del contratista: ${contratistaId}`);
 
-    // ✅ Agregar options para asegurar que el blob se maneje correctamente
     return this.http.get(`${this.apiUrl}/${contratistaId}/documentos/descargar-todos`, {
       headers,
       responseType: 'blob',
-      observe: 'body' // Usar 'body' en lugar de 'response'
+      observe: 'body'
     }).pipe(
       map((blob: Blob) => {
         console.log(`📥 Blob recibido, tamaño: ${blob.size} bytes, tipo: ${blob.type}`);
@@ -549,7 +533,6 @@ export class ContratistasService {
       }),
       catchError(error => {
         console.error('❌ Error descargando todos los documentos:', error);
-        // Intentar leer el error si es un blob de error
         if (error.error instanceof Blob) {
           const reader = new FileReader();
           reader.onload = () => {
@@ -586,10 +569,6 @@ export class ContratistasService {
   // BÚSQUEDA EXACTA POR CONTRATO
   // ===============================
 
-  /**
-   * Buscar contratista por número de contrato EXACTO
-   * Este método usa el endpoint específico que funciona correctamente
-   */
   buscarContratistaPorNumeroContratoExacto(numeroContrato: string): Observable<Contratista | null> {
     const headers = this.getAuthHeaders();
     if (!headers.get('Authorization') || !numeroContrato || numeroContrato.trim().length < 1) {
@@ -598,7 +577,6 @@ export class ContratistasService {
 
     console.log('[ContratistasService] Buscando contratista exacto por contrato:', numeroContrato);
 
-    // ✅ Usar el mismo endpoint que funciona en AuditorService
     return this.http.get<any>(
       `${this.apiUrl}/buscar-por-contrato/${encodeURIComponent(numeroContrato.trim())}`,
       { headers }
@@ -606,21 +584,17 @@ export class ContratistasService {
       map(response => {
         console.log('[ContratistasService] Respuesta del endpoint exacto:', response);
 
-        // Extraer el contratista de la respuesta (misma lógica que en AuditorService)
         let contratista = response?.data?.data?.data ||
           response?.data?.data ||
           response?.data ||
           response;
 
-        // Si es un array, tomar el primero
         if (Array.isArray(contratista) && contratista.length > 0) {
           contratista = contratista[0];
         }
 
         if (contratista && contratista.id) {
           console.log('[ContratistasService] Contratista encontrado:', contratista.razonSocial);
-          console.log('[ContratistasService] Email:', contratista.email);
-          console.log('[ContratistasService] Teléfono:', contratista.telefono);
           return this.mapearContratista(contratista);
         }
 
@@ -634,9 +608,6 @@ export class ContratistasService {
     );
   }
 
-  /**
-   * Envía enlace a un contratista individual
-   */
   enviarEnlaceAlContratista(id: string, email?: string): Observable<any> {
     const headers = this.getAuthHeaders();
     const body = email ? { email } : {};
@@ -648,9 +619,6 @@ export class ContratistasService {
     );
   }
 
-  /**
-   * Envía enlace a múltiples contratistas
-   */
   enviarEnlaceMultiple(ids: string[]): Observable<any> {
     const headers = this.getAuthHeaders();
     return this.http.post(`${this.apiUrl}/enviar-enlace-multiple`, { ids }, { headers }).pipe(
@@ -661,9 +629,6 @@ export class ContratistasService {
     );
   }
 
-  /**
-   * Verifica si un contratista tiene email
-   */
   verificarEmailContratista(id: string): Observable<any> {
     const headers = this.getAuthHeaders();
     return this.http.get(`${this.apiUrl}/${id}/tiene-email`, { headers }).pipe(
@@ -674,4 +639,34 @@ export class ContratistasService {
     );
   }
 
+  // ✅ MÉTODOS PARA DOCUMENTOS COMBINADOS - URLs corregidas
+  descargarCombinadoSeguridadSocial(contratistaId: string): Observable<Blob> {
+    const headers = this.getFormDataHeaders();
+    console.log(`📦 Solicitando combinado de SEGURIDAD SOCIAL para contratista: ${contratistaId}`);
+
+    return this.http.get(`${this.apiUrl}/${contratistaId}/documentos/combinado/SEGURIDAD_SOCIAL`, {
+      headers,
+      responseType: 'blob'
+    }).pipe(
+      catchError(error => {
+        console.error('❌ Error descargando combinado de seguridad social:', error);
+        throw error;
+      })
+    );
+  }
+
+  descargarCombinadoAntecedentes(contratistaId: string): Observable<Blob> {
+    const headers = this.getFormDataHeaders();
+    console.log(`📦 Solicitando combinado de CERTIFICADO_ANTECEDENTES para contratista: ${contratistaId}`);
+
+    return this.http.get(`${this.apiUrl}/${contratistaId}/documentos/combinado/CERTIFICADO_ANTECEDENTES`, {
+      headers,
+      responseType: 'blob'
+    }).pipe(
+      catchError(error => {
+        console.error('❌ Error descargando combinado de antecedentes:', error);
+        throw error;
+      })
+    );
+  }
 }

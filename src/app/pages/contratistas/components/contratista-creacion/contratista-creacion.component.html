@@ -7,10 +7,30 @@
       <h2 class="page-title">
         <i class="fas fa-user-plus me-2"></i>
         {{ isEditMode ? 'Editar Contratista' : 'Nuevo Contratista' }}
+        <span *ngIf="fromAprobacion" class="badge bg-warning ms-2">
+          <i class="fas fa-clipboard-check me-1"></i> Desde Aprobación
+        </span>
       </h2>
-      <button class="btn btn-outline-secondary" (click)="cancelar()">
-        <i class="fas fa-arrow-left me-2"></i> Volver
-      </button>
+      <div>
+        <button class="btn btn-outline-secondary" (click)="cancelar()">
+          <i class="fas fa-arrow-left me-2"></i>
+          {{ fromAprobacion ? 'Volver a Aprobación' : 'Cancelar' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- ✅ Mensaje informativo de aprobación -->
+    <div *ngIf="fromAprobacion && formularioAprobacionData" class="alert alert-info mb-4">
+      <i class="fas fa-info-circle me-2"></i>
+      <strong>Datos cargados desde el formulario de aprobación.</strong>
+      <p class="mb-0 small">
+        Estado del formulario:
+        <span class="badge" [ngClass]="getEstadoClass(formularioAprobacionData.estadoFormulario)">
+          {{ getEstadoTexto(formularioAprobacionData.estadoFormulario) }}
+        </span>
+        <span class="ms-3">📄 Documentos: {{ formularioAprobacionData.totalDocumentos || 0 }}</span>
+        <span class="ms-3">📅 Completado: {{ formularioAprobacionData.fechaCompletado | date:'dd/MM/yyyy HH:mm' }}</span>
+      </p>
     </div>
 
     <!-- Mensajes -->
@@ -202,7 +222,7 @@
             <i class="fas fa-arrow-left me-2"></i> Anterior
           </button>
           <button type="button" class="btn btn-primary px-4" (click)="siguientePaso()">
-            Siguiente <i class="fas fa-arrow-right ms-2"></i>
+            <i class="fas fa-arrow-right ms-2"></i> Siguiente
           </button>
         </div>
       </div>
@@ -219,6 +239,11 @@
             Los documentos marcados con <strong>*</strong> son obligatorios.
             La <strong>Libreta Militar</strong> es opcional.
             Formatos permitidos: <strong>PDF</strong> (max. 5MB cada uno)
+            <br>
+            <span class="badge bg-primary mt-1">
+              <i class="fas fa-layer-group me-1"></i> Combinado
+            </span>
+            <span class="ms-2 text-muted small">= Documento que agrupa varios archivos individuales</span>
           </div>
 
           <!-- Dropdown para seleccionar tipo de documento -->
@@ -231,6 +256,9 @@
                   {{ doc.label }}
                   <span *ngIf="doc.value === 'LIBRETA_MILITAR'">(Opcional)</span>
                   <span *ngIf="doc.value !== 'LIBRETA_MILITAR'">*</span>
+                  <span *ngIf="esDocumentoCombinado(doc.value)" class="combinado-badge-small">
+                    <i class="fas fa-layer-group me-1"></i> Combinado
+                  </span>
                 </option>
               </select>
               <button type="button" class="btn btn-primary" (click)="agregarDocumentoManual()"
@@ -253,8 +281,7 @@
             <div class="drag-drop-content">
               <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
               <h6>Arrastra y suelta tu archivo aquí</h6>
-              <p class="text-muted">para subir el documento <strong>{{ getTipoDocumentoLabel(tipoSeleccionado)
-                  }}</strong></p>
+              <p class="text-muted">para subir el documento <strong>{{ getTipoDocumentoLabel(tipoSeleccionado) }}</strong></p>
               <small>Archivos PDF hasta 5MB</small>
             </div>
           </div>
@@ -266,17 +293,33 @@
 
           <!-- Lista de documentos subidos -->
           <div class="documentos-subidos mt-4">
-            <h6 class="mb-3">Documentos Subidos ({{ documentosSubidosCount }} de {{ tiposDocumentoRequeridos.length }}
-              requeridos)</h6>
+            <h6 class="mb-3">Documentos Subidos ({{ documentosSubidosCount }} de {{ tiposDocumentoRequeridos.length }} requeridos)</h6>
 
             <div class="documentos-grid">
-              <div *ngFor="let doc of documentosSubidosList" class="documento-card completed">
+              <div *ngFor="let doc of documentosSubidosList" class="documento-card"
+                [class.completed]="!doc.marcadoEliminar && doc.existeEnBackend" [class.eliminado]="doc.marcadoEliminar"
+                [class.combinado]="doc.esCombinado && doc.existeEnBackend">
                 <div class="documento-header">
-                  <i class="fas fa-check-circle text-success"></i>
+                  <i class="fas" [class.fa-check-circle]="!doc.marcadoEliminar && doc.existeEnBackend"
+                    [class.fa-times-circle]="doc.marcadoEliminar"
+                    [class.text-success]="!doc.marcadoEliminar && doc.existeEnBackend"
+                    [class.text-danger]="doc.marcadoEliminar"></i>
                   <h6 class="documento-titulo">
-                    {{ doc.label }}
+                    <ng-container *ngIf="doc.esCombinado && doc.existeEnBackend">
+                      {{ doc.value === 'SEGURIDAD_SOCIAL' ? 'Seguridad Social (Combinado)' : 'Certificado de Antecedentes (Combinado)' }}
+                    </ng-container>
+                    <ng-template #individualLabel>
+                      {{ doc.label }}
+                    </ng-template>
+
                     <span *ngIf="doc.value === 'LIBRETA_MILITAR'" class="opcional-badge">Opcional</span>
-                    <span *ngIf="doc.value !== 'LIBRETA_MILITAR'" class="required-badge">*</span>
+                    <span *ngIf="doc.value !== 'LIBRETA_MILITAR' && !doc.esCombinado" class="required-badge">*</span>
+
+                    <span *ngIf="doc.esCombinado && doc.existeEnBackend" class="combinado-badge">
+                      <i class="fas fa-layer-group me-1"></i> Combinado
+                    </span>
+
+                    <span *ngIf="doc.marcadoEliminar" class="badge bg-danger ms-2">Marcado para eliminar</span>
                   </h6>
                 </div>
                 <div class="documento-body">
@@ -289,13 +332,27 @@
                       <span class="info-label">Tamaño:</span>
                       <span class="info-value">{{ formatearTamano(doc.tamano) }}</span>
                     </div>
+                    <div *ngIf="doc.esCombinado && doc.existeEnBackend" class="info-row combinado-info">
+                      <span class="info-label">Contiene:</span>
+                      <span class="info-value text-primary">
+                        <i class="fas fa-file-pdf me-1"></i>
+                        Múltiples documentos combinados
+                      </span>
+                      <span class="info-value text-success">
+                        <i class="fas fa-check-circle me-1"></i> Guardado en servidor
+                      </span>
+                    </div>
                     <div class="documento-actions">
                       <button type="button" class="btn-download" (click)="descargarDocumento(doc)" title="Descargar">
                         <i class="fas fa-download"></i> Descargar
                       </button>
-                     <button type="button" class="btn-remove" (click)="marcarDocumentoParaEliminar(doc.value)">
-                        title="Eliminar">
+                      <button *ngIf="!doc.marcadoEliminar && !doc.esCombinado" type="button" class="btn-remove"
+                        (click)="confirmarEliminarDocumento(doc)" title="Eliminar">
                         <i class="fas fa-trash-alt"></i> Eliminar
+                      </button>
+                      <button *ngIf="doc.marcadoEliminar" type="button" class="btn-restore"
+                        (click)="restaurarDocumento(doc.value)" title="Restaurar">
+                        <i class="fas fa-undo"></i> Restaurar
                       </button>
                     </div>
                   </div>
@@ -314,8 +371,7 @@
               <div class="progress-bar" [style.width.%]="porcentajeDocumentos"></div>
             </div>
             <div class="resumen-stats">
-              <span>{{ documentosCompletadosRequeridos }} de {{ totalDocumentosRequeridos }} documentos requeridos
-                subidos</span>
+              <span>{{ documentosCompletadosRequeridos }} de {{ totalDocumentosRequeridos }} documentos requeridos subidos</span>
               <span class="porcentaje">{{ porcentajeDocumentos }}%</span>
             </div>
           </div>

@@ -1,0 +1,15 @@
+<!-- src/app/shared/components/loading-spinner/loading-spinner.component.html -->
+<div class="loading-overlay" *ngIf="loading">
+  <div class="loading-content">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+    <p class="loading-message">{{ message }}</p>
+    <div class="loading-progress" *ngIf="progress !== undefined">
+      <div class="progress-track">
+        <div class="progress-bar" [style.width.%]="progress"></div>
+      </div>
+      <span class="progress-text">{{ progress }}%</span>
+    </div>
+  </div>
+</div>

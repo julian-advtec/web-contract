@@ -2,7 +2,9 @@
 <div class="envio-enlaces-container">
   <div class="envio-enlaces-inner">
 
-    <!-- BARRA DE ACCIONES -->
+    <app-loading-spinner [manualLoading]="isLoading" message="Cargando contratistas..."></app-loading-spinner>
+
+    <!-- Barra de Acciones -->
     <div class="actions-bar" *ngIf="getContratistasSeleccionados().length > 0">
       <div class="actions-content">
         <span class="selected-count">
@@ -23,19 +25,25 @@
       </div>
     </div>
 
-    <!-- FILTROS -->
+    <!-- Búsqueda y Filtros -->
     <div class="filters-section">
-      <div class="filters-row">
-        <div class="search-box">
-          <i class="fas fa-search search-icon"></i>
-          <input type="text" 
-                 class="form-control" 
+      <div class="search-container-smaller">
+        <div class="input-group">
+          <span class="input-group-text">
+            <i class="fas fa-search"></i>
+          </span>
+          <input type="text" class="form-control" 
                  placeholder="Buscar por nombre, documento o email..."
                  [(ngModel)]="searchTerm" 
-                 (input)="onSearch()">
+                 (input)="onSearch()" />
         </div>
-        <div class="filter-group">
-          <select class="form-select" [(ngModel)]="filtroEstado" (change)="aplicarFiltros()">
+      </div>
+
+      <div class="filters-bar mt-3">
+        <div class="filters-container">
+          <select class="form-select form-select-sm" 
+                  [(ngModel)]="filtroEstado" 
+                  (change)="aplicarFiltros()">
             <option value="TODOS">Todos los estados</option>
             <option value="ACTIVO">Activo</option>
             <option value="INACTIVO">Inactivo</option>
@@ -48,123 +56,119 @@
       </div>
     </div>
 
-    <!-- LOADING -->
-    <div *ngIf="isLoading" class="loading-container">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Cargando...</span>
-      </div>
-      <p class="text-muted mt-2">Cargando contratistas...</p>
-    </div>
+    <!-- Tabla -->
+    <div class="card shadow main-card mt-3">
+      <div class="card-body p-0">
 
-    <!-- TABLA -->
-    <div *ngIf="!isLoading" class="table-container">
-      <div *ngIf="filteredContratistas.length === 0" class="empty-state">
-        <i class="fas fa-users fa-3x text-muted mb-3"></i>
-        <h5 class="text-muted">No se encontraron contratistas</h5>
-        <p class="text-muted small">Intenta con otros filtros o verifica que haya contratistas registrados</p>
-      </div>
-
-      <div *ngIf="filteredContratistas.length > 0" class="table-wrapper">
-        <!-- HEADER -->
-        <div class="table-header">
-          <div class="col-select">
-            <input type="checkbox" 
-                   [checked]="seleccionTodos" 
-                   (change)="toggleSeleccionTodos()"
-                   [disabled]="getContratistasConEmailFiltrados().length === 0">
-          </div>
-          <div class="col-documento">Documento</div>
-          <div class="col-nombre">Razón Social</div>
-          <div class="col-email">Email</div>
-          <div class="col-estado">Estado</div>
-          <div class="col-acciones">Acciones</div>
+        <div *ngIf="filteredContratistas.length === 0" class="text-center py-5">
+          <i class="fas fa-users fa-3x text-muted mb-3"></i>
+          <h5 class="text-muted" *ngIf="searchTerm">
+            No se encontraron resultados para "{{ searchTerm }}"
+          </h5>
+          <h5 class="text-muted" *ngIf="!searchTerm">
+            No hay contratistas disponibles
+          </h5>
         </div>
 
-        <!-- FILAS -->
-        <div class="table-body">
-          <div *ngFor="let contratista of getContratistasPaginated()" 
-               class="table-row" 
-               [class.sin-email]="!contratista.tieneEmail"
-               [class.seleccionado]="contratista.seleccionado">
-            
-            <div class="col-select">
+        <div *ngIf="filteredContratistas.length > 0" class="users-list-container">
+
+          <!-- HEADER -->
+          <div class="users-header">
+            <div class="header-item">
               <input type="checkbox" 
-                     [checked]="contratista.seleccionado" 
-                     (change)="toggleSeleccion(contratista)"
-                     [disabled]="!contratista.tieneEmail">
+                     [checked]="seleccionTodos" 
+                     (change)="toggleSeleccionTodos()"
+                     [disabled]="getContratistasConEmailFiltrados().length === 0">
             </div>
-            
-            <div class="col-documento">
-              <span class="documento-text">{{ contratista.documentoIdentidad }}</span>
-            </div>
-            
-            <div class="col-nombre">
-              <span class="nombre-text">{{ contratista.razonSocial }}</span>
-              <span class="telefono-text" *ngIf="contratista.telefono">
-                <i class="fas fa-phone me-1"></i>{{ contratista.telefono }}
-              </span>
-            </div>
-            
-            <div class="col-email">
-              <span class="email-text" [class.text-muted]="!contratista.tieneEmail">
-                <i class="fas" [ngClass]="[getEmailStatusIcon(contratista), getEmailStatusColor(contratista)]"
-                   [title]="getEmailStatusTooltip(contratista)">
-                </i>
-                {{ contratista.email || 'Sin email' }}
-              </span>
-            </div>
-            
-            <div class="col-estado">
-              <span class="status-badge" [class]="getEstadoClass(contratista.estado)">
-                {{ getEstadoTexto(contratista.estado) }}
-              </span>
-            </div>
-            
-            <div class="col-acciones">
-              <button class="btn-action btn-send" 
-                      (click)="enviarEnlaceIndividual(contratista)"
-                      [disabled]="!contratista.tieneEmail || enviandoIds.has(contratista.id)"
-                      [title]="!contratista.tieneEmail ? 'Sin email registrado' : 'Enviar enlace'">
-                <i class="fas fa-paper-plane" 
-                   [class.fa-spin]="enviandoIds.has(contratista.id)"></i>
-                {{ enviandoIds.has(contratista.id) ? 'Enviando...' : 'Enviar' }}
-              </button>
+            <div class="header-item">Documento</div>
+            <div class="header-item">Razón Social</div>
+            <div class="header-item">Email</div>
+            <div class="header-item">Estado</div>
+            <div class="header-item">Acciones</div>
+          </div>
+
+          <!-- LISTA -->
+          <div class="users-list">
+            <div *ngFor="let contratista of paginatedItems" 
+                 class="user-card"
+                 [class.sin-email]="!contratista.tieneEmail"
+                 [class.seleccionado]="contratista.seleccionado">
+
+              <!-- Checkbox -->
+              <div class="user-select">
+                <input type="checkbox" 
+                       [checked]="contratista.seleccionado" 
+                       (change)="toggleSeleccion(contratista)"
+                       [disabled]="!contratista.tieneEmail">
+              </div>
+
+              <!-- Documento -->
+              <div class="user-info">
+                <div class="user-details">
+                  <h4 class="user-name">{{ contratista.documentoIdentidad }}</h4>
+                  <p class="user-username">Documento</p>
+                </div>
+              </div>
+
+              <!-- Razón Social -->
+              <div class="user-email">
+                <p class="email-text">
+                  {{ contratista.razonSocial }}
+                  <span class="text-muted d-block small" *ngIf="contratista.telefono">
+                    <i class="fas fa-phone me-1"></i>{{ contratista.telefono }}
+                  </span>
+                </p>
+              </div>
+
+              <!-- Email -->
+              <div class="user-contact">
+                <span class="email-text" [class.text-muted]="!contratista.tieneEmail">
+                  <i class="fas" [ngClass]="[getEmailStatusIcon(contratista), getEmailStatusColor(contratista)]"
+                     [title]="getEmailStatusTooltip(contratista)">
+                  </i>
+                  {{ contratista.email || 'Sin email' }}
+                </span>
+              </div>
+
+              <!-- Estado -->
+              <div class="user-status">
+                <span class="status-badge" [ngClass]="getEstadoClass(contratista.estado)">
+                  <i class="fas" [class.fa-check-circle]="contratista.estado === 'ACTIVO'"
+                     [class.fa-times-circle]="contratista.estado === 'INACTIVO'"
+                     [class.fa-pause-circle]="contratista.estado === 'SUSPENDIDO'">
+                  </i>
+                  {{ getEstadoTexto(contratista.estado) }}
+                </span>
+              </div>
+
+              <!-- Acciones -->
+              <div class="user-actions">
+                <button class="btn-action btn-send" 
+                        (click)="enviarEnlaceIndividual(contratista)"
+                        [disabled]="!contratista.tieneEmail || enviandoIds.has(contratista.id)"
+                        [title]="!contratista.tieneEmail ? 'Sin email registrado' : 'Enviar enlace'">
+                  <i class="fas fa-paper-plane" 
+                     [class.fa-spin]="enviandoIds.has(contratista.id)"></i>
+                  {{ enviandoIds.has(contratista.id) ? 'Enviando...' : 'Enviar' }}
+                </button>
+              </div>
+
             </div>
           </div>
+
+          <!-- PAGINACIÓN -->
+          <app-pagination
+            [totalItems]="filteredContratistas.length"
+            [currentPage]="currentPage"
+            [pageSize]="pageSize"
+            [pageSizeOptions]="[5, 10, 25, 50]"
+            [itemsLabel]="'contratistas'"
+            (pageChange)="changePage($event)"
+            (pageSizeChange)="onPageSizeChange($event)">
+          </app-pagination>
+
         </div>
       </div>
-
-      <!-- PAGINACIÓN -->
-      <div class="pagination-container" *ngIf="filteredContratistas.length > 0">
-        <div class="pagination-info">
-          Mostrando {{ (currentPage - 1) * pageSize + 1 }} - 
-          {{ Math.min(currentPage * pageSize, filteredContratistas.length) }} 
-          de {{ filteredContratistas.length }} contratistas
-        </div>
-        <div class="pagination-controls">
-          <button class="page-btn" [disabled]="currentPage === 1" (click)="changePage(currentPage - 1)">
-            <i class="fas fa-chevron-left"></i>
-          </button>
-          <span *ngFor="let page of pages" 
-                class="page-number" 
-                [class.active]="page === currentPage"
-                (click)="changePage(page)">
-            {{ page }}
-          </span>
-          <button class="page-btn" [disabled]="currentPage === totalPages" (click)="changePage(currentPage + 1)">
-            <i class="fas fa-chevron-right"></i>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- FOOTER INFO -->
-    <div class="footer-info">
-      <p class="text-muted small">
-        <i class="fas fa-info-circle me-1"></i>
-        Los contratistas sin email no pueden recibir enlaces. 
-        Para enviar enlaces, asegúrese de que el contratista tenga un email registrado.
-      </p>
     </div>
 
   </div>

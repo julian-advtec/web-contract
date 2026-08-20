@@ -1,75 +1,77 @@
-// src/app/pages/contratistas/components/formulario-aprobacion-list/formulario-aprobacion-list.component.ts
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
-import { FormulariosPublicosService } from '../../../../core/services/formularios-publicos.service';
+import { Subscription } from 'rxjs';
 
-// ✅ Definir interfaces para mejor tipado
-interface EstadoGrupo {
-  label: string;
-  completado: boolean;
-  documentosSubidos: number;
-  totalRequeridos: number;
-  combinadoExiste: boolean;
-  combinadoId: string | null;
-  tipos: string[];
-}
+import { FormulariosPublicosService } from '../../../../core/services/formularios-publicos.service';
+import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
+import { PaginationComponent } from '../../../../shared/components/pagination/pagination.component';
 
 interface FormularioAprobacion {
   id: string;
   contratistaId: string;
   contratistaNombre: string;
   contratistaDocumento: string;
+  tipoContratista: string;
   estado: string;
   completado: boolean;
   totalDocumentos: number;
   fechaCompletado: string;
   createdAt: string;
-  estadoGrupos: { [key: string]: EstadoGrupo };
-  contratista?: {
-    tipoContratista?: string;
-  };
-  representanteLegal?: string;
-  documentoRepresentante?: string;
+  estadoGrupos: any;
+  representanteLegal: string;
+  documentoRepresentante: string;
+  objetivoContrato: string;
+  cargo: string;
+  telefono: string;
+  direccion: string;
+  departamento: string;
+  ciudad: string;
 }
 
 @Component({
   selector: 'app-formulario-aprobacion-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterModule,
+    LoadingSpinnerComponent,
+    PaginationComponent
+  ],
   templateUrl: './formulario-aprobacion-list.component.html',
-  styleUrls: ['./formulario-aprobacion-list.component.scss']
+  styleUrls: ['./formulario-aprobacion-list.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FormularioAprobacionListComponent implements OnInit {
   formularios: FormularioAprobacion[] = [];
   filteredFormularios: FormularioAprobacion[] = [];
-  paginatedFormularios: FormularioAprobacion[] = [];
+  paginatedItems: FormularioAprobacion[] = [];
 
   isLoading = false;
   searchTerm = '';
-  errorMessage = '';
-  showError = false;
-  showSuccess = false;
-  successMessage = '';
+  filtroEstado = 'TODOS';
 
   currentPage = 1;
   pageSize = 10;
+  totalItems = 0;
   totalPages = 1;
-  pages: number[] = [];
 
-  filtroEstado = 'TODOS';
   estados = [
     { value: 'TODOS', label: 'Todos' },
-    { value: 'COMPLETADO', label: 'Completado' },
+    { value: 'PENDIENTE', label: 'Pendiente' },
     { value: 'EN_REVISION', label: 'En Revisión' },
     { value: 'APROBADO', label: 'Aprobado' },
-    { value: 'RECHAZADO', label: 'Rechazado' },
+    { value: 'RECHAZADO', label: 'Rechazado' }
   ];
+
+  private subscriptions: Subscription[] = [];
 
   constructor(
     private formularioService: FormulariosPublicosService,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -78,118 +80,78 @@ export class FormularioAprobacionListComponent implements OnInit {
 
   cargarFormularios(): void {
     this.isLoading = true;
-    this.showError = false;
-    this.formularios = [];
-    this.filteredFormularios = [];
-    this.paginatedFormularios = [];
+    this.cdr.markForCheck();
 
-    this.formularioService.listarPendientesAprobacion().subscribe({
+    const sub = this.formularioService.listarPendientesAprobacion().subscribe({
       next: (response: any) => {
-        console.log('📦 Respuesta COMPLETA:', response);
-        
-        // ✅ Extraer los datos - la estructura correcta es:
-        // response.data.data.data (¡tres niveles!)
-        let data: any[] = [];
-        
-        // Caso 1: response.data.data.data (la estructura actual)
-        if (response?.data?.data?.data && Array.isArray(response.data.data.data)) {
-          data = response.data.data.data;
-          console.log(`✅ Datos extraídos de response.data.data.data: ${data.length}`);
-        } 
-        // Caso 2: response.data.data (si es array directamente)
-        else if (response?.data?.data && Array.isArray(response.data.data)) {
-          data = response.data.data;
-          console.log(`✅ Datos extraídos de response.data.data: ${data.length}`);
-        }
-        // Caso 3: response.data (si es array)
-        else if (response?.data && Array.isArray(response.data)) {
-          data = response.data;
-          console.log(`✅ Datos extraídos de response.data: ${data.length}`);
-        }
-        // Caso 4: response (si es array)
-        else if (Array.isArray(response)) {
-          data = response;
-          console.log(`✅ Datos extraídos de response: ${data.length}`);
-        }
-        // Caso 5: Buscar en cualquier propiedad que sea array
-        else {
-          for (const key in response) {
-            if (response[key] && typeof response[key] === 'object' && !Array.isArray(response[key])) {
-              for (const subKey in response[key]) {
-                if (Array.isArray(response[key][subKey]) && response[key][subKey].length > 0) {
-                  data = response[key][subKey];
-                  console.log(`✅ Datos extraídos de response.${key}.${subKey}: ${data.length}`);
-                  break;
-                }
-              }
-            }
-            if (data.length > 0) break;
-          }
-        }
-        
-        // ✅ Asignar los datos (siempre como array)
-        this.formularios = data || [];
-        console.log(`✅ ${this.formularios.length} formularios cargados`);
-        
-        // ✅ Mostrar el primer formulario para verificar
-        if (this.formularios.length > 0) {
-          console.log('📋 Primer formulario:', this.formularios[0]);
-          console.log('📋 Estado del primer formulario:', this.formularios[0].estado);
-        }
-        
-        // ✅ Actualizar listas filtradas y paginadas
-        this.filteredFormularios = [...this.formularios];
-        this.aplicarFiltros();
         this.isLoading = false;
-
-        if (this.formularios.length > 0) {
-          this.showSuccess = true;
-          this.successMessage = `${this.formularios.length} formularios encontrados`;
-          setTimeout(() => this.showSuccess = false, 3000);
-        } else {
-          this.showSuccess = true;
-          this.successMessage = 'No hay formularios pendientes de aprobación';
-          setTimeout(() => this.showSuccess = false, 3000);
-        }
+        const data = this.extraerFormularios(response);
+        this.formularios = this.mapToFormularios(data);
+        this.aplicarFiltros();
+        this.cdr.markForCheck();
       },
       error: (error) => {
-        console.error('❌ Error cargando formularios:', error);
-        this.errorMessage = error.message || 'Error al cargar los formularios';
-        this.showError = true;
         this.isLoading = false;
-        this.formularios = [];
-        this.filteredFormularios = [];
-        this.paginatedFormularios = [];
+        console.error('❌ Error:', error);
+        this.cdr.markForCheck();
       }
     });
+    this.subscriptions.push(sub);
   }
 
-  // ✅ Método para obtener las keys de los grupos
-  getGrupoKeys(estadoGrupos: any): string[] {
-    return estadoGrupos ? Object.keys(estadoGrupos) : [];
+  private extraerFormularios(response: any): any[] {
+    if (!response) return [];
+
+    const buscarArray = (obj: any): any[] | null => {
+      if (!obj || typeof obj !== 'object') return null;
+      if (Array.isArray(obj) && obj.length > 0) return obj;
+      
+      for (const key in obj) {
+        if (obj[key] && typeof obj[key] === 'object') {
+          const encontrado = buscarArray(obj[key]);
+          if (encontrado) return encontrado;
+        }
+      }
+      return null;
+    };
+
+    return buscarArray(response) || [];
   }
 
-  // ✅ Método para saber si un grupo está completo
-  isGrupoCompleto(estadoGrupos: any, key: string): boolean {
-    return estadoGrupos && estadoGrupos[key] ? estadoGrupos[key].completado : false;
-  }
-
-  // ✅ Método para saber si el combinado existe
-  hasCombinadoExiste(estadoGrupos: any, key: string): boolean {
-    return estadoGrupos && estadoGrupos[key] ? estadoGrupos[key].combinadoExiste : false;
+  private mapToFormularios(data: any[]): FormularioAprobacion[] {
+    return data.map((f: any) => ({
+      id: f.id ?? '',
+      contratistaId: f.contratistaId ?? '',
+      contratistaNombre: f.contratistaNombre || f.contratista?.razonSocial || 'N/A',
+      contratistaDocumento: f.contratistaDocumento || f.contratista?.documentoIdentidad || 'N/A',
+      tipoContratista: f.tipoContratista || f.contratista?.tipoContratista || '',
+      estado: f.estado || 'PENDIENTE',
+      completado: f.completado ?? false,
+      totalDocumentos: f.totalDocumentos ?? 0,
+      fechaCompletado: f.fechaCompletado || f.createdAt || '',
+      createdAt: f.createdAt || '',
+      estadoGrupos: f.estadoGrupos || {},
+      representanteLegal: f.representanteLegal || '',
+      documentoRepresentante: f.documentoRepresentante || '',
+      objetivoContrato: f.objetivoContrato || '',
+      cargo: f.cargo || '',
+      telefono: f.telefono || '',
+      direccion: f.direccion || '',
+      departamento: f.departamento || '',
+      ciudad: f.ciudad || ''
+    }));
   }
 
   aplicarFiltros(): void {
-    const baseArray = Array.isArray(this.formularios) ? this.formularios : [];
-    let filtrados = [...baseArray];
+    let filtrados = [...this.formularios];
 
     if (this.searchTerm.trim()) {
       const term = this.searchTerm.toLowerCase().trim();
       filtrados = filtrados.filter(f =>
-        (f.contratistaNombre || '').toLowerCase().includes(term) ||
-        (f.contratistaDocumento || '').includes(term) ||
-        (f.id || '').toLowerCase().includes(term) ||
-        (f.representanteLegal || '').toLowerCase().includes(term)
+        f.contratistaNombre.toLowerCase().includes(term) ||
+        f.contratistaDocumento.includes(term) ||
+        f.id.includes(term) ||
+        f.representanteLegal.toLowerCase().includes(term)
       );
     }
 
@@ -197,67 +159,16 @@ export class FormularioAprobacionListComponent implements OnInit {
       filtrados = filtrados.filter(f => f.estado === this.filtroEstado);
     }
 
+    filtrados.sort((a, b) => {
+      const fechaA = new Date(a.createdAt).getTime();
+      const fechaB = new Date(b.createdAt).getTime();
+      return fechaB - fechaA;
+    });
+
     this.filteredFormularios = filtrados;
     this.currentPage = 1;
     this.updatePagination();
-  }
-
-  updatePagination(): void {
-    const baseArray = Array.isArray(this.filteredFormularios) ? this.filteredFormularios : [];
-    this.totalPages = Math.ceil(baseArray.length / this.pageSize) || 1;
-    this.pages = Array.from({ length: this.totalPages }, (_, i) => i + 1);
-    this.updatePaginatedFormularios();
-  }
-
-  updatePaginatedFormularios(): void {
-    const baseArray = Array.isArray(this.filteredFormularios) ? this.filteredFormularios : [];
-    const start = (this.currentPage - 1) * this.pageSize;
-    this.paginatedFormularios = baseArray.slice(start, start + this.pageSize);
-  }
-
-  changePage(page: number): void {
-    if (page >= 1 && page <= this.totalPages) {
-      this.currentPage = page;
-      this.updatePaginatedFormularios();
-    }
-  }
-
-  verDetalle(formulario: FormularioAprobacion): void {
-    if (formulario && formulario.id) {
-      this.router.navigate(['/contratistas/formularios-aprobacion', formulario.id]);
-    }
-  }
-
-  getEstadoClass(estado: string): string {
-    const clases: Record<string, string> = {
-      'COMPLETADO': 'bg-info text-white',
-      'EN_REVISION': 'bg-warning text-dark',
-      'APROBADO': 'bg-success text-white',
-      'RECHAZADO': 'bg-danger text-white',
-      'PENDIENTE': 'bg-secondary text-white'
-    };
-    return clases[estado] || 'bg-secondary text-white';
-  }
-
-  getEstadoTexto(estado: string): string {
-    const textos: Record<string, string> = {
-      'COMPLETADO': 'Completado',
-      'EN_REVISION': 'En Revisión',
-      'APROBADO': 'Aprobado',
-      'RECHAZADO': 'Rechazado',
-      'PENDIENTE': 'Pendiente'
-    };
-    return textos[estado] || estado;
-  }
-
-  getTipoContratistaTexto(tipo: string | undefined): string {
-    const textos: Record<string, string> = {
-      'PERSONA_NATURAL': 'Persona Natural',
-      'PERSONA_JURIDICA': 'Persona Jurídica',
-      'CONSORCIO': 'Consorcio',
-      'UNION_TEMPORAL': 'Unión Temporal'
-    };
-    return tipo ? (textos[tipo] || tipo) : 'N/A';
+    this.cdr.markForCheck();
   }
 
   onSearch(): void {
@@ -270,13 +181,103 @@ export class FormularioAprobacionListComponent implements OnInit {
     this.aplicarFiltros();
   }
 
-  dismissError(): void {
-    this.showError = false;
-    this.errorMessage = '';
+  private updatePagination(): void {
+    const total = this.filteredFormularios.length;
+    this.totalItems = total;
+    this.totalPages = Math.ceil(total / this.pageSize);
+    
+    const start = (this.currentPage - 1) * this.pageSize;
+    this.paginatedItems = this.filteredFormularios.slice(start, start + this.pageSize);
+    this.cdr.markForCheck();
   }
 
-  dismissSuccess(): void {
-    this.showSuccess = false;
-    this.successMessage = '';
+  changePage(page: number): void {
+    if (page >= 1 && page <= this.totalPages) {
+      this.currentPage = page;
+      this.updatePagination();
+    }
+  }
+
+  onPageSizeChange(newSize: number): void {
+    this.pageSize = newSize;
+    this.currentPage = 1;
+    this.updatePagination();
+  }
+
+  /**
+   * ✅ NAVEGACIÓN - Guarda en el service y navega CON QUERY PARAMS
+   */
+  verDetalle(formulario: FormularioAprobacion): void {
+    if (formulario && formulario.id && formulario.contratistaId) {
+      console.log('🔍 Navegando a editar con fromAprobacion=true');
+      console.log('📦 Datos del formulario:', formulario);
+
+      // ✅ Guardar en el service ANTES de navegar
+      this.formularioService.setFromAprobacion(true);
+      this.formularioService.setFormularioData({
+        contratistaNombre: formulario.contratistaNombre,
+        contratistaDocumento: formulario.contratistaDocumento,
+        tipoContratista: formulario.tipoContratista,
+        representanteLegal: formulario.representanteLegal,
+        documentoRepresentante: formulario.documentoRepresentante,
+        objetivoContrato: formulario.objetivoContrato,
+        cargo: formulario.cargo,
+        telefono: formulario.telefono,
+        direccion: formulario.direccion,
+        departamento: formulario.departamento,
+        ciudad: formulario.ciudad,
+        estadoFormulario: formulario.estado,
+        estadoGrupos: formulario.estadoGrupos,
+        totalDocumentos: formulario.totalDocumentos,
+        fechaCompletado: formulario.fechaCompletado,
+        idFormulario: formulario.id
+      });
+
+      console.log('✅ State guardado en service - fromAprobacion:', this.formularioService.getFromAprobacion());
+
+      // ✅ Navegar CON queryParams incluyendo formularioId
+      this.router.navigate(['/contratistas/editar', formulario.contratistaId], {
+        queryParams: { 
+          fromAprobacion: 'true',
+          formularioId: formulario.id // ✅ AÑADIR
+        }
+      });
+    } else {
+      console.warn('⚠️ No se pudo navegar: faltan datos del formulario');
+    }
+  }
+
+  getEstadoClass(estado: string): string {
+    const clases: Record<string, string> = {
+      'PENDIENTE': 'estado-pendiente',
+      'EN_REVISION': 'estado-en_revision',
+      'APROBADO': 'estado-aprobado',
+      'RECHAZADO': 'estado-rechazado'
+    };
+    return clases[estado] || 'estado-pendiente';
+  }
+
+  getEstadoTexto(estado: string): string {
+    const textos: Record<string, string> = {
+      'PENDIENTE': 'Pendiente',
+      'EN_REVISION': 'En Revisión',
+      'APROBADO': 'Aprobado',
+      'RECHAZADO': 'Rechazado'
+    };
+    return textos[estado] || estado;
+  }
+
+  getTipoContratistaTexto(tipo: string | undefined): string {
+    const textos: Record<string, string> = {
+      'PERSONA_NATURAL': 'Persona Natural',
+      'PERSONA_JURIDICA': 'Persona Jurídica',
+      'CONSORCIO': 'Consorcio',
+      'UNION_TEMPORAL': 'Unión Temporal'
+    };
+    return tipo ? (textos[tipo] || tipo) : '';
+  }
+
+  trackByFormularioId(index: number, formulario: FormularioAprobacion): string {
+    return formulario.id;
   }
 }

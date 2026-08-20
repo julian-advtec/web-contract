@@ -587,3 +587,334 @@ $color-gray: #6B7280;
     }
   }
 }
+
+.badge {
+  &.estado-pendiente {
+    background-color: #ffc107;
+    color: #212529;
+  }
+
+  &.estado-en_revision {
+    background-color: #17a2b8;
+    color: #fff;
+  }
+
+  &.estado-aprobado {
+    background-color: #28a745;
+    color: #fff;
+  }
+
+  &.estado-rechazado {
+    background-color: #dc3545;
+    color: #fff;
+  }
+}
+
+// Documentos marcados para eliminar
+.documento-card {
+  &.eliminado {
+    background-color: #f8d7da;
+    border-color: #dc3545;
+    opacity: 0.7;
+
+    .documento-titulo {
+      text-decoration: line-through;
+      color: #dc3545;
+    }
+  }
+}
+
+.btn-restore {
+  background: none;
+  border: none;
+  color: #28a745;
+  padding: 0 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: color 0.2s;
+
+  &:hover {
+    color: #155724;
+    text-decoration: underline;
+  }
+}
+
+// Alert informativo de aprobación
+.alert-info {
+  background-color: #d1ecf1;
+  border-color: #bee5eb;
+  color: #0c5460;
+
+  .badge {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.6rem;
+  }
+}
+
+// src/app/pages/contratistas/components/contratista-creacion/contratista-creacion.component.scss
+// Agregar estos estilos
+
+.combinado-badge {
+  display: inline-block;
+  background-color: #6f42c1;
+  color: #fff;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  margin-left: 0.4rem;
+}
+
+.documento-card.combinado {
+  border-left: 4px solid #6f42c1;
+
+  .documento-header {
+    .fa-layer-group {
+      color: #6f42c1;
+    }
+  }
+}
+
+.combinado-info {
+  background-color: #f8f0ff;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  margin-top: 0.2rem;
+
+  .info-value {
+    color: #6f42c1;
+    font-weight: 500;
+  }
+}
+
+// src/app/pages/contratistas/components/contratista-creacion/contratista-creacion.component.scss
+// Agregar estos estilos
+
+.combinado-badge {
+  display: inline-block;
+  background-color: #6f42c1;
+  color: #fff;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  margin-left: 0.4rem;
+}
+
+.combinado-badge-small {
+  display: inline-block;
+  background-color: #6f42c1;
+  color: #fff;
+  font-size: 0.6rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 10px;
+  font-weight: 600;
+  margin-left: 0.3rem;
+}
+
+.documento-card.combinado {
+  border-left: 4px solid #6f42c1;
+  background: #f8f0ff;
+
+  .documento-header {
+    .fa-layer-group {
+      color: #6f42c1;
+    }
+  }
+}
+
+.combinado-info {
+  background-color: #f0e6ff;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  margin-top: 0.2rem;
+
+  .info-value {
+    color: #6f42c1;
+    font-weight: 500;
+  }
+}
+
+.documento-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  justify-content: flex-end;
+
+  .btn-download {
+    padding: 0.3rem 0.6rem;
+    background-color: $color-primary;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+
+    &:hover {
+      background-color: $color-primary-dark;
+      transform: translateY(-1px);
+    }
+  }
+
+  .btn-remove {
+    padding: 0.3rem 0.6rem;
+    background-color: $color-danger;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+
+    &:hover {
+      background-color: darken($color-danger, 10%);
+      transform: translateY(-1px);
+    }
+  }
+
+  .btn-restore {
+    background: none;
+    border: none;
+    color: #28a745;
+    padding: 0 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: color 0.2s;
+
+    &:hover {
+      color: #155724;
+      text-decoration: underline;
+    }
+  }
+}
+
+.badge {
+  &.estado-pendiente {
+    background-color: #ffc107;
+    color: #212529;
+  }
+
+  &.estado-en_revision {
+    background-color: #17a2b8;
+    color: #fff;
+  }
+
+  &.estado-aprobado {
+    background-color: #28a745;
+    color: #fff;
+  }
+
+  &.estado-rechazado {
+    background-color: #dc3545;
+    color: #fff;
+  }
+}
+
+.documento-card {
+  &.eliminado {
+    background-color: #f8d7da;
+    border-color: #dc3545;
+    opacity: 0.7;
+
+    .documento-titulo {
+      text-decoration: line-through;
+      color: #dc3545;
+    }
+  }
+
+  &.combinado {
+    border-left: 4px solid #6f42c1;
+    background: #f8f0ff;
+
+    .documento-header {
+      .fa-layer-group {
+        color: #6f42c1;
+      }
+    }
+  }
+}
+
+.alert-info {
+  background-color: #d1ecf1;
+  border-color: #bee5eb;
+  color: #0c5460;
+
+  .badge {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.6rem;
+  }
+}
+
+.combinado-badge {
+  display: inline-block;
+  background-color: #6f42c1;
+  color: #fff;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  margin-left: 0.4rem;
+}
+
+.combinado-badge-small {
+  display: inline-block;
+  background-color: #6f42c1;
+  color: #fff;
+  font-size: 0.6rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 10px;
+  font-weight: 600;
+  margin-left: 0.3rem;
+}
+
+.combinado-info {
+  background-color: #f0e6ff;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  margin-top: 0.2rem;
+
+  .info-value {
+    color: #6f42c1;
+    font-weight: 500;
+  }
+}
+
+
+// Estilos para el badge de formulario
+.formulario-badge {
+  display: inline-block;
+  background-color: #0dcaf0;
+  color: #000;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+// Estilo para tarjetas de documentos del formulario
+.documento-card.del-formulario {
+  border-left: 4px solid #0dcaf0;
+  background-color: #f0f9ff;
+
+  .documento-header {
+    .documento-titulo {
+      color: #055160;
+    }
+  }
+}
+
+// Información del formulario en la tarjeta
+.formulario-info {
+  background-color: #e7f5ff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-top: 4px;
+
+  .info-label {
+    font-weight: 600;
+    color: #055160;
+  }
+}

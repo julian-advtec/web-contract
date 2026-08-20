@@ -155,7 +155,7 @@ export class ContratistasComponent implements OnInit {
     // 🆕 Módulo: Enviar Enlaces
     modulesToShow.push({
       id: 'contratistas-enviar',
-      title: 'Envío de Enlaces a Contratistas',
+      title: 'Envio de formulario',
       description: 'Enviar enlaces de acceso a contratistas',
       path: '/contratistas/enviar-enlaces',
       route: '/contratistas/enviar-enlaces',

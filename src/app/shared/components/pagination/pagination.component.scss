@@ -1,0 +1,136 @@
+// src/app/shared/components/pagination/pagination.component.scss
+.pagination-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem 0;
+}
+
+.pagination-info {
+  .info-text {
+    font-size: 0.9rem;
+    color: #6B7280;
+
+    strong {
+      color: #1F2937;
+      font-weight: 600;
+    }
+  }
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.page-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  border: 1px solid #10B981;
+  background: white;
+  color: #10B981;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.85rem;
+
+  &:hover:not(:disabled) {
+    background: #10B981;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    border-color: #D1D5DB;
+    color: #D1D5DB;
+    transform: none;
+  }
+}
+
+.page-number {
+  min-width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #4B5563;
+  font-weight: 500;
+  font-size: 0.9rem;
+  padding: 0 0.25rem;
+
+  &:hover:not(.active) {
+    background: rgba(16, 185, 129, 0.1);
+  }
+
+  &.active {
+    background: #10B981;
+    color: white;
+    font-weight: 600;
+    transform: scale(1.05);
+  }
+}
+
+.page-ellipsis {
+  padding: 0 0.25rem;
+  color: #9CA3AF;
+  font-size: 0.9rem;
+}
+
+.pagination-size {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  label {
+    font-size: 0.85rem;
+    color: #6B7280;
+    font-weight: 500;
+  }
+
+  .page-size-select {
+    padding: 0.3rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid #D1D5DB;
+    background: white;
+    font-size: 0.85rem;
+    cursor: pointer;
+
+    &:focus {
+      outline: none;
+      border-color: #10B981;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .pagination-container {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .pagination-info {
+    order: 2;
+  }
+
+  .pagination-controls {
+    order: 1;
+  }
+
+  .pagination-size {
+    order: 3;
+  }
+}

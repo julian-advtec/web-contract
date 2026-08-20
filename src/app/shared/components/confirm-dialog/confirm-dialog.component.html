@@ -1,0 +1,33 @@
+<!-- src/app/shared/components/confirm-dialog/confirm-dialog.component.html -->
+<div class="dialog-overlay" *ngIf="visible" (click)="onOverlayClick($event)">
+  <div class="dialog-container" @dialogAnimation>
+    <div class="dialog-header">
+      <h3 class="dialog-title">
+        <i class="fas" [ngClass]="getIcon()" [style.color]="getColor()"></i>
+        {{ title }}
+      </h3>
+      <button class="dialog-close" (click)="cancel()" aria-label="Cerrar">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <div class="dialog-body">
+      <p class="dialog-message">{{ message }}</p>
+      <div class="dialog-details" *ngIf="details">
+        <div class="details-content">
+          <pre>{{ details }}</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="dialog-footer">
+      <button class="btn btn-secondary" (click)="cancel()">
+        {{ cancelText }}
+      </button>
+      <button class="btn" [ngClass]="getButtonClass()" (click)="confirm()">
+        <i class="fas" [ngClass]="confirmIcon" *ngIf="confirmIcon"></i>
+        {{ confirmText }}
+      </button>
+    </div>
+  </div>
+</div>

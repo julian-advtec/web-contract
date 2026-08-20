@@ -1,42 +1,54 @@
 // src/app/pages/contratistas/components/contratista-list/contratista-list.component.ts
-import { Component, OnInit, Input } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
+
 import { ContratistasService } from '../../../../core/services/contratistas.service';
+import { PaginationService } from '../../../../core/services/common/pagination.service';
+import { FilterService } from '../../../../core/services/common/filter.service';
+import { ErrorHandlerService } from '../../../../core/services/common/error-handler.service';
+import { UiFeedbackService } from '../../../../core/services/common/ui-feedback.service';
+
 import { Contratista } from '../../../../core/models/contratista.model';
+
+import { LoadingSpinnerComponent } from '../../../../shared/components/loading-spinner/loading-spinner.component';
+import { ConfirmDialogComponent } from '../../../../shared/components/confirm-dialog/confirm-dialog.component';
+import { PaginationComponent } from '../../../../shared/components/pagination/pagination.component';
 
 @Component({
   selector: 'app-contratista-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterModule,
+    LoadingSpinnerComponent,
+    ConfirmDialogComponent,
+    PaginationComponent
+  ],
   templateUrl: './contratista-list.component.html',
-  styleUrls: ['./contratista-list.component.scss']
+  styleUrls: ['./contratista-list.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ContratistaListComponent implements OnInit {
-  @Input() sidebarCollapsed = false;
-
-  Math = Math;
-
   contratistas: Contratista[] = [];
   filteredContratistas: Contratista[] = [];
-  paginatedContratistas: Contratista[] = [];
+  paginatedItems: Contratista[] = [];
 
   isLoading = false;
   searchTerm = '';
-  errorMessage = '';
-  showError = false;
-  showSuccess = false;
-  successMessage = '';
+
+  filtros = {
+    tipoContratista: '',
+    estado: 'TODOS'
+  };
 
   currentPage = 1;
   pageSize = 10;
+  totalItems = 0;
   totalPages = 1;
-  pages: number[] = [];
-
-  filtroTipoContratista = '';
-  filtroEstado = '';
-  filtroEstadoMostrar = 'TODOS'; // ✅ AÑADIR ESTA PROPIEDAD
 
   tiposContratista = [
     { value: 'PERSONA_NATURAL', label: 'Persona Natural' },
@@ -46,15 +58,30 @@ export class ContratistaListComponent implements OnInit {
   ];
 
   estados = [
+    { value: 'TODOS', label: 'Todos' },
     { value: 'ACTIVO', label: 'Activo' },
     { value: 'INACTIVO', label: 'Inactivo' },
     { value: 'SUSPENDIDO', label: 'Suspendido' }
   ];
 
+  showConfirmDialog = false;
+  confirmDialogData = {
+    title: '',
+    message: '',
+    type: 'primary' as 'primary' | 'danger' | 'warning'
+  };
+
+  private subscriptions: Subscription[] = [];
+
   constructor(
     private contratistaService: ContratistasService,
-    private router: Router
-  ) { }
+    private paginationService: PaginationService,
+    private filterService: FilterService,
+    private errorHandler: ErrorHandlerService,
+    private uiFeedback: UiFeedbackService,
+    private router: Router,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     this.cargarContratistas();
@@ -62,103 +89,168 @@ export class ContratistaListComponent implements OnInit {
 
   cargarContratistas(): void {
     this.isLoading = true;
-    this.errorMessage = '';
-    this.showError = false;
+    this.cdr.markForCheck();
 
-    this.contratistaService.obtenerTodos().subscribe({
+    const sub = this.contratistaService.obtenerTodos().subscribe({
       next: (contratistas) => {
         this.contratistas = contratistas || [];
-
-        this.contratistas.sort((a, b) => {
-          const fechaA = a.fechaCreacion ? new Date(a.fechaCreacion).getTime() : 0;
-          const fechaB = b.fechaCreacion ? new Date(b.fechaCreacion).getTime() : 0;
-          return fechaB - fechaA;
-        });
-
-        console.log('📅 Contratistas ordenados por fecha de creación (más nuevos primero):');
-        this.contratistas.slice(0, 5).forEach(c => {
-          console.log(`  - ${c.razonSocial || c.nombreCompleto}: ${c.fechaCreacion}`);
-        });
-
-        this.filteredContratistas = [...this.contratistas];
-        this.updatePagination();
+        this.ordenarPorFecha();
+        this.aplicarFiltros();
         this.isLoading = false;
+        this.cdr.markForCheck();
 
         if (this.contratistas.length === 0) {
-          this.showSuccess = true;
-          this.successMessage = 'No hay contratistas registrados';
-          setTimeout(() => this.showSuccess = false, 3000);
+          this.uiFeedback.info('No hay contratistas registrados');
         }
       },
       error: (error) => {
-        console.error('Error cargando contratistas:', error);
-        this.errorMessage = error.message || 'Error al cargar los contratistas';
-        this.showError = true;
         this.isLoading = false;
+        const message = this.errorHandler.handleError(error, 'Cargar Contratistas');
+        this.uiFeedback.error(message);
+        this.cdr.markForCheck();
       }
     });
+    this.subscriptions.push(sub);
+  }
+
+  private ordenarPorFecha(): void {
+    this.contratistas.sort((a, b) => {
+      const fechaA = a.fechaCreacion ? new Date(a.fechaCreacion).getTime() : 0;
+      const fechaB = b.fechaCreacion ? new Date(b.fechaCreacion).getTime() : 0;
+      return fechaB - fechaA;
+    });
+  }
+
+  aplicarFiltros(): void {
+    const filtrados = this.filterService.filterItems(this.contratistas, {
+      searchTerm: this.searchTerm,
+      searchFields: ['razonSocial', 'nombreCompleto', 'documentoIdentidad', 'numeroContrato', 'email'],
+      filters: {
+        tipoContratista: this.filtros.tipoContratista,
+        estado: this.filtros.estado === 'TODOS' ? '' : this.filtros.estado
+      },
+      sortField: 'fechaCreacion',
+      sortDirection: 'desc'
+    });
+
+    this.filteredContratistas = filtrados;
+    this.currentPage = 1;
+    this.updatePagination();
+    this.cdr.markForCheck();
   }
 
   onSearch(): void {
     this.aplicarFiltros();
   }
 
-  aplicarFiltros(): void {
-    let filtrados = [...this.contratistas];
-
-    if (this.searchTerm.trim()) {
-      const term = this.searchTerm.toLowerCase().trim();
-      filtrados = filtrados.filter(c =>
-        (c.razonSocial || c.nombreCompleto || '').toLowerCase().includes(term) ||
-        c.documentoIdentidad.includes(term) ||
-        (c.numeroContrato && c.numeroContrato.toLowerCase().includes(term)) ||
-        (c.email && c.email.toLowerCase().includes(term))
-      );
-    }
-
-    if (this.filtroTipoContratista) {
-      filtrados = filtrados.filter(c => c.tipoContratista === this.filtroTipoContratista);
-    }
-
-    // ✅ Nuevo filtro de estado (TODOS, ACTIVO, INACTIVO, SUSPENDIDO)
-    if (this.filtroEstadoMostrar !== 'TODOS') {
-      filtrados = filtrados.filter(c => c.estado === this.filtroEstadoMostrar);
-    } else if (this.filtroEstado) {
-      // Mantener compatibilidad con filtro antiguo
-      filtrados = filtrados.filter(c => c.estado === this.filtroEstado);
-    }
-
-    this.filteredContratistas = filtrados;
-    this.currentPage = 1;
-    this.updatePagination();
-  }
-
   limpiarFiltros(): void {
     this.searchTerm = '';
-    this.filtroTipoContratista = '';
-    this.filtroEstado = '';
-    this.filtroEstadoMostrar = 'TODOS';
-    this.filteredContratistas = [...this.contratistas];
-    this.currentPage = 1;
-    this.updatePagination();
+    this.filtros.tipoContratista = '';
+    this.filtros.estado = 'TODOS';
+    this.aplicarFiltros();
   }
 
-  updatePagination(): void {
-    this.totalPages = Math.ceil(this.filteredContratistas.length / this.pageSize);
-    this.pages = Array.from({ length: this.totalPages }, (_, i) => i + 1);
-    this.updatePaginatedContratistas();
-  }
-
-  updatePaginatedContratistas(): void {
-    const start = (this.currentPage - 1) * this.pageSize;
-    this.paginatedContratistas = this.filteredContratistas.slice(start, start + this.pageSize);
+  private updatePagination(): void {
+    const result = this.paginationService.paginate(
+      this.filteredContratistas,
+      this.currentPage,
+      this.pageSize
+    );
+    this.paginatedItems = result.items;
+    this.totalItems = result.totalItems;
+    this.totalPages = result.totalPages;
+    this.currentPage = result.currentPage;
+    this.cdr.markForCheck();
   }
 
   changePage(page: number): void {
     if (page >= 1 && page <= this.totalPages) {
       this.currentPage = page;
-      this.updatePaginatedContratistas();
+      this.updatePagination();
     }
+  }
+
+  onPageSizeChange(newSize: number): void {
+    this.pageSize = newSize;
+    this.currentPage = 1;
+    this.updatePagination();
+  }
+
+  verDetalle(contratista: Contratista): void {
+    if (this.validarContratista(contratista)) {
+      this.router.navigate(['/contratistas/ver', contratista.id]);
+    }
+  }
+
+  editarContratista(contratista: Contratista): void {
+    if (this.validarContratista(contratista)) {
+      this.router.navigate(['/contratistas/editar', contratista.id]);
+    }
+  }
+
+  nuevoContratista(): void {
+    this.router.navigate(['/contratistas/crear']);
+  }
+
+  private validarContratista(contratista: Contratista | null | undefined): boolean {
+    if (!contratista) {
+      this.uiFeedback.error('Contratista no válido');
+      return false;
+    }
+    if (!contratista.id) {
+      this.uiFeedback.error('ID de contratista no disponible');
+      return false;
+    }
+    return true;
+  }
+
+  descargarTodosDocumentos(contratista: Contratista): void {
+    if (!this.validarContratista(contratista)) return;
+
+    this.isLoading = true;
+    this.cdr.markForCheck();
+    this.uiFeedback.info('Preparando descarga de documentos...');
+
+    const sub = this.contratistaService.descargarTodosDocumentos(contratista.id!).subscribe({
+      next: (blob: Blob) => {
+        this.isLoading = false;
+        this.descargarArchivo(blob, contratista);
+        this.cdr.markForCheck();
+      },
+      error: (error) => {
+        this.isLoading = false;
+        const message = this.errorHandler.handleError(error, 'Descarga de documentos');
+        this.uiFeedback.error(message);
+        this.cdr.markForCheck();
+      }
+    });
+    this.subscriptions.push(sub);
+  }
+
+  private descargarArchivo(blob: Blob, contratista: Contratista): void {
+    if (blob.size === 0) {
+      this.uiFeedback.warning('El archivo ZIP está vacío');
+      return;
+    }
+
+    const url = window.URL.createObjectURL(blob);
+    const nombre = (contratista.razonSocial || contratista.nombreCompleto || 'contratista')
+      .replace(/[^a-z0-9]/gi, '_')
+      .toLowerCase()
+      .substring(0, 50);
+    const fecha = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+    const fileName = `documentos_${nombre}_${fecha}.zip`;
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    const sizeMB = (blob.size / 1024 / 1024).toFixed(2);
+    this.uiFeedback.success(`Documentos descargados (${sizeMB} MB)`);
   }
 
   getTipoClass(tipo: string | undefined): string {
@@ -169,6 +261,16 @@ export class ContratistaListComponent implements OnInit {
       'UNION_TEMPORAL': 'bg-info'
     };
     return clases[tipo || ''] || 'bg-secondary';
+  }
+
+  getTipoTexto(tipo: string | undefined): string {
+    const textos: Record<string, string> = {
+      'PERSONA_NATURAL': 'Persona Natural',
+      'PERSONA_JURIDICA': 'Persona Jurídica',
+      'CONSORCIO': 'Consorcio',
+      'UNION_TEMPORAL': 'Unión Temporal'
+    };
+    return textos[tipo || ''] || tipo || 'N/A';
   }
 
   getEstadoClass(estado: string | undefined): string {
@@ -189,203 +291,7 @@ export class ContratistaListComponent implements OnInit {
     return textos[estado || ''] || estado || 'N/A';
   }
 
-  getTipoTexto(tipo: string | undefined): string {
-    const textos: Record<string, string> = {
-      'PERSONA_NATURAL': 'Persona Natural',
-      'PERSONA_JURIDICA': 'Persona Jurídica',
-      'CONSORCIO': 'Consorcio',
-      'UNION_TEMPORAL': 'Unión Temporal'
-    };
-    return textos[tipo || ''] || tipo || 'N/A';
-  }
-
-  // ✅ VER DETALLE
-  verDetalle(contratista: Contratista): void {
-    if (contratista && contratista.id) {
-      console.log('👁️ Ver detalle:', contratista.id);
-      this.router.navigate(['/contratistas/ver', contratista.id]);
-    } else {
-      this.errorMessage = 'No se puede ver el detalle del contratista';
-      this.showError = true;
-    }
-  }
-
-  // ✅ EDITAR
-  editarContratista(contratista: Contratista): void {
-    if (contratista && contratista.id) {
-      console.log('✏️ Editar contratista:', contratista.id);
-      this.router.navigate(['/contratistas/editar', contratista.id]);
-    } else {
-      this.errorMessage = 'No se puede editar el contratista';
-      this.showError = true;
-    }
-  }
-
-  // ✅ VER DOCUMENTOS
-  verDocumentos(contratista: Contratista): void {
-    if (contratista && contratista.id) {
-      console.log('📄 Ver documentos de contratista:', contratista.id);
-      this.router.navigate(['/contratistas/documentos', contratista.id]);
-    } else {
-      this.errorMessage = 'No se pueden ver los documentos del contratista';
-      this.showError = true;
-    }
-  }
-
-  // ✅ DESCARGAR DOCUMENTOS (MÚLTIPLES)
-  descargarDocumentoContratista(contratista: Contratista): void {
-    if (!contratista || !contratista.id) {
-      this.errorMessage = 'No se puede descargar el documento';
-      this.showError = true;
-      setTimeout(() => this.showError = false, 3000);
-      return;
-    }
-
-    this.contratistaService.obtenerDocumentos(contratista.id).subscribe({
-      next: (documentos) => {
-        if (!documentos || documentos.length === 0) {
-          this.errorMessage = 'Este contratista no tiene documentos asociados';
-          this.showError = true;
-          setTimeout(() => this.showError = false, 3000);
-          return;
-        }
-
-        if (documentos.length === 1) {
-          this.descargarDocumento(contratista.id!, documentos[0].id, documentos[0].nombreArchivo);
-        } else {
-          this.seleccionarDocumentoParaDescargar(contratista, documentos);
-        }
-      },
-      error: (error) => {
-        console.error('Error obteniendo documentos:', error);
-        this.errorMessage = 'Error al obtener los documentos';
-        this.showError = true;
-        setTimeout(() => this.showError = false, 3000);
-      }
-    });
-  }
-
-  private descargarDocumento(contratistaId: string, documentoId: string, nombreArchivo: string): void {
-    this.contratistaService.descargarDocumento(contratistaId, documentoId).subscribe({
-      next: (blob: Blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = nombreArchivo;
-        a.click();
-        window.URL.revokeObjectURL(url);
-        this.successMessage = 'Documento descargado exitosamente';
-        this.showSuccess = true;
-        setTimeout(() => this.showSuccess = false, 3000);
-      },
-      error: (error) => {
-        console.error('Error descargando documento:', error);
-        this.errorMessage = 'Error al descargar el documento';
-        this.showError = true;
-        setTimeout(() => this.showError = false, 3000);
-      }
-    });
-  }
-
-  private seleccionarDocumentoParaDescargar(contratista: Contratista, documentos: any[]): void {
-    const tipos = documentos.map((d, i) => `${i + 1}. ${d.tipo} - ${d.nombreArchivo}`).join('\n');
-    const seleccion = prompt(`Seleccione el documento a descargar:\n${tipos}\n\nIngrese el número (1-${documentos.length}):`);
-
-    if (seleccion) {
-      const index = parseInt(seleccion) - 1;
-      if (index >= 0 && index < documentos.length) {
-        this.descargarDocumento(contratista.id!, documentos[index].id, documentos[index].nombreArchivo);
-      } else {
-        this.errorMessage = 'Selección inválida';
-        this.showError = true;
-        setTimeout(() => this.showError = false, 3000);
-      }
-    }
-  }
-
-  nuevoContratista(): void {
-    this.router.navigate(['/contratistas/crear']);
-  }
-
-  dismissError(): void {
-    this.showError = false;
-    this.errorMessage = '';
-  }
-
-  dismissSuccess(): void {
-    this.showSuccess = false;
-    this.successMessage = '';
-  }
-
-  descargarTodosDocumentos(contratista: Contratista): void {
-    if (!contratista || !contratista.id) {
-      this.errorMessage = 'No se puede descargar los documentos';
-      this.showError = true;
-      setTimeout(() => this.showError = false, 3000);
-      return;
-    }
-
-    this.isLoading = true;
-    this.successMessage = 'Preparando descarga...';
-    this.showSuccess = true;
-
-    console.log(`📦 Solicitando descarga de todos los documentos para: ${contratista.razonSocial}`);
-
-    this.contratistaService.descargarTodosDocumentos(contratista.id).subscribe({
-      next: (blob: Blob) => {
-        console.log(`✅ ZIP recibido, tamaño: ${blob.size} bytes, tipo: ${blob.type}`);
-
-        if (blob.size === 0) {
-          this.errorMessage = 'El archivo ZIP está vacío';
-          this.showError = true;
-          this.isLoading = false;
-          this.showSuccess = false;
-          setTimeout(() => this.showError = false, 3000);
-          return;
-        }
-
-        const url = window.URL.createObjectURL(blob);
-        const nombreContratista = (contratista.razonSocial || contratista.nombreCompleto || 'contratista')
-          .replace(/[^a-z0-9]/gi, '_')
-          .toLowerCase()
-          .substring(0, 50);
-        const fecha = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-        const fileName = `documentos_${nombreContratista}_${fecha}.zip`;
-
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = url;
-        document.body.appendChild(iframe);
-
-        setTimeout(() => {
-          document.body.removeChild(iframe);
-          window.URL.revokeObjectURL(url);
-        }, 5000);
-
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-
-        setTimeout(() => {
-          document.body.removeChild(a);
-          window.URL.revokeObjectURL(url);
-        }, 100);
-
-        this.successMessage = `Se han descargado todos los documentos (${(blob.size / 1024 / 1024).toFixed(2)} MB)`;
-        this.isLoading = false;
-        setTimeout(() => this.showSuccess = false, 5000);
-      },
-      error: (error) => {
-        console.error('Error descargando documentos:', error);
-        this.errorMessage = error.error?.message || 'Error al descargar los documentos';
-        this.showError = true;
-        this.isLoading = false;
-        this.showSuccess = false;
-        setTimeout(() => this.showError = false, 5000);
-      }
-    });
+  trackByContratistaId(index: number, contratista: Contratista): string {
+    return contratista.id;
   }
 }

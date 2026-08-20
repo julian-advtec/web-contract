@@ -1,0 +1,48 @@
+<!-- src/app/shared/components/pagination/pagination.component.html -->
+<div class="pagination-container">
+  <div class="pagination-info" *ngIf="showInfo">
+    <span class="info-text">
+      Mostrando <strong>{{ startItem }}</strong> - <strong>{{ endItem }}</strong>
+      de <strong>{{ totalItems }}</strong> {{ itemsLabel }}
+    </span>
+  </div>
+
+  <div class="pagination-controls">
+    <button class="page-btn" 
+            [disabled]="currentPage === 1" 
+            (click)="goToPage(currentPage - 1)"
+            aria-label="Página anterior">
+      <i class="fas fa-chevron-left"></i>
+    </button>
+
+    <ng-container *ngFor="let page of pages">
+      <span *ngIf="page === -1" class="page-ellipsis">…</span>
+      <button *ngIf="page !== -1" 
+              class="page-number" 
+              [class.active]="page === currentPage"
+              (click)="goToPage(page)"
+              [attr.aria-label]="'Ir a página ' + page">
+        {{ page }}
+      </button>
+    </ng-container>
+
+    <button class="page-btn" 
+            [disabled]="currentPage === totalPages" 
+            (click)="goToPage(currentPage + 1)"
+            aria-label="Página siguiente">
+      <i class="fas fa-chevron-right"></i>
+    </button>
+  </div>
+
+  <div class="pagination-size" *ngIf="showPageSize">
+    <label for="pageSizeSelect">Mostrar:</label>
+    <select id="pageSizeSelect" 
+            class="page-size-select" 
+            [value]="pageSize" 
+            (change)="onPageSizeChange($event)">
+      <option *ngFor="let size of pageSizeOptions" [value]="size">
+        {{ size }}
+      </option>
+    </select>
+  </div>
+</div>
