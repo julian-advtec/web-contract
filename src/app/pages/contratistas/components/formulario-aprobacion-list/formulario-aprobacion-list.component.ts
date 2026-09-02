@@ -1,3 +1,5 @@
+// formulario-aprobacion-list.component.ts
+
 import { Component, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -85,7 +87,9 @@ export class FormularioAprobacionListComponent implements OnInit {
     const sub = this.formularioService.listarPendientesAprobacion().subscribe({
       next: (response: any) => {
         this.isLoading = false;
+        console.log('📦 Respuesta de listarPendientesAprobacion:', response);
         const data = this.extraerFormularios(response);
+        console.log('📦 Datos extraídos:', data);
         this.formularios = this.mapToFormularios(data);
         this.aplicarFiltros();
         this.cdr.markForCheck();
@@ -102,28 +106,30 @@ export class FormularioAprobacionListComponent implements OnInit {
   private extraerFormularios(response: any): any[] {
     if (!response) return [];
 
-    const buscarArray = (obj: any): any[] | null => {
-      if (!obj || typeof obj !== 'object') return null;
-      if (Array.isArray(obj) && obj.length > 0) return obj;
-      
-      for (const key in obj) {
-        if (obj[key] && typeof obj[key] === 'object') {
-          const encontrado = buscarArray(obj[key]);
-          if (encontrado) return encontrado;
-        }
-      }
-      return null;
-    };
-
-    return buscarArray(response) || [];
+    // ✅ Extraer correctamente el array de formularios
+    if (response?.data?.data?.data) {
+      return response.data.data.data;
+    }
+    if (response?.data?.data) {
+      return response.data.data;
+    }
+    if (response?.data) {
+      return response.data;
+    }
+    if (Array.isArray(response)) {
+      return response;
+    }
+    return [];
   }
 
   private mapToFormularios(data: any[]): FormularioAprobacion[] {
+    if (!data || !Array.isArray(data)) return [];
+    
     return data.map((f: any) => ({
       id: f.id ?? '',
       contratistaId: f.contratistaId ?? '',
-      contratistaNombre: f.contratistaNombre || f.contratista?.razonSocial || 'N/A',
-      contratistaDocumento: f.contratistaDocumento || f.contratista?.documentoIdentidad || 'N/A',
+      contratistaNombre: f.contratistaNombre || f.contratista?.razonSocial || f.representanteLegal || 'N/A',
+      contratistaDocumento: f.contratistaDocumento || f.contratista?.documentoIdentidad || f.documentoRepresentante || 'N/A',
       tipoContratista: f.tipoContratista || f.contratista?.tipoContratista || '',
       estado: f.estado || 'PENDIENTE',
       completado: f.completado ?? false,
@@ -208,6 +214,8 @@ export class FormularioAprobacionListComponent implements OnInit {
    * ✅ NAVEGACIÓN - Guarda en el service y navega CON QUERY PARAMS
    */
   verDetalle(formulario: FormularioAprobacion): void {
+    console.log('🔍 verDetalle llamado con formulario:', formulario);
+    
     if (formulario && formulario.id && formulario.contratistaId) {
       console.log('🔍 Navegando a editar con fromAprobacion=true');
       console.log('📦 Datos del formulario:', formulario);
@@ -234,16 +242,24 @@ export class FormularioAprobacionListComponent implements OnInit {
       });
 
       console.log('✅ State guardado en service - fromAprobacion:', this.formularioService.getFromAprobacion());
+      console.log('✅ State guardado en service - formularioData:', this.formularioService.getFormularioData());
 
       // ✅ Navegar CON queryParams incluyendo formularioId
-      this.router.navigate(['/contratistas/editar', formulario.contratistaId], {
+      const navigationUrl = `/contratistas/editar/${formulario.contratistaId}`;
+      console.log('🔍 Navegando a:', navigationUrl);
+      
+      this.router.navigate([navigationUrl], {
         queryParams: { 
           fromAprobacion: 'true',
-          formularioId: formulario.id // ✅ AÑADIR
+          formularioId: formulario.id
         }
+      }).then(success => {
+        console.log('✅ Navegación exitosa:', success);
+      }).catch(error => {
+        console.error('❌ Error en navegación:', error);
       });
     } else {
-      console.warn('⚠️ No se pudo navegar: faltan datos del formulario');
+      console.warn('⚠️ No se pudo navegar: faltan datos del formulario', formulario);
     }
   }
 

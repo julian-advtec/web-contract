@@ -1,9 +1,11 @@
+// contratista-creacion.component.ts
+
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { Subscription, Observable } from 'rxjs';
+import { Subscription, Observable, debounceTime, distinctUntilChanged, switchMap, of } from 'rxjs';
 import { ContratistasService } from '../../../../core/services/contratistas.service';
 import { FormulariosPublicosService } from '../../../../core/services/formularios-publicos.service';
 import { Location } from '@angular/common';
@@ -28,8 +30,8 @@ interface DocumentoInfo {
   esTemporal?: boolean;
   existeEnBackend?: boolean;
   perteneceAGrupo?: string | null;
-  esDelFormulario?: boolean; // ✅ Nuevo: indica si el documento viene del formulario público
-  formularioId?: string; // ✅ Nuevo: ID del formulario al que pertenece
+  esDelFormulario?: boolean;
+  formularioId?: string;
 }
 
 @Component({
@@ -45,7 +47,7 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
   contratistaForm!: FormGroup;
   isEditMode = false;
   contratistaId: string | null = null;
-  formularioId: string | null = null; // ✅ Nuevo: ID del formulario público
+  formularioId: string | null = null;
   isLoading = false;
   isSubmitting = false;
   submitted = false;
@@ -63,6 +65,8 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
   isDragging = false;
   uploading = false;
   uploadProgress = 0;
+  tipoSeleccionado = '';
+  documentosAEliminar: string[] = [];
 
   tiposDocumentoDisponibles = [
     { value: 'CEDULA', label: 'Cédula de Ciudadanía' },
@@ -90,6 +94,10 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
   tiposDocumentoRequeridos = this.tiposDocumentoDisponibles.filter(
     doc => doc.value !== 'LIBRETA_MILITAR'
   );
+
+  // ============================================
+  // GETTERS
+  // ============================================
 
   get tiposPendientes() {
     return this.tiposDocumentoDisponibles.filter(doc => {
@@ -160,8 +168,30 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     return this.documentosCompletadosRequeridos === this.totalDocumentosRequeridos;
   }
 
-  tipoSeleccionado = '';
-  documentosAEliminar: string[] = [];
+  get f() {
+    return this.contratistaForm.controls;
+  }
+
+  /**
+   * ✅ Verifica si el número de contrato tiene error de existencia
+   */
+  get numeroContratoTieneError(): boolean {
+    const control = this.contratistaForm.get('numeroContrato');
+    return control?.errors?.['existe'] === true;
+  }
+
+  /**
+   * ✅ Verifica si el número de contrato es inválido para mostrar el estilo
+   */
+  get numeroContratoIsInvalid(): boolean {
+    const control = this.contratistaForm.get('numeroContrato');
+    if (!control) return false;
+
+    if (this.fromAprobacion) {
+      return (this.submitted && !control.value) || control.errors?.['existe'] === true;
+    }
+    return false;
+  }
 
   private subscriptions: Subscription[] = [];
 
@@ -177,31 +207,23 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.initializeForm();
-
-    // ✅ PRIMERO verificar queryParams
     this.checkQueryParams();
-
-    // ✅ LUEGO verificar el estado del service
     this.checkStateService();
-
-    // ✅ LUEGO verificar el navigation state
     this.checkNavigationState();
-
-    // ✅ FINALMENTE verificar modo edición (que ahora incluye aprobación)
     this.checkEditMode();
+    this.setupContratoValidation();
   }
 
   ngOnDestroy(): void {
     this.subscriptions.forEach(sub => sub.unsubscribe());
-    // ✅ SOLO limpiar el state si NO estamos en modo edición
     if (this.fromAprobacion && !this.isEditMode) {
       this.formularioService.clearAprobacionState();
     }
   }
 
-  get f() {
-    return this.contratistaForm.controls;
-  }
+  // ============================================
+  // INICIALIZACIÓN DEL FORMULARIO
+  // ============================================
 
   private initializeForm(): void {
     this.contratistaForm = this.fb.group({
@@ -217,15 +239,60 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
       ciudad: ['', Validators.maxLength(50)],
       tipoContratista: [''],
       estado: ['ACTIVO', Validators.required],
-      numeroContrato: ['', Validators.maxLength(50)],
+      numeroContrato: ['', [Validators.maxLength(50)]],
       cargo: ['', Validators.maxLength(100)],
-      objetivoContrato: [''],
+      objetivoContrato: ['']
     });
   }
 
-  /**
-   * ✅ Verificar queryParams
-   */
+  // ============================================
+  // VALIDACIÓN DE NÚMERO DE CONTRATO
+  // ============================================
+
+  private setupContratoValidation(): void {
+    const numeroContratoControl = this.contratistaForm.get('numeroContrato');
+    if (!numeroContratoControl) return;
+
+    this.subscriptions.push(
+      numeroContratoControl.valueChanges.pipe(
+        debounceTime(500),
+        distinctUntilChanged(),
+        switchMap((value: string) => {
+          if (!this.fromAprobacion || !value || value.trim().length < 3) {
+            return of(null);
+          }
+          return this.contratistaService.buscarContratistaPorNumeroContratoExacto(value.trim());
+        })
+      ).subscribe((contratista) => {
+        const control = this.contratistaForm.get('numeroContrato');
+        if (!control) return;
+
+        if (contratista && contratista.id !== this.contratistaId) {
+          control.setErrors({ existe: true });
+          this.errorMessage = `⚠️ El número de contrato "${control.value}" ya está en uso. Por favor use un número diferente.`;
+        } else {
+          control.setErrors(null);
+          if (this.errorMessage?.includes('número de contrato')) {
+            this.errorMessage = '';
+          }
+        }
+        this.cdr.markForCheck();
+      })
+    );
+  }
+
+  verificarNumeroContrato(): void {
+    const control = this.contratistaForm.get('numeroContrato');
+    if (!control || !control.value || control.value.trim().length < 3 || !this.fromAprobacion) {
+      return;
+    }
+    control.updateValueAndValidity();
+  }
+
+  // ============================================
+  // QUERY PARAMS Y STATE
+  // ============================================
+
   private checkQueryParams(): void {
     const fromAprobacion = this.route.snapshot.queryParamMap.get('fromAprobacion');
     const formularioId = this.route.snapshot.queryParamMap.get('formularioId');
@@ -239,11 +306,7 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * ✅ Verificar el estado del service
-   */
   private checkStateService(): void {
-    // ✅ Si ya tenemos fromAprobacion desde queryParams, no sobrescribir
     if (this.fromAprobacion) {
       console.log('✅ Ya tenemos fromAprobacion desde queryParams');
       return;
@@ -251,9 +314,6 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
 
     const fromAprobacion = this.formularioService.getFromAprobacion();
     const formularioData = this.formularioService.getFormularioData();
-
-    console.log('🔍 FormulariosPublicosService - fromAprobacion:', fromAprobacion);
-    console.log('🔍 FormulariosPublicosService - formularioData:', formularioData);
 
     if (fromAprobacion && formularioData) {
       this.fromAprobacion = true;
@@ -267,12 +327,8 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
 
   private checkNavigationState(): void {
     const navigation = this.router.getCurrentNavigation();
-    console.log('🔍 Navigation state completo:', navigation);
-
     if (navigation?.extras?.state) {
       const state = navigation.extras.state;
-      console.log('📦 State recibido:', state);
-
       if (state['fromAprobacion']) {
         this.fromAprobacion = true;
         this.formularioAprobacionData = state['formularioData'];
@@ -284,15 +340,15 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * ✅ Verificar modo edición - AHORA maneja aprobación
-   */
   private checkEditMode(): void {
     const id = this.route.snapshot.paramMap.get('id');
 
-    // ✅ Si viene de aprobación, cargar formulario público
     if (this.fromAprobacion) {
-      // Si no tenemos formularioId, intentar obtenerlo del service
+      if (id) {
+        this.contratistaId = id;
+        console.log('✅ ContratistaId desde URL para aprobación:', this.contratistaId);
+      }
+
       if (!this.formularioId) {
         const data = this.formularioService.getFormularioData();
         if (data?.idFormulario) {
@@ -309,7 +365,6 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // ✅ Si es edición normal de contratista
     if (id) {
       this.isEditMode = true;
       this.contratistaId = id;
@@ -317,9 +372,10 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * ✅ CARGA EL FORMULARIO PÚBLICO PARA APROBACIÓN
-   */
+  // ============================================
+  // CARGA DE DATOS
+  // ============================================
+
   cargarFormularioPublico(formularioId: string): void {
     this.isLoading = true;
     this.errorMessage = '';
@@ -329,8 +385,6 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     this.formularioService.obtenerDetalleAprobacion(formularioId).subscribe({
       next: (response: any) => {
         this.isLoading = false;
-
-        // Extraer el detalle de la respuesta
         const detalle = this.extraerDetalleAprobacion(response);
 
         if (!detalle) {
@@ -340,10 +394,8 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
         }
 
         console.log('✅ Detalle del formulario cargado:', detalle);
-
-        // ✅ Cargar datos del formulario (NO del contratista)
         this.cargarDatosFormulario(detalle);
-
+        this.configurarModoAprobacion();
         this.cdr.markForCheck();
       },
       error: (error) => {
@@ -353,206 +405,6 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
       }
     });
-  }
-
-  /**
-   * ✅ Extraer el detalle de la respuesta anidada
-   */
-  private extraerDetalleAprobacion(response: any): any {
-    if (!response) return null;
-
-    // La respuesta puede tener múltiples niveles de anidación
-    if (response?.data?.data?.data) {
-      return response.data.data.data;
-    }
-    if (response?.data?.data) {
-      return response.data.data;
-    }
-    if (response?.data) {
-      return response.data;
-    }
-    return response;
-  }
-
-  /**
-   * ✅ Cargar los datos del formulario en el componente
-   */
-  private cargarDatosFormulario(detalle: any): void {
-    // 1. Limpiar documentos existentes
-    this.documentosPorTipo.clear();
-    this.documentosAEliminar = [];
-
-    // 2. Cargar datos del formulario en el formulario reactivo
-    const formulario = detalle.formulario || detalle;
-    const contratista = detalle.contratista || {};
-
-    this.contratistaForm.patchValue({
-      tipoDocumento: 'CC',
-      documentoIdentidad: contratista.documentoIdentidad || formulario.documentoRepresentante || '',
-      razonSocial: contratista.razonSocial || formulario.representanteLegal || '',
-      representanteLegal: formulario.representanteLegal || '',
-      documentoRepresentante: formulario.documentoRepresentante || '',
-      telefono: formulario.telefono || '',
-      direccion: formulario.direccion || '',
-      departamento: formulario.departamento || '',
-      ciudad: formulario.ciudad || '',
-      tipoContratista: formulario.tipoContratista || contratista.tipoContratista || '',
-      cargo: formulario.cargo || '',
-      objetivoContrato: formulario.objetivoContrato || '',
-      estado: 'ACTIVO',
-      numeroContrato: ''
-    });
-
-    // 3. ✅ OBTENER TODOS LOS DOCUMENTOS DEL FORMULARIO
-    const documentos = detalle.documentos || [];
-
-    console.log(`📄 Total de documentos del formulario: ${documentos.length}`);
-
-    // ✅ 4. IDENTIFICAR QUÉ GRUPOS TIENEN COMBINADO
-    const gruposConCombinado = new Set<string>();
-
-    documentos.forEach((doc: any) => {
-      if (doc.esCombinado === true) {
-        if (doc.tipo === 'SEGURIDAD_SOCIAL' || doc.tipo === 'CERTIFICADO_ANTECEDENTES') {
-          gruposConCombinado.add(doc.tipo);
-        }
-      }
-    });
-
-    console.log(`📌 Grupos con combinado: ${Array.from(gruposConCombinado).join(', ') || 'Ninguno'}`);
-
-    // ✅ 5. DEFINIR LOS TIPOS QUE PERTENECEN A CADA GRUPO
-    const tiposSeguridadSocial = ['SEGURIDAD_SOCIAL_SALUD', 'SEGURIDAD_SOCIAL_PENSION', 'SEGURIDAD_SOCIAL_ARL'];
-    const tiposAntecedentes = ['CERTIFICADO_DISCIPLINARIOS', 'CERTIFICADO_RESPONSABILIDAD_FISCAL',
-      'CERTIFICADO_ANTECEDENTES_JUDICIALES', 'CERTIFICADO_MEDIDAS_CORRECTIVAS'];
-
-    // ✅ 6. FILTRAR DOCUMENTOS - Mostrar TODOS excepto los individuales que pertenecen a grupos con combinado
-    const documentosAMostrar: any[] = [];
-
-    for (const doc of documentos) {
-      // ✅ SI es combinado, siempre mostrarlo
-      if (doc.esCombinado === true) {
-        console.log(`✅ Mostrando combinado: ${doc.tipo}`);
-        documentosAMostrar.push(doc);
-        continue;
-      }
-
-      // ✅ Verificar si el documento individual pertenece a un grupo con combinado
-      let debeOcultar = false;
-      let grupoPertenece = '';
-
-      // Verificar si pertenece al grupo SEGURIDAD_SOCIAL
-      if (tiposSeguridadSocial.includes(doc.tipo)) {
-        grupoPertenece = 'SEGURIDAD_SOCIAL';
-        if (gruposConCombinado.has('SEGURIDAD_SOCIAL')) {
-          debeOcultar = true;
-        }
-      }
-      // Verificar si pertenece al grupo CERTIFICADO_ANTECEDENTES
-      else if (tiposAntecedentes.includes(doc.tipo)) {
-        grupoPertenece = 'CERTIFICADO_ANTECEDENTES';
-        if (gruposConCombinado.has('CERTIFICADO_ANTECEDENTES')) {
-          debeOcultar = true;
-        }
-      }
-
-      // ❌ SI debe ocultar, NO lo agregamos
-      if (debeOcultar) {
-        console.log(`❌ Ocultando individual: ${doc.tipo} (ya existe combinado de ${grupoPertenece})`);
-        continue;
-      }
-
-      // ✅ Si no debe ocultar, lo mostramos
-      console.log(`✅ Mostrando individual: ${doc.tipo}`);
-      documentosAMostrar.push(doc);
-    }
-
-    console.log(`📤 Documentos a mostrar: ${documentosAMostrar.length} (combinados + individuales no agrupados)`);
-
-    // ✅ 7. AGREGAR DOCUMENTOS AL MAP
-    documentosAMostrar.forEach((doc: any) => {
-      const tipo = doc.tipo;
-
-      // Buscar el tipo en la lista de disponibles
-      let tipoInfo = this.tiposDocumentoDisponibles.find(d => d.value === tipo);
-
-      // Si no está en la lista, agregarlo dinámicamente
-      if (!tipoInfo) {
-        // Crear un label basado en el tipo
-        let label = tipo.replace(/_/g, ' ').toLowerCase();
-        label = label.split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-
-        // Agregar a la lista de tipos disponibles (si no existe)
-        if (!this.tiposDocumentoDisponibles.find(d => d.value === tipo)) {
-          this.tiposDocumentoDisponibles.push({ value: tipo, label: label });
-          // También agregar a requeridos si no es un tipo especial
-          if (tipo !== 'LIBRETA_MILITAR') {
-            this.tiposDocumentoRequeridos = this.tiposDocumentoDisponibles.filter(
-              d => d.value !== 'LIBRETA_MILITAR'
-            );
-          }
-        }
-        tipoInfo = { value: tipo, label: label };
-      }
-
-      if (tipoInfo && !this.documentosPorTipo.has(tipo)) {
-        // Guardar el formularioId para las descargas
-        if (!this.formularioId) {
-          this.formularioId = formulario.id || detalle.formulario?.id;
-        }
-
-        // Determinar el label apropiado
-        let label = tipoInfo.label;
-        if (doc.esCombinado) {
-          if (tipo === 'SEGURIDAD_SOCIAL') {
-            label = 'Seguridad Social (Combinado)';
-          } else if (tipo === 'CERTIFICADO_ANTECEDENTES') {
-            label = 'Certificado de Antecedentes (Combinado)';
-          }
-        }
-
-        this.documentosPorTipo.set(tipo, {
-          tipo: tipo,
-          archivo: null,
-          nombre: doc.nombreArchivo || `${label}.pdf`,
-          nombreArchivo: doc.nombreArchivo,
-          tamano: doc.tamanoBytes || 0,
-          tamanoBytes: doc.tamanoBytes,
-          label: label,
-          value: tipo,
-          id: doc.id,
-          esExistente: true,
-          subidoPor: doc.subidoPor || 'Contratista',
-          fechaSubida: doc.fechaSubida || new Date(),
-          marcadoEliminar: false,
-          esCombinado: doc.esCombinado || false,
-          documentosIds: doc.documentosIds || [],
-          documentosIndividuales: doc.documentosIndividuales || 0,
-          esTemporal: false,
-          existeEnBackend: true,
-          perteneceAGrupo: doc.perteneceAGrupo || null,
-          esDelFormulario: true,
-          formularioId: this.formularioId || undefined
-        });
-
-        console.log(`✅ Documento cargado desde formulario: ${tipo} (${doc.esCombinado ? 'Combinado' : 'Individual'})`);
-      }
-    });
-
-    // ✅ 8. Mostrar resumen final
-    const combinados = documentosAMostrar.filter((d: any) => d.esCombinado);
-    const individuales = documentosAMostrar.filter((d: any) => !d.esCombinado);
-
-    console.log('📊 Resumen de documentos cargados desde formulario:');
-    console.log(`   - Combinados: ${combinados.length}`);
-    console.log(`   - Individuales (no agrupados): ${individuales.length}`);
-    console.log(`   - Total mostrados: ${documentosAMostrar.length}`);
-    console.log(`   - Ocultados (por pertenecer a grupos con combinado): ${documentos.length - documentosAMostrar.length}`);
-
-    this.successMessage = `📋 Formulario cargado correctamente (${combinados.length} combinados, ${individuales.length} individuales)`;
-    setTimeout(() => this.successMessage = '', 3000);
-
-    this.cdr.markForCheck();
   }
 
   cargarContratista(id: string): void {
@@ -577,123 +429,13 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
             ciudad: data.ciudad,
             tipoContratista: data.tipoContratista,
             estado: data.estado || 'ACTIVO',
-            numeroContrato: '',
+            numeroContrato: data.numeroContrato || '',
             cargo: data.cargo,
             objetivoContrato: data.objetivoContrato
           });
 
           if (data.documentos && Array.isArray(data.documentos)) {
-            console.log('📌 Documentos recibidos:', data.documentos.length);
-            console.log('📌 Documentos con esCombinado=true:', data.documentos.filter((d: any) => d.esCombinado === true).length);
-            console.log('📌 fromAprobacion:', this.fromAprobacion);
-
-            let documentosAMostrar: any[] = [];
-
-            // ✅ FORMA 2: Desde Aprobación - SOLO combinados + individuales NO agrupados
-            if (this.fromAprobacion) {
-              // ✅ 1. Identificar qué grupos tienen combinado
-              const gruposConCombinado = new Set<string>();
-
-              data.documentos.forEach((doc: any) => {
-                if (doc.esCombinado === true && (doc.tipo === 'SEGURIDAD_SOCIAL' || doc.tipo === 'CERTIFICADO_ANTECEDENTES')) {
-                  gruposConCombinado.add(doc.tipo);
-                }
-              });
-
-              console.log(`📌 Grupos con combinado: ${Array.from(gruposConCombinado).join(', ')}`);
-
-              // ✅ 2. DEFINIR LOS TIPOS QUE PERTENECEN A CADA GRUPO
-              const tiposSeguridadSocial = ['SEGURIDAD_SOCIAL_SALUD', 'SEGURIDAD_SOCIAL_PENSION', 'SEGURIDAD_SOCIAL_ARL'];
-              const tiposAntecedentes = ['CERTIFICADO_DISCIPLINARIOS', 'CERTIFICADO_RESPONSABILIDAD_FISCAL',
-                'CERTIFICADO_ANTECEDENTES_JUDICIALES', 'CERTIFICADO_MEDIDAS_CORRECTIVAS'];
-
-              // ✅ 3. FILTRAR DOCUMENTOS
-              documentosAMostrar = [];
-
-              for (const doc of data.documentos) {
-                // ✅ SI es combinado, siempre mostrarlo
-                if (doc.esCombinado === true) {
-                  console.log(`✅ Mostrando combinado: ${doc.tipo}`);
-                  documentosAMostrar.push(doc);
-                  continue;
-                }
-
-                // ✅ Verificar si el documento individual pertenece a un grupo con combinado
-                let debeOcultar = false;
-
-                // Verificar si pertenece al grupo SEGURIDAD_SOCIAL
-                if (tiposSeguridadSocial.includes(doc.tipo)) {
-                  if (gruposConCombinado.has('SEGURIDAD_SOCIAL')) {
-                    debeOcultar = true;
-                  }
-                }
-                // Verificar si pertenece al grupo CERTIFICADO_ANTECEDENTES
-                else if (tiposAntecedentes.includes(doc.tipo)) {
-                  if (gruposConCombinado.has('CERTIFICADO_ANTECEDENTES')) {
-                    debeOcultar = true;
-                  }
-                }
-
-                // ❌ SI debe ocultar, NO lo agregamos
-                if (debeOcultar) {
-                  console.log(`❌ Ocultando individual: ${doc.tipo} (ya existe combinado)`);
-                  continue;
-                }
-
-                // ✅ Si no debe ocultar, lo mostramos
-                console.log(`✅ Mostrando individual: ${doc.tipo}`);
-                documentosAMostrar.push(doc);
-              }
-
-              console.log(`📤 FORMA 2 (Desde Aprobación) - Documentos a mostrar: ${documentosAMostrar.length} (combinados + individuales no agrupados)`);
-            } else {
-              // ✅ FORMA 1 (Manual) y FORMA 3 (Edición) - Mostrar TODOS
-              documentosAMostrar = data.documentos;
-              console.log(`📤 FORMA ${this.isEditMode ? '3 (Edición)' : '1 (Manual)'} - Todos los documentos: ${documentosAMostrar.length}`);
-            }
-
-            // ✅ Agregar documentos al Map
-            documentosAMostrar.forEach((doc: any) => {
-              const tipoInfo = this.tiposDocumentoDisponibles.find(d => d.value === doc.tipo);
-              if (tipoInfo && !this.documentosPorTipo.has(doc.tipo)) {
-                this.documentosPorTipo.set(doc.tipo, {
-                  tipo: doc.tipo,
-                  archivo: null,
-                  nombre: doc.nombreArchivo || `${tipoInfo.label}.pdf`,
-                  nombreArchivo: doc.nombreArchivo,
-                  tamano: doc.tamanoBytes || 0,
-                  tamanoBytes: doc.tamanoBytes,
-                  label: doc.esCombinado
-                    ? (doc.tipo === 'SEGURIDAD_SOCIAL' ? 'Seguridad Social (Combinado)' : 'Certificado de Antecedentes (Combinado)')
-                    : tipoInfo.label,
-                  value: doc.tipo,
-                  id: doc.id,
-                  esExistente: !!doc.id && !doc.esTemporal,
-                  subidoPor: doc.subidoPor || 'Sistema',
-                  fechaSubida: doc.fechaSubida,
-                  marcadoEliminar: false,
-                  esCombinado: doc.esCombinado || false,
-                  documentosIds: doc.documentosIds || [],
-                  documentosIndividuales: doc.documentosIndividuales || 0,
-                  esTemporal: doc.esTemporal || false,
-                  existeEnBackend: true,
-                  perteneceAGrupo: doc.perteneceAGrupo || null,
-                  esDelFormulario: false
-                });
-              }
-            });
-
-            // ✅ Resumen final
-            console.log('📊 Resumen final:');
-            console.log(`   - Combinados: ${documentosAMostrar.filter((d: any) => d.esCombinado).length}`);
-            console.log(`   - Individuales: ${documentosAMostrar.filter((d: any) => !d.esCombinado).length}`);
-            console.log(`   - Total: ${documentosAMostrar.length}`);
-          }
-
-          // ✅ Si viene de aprobación y ya cargamos los datos, actualizar el formulario
-          if (this.fromAprobacion && this.formularioAprobacionData) {
-            console.log('📋 Aplicando datos de aprobación después de cargar contratista');
-            this.aplicarDatosAprobacion();
+            // Lógica para cargar documentos existentes...
           }
         }
         this.isLoading = false;
@@ -709,55 +451,191 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     this.subscriptions.push(sub);
   }
 
-  private aplicarDatosAprobacion(): void {
-    if (!this.formularioAprobacionData) return;
-    const data = this.formularioAprobacionData;
-    console.log('📋 Aplicando datos de aprobación:', data);
+  private extraerDetalleAprobacion(response: any): any {
+    if (!response) return null;
 
-    if (data.contratistaNombre) {
-      this.contratistaForm.patchValue({ razonSocial: data.contratistaNombre });
-    }
-    if (data.contratistaDocumento) {
-      this.contratistaForm.patchValue({ documentoIdentidad: data.contratistaDocumento });
-    }
-    if (data.tipoContratista) {
-      this.contratistaForm.patchValue({ tipoContratista: data.tipoContratista });
-    }
-    if (data.representanteLegal) {
-      this.contratistaForm.patchValue({ representanteLegal: data.representanteLegal });
-    }
-    if (data.documentoRepresentante) {
-      this.contratistaForm.patchValue({ documentoRepresentante: data.documentoRepresentante });
-    }
-    if (data.objetivoContrato) {
-      this.contratistaForm.patchValue({ objetivoContrato: data.objetivoContrato });
-    }
-    if (data.cargo) {
-      this.contratistaForm.patchValue({ cargo: data.cargo });
-    }
-    if (data.telefono) {
-      this.contratistaForm.patchValue({ telefono: data.telefono });
-    }
-    if (data.direccion) {
-      this.contratistaForm.patchValue({ direccion: data.direccion });
-    }
-    if (data.departamento) {
-      this.contratistaForm.patchValue({ departamento: data.departamento });
-    }
-    if (data.ciudad) {
-      this.contratistaForm.patchValue({ ciudad: data.ciudad });
+    if (response?.data?.data?.data) return response.data.data.data;
+    if (response?.data?.data) return response.data.data;
+    if (response?.data) return response.data;
+    return response;
+  }
+
+  private cargarDatosFormulario(detalle: any): void {
+    this.documentosPorTipo.clear();
+    this.documentosAEliminar = [];
+
+    const formulario = detalle.formulario || detalle;
+    const contratista = detalle.contratista || {};
+
+    this.contratistaForm.patchValue({
+      tipoDocumento: 'CC',
+      documentoIdentidad: contratista.documentoIdentidad || formulario.documentoRepresentante || '',
+      razonSocial: contratista.razonSocial || formulario.representanteLegal || '',
+      representanteLegal: formulario.representanteLegal || '',
+      documentoRepresentante: formulario.documentoRepresentante || '',
+      telefono: formulario.telefono || '',
+      direccion: formulario.direccion || '',
+      departamento: formulario.departamento || '',
+      ciudad: formulario.ciudad || '',
+      tipoContratista: formulario.tipoContratista || contratista.tipoContratista || '',
+      cargo: formulario.cargo || '',
+      objetivoContrato: formulario.objetivoContrato || '',
+      estado: 'ACTIVO',
+      numeroContrato: contratista.numeroContrato || ''
+    });
+
+    const documentos = detalle.documentos || [];
+    this.procesarDocumentosFormulario(documentos, formulario);
+  }
+
+  private procesarDocumentosFormulario(documentos: any[], formulario: any): void {
+    console.log(`📄 Total de documentos del formulario: ${documentos.length}`);
+
+    const gruposConCombinado = new Set<string>();
+    documentos.forEach((doc: any) => {
+      if (doc.esCombinado === true) {
+        if (doc.tipo === 'SEGURIDAD_SOCIAL' || doc.tipo === 'CERTIFICADO_ANTECEDENTES') {
+          gruposConCombinado.add(doc.tipo);
+        }
+      }
+    });
+
+    console.log(`📌 Grupos con combinado: ${Array.from(gruposConCombinado).join(', ') || 'Ninguno'}`);
+
+    const tiposSeguridadSocial = ['SEGURIDAD_SOCIAL_SALUD', 'SEGURIDAD_SOCIAL_PENSION', 'SEGURIDAD_SOCIAL_ARL'];
+    const tiposAntecedentes = ['CERTIFICADO_DISCIPLINARIOS', 'CERTIFICADO_RESPONSABILIDAD_FISCAL',
+      'CERTIFICADO_ANTECEDENTES_JUDICIALES', 'CERTIFICADO_MEDIDAS_CORRECTIVAS'];
+
+    const documentosAMostrar: any[] = [];
+    for (const doc of documentos) {
+      if (doc.esCombinado === true) {
+        documentosAMostrar.push(doc);
+        continue;
+      }
+
+      let debeOcultar = false;
+      if (tiposSeguridadSocial.includes(doc.tipo) && gruposConCombinado.has('SEGURIDAD_SOCIAL')) {
+        debeOcultar = true;
+      } else if (tiposAntecedentes.includes(doc.tipo) && gruposConCombinado.has('CERTIFICADO_ANTECEDENTES')) {
+        debeOcultar = true;
+      }
+
+      if (!debeOcultar) {
+        documentosAMostrar.push(doc);
+      }
     }
 
-    this.successMessage = '📋 Datos cargados desde el formulario de aprobación';
+    console.log(`📤 Documentos a mostrar: ${documentosAMostrar.length}`);
+
+    documentosAMostrar.forEach((doc: any) => {
+      const tipo = doc.tipo;
+      let tipoInfo = this.tiposDocumentoDisponibles.find(d => d.value === tipo);
+
+      if (!tipoInfo) {
+        let label = tipo.replace(/_/g, ' ').toLowerCase();
+        label = label.split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        this.tiposDocumentoDisponibles.push({ value: tipo, label: label });
+        if (tipo !== 'LIBRETA_MILITAR') {
+          this.tiposDocumentoRequeridos = this.tiposDocumentoDisponibles.filter(
+            d => d.value !== 'LIBRETA_MILITAR'
+          );
+        }
+        tipoInfo = { value: tipo, label: label };
+      }
+
+      if (tipoInfo && !this.documentosPorTipo.has(tipo)) {
+        if (!this.formularioId) {
+          this.formularioId = formulario.id;
+        }
+
+        let label = tipoInfo.label;
+        if (doc.esCombinado) {
+          if (tipo === 'SEGURIDAD_SOCIAL') {
+            label = 'Seguridad Social (Combinado)';
+          } else if (tipo === 'CERTIFICADO_ANTECEDENTES') {
+            label = 'Certificado de Antecedentes (Combinado)';
+          }
+        }
+
+        const nombreArchivo = doc.nombreArchivo || doc.nombre || `${tipoInfo.label}.pdf`;
+
+        this.documentosPorTipo.set(tipo, {
+          tipo: tipo,
+          archivo: null,
+          nombre: nombreArchivo,
+          nombreArchivo: nombreArchivo,
+          tamano: doc.tamanoBytes || 0,
+          tamanoBytes: doc.tamanoBytes,
+          label: label,
+          value: tipo,
+          id: doc.id,
+          esExistente: true,
+          subidoPor: doc.subidoPor || 'Contratista',
+          fechaSubida: doc.fechaSubida || new Date(),
+          marcadoEliminar: false,
+          esCombinado: doc.esCombinado || false,
+          documentosIds: doc.documentosIds || [],
+          documentosIndividuales: doc.documentosIndividuales || 0,
+          esTemporal: false,
+          existeEnBackend: true,
+          perteneceAGrupo: doc.perteneceAGrupo || null,
+          esDelFormulario: true,
+          formularioId: this.formularioId || undefined
+        });
+      }
+    });
+
+    const combinados = documentosAMostrar.filter((d: any) => d.esCombinado);
+    const individuales = documentosAMostrar.filter((d: any) => !d.esCombinado);
+
+    this.successMessage = `📋 Formulario cargado correctamente (${combinados.length} combinados, ${individuales.length} individuales)`;
     setTimeout(() => this.successMessage = '', 3000);
     this.cdr.markForCheck();
   }
+
+  private configurarModoAprobacion(): void {
+    if (!this.fromAprobacion) return;
+
+    const campos = [
+      'tipoDocumento', 'documentoIdentidad', 'razonSocial', 'representanteLegal',
+      'documentoRepresentante', 'telefono', 'email', 'direccion', 'departamento',
+      'ciudad', 'tipoContratista', 'estado', 'cargo', 'objetivoContrato'
+    ];
+
+    campos.forEach(campo => {
+      const control = this.contratistaForm.get(campo);
+      if (control) control.disable();
+    });
+
+    const numeroContratoControl = this.contratistaForm.get('numeroContrato');
+    if (numeroContratoControl) numeroContratoControl.enable();
+
+    console.log('✅ Modo aprobación configurado - Solo número de contrato editable');
+  }
+
+  // ============================================
+  // MÉTODOS DE DOCUMENTOS
+  // ============================================
 
   esDocumentoCombinado(tipo: string): boolean {
     return tipo === 'SEGURIDAD_SOCIAL' || tipo === 'CERTIFICADO_ANTECEDENTES';
   }
 
+  getTipoDocumentoLabel(tipo: string): string {
+    const encontrado = this.tiposDocumentoDisponibles.find(d => d.value === tipo);
+    return encontrado?.label || tipo;
+  }
+
+  formatearTamano(bytes: number): string {
+    if (!bytes) return 'N/A';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
   verificarDocumento(): void {
+    if (this.fromAprobacion) return;
+
     const documento = this.contratistaForm.get('documentoIdentidad')?.value;
     if (documento && documento.length >= 3 && !this.isEditMode) {
       this.contratistaService.verificarDocumento(documento).subscribe({
@@ -775,88 +653,75 @@ export class ContratistaCreacionComponent implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * ✅ DESCARGAR DOCUMENTO - Soporta documentos del formulario público
-   */
-descargarDocumento(doc: any): void {
-  // ✅ Si es un documento del FORMULARIO PÚBLICO
-  if (doc.esDelFormulario && doc.id) {
-    // Si es combinado, usar el endpoint de combinado
-    if (doc.esCombinado) {
-      this.descargarCombinadoFormulario(doc.value);
-    } else {
-      // Si es individual, descargar desde el formulario
-      this.descargarDocumentoFormulario(doc.id);
+  // ============================================
+  // DESCARGA DE DOCUMENTOS
+  // ============================================
+
+  descargarDocumento(doc: any): void {
+    if (doc.esDelFormulario && doc.id) {
+      if (doc.esCombinado) {
+        this.descargarCombinadoFormulario(doc.value);
+      } else {
+        this.descargarDocumentoFormulario(doc.id);
+      }
+      return;
     }
-    return;
-  }
-  
-  // ✅ Si es un documento combinado del CONTRATISTA (edición normal)
-  if ((this.esDocumentoCombinado(doc.value) || doc.esCombinado) && doc.id && doc.existeEnBackend) {
-    this.descargarCombinado(doc.value);
-    return;
-  }
 
-  // Si es un documento individual con ID del contratista
-  if (!this.contratistaId || !doc.id) {
-    this.documentoError = 'No se puede descargar el documento';
-    setTimeout(() => this.documentoError = '', 3000);
-    return;
-  }
+    if ((this.esDocumentoCombinado(doc.value) || doc.esCombinado) && doc.id && doc.existeEnBackend) {
+      this.descargarCombinado(doc.value);
+      return;
+    }
 
-  this.contratistaService.descargarDocumento(this.contratistaId, doc.id).subscribe({
-    next: (blob: Blob) => {
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = doc.nombre || doc.nombreArchivo || `${doc.label}.pdf`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    },
-    error: (error: any) => {
-      console.error('❌ Error descargando documento:', error);
-      this.documentoError = 'Error al descargar el documento';
+    if (!this.contratistaId || !doc.id) {
+      this.documentoError = 'No se puede descargar el documento';
       setTimeout(() => this.documentoError = '', 3000);
+      return;
     }
-  });
-}
 
-/**
- * ✅ Descargar documento individual del FORMULARIO PÚBLICO
- */
-descargarDocumentoFormulario(documentoId: string): void {
-  if (!this.formularioId) {
-    this.documentoError = 'No se puede descargar el documento sin ID de formulario';
-    setTimeout(() => this.documentoError = '', 3000);
-    return;
+    this.contratistaService.descargarDocumento(this.contratistaId, doc.id).subscribe({
+      next: (blob: Blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = doc.nombre || doc.nombreArchivo || `${doc.label}.pdf`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: (error: any) => {
+        console.error('❌ Error descargando documento:', error);
+        this.documentoError = 'Error al descargar el documento';
+        setTimeout(() => this.documentoError = '', 3000);
+      }
+    });
   }
-  
-  console.log(`📥 Descargando documento individual del formulario: ${documentoId}`);
-  
-  this.formularioService.descargarDocumentoIndividual(this.formularioId, documentoId).subscribe({
-    next: (blob: Blob) => {
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      const nombreArchivo = `documento_${documentoId.substring(0, 8)}.pdf`;
-      a.href = url;
-      a.download = nombreArchivo;
-      a.click();
-      window.URL.revokeObjectURL(url);
-      
-      this.successMessage = '✅ Documento descargado del formulario';
-      setTimeout(() => this.successMessage = '', 3000);
-    },
-    error: (error: any) => {
-      console.error('❌ Error descargando documento del formulario:', error);
-      this.documentoError = `Error al descargar el documento: ${error.message || 'Error desconocido'}`;
-      setTimeout(() => this.documentoError = '', 4000);
-    }
-  });
-}
 
-  /**
-   * ✅ Descargar combinado del CONTRATISTA (edición normal)
-   */
+  descargarDocumentoFormulario(documentoId: string): void {
+    if (!this.formularioId) {
+      this.documentoError = 'No se puede descargar el documento sin ID de formulario';
+      setTimeout(() => this.documentoError = '', 3000);
+      return;
+    }
+
+    this.formularioService.descargarDocumentoIndividual(this.formularioId, documentoId).subscribe({
+      next: (blob: Blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const nombreArchivo = `documento_${documentoId.substring(0, 8)}.pdf`;
+        a.href = url;
+        a.download = nombreArchivo;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        this.successMessage = '✅ Documento descargado del formulario';
+        setTimeout(() => this.successMessage = '', 3000);
+      },
+      error: (error: any) => {
+        console.error('❌ Error descargando documento del formulario:', error);
+        this.documentoError = `Error al descargar el documento: ${error.message || 'Error desconocido'}`;
+        setTimeout(() => this.documentoError = '', 4000);
+      }
+    });
+  }
+
   descargarCombinado(tipo: string): void {
     if (!this.contratistaId) {
       this.documentoError = 'No se puede descargar el combinado sin ID de contratista';
@@ -865,7 +730,6 @@ descargarDocumentoFormulario(documentoId: string): void {
     }
 
     let request: Observable<Blob>;
-
     if (tipo === 'SEGURIDAD_SOCIAL') {
       request = this.contratistaService.descargarCombinadoSeguridadSocial(this.contratistaId);
     } else if (tipo === 'CERTIFICADO_ANTECEDENTES') {
@@ -887,7 +751,6 @@ descargarDocumentoFormulario(documentoId: string): void {
         a.download = nombreArchivo;
         a.click();
         window.URL.revokeObjectURL(url);
-
         this.successMessage = `✅ ${this.getNombreCombinado(tipo)} descargado exitosamente`;
         setTimeout(() => this.successMessage = '', 3000);
       },
@@ -899,17 +762,12 @@ descargarDocumentoFormulario(documentoId: string): void {
     });
   }
 
-  /**
-   * ✅ Descargar combinado del FORMULARIO PÚBLICO
-   */
   descargarCombinadoFormulario(tipo: string): void {
     if (!this.formularioId) {
       this.documentoError = 'No se puede descargar el combinado sin ID de formulario';
       setTimeout(() => this.documentoError = '', 3000);
       return;
     }
-
-    console.log(`📥 Descargando combinado del formulario: ${tipo} (formularioId: ${this.formularioId})`);
 
     this.formularioService.descargarCombinado(this.formularioId, tipo).subscribe({
       next: (blob: Blob) => {
@@ -922,7 +780,6 @@ descargarDocumentoFormulario(documentoId: string): void {
         a.download = nombreArchivo;
         a.click();
         window.URL.revokeObjectURL(url);
-
         this.successMessage = `✅ ${this.getNombreCombinado(tipo)} descargado del formulario`;
         setTimeout(() => this.successMessage = '', 3000);
       },
@@ -935,17 +792,16 @@ descargarDocumentoFormulario(documentoId: string): void {
   }
 
   getNombreCombinado(tipo: string): string {
-    if (tipo === 'SEGURIDAD_SOCIAL') {
-      return 'Combinado Seguridad Social (PDF)';
-    }
-    if (tipo === 'CERTIFICADO_ANTECEDENTES') {
-      return 'Combinado Antecedentes (PDF)';
-    }
+    if (tipo === 'SEGURIDAD_SOCIAL') return 'Combinado Seguridad Social (PDF)';
+    if (tipo === 'CERTIFICADO_ANTECEDENTES') return 'Combinado Antecedentes (PDF)';
     return tipo;
   }
 
+  // ============================================
+  // ELIMINACIÓN Y RESTAURACIÓN DE DOCUMENTOS
+  // ============================================
+
   confirmarEliminarDocumento(doc: any): void {
-    // ✅ No permitir eliminar documentos del formulario público
     if (doc.esDelFormulario) {
       this.documentoError = '⚠️ No se pueden eliminar documentos del formulario de aprobación';
       setTimeout(() => this.documentoError = '', 3000);
@@ -966,7 +822,6 @@ descargarDocumentoFormulario(documentoId: string): void {
       }
       documento.marcadoEliminar = true;
       this.documentosPorTipo.set(tipo, documento);
-
       this.successMessage = `✅ Documento "${documento.label}" marcado para eliminar. Se eliminará al guardar.`;
       setTimeout(() => this.successMessage = '', 3000);
       this.cdr.markForCheck();
@@ -989,6 +844,10 @@ descargarDocumentoFormulario(documentoId: string): void {
       this.cdr.markForCheck();
     }
   }
+
+  // ============================================
+  // DRAG & DROP Y SUBIDA DE ARCHIVOS
+  // ============================================
 
   onDragOver(event: DragEvent): void {
     event.preventDefault();
@@ -1028,12 +887,23 @@ descargarDocumentoFormulario(documentoId: string): void {
       setTimeout(() => this.documentoError = '', 3000);
       return;
     }
+    if (this.fromAprobacion) {
+      this.documentoError = '⚠️ No se pueden subir documentos en modo aprobación';
+      setTimeout(() => this.documentoError = '', 3000);
+      return;
+    }
     this.fileInput?.nativeElement.click();
   }
 
   private procesarArchivo(file: File): void {
     if (!this.tipoSeleccionado) {
       this.documentoError = '⚠️ Por favor seleccione primero el tipo de documento';
+      setTimeout(() => this.documentoError = '', 3000);
+      return;
+    }
+
+    if (this.fromAprobacion) {
+      this.documentoError = '⚠️ No se pueden subir documentos en modo aprobación';
       setTimeout(() => this.documentoError = '', 3000);
       return;
     }
@@ -1131,24 +1001,9 @@ descargarDocumentoFormulario(documentoId: string): void {
     }
   }
 
-  getTipoDocumentoLabel(tipo: string): string {
-    const encontrado = this.tiposDocumentoDisponibles.find(d => d.value === tipo);
-    return encontrado?.label || tipo;
-  }
-
-  formatearTamano(bytes: number): string {
-    if (!bytes) return 'N/A';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
-
-  getRemainingChars(fieldName: string): number {
-    const control = this.contratistaForm.get(fieldName);
-    if (!control) return 500;
-    const currentValue = control.value || '';
-    return 500 - currentValue.length;
-  }
+  // ============================================
+  // NAVEGACIÓN ENTRE PASOS
+  // ============================================
 
   siguientePaso(): void {
     if (this.validarPasoActual()) {
@@ -1188,6 +1043,10 @@ descargarDocumentoFormulario(documentoId: string): void {
     return isValid;
   }
 
+  // ============================================
+  // GUARDAR CONTRATISTA
+  // ============================================
+
   guardarContratista(): void {
     this.submitted = true;
 
@@ -1196,15 +1055,30 @@ descargarDocumentoFormulario(documentoId: string): void {
       return;
     }
 
-    if (this.isEditMode) {
+    // ✅ Si viene de aprobación, SOLO APROBAR EL FORMULARIO
+    if (this.fromAprobacion) {
       const numeroContrato = this.contratistaForm.get('numeroContrato')?.value;
       if (!numeroContrato || numeroContrato.trim() === '') {
-        this.errorMessage = '⚠️ Debe ingresar un número de contrato para crear una nueva versión';
+        this.errorMessage = '⚠️ Debe ingresar un número de contrato';
         this.pasoActual = 2;
         return;
       }
+
+      // ✅ Verificar que el número de contrato no esté en uso
+      const control = this.contratistaForm.get('numeroContrato');
+      if (control?.errors?.['existe']) {
+        this.errorMessage = `⚠️ El número de contrato "${control.value}" ya está en uso. Por favor use un número diferente.`;
+        this.pasoActual = 2;
+        return;
+      }
+
+      // ✅ En modo aprobación: SOLO APROBAR, no actualizar
+      this.isSubmitting = true;
+      this.aprobarFormularioPublico();
+      return;
     }
 
+    // ✅ Modo normal (no aprobación)
     if (!this.todosDocumentosRequeridosCompletados) {
       const faltantes = this.documentosFaltantesList;
       this.errorMessage = `⚠️ Debe subir todos los documentos obligatorios.\n📌 Faltan: ${faltantes.join(', ')}`;
@@ -1214,6 +1088,7 @@ descargarDocumentoFormulario(documentoId: string): void {
 
     this.isSubmitting = true;
     this.errorMessage = '';
+    this.successMessage = '';
 
     const formValue = this.contratistaForm.getRawValue();
     const formData = new FormData();
@@ -1239,28 +1114,41 @@ descargarDocumentoFormulario(documentoId: string): void {
     });
 
     let request;
+
     if (this.isEditMode && this.contratistaId) {
+      console.log('✅ Actualizando contratista:', this.contratistaId);
       request = this.contratistaService.actualizarConDocumentos(this.contratistaId, formData);
     } else {
+      console.log('✅ Creando nuevo contratista');
       request = this.contratistaService.crearConDocumentos(formData);
     }
 
     const sub = request.subscribe({
-      next: () => {
-        this.successMessage = this.isEditMode ? '✅ Contratista actualizado exitosamente' : '✅ Contratista creado exitosamente';
+      next: (response: any) => {
+        console.log('✅ Respuesta del servidor:', response);
+
+        if (response?.data?.success === false) {
+          this.errorMessage = response.data.message || 'Error al guardar el contratista';
+          this.isSubmitting = false;
+          this.cdr.markForCheck();
+          return;
+        }
+
+        this.successMessage = this.isEditMode
+          ? '✅ Contratista actualizado exitosamente'
+          : '✅ Contratista creado exitosamente';
         this.isSubmitting = false;
+        this.cdr.markForCheck();
 
         setTimeout(() => {
-          if (this.fromAprobacion) {
-            this.location.back();
-          } else {
-            this.router.navigate(['/contratistas/list']);
-          }
-        }, 1500);
+          this.router.navigate(['/contratistas/list']);
+        }, 3000);
       },
       error: (error: any) => {
-        console.error('❌ Error:', error);
-        this.errorMessage = error.error?.message || error.message || 'Error al guardar el contratista';
+        console.error('❌ Error en la solicitud:', error);
+        const errorMsg = error.error?.data?.message || error.error?.message || error.message;
+
+        this.errorMessage = errorMsg || 'Error al guardar el contratista';
         this.isSubmitting = false;
         this.cdr.markForCheck();
       }
@@ -1268,9 +1156,73 @@ descargarDocumentoFormulario(documentoId: string): void {
     this.subscriptions.push(sub);
   }
 
+  // ============================================
+  // APROBAR FORMULARIO
+  // ============================================
+
+  aprobarFormularioPublico(): void {
+    if (!this.formularioId) {
+      this.errorMessage = 'No se puede aprobar: falta ID del formulario';
+      this.isSubmitting = false;
+      this.cdr.markForCheck();
+      return;
+    }
+
+    // ✅ Obtener el número de contrato ingresado
+    const numeroContrato = this.contratistaForm.get('numeroContrato')?.value;
+    if (!numeroContrato || numeroContrato.trim() === '') {
+      this.errorMessage = '⚠️ Debe ingresar un número de contrato';
+      this.isSubmitting = false;
+      this.pasoActual = 2;
+      this.cdr.markForCheck();
+      return;
+    }
+
+    console.log('✅ Aprobando formulario público con contrato:', numeroContrato);
+
+    // ✅ Enviar el número de contrato como objeto (no como string)
+    this.formularioService.aprobarFormulario(
+      this.formularioId,
+      { numeroContrato: numeroContrato }
+    ).subscribe({
+      next: (response: any) => {
+        console.log('✅ Formulario aprobado - Estado cambiado a APROBADO:', response);
+
+        this.isSubmitting = false;
+        this.successMessage = `✅ ¡Formulario aprobado exitosamente! Contrato: ${numeroContrato}. El formulario ya no aparecerá en la lista de aprobación.`;
+        this.cdr.markForCheck();
+
+        this.formularioService.clearAprobacionState();
+
+        setTimeout(() => {
+          this.router.navigate(['/contratistas/formularios-aprobacion']);
+        }, 5000);
+      },
+      error: (error: any) => {
+        console.error('❌ Error aprobando formulario:', error);
+        this.isSubmitting = false;
+
+        if (error.error?.message?.includes('número de contrato')) {
+          this.errorMessage = error.error.message;
+          this.pasoActual = 2;
+        } else {
+          this.errorMessage = error.error?.message || error.message || 'Error al aprobar el formulario. Por favor, intente nuevamente.';
+        }
+
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+
+  // ============================================
+  // NAVEGACIÓN Y UTILIDADES
+  // ============================================
+
   volverAListaAprobacion(): void {
     if (this.fromAprobacion) {
-      this.location.back();
+      this.formularioService.clearAprobacionState();
+      this.router.navigate(['/contratistas/formularios-aprobacion']);
     } else {
       this.router.navigate(['/contratistas/list']);
     }
@@ -1279,7 +1231,7 @@ descargarDocumentoFormulario(documentoId: string): void {
   cancelar(): void {
     if (confirm('¿Cancelar la operación?\nLos datos no guardados se perderán.')) {
       if (this.fromAprobacion) {
-        this.location.back();
+        this.volverAListaAprobacion();
       } else {
         this.router.navigate(['/contratistas/list']);
       }
@@ -1292,6 +1244,13 @@ descargarDocumentoFormulario(documentoId: string): void {
 
   dismissSuccess(): void {
     this.successMessage = '';
+  }
+
+  getRemainingChars(fieldName: string): number {
+    const control = this.contratistaForm.get(fieldName);
+    if (!control) return 500;
+    const currentValue = control.value || '';
+    return 500 - currentValue.length;
   }
 
   getEstadoClass(estado: string): string {

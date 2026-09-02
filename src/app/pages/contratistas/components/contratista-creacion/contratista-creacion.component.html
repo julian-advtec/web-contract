@@ -1,4 +1,5 @@
-<!-- src/app/pages/contratistas/components/contratista-creacion/contratista-creacion.component.html -->
+<!-- contratista-creacion.component.html -->
+
 <div class="contratista-creacion-container">
   <div class="contratista-creacion-inner">
 
@@ -12,7 +13,7 @@
         </span>
       </h2>
       <div>
-        <button class="btn btn-outline-secondary" (click)="cancelar()">
+        <button class="btn btn-outline-secondary" (click)="volverAListaAprobacion()">
           <i class="fas fa-arrow-left me-2"></i>
           {{ fromAprobacion ? 'Volver a Aprobación' : 'Cancelar' }}
         </button>
@@ -22,7 +23,7 @@
     <!-- ✅ Mensaje informativo de aprobación -->
     <div *ngIf="fromAprobacion && formularioAprobacionData" class="alert alert-info mb-4">
       <i class="fas fa-info-circle me-2"></i>
-      <strong>Datos cargados desde el formulario de aprobación.</strong>
+      <strong>Modo Aprobación - Solo el número de contrato es editable</strong>
       <p class="mb-0 small">
         Estado del formulario:
         <span class="badge" [ngClass]="getEstadoClass(formularioAprobacionData.estadoFormulario)">
@@ -77,6 +78,7 @@
       <div class="card-section" *ngIf="pasoActual === 1">
         <div class="section-header">
           <h5 class="mb-0">Datos Personales</h5>
+          <span *ngIf="fromAprobacion" class="badge bg-warning">Solo lectura</span>
         </div>
         <div class="section-body">
           <div class="row">
@@ -134,24 +136,21 @@
 
             <div class="col-md-6 mb-3">
               <label class="form-label">Teléfono</label>
-              <input type="text" class="form-control" formControlName="telefono" placeholder="Ej: 3001234567"
-                maxlength="15">
+              <input type="text" class="form-control" formControlName="telefono" placeholder="Ej: 3001234567" maxlength="15">
             </div>
           </div>
 
           <div class="row">
             <div class="col-md-12 mb-3">
               <label class="form-label">Dirección</label>
-              <textarea class="form-control" formControlName="direccion" rows="2"
-                placeholder="Dirección de correspondencia"></textarea>
+              <textarea class="form-control" formControlName="direccion" rows="2" placeholder="Dirección de correspondencia"></textarea>
             </div>
           </div>
 
           <div class="row">
             <div class="col-md-6 mb-3">
               <label class="form-label">Departamento</label>
-              <input type="text" class="form-control" formControlName="departamento" placeholder="Departamento"
-                maxlength="50">
+              <input type="text" class="form-control" formControlName="departamento" placeholder="Departamento" maxlength="50">
             </div>
 
             <div class="col-md-6 mb-3">
@@ -172,14 +171,23 @@
       <div class="card-section" *ngIf="pasoActual === 2">
         <div class="section-header">
           <h5 class="mb-0">Información Adicional</h5>
+          <span *ngIf="fromAprobacion" class="badge bg-warning">Solo número de contrato editable</span>
         </div>
         <div class="section-body">
           <div class="row">
             <div class="col-md-6 mb-3">
-              <label class="form-label">Número de Contrato</label>
-              <input type="text" class="form-control" formControlName="numeroContrato" placeholder="Ej: 001-2026"
-                maxlength="50">
-              <small class="text-muted">Opcional - Se puede asignar después</small>
+              <label class="form-label" [class.required-field]="fromAprobacion">Número de Contrato</label>
+              <input type="text" class="form-control" formControlName="numeroContrato" 
+                placeholder="Ej: 001-2026" maxlength="50"
+                [class.is-invalid]="numeroContratoIsInvalid"
+                (blur)="verificarNumeroContrato()">
+              <small class="text-muted" *ngIf="!fromAprobacion">Opcional - Se puede asignar después</small>
+              <div *ngIf="fromAprobacion && submitted && !f['numeroContrato'].value" class="invalid-feedback">
+                El número de contrato es requerido en modo aprobación
+              </div>
+              <div *ngIf="numeroContratoTieneError" class="invalid-feedback">
+                Este número de contrato ya está en uso
+              </div>
             </div>
 
             <div class="col-md-6 mb-3">
@@ -195,8 +203,7 @@
 
             <div class="col-md-6 mb-3">
               <label class="form-label">Cargo</label>
-              <input type="text" class="form-control" formControlName="cargo" placeholder="Ej: Director, Gerente, etc."
-                maxlength="100">
+              <input type="text" class="form-control" formControlName="cargo" placeholder="Ej: Director, Gerente, etc." maxlength="100">
             </div>
 
             <div class="col-md-6 mb-3">
@@ -231,23 +238,30 @@
       <div class="card-section" *ngIf="pasoActual === 3">
         <div class="section-header">
           <h5 class="mb-0">Documentos Requeridos</h5>
+          <span *ngIf="fromAprobacion" class="badge bg-warning">Solo lectura</span>
         </div>
         <div class="section-body">
 
           <div class="alert alert-info mb-4">
             <i class="fas fa-info-circle me-2"></i>
-            Los documentos marcados con <strong>*</strong> son obligatorios.
-            La <strong>Libreta Militar</strong> es opcional.
-            Formatos permitidos: <strong>PDF</strong> (max. 5MB cada uno)
-            <br>
-            <span class="badge bg-primary mt-1">
-              <i class="fas fa-layer-group me-1"></i> Combinado
+            <span *ngIf="fromAprobacion">
+              <strong>Modo aprobación:</strong> Los documentos ya están cargados desde el formulario público.
+              Solo puedes visualizar y descargar los documentos.
             </span>
-            <span class="ms-2 text-muted small">= Documento que agrupa varios archivos individuales</span>
+            <span *ngIf="!fromAprobacion">
+              Los documentos marcados con <strong>*</strong> son obligatorios.
+              La <strong>Libreta Militar</strong> es opcional.
+              Formatos permitidos: <strong>PDF</strong> (max. 5MB cada uno)
+              <br>
+              <span class="badge bg-primary mt-1">
+                <i class="fas fa-layer-group me-1"></i> Combinado
+              </span>
+              <span class="ms-2 text-muted small">= Documento que agrupa varios archivos individuales</span>
+            </span>
           </div>
 
           <!-- Dropdown para seleccionar tipo de documento -->
-          <div class="documento-selector mb-4" *ngIf="tiposPendientes.length > 0">
+          <div class="documento-selector mb-4" *ngIf="tiposPendientes.length > 0 && !fromAprobacion">
             <label class="form-label">Seleccionar tipo de documento a subir</label>
             <div class="d-flex gap-3">
               <select class="form-control" [(ngModel)]="tipoSeleccionado" [ngModelOptions]="{standalone: true}">
@@ -269,13 +283,19 @@
             <input type="file" id="fileInput" class="d-none" (change)="onFileSelected($event)" accept=".pdf">
           </div>
 
-          <div *ngIf="tiposPendientes.length === 0" class="alert alert-success mb-4">
+          <div *ngIf="tiposPendientes.length === 0 && !fromAprobacion" class="alert alert-success mb-4">
             <i class="fas fa-check-circle me-2"></i>
             ¡Todos los documentos requeridos han sido subidos!
           </div>
 
+          <div *ngIf="fromAprobacion" class="alert alert-warning mb-4">
+            <i class="fas fa-lock me-2"></i>
+            <strong>Modo aprobación:</strong> Los documentos están bloqueados. No se pueden agregar ni eliminar.
+            {{ documentosSubidosCount }} documentos cargados desde el formulario.
+          </div>
+
           <!-- Drag & Drop -->
-          <div class="drag-drop-area" *ngIf="tipoSeleccionado" [class.dragging]="isDragging"
+          <div class="drag-drop-area" *ngIf="tipoSeleccionado && !fromAprobacion" [class.dragging]="isDragging"
             (dragenter)="onDragOver($event)" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)"
             (drop)="onDrop($event)">
             <div class="drag-drop-content">
@@ -293,7 +313,10 @@
 
           <!-- Lista de documentos subidos -->
           <div class="documentos-subidos mt-4">
-            <h6 class="mb-3">Documentos Subidos ({{ documentosSubidosCount }} de {{ tiposDocumentoRequeridos.length }} requeridos)</h6>
+            <h6 class="mb-3">
+              Documentos Subidos ({{ documentosSubidosCount }} de {{ tiposDocumentoRequeridos.length }} requeridos)
+              <span *ngIf="fromAprobacion" class="badge bg-warning ms-2">Solo lectura</span>
+            </h6>
 
             <div class="documentos-grid">
               <div *ngFor="let doc of documentosSubidosList" class="documento-card"
@@ -320,6 +343,7 @@
                     </span>
 
                     <span *ngIf="doc.marcadoEliminar" class="badge bg-danger ms-2">Marcado para eliminar</span>
+                    <span *ngIf="doc.esDelFormulario" class="badge bg-info ms-2">Del formulario</span>
                   </h6>
                 </div>
                 <div class="documento-body">
@@ -346,8 +370,8 @@
                       <button type="button" class="btn-download" (click)="descargarDocumento(doc)" title="Descargar">
                         <i class="fas fa-download"></i> Descargar
                       </button>
-                      <button *ngIf="!doc.marcadoEliminar && !doc.esCombinado" type="button" class="btn-remove"
-                        (click)="confirmarEliminarDocumento(doc)" title="Eliminar">
+                      <button *ngIf="!doc.marcadoEliminar && !doc.esCombinado && !doc.esDelFormulario" type="button"
+                        class="btn-remove" (click)="confirmarEliminarDocumento(doc)" title="Eliminar">
                         <i class="fas fa-trash-alt"></i> Eliminar
                       </button>
                       <button *ngIf="doc.marcadoEliminar" type="button" class="btn-restore"
@@ -376,7 +400,7 @@
             </div>
           </div>
 
-          <div class="alert alert-warning mt-4" *ngIf="!todosDocumentosRequeridosCompletados">
+          <div class="alert alert-warning mt-4" *ngIf="!fromAprobacion && !todosDocumentosRequeridosCompletados">
             <i class="fas fa-exclamation-triangle me-2"></i>
             <strong>Documentos pendientes:</strong>
             Debe subir todos los documentos requeridos (marcados con *) antes de guardar el contratista.
@@ -386,6 +410,7 @@
           </div>
         </div>
 
+        <!-- Footer del paso 3 -->
         <div class="section-footer d-flex justify-content-between">
           <button type="button" class="btn btn-outline-secondary px-4" (click)="pasoAnterior()">
             <i class="fas fa-arrow-left me-2"></i> Anterior
@@ -395,16 +420,18 @@
               <i class="fas fa-times me-2"></i> Cancelar
             </button>
             <button type="submit" class="btn btn-success px-4"
-              [disabled]="isSubmitting || !todosDocumentosRequeridosCompletados">
+              [disabled]="isSubmitting || (!fromAprobacion && !todosDocumentosRequeridosCompletados)">
               <span *ngIf="!isSubmitting">
-                <i class="fas fa-save me-2"></i> {{ isEditMode ? 'Actualizar' : 'Guardar' }} Contratista
+                <i class="fas fa-save me-2"></i>
+                {{ fromAprobacion ? 'Aprobar Formulario' : (isEditMode ? 'Actualizar' : 'Guardar') }} Contratista
               </span>
               <span *ngIf="isSubmitting">
-                <i class="fas fa-spinner fa-spin me-2"></i> Guardando...
+                <i class="fas fa-spinner fa-spin me-2"></i> Procesando...
               </span>
             </button>
           </div>
         </div>
+
       </div>
 
     </form>

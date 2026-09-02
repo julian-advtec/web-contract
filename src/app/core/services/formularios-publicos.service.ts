@@ -37,7 +37,7 @@ export class FormulariosPublicosService {
   fromAprobacion$: Observable<boolean> = this.fromAprobacionSubject.asObservable();
   formularioData$: Observable<FormularioAprobacionData | null> = this.formularioDataSubject.asObservable();
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   // ===============================
   // ✅ MÉTODOS DEL STATE DE APROBACIÓN
@@ -89,9 +89,7 @@ export class FormulariosPublicosService {
     return this.http.get(`${this.baseUrl}/${formularioId}/detalle-aprobacion`);
   }
 
-  aprobarFormulario(formularioId: string, observaciones?: string): Observable<any> {
-    return this.http.post(`${this.baseUrl}/${formularioId}/aprobar`, { observaciones });
-  }
+
 
   rechazarFormulario(formularioId: string, motivo: string): Observable<any> {
     return this.http.post(`${this.baseUrl}/${formularioId}/rechazar`, { motivo });
@@ -113,5 +111,10 @@ export class FormulariosPublicosService {
     });
   }
 
-  
+  /**
+ * ✅ Aprobar un formulario - Envía número de contrato como objeto
+ */
+  aprobarFormulario(formularioId: string, data?: { observaciones?: string; numeroContrato?: string }): Observable<any> {
+    return this.http.post(`${this.baseUrl}/${formularioId}/aprobar`, data || {});
+  }
 }
